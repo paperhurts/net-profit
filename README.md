@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Then open the URL Vite prints. The game lives under `/net-profit/`. Test at 390x780 portrait first.
+Then open http://localhost:4830/net-profit/ on this machine, or the Network URL Vite prints on a phone on the same Wi-Fi. Test at 390x780 portrait first.
 
 | Command | What it does |
 |---|---|
