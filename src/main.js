@@ -9,18 +9,13 @@ import { rgba, shade } from './core/color';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
+import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, TWY, TX, TY, WS } from './world/island';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
 const cv = $('sea'), ctx = cv.getContext('2d');
 
 /* ---------- tuning ---------- */
-const WS = 4800, IX = 2400, IY = 2400, IR = 210, PX0 = IX + IR - 30;
-const TX = IX - 80, TY = IY + 40, TWX = IX - 32, TWY = IY - 2;
-const DOCK = {x: PX0 + 165, y: IY, r: 125};
-const CRATE = {x: PX0 + 129, y: IY};
-const PIER = [[PX0,IY-17],[PX0+155,IY-17],[PX0+155,IY+17],[PX0,IY+17]];
-const PIER_BUMPS = [[PX0+45,IY],[PX0+80,IY],[PX0+115,IY],[PX0+142,IY]];
 const C = {
   abyss:'#1B6676', lagoon:'#2B8A99', mid:'#36A0A8', shallow:'#5BBFB5', shore:'#8ADBC6',
   sand:'#F2D79B', grass:'#7DBB6B', foam:'#F3FFFB', ink:'#12303A',
@@ -311,15 +306,6 @@ sndLabel(); hud(); hudWood(); hudPhase(); refreshShop(); drawOrder();
 
 /* ---------- game logic ---------- */
 function addText(x,y,z,txt,color,size=18,life=1.2){ texts.push({x,y,z,txt,color,size,age:0,life}); }
-function around(x,y,tx,ty,R){
-  const cx = IX-x, cy = IY-y, dc = Math.hypot(cx,cy); if (dc > R+160) return [tx,ty];
-  let dx = tx-x, dy = ty-y; const d = Math.hypot(dx,dy) || 1; dx /= d; dy /= d;
-  if (dx*cx + dy*cy <= 0 || d < dc-R) return [tx,ty];
-  const cross = dx*cy - dy*cx; if (Math.abs(cross) > R) return [tx,ty];
-  const sg = cross >= 0 ? 1 : -1;
-  return [x + sg*cy/dc*200 - cx/dc*40, y - sg*cx/dc*200 - cy/dc*40];
-}
-function pushOut(s,cx,cy,r){ const dx = s.x-cx, dy = s.y-cy, d = Math.hypot(dx,dy); if (d<r && d>0){ s.x = cx+dx/d*r; s.y = cy+dy/d*r; s.v *= .94; } }
 
 function catchFish(f,sc){
   f.alive = false; f.resp = T + 8 + Math.random()*9 + sc.sp*1.5; sc.alive--;
