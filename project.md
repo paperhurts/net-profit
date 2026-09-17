@@ -148,7 +148,8 @@ Vite + TypeScript (strict), no game framework. Keep the custom canvas renderer: 
 src/
   main.ts            boot, resize, loop
   core/              iso.ts  math.ts  rng.ts  color.ts
-  data/              species.ts  zones.ts  upgrades.ts  tiers.ts  stages.ts  paints.ts
+  data/              tuning.ts today, a verbatim move of every balance table; Phase 2
+                     splits it into species.ts zones.ts upgrades.ts tiers.ts stages.ts paints.ts
   state/             store.ts  save.ts (versioned, migrates netprofit.v1)
   input/             joystick.ts  keys.ts
   world/             daycycle.ts  schools.ts  island.ts  range.ts
@@ -176,7 +177,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 
 **Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source is set to GitHub Actions, so nothing deploys until `deploy.yml` reaches `main`; from then on the site is `dist/` only, which is the game and none of the docs.
 
-**Phase 1, parity port.** Move code into modules with no behaviour changes. Step 1 done 2026-09-17: the inline script became the ES module `src/main.js`, verbatim, and index.html loads it with `type="module"`. Safe because the prototype was already a strict-mode IIFE with no inline handlers or load-event dependence. Step 2 done 2026-09-17: the projection became `core/iso.ts`, pure and unit-tested, behind wrappers in main.js. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
+**Phase 1, parity port.** Move code into modules with no behaviour changes. Step 1 done 2026-09-17: the inline script became the ES module `src/main.js`, verbatim, and index.html loads it with `type="module"`. Safe because the prototype was already a strict-mode IIFE with no inline handlers or load-event dependence. Step 2 done 2026-09-17: the projection became `core/iso.ts`, pure and unit-tested, behind wrappers in main.js. Step 3 done 2026-09-17: every balance table moved to `data/tuning.ts`, and a unit test reads the tables in this document and checks the code against them. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
 
 **Phase 2, data-driven content.** Species, zones, upgrades, tiers, stages, paints become data with string ids. Save v2 with migration. Balance values live in one place.
 
