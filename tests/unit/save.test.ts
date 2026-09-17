@@ -51,6 +51,13 @@ describe('parseSave', () => {
     expect(s.build).toBe(3);
     expect(s.levSeen).toBe(true);
     expect(s.trip).toBeNull();
+    expect(s.keys).toBe('drive');
+  });
+
+  it('keeps the keyboard setting and falls back to drive for anything odd', () => {
+    expect(parseSave(JSON.stringify({ keys: 'point' }), bounds).keys).toBe('point');
+    expect(parseSave(JSON.stringify({ keys: 'drive' }), bounds).keys).toBe('drive');
+    expect(parseSave(JSON.stringify({ keys: 'sideways' }), bounds).keys).toBe('drive');
   });
 
   it('gives the defaults for nothing, garbage and non-objects', () => {
@@ -141,6 +148,7 @@ describe('serializeSave', () => {
   it('keeps a trip through the round trip', () => {
     const s = parseSave(legacy, bounds);
     s.trip = { x: 2000, y: 2100, h: 0.5, clock: 0.42, hold: new Array(12).fill(1) };
+    s.keys = 'point';
     expect(parseSave(serializeSave(s), bounds)).toEqual(s);
   });
 });

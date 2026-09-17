@@ -1,7 +1,9 @@
 /**
- * Keyboard steering, moved verbatim from the prototype script. WASD and the
- * arrows give a screen-space direction, normalised, so a diagonal is no faster
- * than a straight; the game turns it into a world heading with dirToWorld.
+ * Keyboard steering, two ways, chosen in the HUD and saved with the game:
+ * drive (A and D turn the hull, W is throttle, S brakes) or point (WASD and
+ * the arrows give a screen direction, eased so taps read like the stick).
+ * The owner picked drive and her kid picked point on 2026-09-17, so both
+ * stay. The joystick is the other input and is untouched by either.
  */
 
 export const STEER_KEYS = [
@@ -50,4 +52,39 @@ export function bindKeys(target: KeyTarget, keys: Keys, onInput: () => void): vo
   target.addEventListener('keyup', (e) => {
     keys.delete(e.key.toLowerCase());
   });
+}
+
+/** Drive mode: what the held keys ask of the boat. */
+export type KeyControls = { turn: number; throttle: number; brake: boolean };
+
+export function keyControls(keys: Keys): KeyControls {
+  let turn = 0;
+  if (keys.has('arrowleft') || keys.has('a')) turn -= 1;
+  if (keys.has('arrowright') || keys.has('d')) turn += 1;
+  const ahead = keys.has('arrowup') || keys.has('w');
+  const brake = keys.has('arrowdown') || keys.has('s');
+  return { turn, throttle: ahead && !brake ? 1 : 0, brake };
+}
+
+/** Point mode: the key vector eased over time, so taps read like a stick instead of a switch. */
+export type SmoothVector = { x: number; y: number };
+
+/** Seconds for the eased vector to cover most of the way to a new target. */
+export const SMOOTH_TAU = 0.15;
+
+/** Ease the held vector toward the target by one step, snapping to rest when released. */
+export function smoothVector(
+  s: SmoothVector,
+  ix: number,
+  iy: number,
+  dt: number,
+  tau = SMOOTH_TAU,
+): void {
+  const k = Math.min(1, dt / tau);
+  s.x += (ix - s.x) * k;
+  s.y += (iy - s.y) * k;
+  if (ix === 0 && iy === 0 && Math.hypot(s.x, s.y) < 0.02) {
+    s.x = 0;
+    s.y = 0;
+  }
 }
