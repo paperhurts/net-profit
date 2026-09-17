@@ -74,9 +74,11 @@ let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToas
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15};
+let savedTrip = null;
 try {
   const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
   if (s) { coins = s.coins|0; earned = s.earned|0; muted = !!s.muted;
+    if (s.trip && typeof s.trip === 'object') savedTrip = s.trip;
     for (const k in lv) lv[k] = Math.max(0, Math.min(MAXLV, (s.lv && s.lv[k])|0));
     paint = Math.max(0, Math.min(PAINTS.length-1, s.paint|0));
     levSeen = !!s.levSeen;
@@ -84,7 +86,9 @@ try {
     if (Array.isArray(s.log)) s.log.forEach((n,i) => { if (i < log.length) log[i] = n|0; });
     if (s.order && SPECIES[s.order.sp] && s.order.n > 0) order = {sp:s.order.sp|0, n:s.order.n|0, have:s.order.have|0, pay:s.order.pay|0}; }
 } catch (e) {}
-function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify({coins, earned, muted, lv, paint, log, order, wood, build, levSeen})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot()})); } catch (e) {} }
+// The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
+function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
 let T = 0, started = false, docked = false, sellT = 0, saleSum = 0, saleN = 0;
 let combo = 0, comboT = 0, shake = 0, wakeT = 0;
@@ -94,6 +98,15 @@ const net = {x:0, y:0, speed:0, torn:0};
 let Zbase = 1, sharkWarnT = 0;
 const pirate = {state:'away', timer:6, x:0, y:0, h:0, v:0, tx:0, ty:0, age:0, warned:0};
 const wakes = [], flies = [], texts = [];
+if (savedTrip){ // resume an interrupted trip before the camera and net are placed
+  const tx = +savedTrip.x, ty = +savedTrip.y;
+  if (Number.isFinite(tx) && Number.isFinite(ty)){ boat.x = Math.min(WS-160, Math.max(160, tx)); boat.y = Math.min(WS-160, Math.max(160, ty)); }
+  if (Number.isFinite(+savedTrip.h)) boat.h = +savedTrip.h;
+  if (Number.isFinite(+savedTrip.clock)) clock = Math.min(.999, Math.max(0, +savedTrip.clock));
+  if (Array.isArray(savedTrip.hold)){ savedTrip.hold.forEach((n,i) => { if (i < hold.length) hold[i] = Math.max(0, n|0); });
+    holdTotal = hold.reduce((a,b) => a+b, 0);
+    for (let sp = 0; holdTotal > HOLD[lv.hold] && sp < hold.length; sp++){ const k = Math.min(hold[sp], holdTotal - HOLD[lv.hold]); hold[sp] -= k; holdTotal -= k; } }
+}
 const cam = {x: boat.x, y: boat.y};
 
 /* ---------- view ---------- */
@@ -238,6 +251,8 @@ window.addEventListener('keydown', e => { const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){ keys.add(k); audio(); if (k.startsWith('arrow')) e.preventDefault(); } });
 window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => { keys.clear(); joy.on = false; });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+window.addEventListener('pagehide', () => save());
 
 /* ---------- HUD ---------- */
 const elCoins = $('coins'), elHoldTxt = $('holdTxt'), elHoldBar = $('holdBar'), elHoldPill = $('holdPill');
@@ -1126,12 +1141,13 @@ function draw(){
 }
 
 /* ---------- loop ---------- */
-let last = performance.now();
+let last = performance.now(), saveT = 0;
 function frame(now){
   const dt = Math.min(.05, Math.max(.001, (now-last)/1000)); last = now;
   update(dt); draw();
+  if (started){ saveT += dt; if (saveT >= 5){ saveT = 0; save(); } }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, set clock(v){clock=v;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
