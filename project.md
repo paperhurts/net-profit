@@ -239,5 +239,6 @@ Further:
 - Git Bash's tar cannot read zip files. `C:\Windows\System32\tar.exe` can.
 - A force-push does not start a GitHub Pages branch build, and with the Pages source set to GitHub Actions nothing deploys until a workflow exists on `main`.
 - Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
+- iOS ignores `user-scalable=no`, so a double-tap on any button zooms the page, and once zoomed the canvas's `touch-action: none` swallows the pinch that would zoom back out. `touch-action: manipulation` on the body kills double-tap zoom everywhere and leaves pinch alone. Found by the chief playtester buying an upgrade twice, fast.
 - Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
 - Eight-way keys on an isometric map point at a diagonal the boat is rarely facing, so the throttle penalty for turning is on almost all the time and the keyboard feels slower and twitchier than the stick. Put feels side by side behind a switch and let the players pick. Two players picked two different ones, and a setting was cheaper than a winner.
