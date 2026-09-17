@@ -14,7 +14,8 @@ import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
 import { steerBoat, steerBoatRelative } from './entities/boat';
-import { cues as sfx, setMuted, unlock as audio } from './audio/sfx';
+import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } from './audio/sfx';
+import { Ambience } from './audio/ambience';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -153,7 +154,8 @@ for (let i=0;i<22;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random(
 const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
 const pods = [0,1].map(i => ({x:IX + (i?-1:1)*900, y:IY + (i?700:-800), tx:IX, ty:IY, h:0, state:'roam', t:0, cool:0, side:1,
   d:[{ox:0,oy:0,p:0},{ox:-30,oy:26,p:2.1},{ox:-36,oy:-24,p:4.2}]}));
-let escorted = false, dolphinToastT = 0;
+let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
+let ambience = null; // built once the first gesture has unlocked audio
 const rare = {on:false, sp:10, x:0, y:0, tx:0, ty:0, t:0, ang:0};
 const LEV_N = 28, lev = {th:Math.random()*6.28, x:0, y:0, trail:[], rumbleT:0};
 function levPos(th){ const A = 2180, c = Math.cos(th), sn = Math.sin(th);
@@ -508,7 +510,7 @@ function updateBirdsAndDolphins(dt){
       if (started && !docked && p.cool <= 0 && db < 400 && boat.v > 60){
         p.state = 'escort'; p.t = 0; p.side = Math.random() < .5 ? -1 : 1;
         if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600); }
-        sfx.dolphins();
+        sfx.dolphins(); lastWhistleT = T;
       }
     } else {
       p.t += dt; tx = boat.x + c*45 - sn*p.side*75; ty = boat.y + sn*45 + c*p.side*75; sp = Math.max(150, boat.v*1.15 + 50);
@@ -533,6 +535,20 @@ function emitWake(s,k){
   if (wakes.length > 260) wakes.splice(0, wakes.length-260);
 }
 
+function updateAmbience(dt){
+  if (!ambience){ const ctx = getContext(); if (!ctx) return; ambience = new Ambience(ctx, ctx.destination); setCueListener(() => ambience.duck()); }
+  const toIsland = Math.hypot(boat.x-IX, boat.y-IY) - IR;
+  let toPier = Infinity; for (const b of PIER_BUMPS) toPier = Math.min(toPier, Math.hypot(boat.x-b[0], boat.y-b[1]) - 30);
+  const gulls = [];
+  boatGulls.forEach(g => { if (g.a > .5) gulls.push({dx: g.x-boat.x, dy: g.y-boat.y}); });
+  for (const sc of schools) if (sc.alive > 0 && onScreen(sc.cx, sc.cy, 0)) gulls.push({dx: sc.cx-boat.x, dy: sc.cy-boat.y});
+  ambience.update(dt, {
+    on: started && !muted, t: T, speedRatio: boat.v/SPEED[lv.engine], dockness: dockView, dark, phase,
+    shoreDist: Math.max(0, Math.min(toIsland, toPier)), gulls,
+    pods: pods.map(p => ({dx: p.x-boat.x, dy: p.y-boat.y, dist: Math.hypot(p.x-boat.x, p.y-boat.y), escort: p.state === 'escort'})),
+    sinceWhistle: T - lastWhistleT,
+  });
+}
 function update(dt){
   T += dt; updateClock(dt);
   /* input and boat: the stick points; the keys drive or point, by setting */
@@ -1041,10 +1057,10 @@ function draw(){
 let last = performance.now(), saveT = 0;
 function frame(now){
   const dt = Math.min(.05, Math.max(.001, (now-last)/1000)); last = now;
-  update(dt); draw();
+  update(dt); updateAmbience(dt); draw();
   if (started){ saveT += dt; if (saveT >= 5){ saveT = 0; save(); } }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
