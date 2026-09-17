@@ -30,7 +30,17 @@ Then open http://localhost:4830/net-profit/ on this machine, or the Network URL 
 - `index.html` is the game as it ships. It began as a copy of the prototype and is where the TypeScript port happens.
 - `legacy/net-profit.html` is the untouched prototype and the behavioural reference until the port reaches parity. Do not edit it.
 - `tests/smoke.spec.ts` drives the real game through the `window.__np` debug hook.
+- `.github/workflows/` has `ci.yml` (typecheck, lint, unit, smoke on every PR) and `deploy.yml` (Pages on merge to `main`).
+- Ports are pinned: dev on 4830, preview and the smoke test on 4831.
+
+## Testing on a phone
+
+```bash
+npm run dev -- --host
+```
+
+Open the Network URL Vite prints on the phone. A Tailscale hostname works too, since `*.ts.net` is allowed through Vite's host check. On Windows, reaching the dev server over the LAN needs an inbound firewall rule for TCP 4830 on the private profile.
 
 ## Deploying
 
-Pushes to `main` build and deploy to GitHub Pages via `.github/workflows/deploy.yml`. The repository Pages source must be set to **GitHub Actions**.
+Merging to `main` builds the game and deploys `dist/` to GitHub Pages via `.github/workflows/deploy.yml`. The repository Pages source is **GitHub Actions**, so nothing deploys from the branch itself, and only the game is served, none of the docs.
