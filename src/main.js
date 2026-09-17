@@ -3,7 +3,11 @@
 // then it is not linted or type-checked, and legacy/net-profit.html stays the
 // behavioural reference.
 import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from './core/iso';
-import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PIRATE_SPEED, PIRATE_UNLOCK, RANGE, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME, TIER_SCALE } from './data/tuning';
+import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
+import { angDiff, clamp, rng } from './core/math';
+import { rgba, shade } from './core/color';
+import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
+import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -85,22 +89,9 @@ const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)')
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
 /* ---------- helpers ---------- */
-function tier(){ return Math.min(5, Math.floor((lv.net+lv.hold+lv.engine)/3)); }
-function bk(){ return TIER_SCALE[tier()]; }
-function range(){ return RANGE[tier()]; }
-function rgba(hex,a){ return `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`; }
-function paintsUnlocked(t){ return Math.min(PAINTS.length, 2 + Math.ceil(t*1.6)); }
-const clamp = (v,a,b) => v<a?a:v>b?b:v;
-function angDiff(a,b){ let d = (a-b) % (Math.PI*2); if (d > Math.PI) d -= Math.PI*2; if (d < -Math.PI) d += Math.PI*2; return d; }
-function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed>>>15, 1|seed);
-  t = t + Math.imul(t ^ t>>>7, 61|t) ^ t; return ((t ^ t>>>14)>>>0)/4294967296; }; }
-const shadeCache = new Map();
-function shade(hex,f){
-  const key = hex + f.toFixed(2); let v = shadeCache.get(key); if (v) return v;
-  let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  if (f <= 1) { r*=f; g*=f; b*=f; } else { const m = f-1; r += (255-r)*m; g += (255-g)*m; b += (255-b)*m; }
-  v = `rgb(${r|0},${g|0},${b|0})`; shadeCache.set(key,v); return v;
-}
+function tier(){ return tierOf(lv); }
+function bk(){ return hullScale(tier()); }
+function range(){ return rangeOf(tier()); }
 function polyPath(pts,z){ ctx.beginPath(); for (let i=0;i<pts.length;i++){ const p = pts[i]; const x = px(p[0],p[1]), y = py(p[0],p[1],z); i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.closePath(); }
 function extrude(pts,z0,z1,side,top){
   const n = pts.length; let area = 0;
@@ -232,7 +223,7 @@ const EFFECT = {
 };
 function refreshShop(){
   elShop.querySelectorAll('.up').forEach(b => {
-    const k = b.dataset.k, l = lv[k], maxed = l >= MAXLV, cost = maxed ? 0 : COST[k][l], locked = !maxed && l >= Math.min(MAXLV, 2+build);
+    const k = b.dataset.k, l = lv[k], maxed = l >= MAXLV, cost = maxed ? 0 : COST[k][l], locked = !maxed && l >= levelCap(build);
     b.querySelector('.pips').innerHTML = [0,1,2,3,4,5].map(i => `<i class="${i<=l?'on':''}"></i>`).join('');
     b.querySelector('small').textContent = maxed ? EFFECT[k](l) : EFFECT[k](l+1);
     b.querySelector('.buy').textContent = maxed ? 'Maxed out' : locked ? 'Build to unlock' : `Buy for ${cost}`;
@@ -249,7 +240,6 @@ function refreshShop(){
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
 const LOG_SVG = '<svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true"><rect x="1" y="2" width="18" height="8" rx="4" fill="#A9773F" stroke="#5E3D1C" stroke-width="1.5"/><circle cx="15.5" cy="6" r="1.8" fill="#E6B877"/></svg>';
-const PHASE_C = {Dawn:'#FFB36B', Day:'#FFD24A', Dusk:'#E58CFF', Night:'#AFC0FF'};
 function hudPhase(){ $('phase').innerHTML = `<i style="background:${PHASE_C[phase]}"></i><span>${phase}</span>`; }
 function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>'; }
 function refreshBuild(){
@@ -277,7 +267,7 @@ function newOrder(){
 elShop.addEventListener('click', e => {
   const b = e.target.closest('.up'); if (!b) return; audio();
   const k = b.dataset.k, l = lv[k]; if (l >= MAXLV) return;
-  if (l >= Math.min(MAXLV, 2+build)){ tone(180,.12,'square',.05); toast(`Build the ${STAGES[build].name} to unlock the next level.`, 2400); return; }
+  if (l >= levelCap(build)){ tone(180,.12,'square',.05); toast(`Build the ${STAGES[build].name} to unlock the next level.`, 2400); return; }
   const t0 = tier();
   const cost = COST[k][l];
   if (coins < cost){ tone(180,.12,'square',.05); toast(`You need ${cost - coins} more coins.`, 1600); return; }
@@ -475,12 +465,8 @@ function updateFlotsam(){
   }
 }
 function updateClock(dt){
-  if (started) clock = (clock + dt/DAY_LEN) % 1;
-  const sm = k => k*k*(3-2*k);
-  if (clock < .12){ phase = 'Dawn'; const k = clock/.12; dark = 1-sm(k); warm = Math.sin(Math.PI*k); }
-  else if (clock < .55){ phase = 'Day'; dark = 0; warm = 0; }
-  else if (clock < .67){ phase = 'Dusk'; const k = (clock-.55)/.12; dark = sm(k); warm = Math.sin(Math.PI*k); }
-  else { phase = 'Night'; dark = 1; warm = 0; }
+  if (started) clock = advanceClock(clock, dt, DAY_LEN);
+  { const d = dayState(clock); phase = d.phase; dark = d.dark; warm = d.warm; }
   if (phase !== lastPhase){ lastPhase = phase; hudPhase();
     if (phase === 'Dawn'){ spawnRare(10); toast('Dawn. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Dusk'){ spawnRare(11); toast('Dusk. Something is sparkling out on the water.', 3200); }
