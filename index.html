@@ -220,8 +220,8 @@ const STAGES = [
   {name:'tree platform', wood:8,   coins:0},
   {name:'treehouse',     wood:20,  coins:0},
   {name:'second storey', wood:40,  coins:100},
-  {name:'watchtower',    wood:70,  coins:250},
-  {name:'palace dome',   wood:120, coins:600}
+  {name:'watchtower',    wood:70,  coins:1200},
+  {name:'palace dome',   wood:120, coins:3500}
 ];
 const TIER_NAME  = ['dinghy','skiff','cutter','trawler','seiner','flagship'];
 const TIER_SCALE = [1, 1.1, 1.2, 1.32, 1.45, 1.6];
@@ -731,10 +731,10 @@ function updateLeviathan(dt){
 function updateDrift(){
   const nr = NETW[lv.net]*.5 + 12, br = 30*bk();
   for (const f of drift){
-    if (!f.alive){ if (T >= f.resp){ placeFlotsam(f); f.alive = true; } continue; }
+    if (!f.alive){ if (T >= f.resp){ placeFlotsam(f, .65); f.alive = true; } continue; }
     if (!started) continue;
     if (Math.hypot(f.x-net.x, f.y-net.y) < nr || Math.hypot(f.x-boat.x, f.y-boat.y) < br){
-      const n = 1 + Math.floor(Math.random()*3) + Math.floor(tier()/2);
+      const n = 1 + Math.floor(Math.random()*3) + tier();
       wood += n; f.alive = false; f.resp = T + 18 + Math.random()*22;
       addText(f.x, f.y, 24, 'Driftwood +' + n, '#F0C58A', 18, 1.5);
       tone(233,.07,'square',.05); tone(349,.1,'square',.05,0,.07); hudWood(); save();

@@ -48,7 +48,7 @@ All of this is implemented and smoke-tested in the prototype.
 - Boat tier = `floor((net + hold + engine levels) / 3)`, 0–5: dinghy, skiff, cutter, trawler, seiner, flagship. Each tier scales the hull, adds detail (wider cabin → second deck → stern crane), zooms the camera out 2%, unlocks paint, and raises the sailing range.
 - Range per tier is a dashed ring; beyond it the boat is pushed back with a toast.
 - Upgrade level cap = `min(5, 2 + buildStage)`. The base gates the boat.
-- Driftwood (22 logs, 65% spawn inside current range) builds the treehouse palace in five stages. Each stage adds 15% to all sale prices. The dock camera zooms out to frame the island once the boat settles.
+- Driftwood (22 logs, 65% spawn inside current range, and respawn 18–40 s after pickup with the same bias) builds the treehouse palace in five stages. Each stage adds 15% to all sale prices. The dock camera zooms out to frame the island once the boat settles.
 - Orders: "12 mackerel pays 40". Filling one pays a bonus and rolls a new one, restricted to species inside your range. The gold edge arrow points to the nearest school of the order species.
 - Salvage crates (10) give instant coins, scaled by tier.
 - Catch log chips in the shop; rares get a gold ring; leviathan sighting is logged.
@@ -98,12 +98,14 @@ Units are world units (u). The starter boat is ~62 u long.
 | 1 | tree platform | 8 | 0 | +15% prices, upgrade cap → 4 |
 | 2 | treehouse | 20 | 0 | +30%, cap → 5 |
 | 3 | second storey | 40 | 100 | +45%, cap → 6 |
-| 4 | watchtower | 70 | 250 | +60% |
-| 5 | palace dome | 120 | 600 | +75% |
+| 4 | watchtower | 70 | 1,200 | +60% |
+| 5 | palace dome | 120 | 3,500 | +75% |
 
-Other constants: pirate speed 188, pirate unlock 60 lifetime coins, shark charge speed 235, shark orbit speed 95, dolphin escort speed `max(150, boat·1.15 + 50)`, rare swim speed 58, driftwood yield `1–3 + floor(tier/2)`, salvage `[5,8,10,15,20,35] × (1 + floor(tier/2))`.
+Other constants: pirate speed 188, pirate unlock 60 lifetime coins, shark charge speed 235, shark orbit speed 95, dolphin escort speed `max(150, boat·1.15 + 50)`, rare swim speed 58, driftwood yield `1–3 + tier`, salvage `[5,8,10,15,20,35] × (1 + floor(tier/2))`.
 
-**Balance status: mostly untested by humans.** The owner has played the first tiers. She asked for faster early upgrades once (costs were roughly halved). Everything past cutter is numbers I picked to look sensible. Expect to retune.
+**Balance status: lightly tested.** The owner has played to flagship. She asked for faster early upgrades once (costs were roughly halved). Everything past cutter is numbers picked to look sensible. Expect to retune.
+
+Retuned 2026-09-16 after the owner reached flagship with 3,600 idle coins and 20 of 70 driftwood. Driftwood yield now scales with the full tier (was half of it) and respawns favour the current range, because the spawn disc grows almost six times in area from dinghy to flagship while the same 22 logs had to cover it, which left wood per minute at the top at about 40% of a dinghy's. The watchtower and dome now cost 1,200 and 3,500 coins (were 250 and 600) so coins still matter once upgrades are maxed; a flagship docking pays about 1,000. Where these tables and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
 
 ## How the prototype is built
 
@@ -132,7 +134,7 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 - Pier depth-sort hack. Tall palace pieces can overlap the hut at some camera positions.
 - Fish heading is derived from frame-to-frame position delta; schools that come on screen snap for a frame.
 - Leviathan path speed is non-uniform (squircle parameterisation).
-- No pause, no tab-visibility handling beyond clamping dt to 50 ms.
+- No pause, no tab-visibility handling beyond clamping dt to 50 ms. On a phone the browser discards a backgrounded tab, and because the hold and clock are not saved the whole trip is lost (the owner, 2026-09-16). Save hold, clock and position on visibilitychange.
 - Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (the owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
 - Dead code: `isDark`, `mq` (night used to follow the OS theme).
 - The palace is small. It reads as a treehouse wearing a hat. It deserves its own art pass.
