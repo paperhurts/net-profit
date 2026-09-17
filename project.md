@@ -98,14 +98,14 @@ Units are world units (u). The starter boat is ~62 u long.
 | 1 | tree platform | 8 | 0 | +15% prices, upgrade cap → 4 |
 | 2 | treehouse | 20 | 0 | +30%, cap → 5 |
 | 3 | second storey | 40 | 100 | +45%, cap → 6 |
-| 4 | watchtower | 70 | 4,000 | +60% |
-| 5 | palace dome | 120 | 12,000 | +75% |
+| 4 | watchtower | 70 | 2,000 | +60% |
+| 5 | palace dome | 120 | 5,000 | +75% |
 
 Other constants: pirate speed 188, pirate unlock 60 lifetime coins, shark charge speed 235, shark orbit speed 95, dolphin escort speed `max(150, boat·1.15 + 50)`, rare swim speed 58, driftwood yield `1–3 + tier`, salvage `[5,8,10,15,20,35] × (1 + floor(tier/2))`.
 
 **Balance status: lightly tested.** The owner has played to flagship. She asked for faster early upgrades once (costs were roughly halved). Everything past cutter is numbers picked to look sensible. Expect to retune.
 
-Retuned 2026-09-16 after the owner reached flagship with 3,600 idle coins and 20 of 70 driftwood. Driftwood yield now scales with the full tier (was half of it) and respawns favour the current range, because the spawn disc grows almost six times in area from dinghy to flagship while the same 22 logs had to cover it, which left wood per minute at the top at about 40% of a dinghy's. The watchtower and dome now cost 4,000 and 12,000 coins (were 250 and 600). A first pass at 1,200 and 3,500 was banked before the wood was, since a flagship docking pays one to two thousand; at these prices the sweep gates the finish. A carpenter selling wood for coins was considered and rejected: at flagship income it would make driftwood optional exactly when the map is biggest. Where these tables and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
+Retuned 2026-09-16 after the owner reached flagship with 3,600 idle coins and 20 of 70 driftwood. Driftwood yield now scales with the full tier (was half of it) and respawns favour the current range, because the spawn disc grows almost six times in area from dinghy to flagship while the same 22 logs had to cover it, which left wood per minute at the top at about 40% of a dinghy's. The watchtower and dome cost 2,000 and 5,000 coins (were 250 and 600). A first pass at 1,200 and 3,500 was banked before the wood was; a second at 4,000 and 12,000 assumed a flagship docking pays one to two thousand, which one big lanternfish sale had suggested. Measured over ten minutes of real play at stage 4 on 2026-09-17 (screenshots 18:12 and 18:22), casual income near the island is about 115 coins a minute, so the dome was a hundred-minute grind. At 2,000 and 5,000 the stages are roughly eighteen and twenty-seven minutes of casual play, or a few good trips to the goldfin and lanternfish rings. A carpenter selling wood for coins was considered and rejected: at flagship income it would make driftwood optional exactly when the map is biggest. Where these tables and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
 
 ## How the prototype is built
 
@@ -242,4 +242,5 @@ Further:
 - Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
 - iOS ignores `user-scalable=no`, so a double-tap on any button zooms the page, and once zoomed the canvas's `touch-action: none` swallows the pinch that would zoom back out. `touch-action: manipulation` on the body kills double-tap zoom everywhere and leaves pinch alone. Found by the chief playtester buying an upgrade twice, fast.
 - Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
+- Price nothing off a single big docking. Take two screenshots ten minutes apart of the owner actually playing and divide; that number was a tenth of the burst.
 - Eight-way keys on an isometric map point at a diagonal the boat is rarely facing, so the throttle penalty for turning is on almost all the time and the keyboard feels slower and twitchier than the stick. Put feels side by side behind a switch and let the players pick. Two players picked two different ones, and a setting was cheaper than a winner.

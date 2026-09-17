@@ -150,8 +150,8 @@ export const STAGES: readonly Stage[] = [
   { name: 'tree platform', wood: 8, coins: 0 },
   { name: 'treehouse', wood: 20, coins: 0 },
   { name: 'second storey', wood: 40, coins: 100 },
-  { name: 'watchtower', wood: 70, coins: 4000 },
-  { name: 'palace dome', wood: 120, coins: 12000 },
+  { name: 'watchtower', wood: 70, coins: 2000 },
+  { name: 'palace dome', wood: 120, coins: 5000 },
 ];
 
 export const TIER_NAME = ['dinghy', 'skiff', 'cutter', 'trawler', 'seiner', 'flagship'] as const;
