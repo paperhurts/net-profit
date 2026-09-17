@@ -194,6 +194,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 - Balance probes beat playing to flagship: drive the game in headless Chromium through `window.__np`, exactly as the driftwood retune was checked.
 - CI runs typecheck, lint, unit and smoke on every PR. Merging to `main` builds `dist/` and deploys it to GitHub Pages. Only the game ships; none of the docs are served.
 - Where the tuning tables above and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
+- Keyboard feel is under evaluation. `?steer=relative` gives A and D turn, W throttle, S brake; `?steer=smooth` eases the eight-way vector over 150 ms; no parameter is the prototype's behaviour. The mouse joystick is untouched in every mode. Whichever wins becomes the default and the switch goes.
 - The people in this doc are "the owner" and "her kid" on purpose. No real names or personal email anywhere in the repo, commits or PRs; the repo commits as the GitHub noreply address.
 
 ## Roadmap (ideas discussed, none built)

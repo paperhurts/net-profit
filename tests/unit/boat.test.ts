@@ -3,7 +3,7 @@ import legacy from '../../legacy/net-profit.html?raw';
 import { dirToWorld } from '../../src/core/iso';
 import { angDiff, clamp, rng } from '../../src/core/math';
 import { SPEED } from '../../src/data/tuning';
-import { type Boat, MIN_THROTTLE, steerBoat } from '../../src/entities/boat';
+import { type Boat, MIN_THROTTLE, steerBoat, steerBoatRelative } from '../../src/entities/boat';
 
 const maxV = SPEED[0];
 const dt = 1 / 60;
@@ -109,5 +109,33 @@ describe('steerBoat', () => {
       expect(a.x).toBe(b.x);
       expect(a.y).toBe(b.y);
     }
+  });
+});
+
+describe('steerBoatRelative (relative candidate)', () => {
+  it('spins the hull at the turn rate while a turn key is held', () => {
+    const boat: Boat = { x: 0, y: 0, h: 1, v: 0 };
+    steerBoatRelative(boat, 1, 0, false, maxV, dt);
+    expect(boat.h).toBeCloseTo(1 + (2.6 + 1.2) * dt);
+    steerBoatRelative(boat, -1, 0, false, maxV, dt);
+    expect(boat.h).toBeCloseTo(1);
+  });
+
+  it('runs up to top speed on the throttle and holds its heading', () => {
+    const boat: Boat = { x: 0, y: 0, h: 0.3, v: 0 };
+    for (let i = 0; i < 600; i++) steerBoatRelative(boat, 0, 1, false, maxV, dt);
+    expect(boat.v).toBeCloseTo(maxV, 0);
+    expect(boat.h).toBe(0.3);
+  });
+
+  it('brakes harder than it coasts', () => {
+    const coasting: Boat = { x: 0, y: 0, h: 0, v: maxV };
+    const braking: Boat = { x: 0, y: 0, h: 0, v: maxV };
+    for (let i = 0; i < 30; i++) {
+      steerBoatRelative(coasting, 0, 0, false, maxV, dt);
+      steerBoatRelative(braking, 0, 0, true, maxV, dt);
+    }
+    expect(braking.v).toBeLessThan(coasting.v);
+    expect(braking.v).toBeGreaterThanOrEqual(0);
   });
 });

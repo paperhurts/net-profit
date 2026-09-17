@@ -12,8 +12,8 @@ import { parseSave, SAVE_KEY, serializeSave } from './state/save';
 import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, createJoystick, JR, joystickVector } from './input/joystick';
-import { bindKeys, keyVector } from './input/keys';
-import { steerBoat } from './entities/boat';
+import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
+import { steerBoat, steerBoatRelative } from './entities/boat';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -179,6 +179,11 @@ resetNet();
 /* ---------- input ---------- */
 const joy = createJoystick();
 const keys = new Set();
+// Keyboard feel under evaluation: ?steer=relative (A/D turn, W throttle, S brake) or
+// ?steer=smooth (eased eight-way). Anything else is the prototype's behaviour.
+const steerMode = new URLSearchParams(location.search).get('steer') === 'relative' ? 'relative'
+  : new URLSearchParams(location.search).get('steer') === 'smooth' ? 'smooth' : 'absolute';
+const keySmooth = {x:0, y:0};
 bindJoystick(cv, joy, audio);
 bindKeys(window, keys, audio);
 window.addEventListener('blur', () => { keys.clear(); joy.on = false; });
@@ -299,6 +304,8 @@ elRst.addEventListener('click', () => {
 });
 $('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); tone(392,.12,'triangle',.1); tone(587,.2,'triangle',.1,0,.1); });
 sndLabel(); hud(); hudWood(); hudPhase(); refreshShop(); drawOrder();
+if (steerMode === 'relative') toast('Keyboard steering: relative. A and D turn, W throttle, S brake.', 5000);
+else if (steerMode === 'smooth') toast('Keyboard steering: smoothed eight-way.', 5000);
 
 /* ---------- game logic ---------- */
 function addText(x,y,z,txt,color,size=18,life=1.2){ texts.push({x,y,z,txt,color,size,age:0,life}); }
@@ -537,13 +544,19 @@ function emitWake(s,k){
 
 function update(dt){
   T += dt; updateClock(dt);
-  /* input */
-  let ix = 0, iy = 0;
-  if (started){
-    const v = joy.on ? joystickVector(joy) : keyVector(keys); ix = v[0]; iy = v[1];
+  /* input and boat */
+  if (started && !joy.on && steerMode === 'relative'){
+    const c = keyControls(keys); steerBoatRelative(boat, c.turn, c.throttle, c.brake, SPEED[lv.engine], dt);
+  } else {
+    let ix = 0, iy = 0;
+    if (started){
+      if (joy.on){ const v = joystickVector(joy); ix = v[0]; iy = v[1]; }
+      else { const v = keyVector(keys);
+        if (steerMode === 'smooth'){ smoothVector(keySmooth, v[0], v[1], dt); ix = keySmooth.x; iy = keySmooth.y; }
+        else { ix = v[0]; iy = v[1]; } }
+    }
+    steerBoat(boat, ix, iy, SPEED[lv.engine], dt);
   }
-  /* boat */
-  steerBoat(boat, ix, iy, SPEED[lv.engine], dt);
   const k = bk();
   pushOut(boat, IX, IY, IR+24*k);
   for (const b of PIER_BUMPS) pushOut(boat, b[0], b[1], 20+20*k);

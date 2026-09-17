@@ -51,3 +51,40 @@ export function bindKeys(target: KeyTarget, keys: Keys, onInput: () => void): vo
     keys.delete(e.key.toLowerCase());
   });
 }
+
+/* ---- Candidate keyboard feels, behind the ?steer= switch until one wins ---- */
+
+/** Relative controls: A and D turn the hull, W is throttle, S brakes. */
+export type KeyControls = { turn: number; throttle: number; brake: boolean };
+
+export function keyControls(keys: Keys): KeyControls {
+  let turn = 0;
+  if (keys.has('arrowleft') || keys.has('a')) turn -= 1;
+  if (keys.has('arrowright') || keys.has('d')) turn += 1;
+  const ahead = keys.has('arrowup') || keys.has('w');
+  const brake = keys.has('arrowdown') || keys.has('s');
+  return { turn, throttle: ahead && !brake ? 1 : 0, brake };
+}
+
+/** A key vector eased over time, so taps read like a stick instead of a switch. */
+export type SmoothVector = { x: number; y: number };
+
+/** Seconds for the eased vector to cover most of the way to a new target. */
+export const SMOOTH_TAU = 0.15;
+
+/** Ease the held vector toward the target by one step, snapping to rest when released. */
+export function smoothVector(
+  s: SmoothVector,
+  ix: number,
+  iy: number,
+  dt: number,
+  tau = SMOOTH_TAU,
+): void {
+  const k = Math.min(1, dt / tau);
+  s.x += (ix - s.x) * k;
+  s.y += (iy - s.y) * k;
+  if (ix === 0 && iy === 0 && Math.hypot(s.x, s.y) < 0.02) {
+    s.x = 0;
+    s.y = 0;
+  }
+}

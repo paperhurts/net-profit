@@ -39,3 +39,31 @@ export function steerBoat(boat: Boat, ix: number, iy: number, maxV: number, dt: 
   boat.x += Math.cos(boat.h) * boat.v * dt;
   boat.y += Math.sin(boat.h) * boat.v * dt;
 }
+
+/* ---- Candidate keyboard feel, behind the ?steer= switch until it wins or goes ---- */
+
+/** How quickly speed bleeds while braking; twice the plain coast. */
+export const BRAKE = 2.6;
+
+/**
+ * Relative steering: turn is -1..1 and spins the hull at the turn rate,
+ * throttle is 0..1 of top speed, brake bleeds speed faster than coasting.
+ * The same turn rate, easing and move as steerBoat, so only the mapping from
+ * keys to intent changes.
+ */
+export function steerBoatRelative(
+  boat: Boat,
+  turn: number,
+  throttle: number,
+  brake: boolean,
+  maxV: number,
+  dt: number,
+): void {
+  const rate = (TURN_BASE + TURN_SLOW_BONUS * (1 - boat.v / maxV)) * dt;
+  boat.h += clamp(turn, -1, 1) * rate;
+  const targetV = maxV * clamp(throttle, 0, 1);
+  const ease = targetV > boat.v ? ACCEL : brake ? BRAKE : DECEL;
+  boat.v += (targetV - boat.v) * Math.min(1, dt * ease);
+  boat.x += Math.cos(boat.h) * boat.v * dt;
+  boat.y += Math.sin(boat.h) * boat.v * dt;
+}

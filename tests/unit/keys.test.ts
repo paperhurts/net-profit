@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { bindKeys, type KeyLike, type KeyTarget, keyVector } from '../../src/input/keys';
+import {
+  bindKeys,
+  type KeyLike,
+  type KeyTarget,
+  keyControls,
+  keyVector,
+  SMOOTH_TAU,
+  smoothVector,
+} from '../../src/input/keys';
 
 const H = Math.SQRT1_2;
 
@@ -70,5 +78,41 @@ describe('bindKeys', () => {
     expect(target.fire('keydown', 'ArrowDown').prevented).toBe(true);
     expect(target.fire('keydown', 'd').prevented).toBe(false);
     expect(target.fire('keydown', 'x').prevented).toBe(false);
+  });
+});
+
+describe('keyControls (relative candidate)', () => {
+  it('turns with A and D, throttles with W, brakes with S', () => {
+    expect(keyControls(new Set(['a']))).toEqual({ turn: -1, throttle: 0, brake: false });
+    expect(keyControls(new Set(['d']))).toEqual({ turn: 1, throttle: 0, brake: false });
+    expect(keyControls(new Set(['a', 'd']))).toEqual({ turn: 0, throttle: 0, brake: false });
+    expect(keyControls(new Set(['w']))).toEqual({ turn: 0, throttle: 1, brake: false });
+    expect(keyControls(new Set(['w', 's']))).toEqual({ turn: 0, throttle: 0, brake: true });
+    expect(keyControls(new Set(['arrowup', 'arrowright']))).toEqual({
+      turn: 1,
+      throttle: 1,
+      brake: false,
+    });
+    expect(keyControls(new Set())).toEqual({ turn: 0, throttle: 0, brake: false });
+  });
+});
+
+describe('smoothVector (smoothed candidate)', () => {
+  it('eases toward the target over about tau seconds and settles', () => {
+    const s = { x: 0, y: 0 };
+    for (let t = 0; t < SMOOTH_TAU; t += 1 / 60) smoothVector(s, 1, 0, 1 / 60);
+    expect(s.x).toBeGreaterThan(0.55);
+    expect(s.x).toBeLessThan(0.75);
+    for (let i = 0; i < 120; i++) smoothVector(s, 1, 0, 1 / 60);
+    expect(s.x).toBeCloseTo(1, 2);
+  });
+
+  it('turns through the middle when the key flips, and snaps to rest when released', () => {
+    const s = { x: 1, y: 0 };
+    smoothVector(s, -1, 0, 1 / 60);
+    expect(s.x).toBeLessThan(1);
+    expect(s.x).toBeGreaterThan(-1);
+    for (let i = 0; i < 120; i++) smoothVector(s, 0, 0, 1 / 60);
+    expect(s).toEqual({ x: 0, y: 0 });
   });
 });
