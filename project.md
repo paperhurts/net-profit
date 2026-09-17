@@ -54,7 +54,7 @@ All of this is implemented and smoke-tested in the prototype.
 - Catch log chips in the shop; rares get a gold ring; leviathan sighting is logged.
 - Ten hull paints; net floats and palace flags match the hull.
 
-**Persistence**: `localStorage["netprofit.v1"]` = `{coins, earned, muted, lv:{net,hold,engine}, paint, log[], order, wood, build, levSeen}`. Hold contents, clock and entity state are not saved.
+**Persistence**: `localStorage["netprofit.v1"]` = `{coins, earned, muted, lv:{net,hold,engine}, paint, log[], order, wood, build, levSeen, trip}`. `trip` is `{x, y, h, clock, hold[]}`: the boat's position and heading, the time of day and the hold. It is written on every save, when the tab is hidden, on pagehide and every five seconds while sailing, and restored on load, so a phone that discards the tab does not lose the haul (added 2026-09-17; legacy does not have it, and old saves without it load unchanged). Entity state is not saved.
 
 ## Tuning tables (as shipped in the prototype)
 
@@ -134,7 +134,7 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 - Pier depth-sort hack. Tall palace pieces can overlap the hut at some camera positions.
 - Fish heading is derived from frame-to-frame position delta; schools that come on screen snap for a frame.
 - Leviathan path speed is non-uniform (squircle parameterisation).
-- No pause, no tab-visibility handling beyond clamping dt to 50 ms. On a phone the browser discards a backgrounded tab, and because the hold and clock are not saved the whole trip is lost (owner, 2026-09-16). Save hold, clock and position on visibilitychange.
+- No pause beyond clamping dt to 50 ms. The trip survives a discarded tab (see Persistence); entities do not, so schools, sharks and the pirate reset on reload.
 - Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
 - Dead code: `isDark`, `mq` (night used to follow the OS theme).
 - The palace is small. It reads as a treehouse wearing a hat. It deserves its own art pass.

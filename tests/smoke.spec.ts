@@ -13,7 +13,7 @@ import { type BrowserContext, expect, type Page, test } from '@playwright/test';
 
 /** The slice of window.__np the smoke test touches. */
 type Np = {
-  boat: { x: number; y: number };
+  boat: { x: number; y: number; v: number };
   schools: { cx: number; cy: number }[];
   DOCK: { x: number; y: number };
   rare: { on: boolean };
@@ -43,7 +43,8 @@ async function boot(context: BrowserContext, page: Page, save: Record<string, un
   page.on('pageerror', (e) => errors.push(String(e)));
   await context.addInitScript((s: string) => {
     try {
-      localStorage.setItem('netprofit.v1', s);
+      // Seed once; a reload inside a test must keep what the game saved.
+      if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
     } catch {
       // Storage can be unavailable in some contexts; the game copes.
     }
@@ -148,5 +149,56 @@ test('day cycle: dawn spawns a rare, night follows', async ({ context, page }) =
   });
   await page.waitForTimeout(600);
   expect(await page.evaluate(() => window.__np.phase)).toBe('Night');
+  expect(errors).toEqual([]);
+});
+
+test('trip: hold, position and clock survive the tab being discarded', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true });
+  const [sx, sy] = await page.evaluate((): [number, number] => {
+    const s = window.__np.schools[0];
+    if (!s) throw new Error('no schools');
+    return [s.cx, s.cy];
+  });
+
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  let hold = 0;
+  for (let i = 0; i < 80 && hold < 6; i++) {
+    await steerTo(page, sx, sy, 40, i);
+    await page.waitForTimeout(150);
+    hold = await page.evaluate(() => window.__np.hold);
+  }
+  await page.mouse.up();
+  expect(hold, 'hold never filled').toBeGreaterThanOrEqual(6);
+  // Let the boat coast to a stop so the net cannot catch anything more.
+  await page.waitForFunction(() => window.__np.boat.v < 1);
+  await page.evaluate(() => {
+    window.__np.clock = 0.42;
+  });
+
+  // What a phone does right before it discards the tab.
+  const before = await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { get: () => 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    return { x: window.__np.boat.x, y: window.__np.boat.y, hold: window.__np.hold };
+  });
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  await page.waitForTimeout(300);
+
+  const after = await page.evaluate(() => ({
+    x: window.__np.boat.x,
+    y: window.__np.boat.y,
+    hold: window.__np.hold,
+    clock: window.__np.clock,
+  }));
+  expect(after.hold, 'hold was lost').toBe(before.hold);
+  expect(Math.hypot(after.x - before.x, after.y - before.y), 'boat moved').toBeLessThan(40);
+  expect(after.clock, 'clock was lost').toBeGreaterThan(0.41);
+  expect(after.clock).toBeLessThan(0.45);
   expect(errors).toEqual([]);
 });
