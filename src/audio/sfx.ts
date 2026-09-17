@@ -35,8 +35,21 @@ export function isMuted(): boolean {
   return muted;
 }
 
+/** The context, once unlock() has created it; the ambience bus hangs off it. */
+export function getContext(): AudioContext | null {
+  return ac;
+}
+
+let onCue: (() => void) | null = null;
+
+/** Called every time a cue actually plays, so ambience can duck under it. */
+export function setCueListener(fn: (() => void) | null): void {
+  onCue = fn;
+}
+
 function play(f: number, d: number, type: Wave, vol: number, slide: number, delay: number): void {
   if (!ac || muted) return;
+  onCue?.();
   try {
     const t = ac.currentTime + delay;
     const o = ac.createOscillator();
