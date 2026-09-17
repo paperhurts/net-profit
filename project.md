@@ -98,14 +98,14 @@ Units are world units (u). The starter boat is ~62 u long.
 | 1 | tree platform | 8 | 0 | +15% prices, upgrade cap → 4 |
 | 2 | treehouse | 20 | 0 | +30%, cap → 5 |
 | 3 | second storey | 40 | 100 | +45%, cap → 6 |
-| 4 | watchtower | 70 | 1,200 | +60% |
-| 5 | palace dome | 120 | 3,500 | +75% |
+| 4 | watchtower | 70 | 4,000 | +60% |
+| 5 | palace dome | 120 | 12,000 | +75% |
 
 Other constants: pirate speed 188, pirate unlock 60 lifetime coins, shark charge speed 235, shark orbit speed 95, dolphin escort speed `max(150, boat·1.15 + 50)`, rare swim speed 58, driftwood yield `1–3 + tier`, salvage `[5,8,10,15,20,35] × (1 + floor(tier/2))`.
 
 **Balance status: lightly tested.** The owner has played to flagship. She asked for faster early upgrades once (costs were roughly halved). Everything past cutter is numbers picked to look sensible. Expect to retune.
 
-Retuned 2026-09-16 after the owner reached flagship with 3,600 idle coins and 20 of 70 driftwood. Driftwood yield now scales with the full tier (was half of it) and respawns favour the current range, because the spawn disc grows almost six times in area from dinghy to flagship while the same 22 logs had to cover it, which left wood per minute at the top at about 40% of a dinghy's. The watchtower and dome now cost 1,200 and 3,500 coins (were 250 and 600) so coins still matter once upgrades are maxed; a flagship docking pays about 1,000. Where these tables and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
+Retuned 2026-09-16 after the owner reached flagship with 3,600 idle coins and 20 of 70 driftwood. Driftwood yield now scales with the full tier (was half of it) and respawns favour the current range, because the spawn disc grows almost six times in area from dinghy to flagship while the same 22 logs had to cover it, which left wood per minute at the top at about 40% of a dinghy's. The watchtower and dome now cost 4,000 and 12,000 coins (were 250 and 600). A first pass at 1,200 and 3,500 was banked before the wood was, since a flagship docking pays one to two thousand; at these prices the sweep gates the finish. A carpenter selling wood for coins was considered and rejected: at flagship income it would make driftwood optional exactly when the map is biggest. Where these tables and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
 
 ## How the prototype is built
 
@@ -134,8 +134,8 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 - Pier depth-sort hack. Tall palace pieces can overlap the hut at some camera positions.
 - Fish heading is derived from frame-to-frame position delta; schools that come on screen snap for a frame.
 - Leviathan path speed is non-uniform (squircle parameterisation).
-- No pause, no tab-visibility handling beyond clamping dt to 50 ms. On a phone the browser discards a backgrounded tab, and because the hold and clock are not saved the whole trip is lost (the owner, 2026-09-16). Save hold, clock and position on visibilitychange.
-- Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (the owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
+- No pause, no tab-visibility handling beyond clamping dt to 50 ms. On a phone the browser discards a backgrounded tab, and because the hold and clock are not saved the whole trip is lost (owner, 2026-09-16). Save hold, clock and position on visibilitychange.
+- Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
 - Dead code: `isDark`, `mq` (night used to follow the OS theme).
 - The palace is small. It reads as a treehouse wearing a hat. It deserves its own art pass.
 - Accessibility: canvas has a label and the shop is real buttons, but there is no reduced-motion path for screen shake or the day-cycle tint.
@@ -184,6 +184,7 @@ Near:
 - **Line fishing for legendaries.** Second verb: one giant shadow per zone, timing minigame, trophy mounted on the palace. Nets are volume; lines are single targets.
 - **Palace art pass.** Wings, rope bridge to the hut, dock gate, lights. Make stage 5 worth 258 driftwood.
 - **Leviathan as a gate.** Today it is a sighting. It should become the thing between you and the next island.
+- **Stages 4 and 5 should unlock something.** Past stage 3 the base grows nothing, so the palace trails the boat by construction. The watchtower and dome each want a boat-side reward, and the dock buildings below are the coin sinks the endgame lacks.
 - **Background music.** A layer under the sfx with its own volume, sharing the mute toggle. Tracks load from `assets/music/` and the game stays silent when the folder is empty, so CI and Pages work without it. The folder is gitignored on purpose: the placeholder tracks there are a commercial soundtrack and cannot ship. Needs licensed or original music before it goes live.
 
 Further:
