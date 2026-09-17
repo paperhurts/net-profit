@@ -10,3 +10,6 @@ Rules of the road:
 - No game framework. Custom canvas renderer stays. Ask before adding a dependency.
 - Existing `netprofit.v1` saves must keep loading (migrate, never wipe).
 - The owner wants honest opinions and pushback. If a request will hurt the game, say so, then do what she decides.
+- Ports are pinned: dev 4830, preview and smoke 4831. Never fall back to Vite's defaults; other projects on this machine use them.
+- No real names or personal email in the repo, commits or PRs. The docs say "the owner" and "her kid". Commit as the GitHub noreply address; the repo config is set.
+- Where the tuning tables in project.md and legacy disagree, the tables win.
