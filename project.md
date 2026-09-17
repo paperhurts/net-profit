@@ -226,7 +226,7 @@ Further:
 - Vite's default ports are shared by every Vite project on the machine, and Playwright's `reuseExistingServer` will happily test whichever app answers first. Pin ports and never reuse.
 - Vite blocks any Host header that is not localhost or an IP address. A dev server reached by hostname needs `server.allowedHosts`.
 - A network that advertises IPv6 without routing it hangs Node downloads, including Playwright's browser installer, while curl falls back to IPv4 in milliseconds. If curl works and Node does not, suspect IPv6 first.
-- Git Bash's tar cannot read zip files. `C:\Windows\System32	ar.exe` can.
+- Git Bash's tar cannot read zip files. `C:\Windows\System32\tar.exe` can.
 - A force-push does not start a GitHub Pages branch build, and with the Pages source set to GitHub Actions nothing deploys until a workflow exists on `main`.
 - Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
 - Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
