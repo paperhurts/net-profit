@@ -13,7 +13,8 @@ import { type BrowserContext, expect, type Page, test } from '@playwright/test';
 
 /** The slice of window.__np the smoke test touches. */
 type Np = {
-  boat: { x: number; y: number; v: number };
+  boat: { x: number; y: number; h: number; v: number };
+  keys: 'drive' | 'point';
   schools: { cx: number; cy: number }[];
   DOCK: { x: number; y: number };
   rare: { on: boolean };
@@ -149,6 +150,42 @@ test('day cycle: dawn spawns a rare, night follows', async ({ context, page }) =
   });
   await page.waitForTimeout(600);
   expect(await page.evaluate(() => window.__np.phase)).toBe('Night');
+  expect(errors).toEqual([]);
+});
+
+test('keyboard: drive mode steers the hull, point mode aims it', async ({ context, page }) => {
+  const errors = await boot(context, page, { muted: true });
+  // Drive, the default: W holds the heading and builds speed, D turns to starboard, S brakes.
+  const h0 = await page.evaluate(() => window.__np.boat.h);
+  await page.keyboard.down('w');
+  await page.waitForTimeout(800);
+  const afterW = await page.evaluate(() => ({ v: window.__np.boat.v, h: window.__np.boat.h }));
+  expect(afterW.v, 'W did not drive').toBeGreaterThan(80);
+  expect(Math.abs(afterW.h - h0), 'W alone turned the hull').toBeLessThan(0.01);
+  await page.keyboard.down('d');
+  await page.waitForTimeout(500);
+  const afterD = await page.evaluate(() => window.__np.boat.h);
+  expect(afterD - afterW.h, 'D did not turn to starboard').toBeGreaterThan(0.5);
+  await page.keyboard.up('d');
+  await page.keyboard.up('w');
+  await page.keyboard.down('s');
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__np.boat.v), 'S did not brake').toBeLessThan(
+    afterW.v * 0.5,
+  );
+  await page.keyboard.up('s');
+  // Point: W aims the hull at screen-up and it goes; the button reflects the switch.
+  await page.evaluate(() => {
+    window.__np.keys = 'point';
+  });
+  expect(await page.locator('#keys').textContent()).toContain('point');
+  const hBefore = await page.evaluate(() => window.__np.boat.h);
+  await page.keyboard.down('w');
+  await page.waitForTimeout(800);
+  const afterPoint = await page.evaluate(() => ({ v: window.__np.boat.v, h: window.__np.boat.h }));
+  await page.keyboard.up('w');
+  expect(afterPoint.v, 'point mode did not move').toBeGreaterThan(40);
+  expect(Math.abs(afterPoint.h - hBefore), 'point mode did not aim the hull').toBeGreaterThan(0.3);
   expect(errors).toEqual([]);
 });
 

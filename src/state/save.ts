@@ -37,7 +37,11 @@ export type SaveData = {
   build: number;
   levSeen: boolean;
   trip: Trip | null;
+  /** How the keyboard steers: drive the boat (A/D turn, W throttle) or point it like the stick. */
+  keys: KeyMode;
 };
+
+export type KeyMode = 'drive' | 'point';
 
 /** What a save is clamped against; all from the tuning tables and the world. */
 export type Bounds = {
@@ -65,6 +69,7 @@ export function defaultSave(b: Bounds): SaveData {
     build: 0,
     levSeen: false,
     trip: null,
+    keys: 'drive',
   };
 }
 
@@ -140,6 +145,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     }
   }
   d.trip = parseTrip(o.trip, b, d.lv.hold);
+  d.keys = o.keys === 'point' ? 'point' : 'drive';
   return d;
 }
 
@@ -157,5 +163,6 @@ export function serializeSave(d: SaveData): string {
     build: d.build,
     levSeen: d.levSeen,
     trip: d.trip ?? undefined,
+    keys: d.keys,
   });
 }

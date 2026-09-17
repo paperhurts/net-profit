@@ -112,7 +112,7 @@ describe('steerBoat', () => {
   });
 });
 
-describe('steerBoatRelative (relative candidate)', () => {
+describe('steerBoatRelative (drive mode)', () => {
   it('spins the hull at the turn rate while a turn key is held', () => {
     const boat: Boat = { x: 0, y: 0, h: 1, v: 0 };
     steerBoatRelative(boat, 1, 0, false, maxV, dt);

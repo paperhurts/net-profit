@@ -81,7 +81,7 @@ describe('bindKeys', () => {
   });
 });
 
-describe('keyControls (relative candidate)', () => {
+describe('keyControls (drive mode)', () => {
   it('turns with A and D, throttles with W, brakes with S', () => {
     expect(keyControls(new Set(['a']))).toEqual({ turn: -1, throttle: 0, brake: false });
     expect(keyControls(new Set(['d']))).toEqual({ turn: 1, throttle: 0, brake: false });
@@ -97,7 +97,7 @@ describe('keyControls (relative candidate)', () => {
   });
 });
 
-describe('smoothVector (smoothed candidate)', () => {
+describe('smoothVector (point mode)', () => {
   it('eases toward the target over about tau seconds and settles', () => {
     const s = { x: 0, y: 0 };
     for (let t = 0; t < SMOOTH_TAU; t += 1 / 60) smoothVector(s, 1, 0, 1 / 60);

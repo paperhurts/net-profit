@@ -29,7 +29,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false;
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, keyMode = 'drive';
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, rareFullT = 0;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
@@ -39,8 +39,8 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; savedTrip = s.trip; }
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot() || null})); } catch (e) {} }
+  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; savedTrip = s.trip; keyMode = s.keys; }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -179,13 +179,16 @@ resetNet();
 /* ---------- input ---------- */
 const joy = createJoystick();
 const keys = new Set();
-// Keyboard feel under evaluation: ?steer=relative (A/D turn, W throttle, S brake) or
-// ?steer=smooth (eased eight-way). Anything else is the prototype's behaviour.
-const steerMode = new URLSearchParams(location.search).get('steer') === 'relative' ? 'relative'
-  : new URLSearchParams(location.search).get('steer') === 'smooth' ? 'smooth' : 'absolute';
 const keySmooth = {x:0, y:0};
+const elKeys = $('keys');
+function keysLabel(){ elKeys.textContent = keyMode === 'drive' ? '⌨ drive' : '⌨ point'; elKeys.setAttribute('aria-label', keyMode === 'drive' ? 'Keys drive the boat' : 'Keys point the boat'); }
+function showKeys(){ elKeys.hidden = false; }
+elKeys.addEventListener('click', () => { keyMode = keyMode === 'drive' ? 'point' : 'drive'; keysLabel(); save(); audio(); tone(700,.08,'triangle',.08);
+  toast(keyMode === 'drive' ? 'Keys drive the boat. A and D turn, W throttle, S brakes.' : 'Keys point the boat. Hold a direction and it goes that way.', 3200); });
+// The keyboard button is noise on a phone: show it where a mouse lives, or once a key is pressed.
+if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) showKeys();
 bindJoystick(cv, joy, audio);
-bindKeys(window, keys, audio);
+bindKeys(window, keys, () => { audio(); showKeys(); });
 window.addEventListener('blur', () => { keys.clear(); joy.on = false; });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
 window.addEventListener('pagehide', () => save());
@@ -304,8 +307,7 @@ elRst.addEventListener('click', () => {
 });
 $('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); tone(392,.12,'triangle',.1); tone(587,.2,'triangle',.1,0,.1); });
 sndLabel(); hud(); hudWood(); hudPhase(); refreshShop(); drawOrder();
-if (steerMode === 'relative') toast('Keyboard steering: relative. A and D turn, W throttle, S brake.', 5000);
-else if (steerMode === 'smooth') toast('Keyboard steering: smoothed eight-way.', 5000);
+keysLabel();
 
 /* ---------- game logic ---------- */
 function addText(x,y,z,txt,color,size=18,life=1.2){ texts.push({x,y,z,txt,color,size,age:0,life}); }
@@ -544,16 +546,14 @@ function emitWake(s,k){
 
 function update(dt){
   T += dt; updateClock(dt);
-  /* input and boat */
-  if (started && !joy.on && steerMode === 'relative'){
+  /* input and boat: the stick points; the keys drive or point, by setting */
+  if (started && !joy.on && keyMode === 'drive'){
     const c = keyControls(keys); steerBoatRelative(boat, c.turn, c.throttle, c.brake, SPEED[lv.engine], dt);
   } else {
     let ix = 0, iy = 0;
     if (started){
       if (joy.on){ const v = joystickVector(joy); ix = v[0]; iy = v[1]; }
-      else { const v = keyVector(keys);
-        if (steerMode === 'smooth'){ smoothVector(keySmooth, v[0], v[1], dt); ix = keySmooth.x; iy = keySmooth.y; }
-        else { ix = v[0]; iy = v[1]; } }
+      else { const v = keyVector(keys); smoothVector(keySmooth, v[0], v[1], dt); ix = keySmooth.x; iy = keySmooth.y; }
     }
     steerBoat(boat, ix, iy, SPEED[lv.engine], dt);
   }
@@ -1057,5 +1057,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

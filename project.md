@@ -25,7 +25,7 @@ Working style the owner expects from a collaborator: real opinions, pushback whe
 All of this is implemented and smoke-tested in the prototype.
 
 **Core loop**
-- Floating joystick (touch or mouse) and WASD/arrows. Boat has heading, turn rate, acceleration, drag.
+- Floating joystick (touch or mouse) that points where to go. The keyboard has two feels, chosen by a HUD button that appears where a mouse lives or once a key is pressed, and saved: drive (A and D turn the hull, W is throttle, S brakes; the default) or point (WASD and the arrows aim the boat like the stick, eased over 150 ms). Arrows match WASD in both. Boat has heading, turn rate, acceleration, drag.
 - Net follows the stern at a fixed tow length (trailer physics). Catches any fish within `netWidth/2 + 5` of the net centre while the net is moving (> 22 u/s), the hold has room, and the net is not torn.
 - Hold fills; HUD bar turns red and nudges when full; gold edge arrow points to the dock.
 - Dock ring: entering it opens the shop and auto-sells one fish every 45 ms, cheapest first. Docking also mends a torn net.
@@ -54,7 +54,7 @@ All of this is implemented and smoke-tested in the prototype.
 - Catch log chips in the shop; rares get a gold ring; leviathan sighting is logged.
 - Ten hull paints; net floats and palace flags match the hull.
 
-**Persistence**: `localStorage["netprofit.v1"]` = `{coins, earned, muted, lv:{net,hold,engine}, paint, log[], order, wood, build, levSeen, trip}`. `trip` is `{x, y, h, clock, hold[]}`: the boat's position and heading, the time of day and the hold. It is written on every save, when the tab is hidden, on pagehide and every five seconds while sailing, and restored on load, so a phone that discards the tab does not lose the haul (added 2026-09-17; legacy does not have it, and old saves without it load unchanged). Entity state is not saved.
+**Persistence**: `localStorage["netprofit.v1"]` = `{coins, earned, muted, lv:{net,hold,engine}, paint, log[], order, wood, build, levSeen, trip}`. `keys` is `"drive"` or `"point"`, the keyboard feel, missing in old saves and read as drive. `trip` is `{x, y, h, clock, hold[]}`: the boat's position and heading, the time of day and the hold. It is written on every save, when the tab is hidden, on pagehide and every five seconds while sailing, and restored on load, so a phone that discards the tab does not lose the haul (added 2026-09-17; legacy does not have it, and old saves without it load unchanged). Entity state is not saved.
 
 ## Tuning tables (as shipped in the prototype)
 
@@ -194,7 +194,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 - Balance probes beat playing to flagship: drive the game in headless Chromium through `window.__np`, exactly as the driftwood retune was checked.
 - CI runs typecheck, lint, unit and smoke on every PR. Merging to `main` builds `dist/` and deploys it to GitHub Pages. Only the game ships; none of the docs are served.
 - Where the tuning tables above and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
-- Keyboard feel is under evaluation. `?steer=relative` gives A and D turn, W throttle, S brake; `?steer=smooth` eases the eight-way vector over 150 ms; no parameter is the prototype's behaviour. The mouse joystick is untouched in every mode. Whichever wins becomes the default and the switch goes.
+- Keyboard steering has two feels and a setting, because on 2026-09-17 the owner picked drive and her kid picked point, and both were right for how they play. Legacy points with the keys, unsmoothed; neither feel is that, so this is the one deliberate difference from legacy in how the boat is driven. The joystick and the physics under all three are bit-identical to legacy by test.
 - The people in this doc are "the owner" and "her kid" on purpose. No real names or personal email anywhere in the repo, commits or PRs; the repo commits as the GitHub noreply address.
 
 ## Roadmap (ideas discussed, none built)
@@ -240,3 +240,4 @@ Further:
 - A force-push does not start a GitHub Pages branch build, and with the Pages source set to GitHub Actions nothing deploys until a workflow exists on `main`.
 - Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
 - Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
+- Eight-way keys on an isometric map point at a diagonal the boat is rarely facing, so the throttle penalty for turning is on almost all the time and the keyboard feels slower and twitchier than the stick. Put feels side by side behind a switch and let the players pick. Two players picked two different ones, and a setting was cheaper than a winner.

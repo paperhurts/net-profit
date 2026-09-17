@@ -40,16 +40,14 @@ export function steerBoat(boat: Boat, ix: number, iy: number, maxV: number, dt: 
   boat.y += Math.sin(boat.h) * boat.v * dt;
 }
 
-/* ---- Candidate keyboard feel, behind the ?steer= switch until it wins or goes ---- */
-
 /** How quickly speed bleeds while braking; twice the plain coast. */
 export const BRAKE = 2.6;
 
 /**
- * Relative steering: turn is -1..1 and spins the hull at the turn rate,
- * throttle is 0..1 of top speed, brake bleeds speed faster than coasting.
- * The same turn rate, easing and move as steerBoat, so only the mapping from
- * keys to intent changes.
+ * Drive mode for the keyboard: turn is -1..1 and spins the hull at the turn
+ * rate, throttle is 0..1 of top speed, brake bleeds speed faster than
+ * coasting. The same turn rate, easing and move as steerBoat, which the
+ * stick and point mode use, so only the mapping from keys to intent differs.
  */
 export function steerBoatRelative(
   boat: Boat,
