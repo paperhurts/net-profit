@@ -10,6 +10,7 @@ import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/pro
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
 import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, TWY, TX, TY, WS } from './world/island';
+import { placeNetBehind, towLength, towNet } from './entities/net';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -144,7 +145,7 @@ const schools = [];
 const buoys = [];
 for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push([0,i],[WS,i]); }
 
-function resetNet(){ const L = towLen(), st = 27*bk(); net.x = boat.x - Math.cos(boat.h)*(st+L); net.y = boat.y - Math.sin(boat.h)*(st+L); }
+function resetNet(){ placeNetBehind(net, boat, bk(), towLen()); }
 const sharks = [];
 (function(){ const want = {4:2, 5:2, 6:2}, cnt = {};
   for (const sc of schools){ cnt[sc.sp] = cnt[sc.sp] || 0; if (cnt[sc.sp] < (want[sc.sp]||0)){ cnt[sc.sp]++;
@@ -169,7 +170,7 @@ for (let i=0;i<LEV_N;i++) lev.trail.push(levPos(lev.th - i*.016));
 lev.x = lev.trail[0][0]; lev.y = lev.trail[0][1];
 function podWaypoint(p){ const a = Math.random()*6.28, r = 700 + Math.random()*1600; p.tx = clamp(IX+Math.cos(a)*r,200,WS-200); p.ty = clamp(IY+Math.sin(a)*r,200,WS-200); }
 pods.forEach(podWaypoint);
-function towLen(){ return 44 + NETW[lv.net]*.28; }
+function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
 /* ---------- input ---------- */
@@ -574,12 +575,7 @@ function update(dt){
       if (rangeToastT <= 0){ rangeToastT = 9; toast(`Too rough out there for a ${TIER_NAME[tier()]}. Grow your boat to sail further.`, 2800); tone(160,.2,'triangle',.06); } } }
 
   /* net tows behind like a trailer */
-  const sx = boat.x - Math.cos(boat.h)*27*k, sy = boat.y - Math.sin(boat.h)*27*k;
-  const pnx = net.x, pny = net.y, L = towLen();
-  let ndx = net.x-sx, ndy = net.y-sy, nl = Math.hypot(ndx,ndy);
-  if (nl > L){ net.x = sx + ndx/nl*L; net.y = sy + ndy/nl*L; }
-  else if (nl < 6){ net.x = sx - Math.cos(boat.h)*6; net.y = sy - Math.sin(boat.h)*6; }
-  net.speed = Math.hypot(net.x-pnx, net.y-pny)/dt;
+  towNet(net, boat, k, towLen(), dt);
 
   /* fish */
   const cap = HOLD[lv.hold], nw = NETW[lv.net], rr = (nw*.5+5)*(nw*.5+5);
