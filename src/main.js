@@ -11,6 +11,8 @@ import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
 import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
+import { bindJoystick, createJoystick, JR, joystickVector } from './input/joystick';
+import { bindKeys, keyVector } from './input/keys';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -174,18 +176,10 @@ function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
 /* ---------- input ---------- */
-const JR = 54;
-const joy = {on:false, id:null, sx:0, sy:0, x:0, y:0};
+const joy = createJoystick();
 const keys = new Set();
-cv.addEventListener('pointerdown', e => { audio(); joy.on = true; joy.id = e.pointerId; joy.sx = joy.x = e.clientX; joy.sy = joy.y = e.clientY;
-  try { cv.setPointerCapture(e.pointerId); } catch (err) {} e.preventDefault(); });
-cv.addEventListener('pointermove', e => { if (joy.on && e.pointerId === joy.id){ joy.x = e.clientX; joy.y = e.clientY; } });
-const joyEnd = e => { if (e.pointerId === joy.id) joy.on = false; };
-cv.addEventListener('pointerup', joyEnd); cv.addEventListener('pointercancel', joyEnd);
-cv.addEventListener('contextmenu', e => e.preventDefault());
-window.addEventListener('keydown', e => { const k = e.key.toLowerCase();
-  if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){ keys.add(k); audio(); if (k.startsWith('arrow')) e.preventDefault(); } });
-window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+bindJoystick(cv, joy, audio);
+bindKeys(window, keys, audio);
 window.addEventListener('blur', () => { keys.clear(); joy.on = false; });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
 window.addEventListener('pagehide', () => save());
@@ -545,16 +539,7 @@ function update(dt){
   /* input */
   let ix = 0, iy = 0;
   if (started){
-    if (joy.on){
-      let dx = joy.x-joy.sx, dy = joy.y-joy.sy, d = Math.hypot(dx,dy);
-      if (d > JR){ joy.sx = joy.x - dx/d*JR; joy.sy = joy.y - dy/d*JR; dx = joy.x-joy.sx; dy = joy.y-joy.sy; d = JR; }
-      if (d > 8){ const m = Math.min(1, d/JR); ix = dx/d*m; iy = dy/d*m; }
-    } else {
-      let kx = 0, ky = 0;
-      if (keys.has('arrowleft')||keys.has('a')) kx--; if (keys.has('arrowright')||keys.has('d')) kx++;
-      if (keys.has('arrowup')||keys.has('w')) ky--; if (keys.has('arrowdown')||keys.has('s')) ky++;
-      const d = Math.hypot(kx,ky); if (d){ ix = kx/d; iy = ky/d; }
-    }
+    const v = joy.on ? joystickVector(joy) : keyVector(keys); ix = v[0]; iy = v[1];
   }
   /* boat */
   const mag = Math.hypot(ix,iy), maxV = SPEED[lv.engine]; let targetV = 0;
