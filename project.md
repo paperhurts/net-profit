@@ -123,7 +123,7 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 
 **Steering around land.** `around(x, y, tx, ty, R)` returns a tangent waypoint when the straight line to a target would cross the island. Dolphins and the pirate use it, with `pushOut` as a backstop. Any new roaming entity needs the same.
 
-**Debug hook.** `window.__np` exposes boat, net, schools, pirate, sharks, pods, rare, lev, and setters for clock, wood and build. The smoke test drives the game through it. Keep an equivalent in dev builds.
+**Debug hook.** `window.__np` exposes boat, net, schools, pirate, sharks, pods, rare, lev, and setters for clock, wood and build; `hold` and `coins` are getters, `wood` is a setter only, so read the wood count from the HUD pill `#wood`. The smoke test drives the game through it, and so do balance probes in headless Chromium (max the levels, set `build` and `wood`, drop a log on the boat, read the shop). Keep an equivalent in dev builds.
 
 ## Known debt (fix during the port, not before)
 
@@ -159,14 +159,22 @@ src/
   ui/                hud.ts  shop.ts  toast.ts (queue with priorities)
   audio/             sfx.ts
 legacy/net-profit.html   the reference build, untouched
-tests/smoke.spec.ts
+index.html               the shipping game; identical to legacy until the port starts
+tests/smoke.spec.ts      Playwright, drives the game through window.__np at 390x780
+tests/unit/              Vitest, pure logic; first tests arrive with the first module
+vite.config.ts           base /net-profit/, dev 4830, preview 4831, tailnet hostname allowed
+playwright.config.ts     chromium (CI) and msedge (local fallback) projects, own server on 4831
+biome.json               lint and format: LF, single quotes, 100 columns
+.github/workflows/       ci.yml (typecheck, lint, unit, smoke) and deploy.yml (Pages)
 ```
+
+`src/` does not exist yet; Phase 1 creates it module by module.
 
 Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth()`. Render layers replace the hand-ordered draw list: `underwater, surface, solids(sorted), air, mask, glow, overlay`.
 
 ## Migration plan
 
-**Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source setting has to be switched to GitHub Actions for the deploy workflow to run.
+**Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source is set to GitHub Actions, so nothing deploys until `deploy.yml` reaches `main`; from then on the site is `dist/` only, which is the game and none of the docs.
 
 **Phase 1, parity port.** Move code into modules with no behaviour changes. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
 
@@ -175,6 +183,16 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 **Phase 3, systems.** Entity interface, render layers, toast queue, sfx cues, pause/visibility, reduced motion.
 
 **Phase 4, new content.** See roadmap. One feature per PR, playable at every commit.
+
+## Working on it
+
+- `npm run dev` serves the game at http://localhost:4830/net-profit/ with hot reload; `npm run preview` serves the production build on 4831. Both ports are pinned strictly because other projects on the same machine use Vite's defaults. Never fall back to 5173 or 4173.
+- Phone testing: `npm run dev -- --host`, then open the Network URL Vite prints. A tailnet hostname works too, since `*.ts.net` is allowed through Vite's host check. Reaching the dev server over the LAN on Windows needs an inbound firewall rule scoped to TCP 4830 on the private profile, not a blanket rule for node.
+- `npm run test:e2e` runs the smoke test in Chromium against the production build on its own server. `npx playwright test --project=msedge` uses the Edge already on Windows when the Chromium download will not complete.
+- Balance probes beat playing to flagship: drive the game in headless Chromium through `window.__np`, exactly as the driftwood retune was checked.
+- CI runs typecheck, lint, unit and smoke on every PR. Merging to `main` builds `dist/` and deploys it to GitHub Pages. Only the game ships; none of the docs are served.
+- Where the tuning tables above and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
+- The people in this doc are "the owner" and "her kid" on purpose. No real names or personal email anywhere in the repo, commits or PRs; the repo commits as the GitHub noreply address.
 
 ## Roadmap (ideas discussed, none built)
 
@@ -205,3 +223,10 @@ Further:
 - Anything that roams needs to know the island exists.
 - In night scenes, anything the player must find (driftwood, crates, rares) needs its own small light.
 - Test at phone size first. The isometric squash halves vertical distances, so the world feels smaller on screen than the numbers suggest.
+- Vite's default ports are shared by every Vite project on the machine, and Playwright's `reuseExistingServer` will happily test whichever app answers first. Pin ports and never reuse.
+- Vite blocks any Host header that is not localhost or an IP address. A dev server reached by hostname needs `server.allowedHosts`.
+- A network that advertises IPv6 without routing it hangs Node downloads, including Playwright's browser installer, while curl falls back to IPv4 in milliseconds. If curl works and Node does not, suspect IPv6 first.
+- Git Bash's tar cannot read zip files. `C:\Windows\System32	ar.exe` can.
+- A force-push does not start a GitHub Pages branch build, and with the Pages source set to GitHub Actions nothing deploys until a workflow exists on `main`.
+- Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
+- Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
