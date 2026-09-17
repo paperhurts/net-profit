@@ -13,6 +13,7 @@ import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, T
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyVector } from './input/keys';
+import { steerBoat } from './entities/boat';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -542,15 +543,7 @@ function update(dt){
     const v = joy.on ? joystickVector(joy) : keyVector(keys); ix = v[0]; iy = v[1];
   }
   /* boat */
-  const mag = Math.hypot(ix,iy), maxV = SPEED[lv.engine]; let targetV = 0;
-  if (mag > 0){
-    const w = dirToWorld(ix,iy); const diff = angDiff(Math.atan2(w[1],w[0]), boat.h);
-    const turn = (2.6 + 1.2*(1 - boat.v/maxV))*dt;
-    boat.h += clamp(diff,-turn,turn);
-    targetV = maxV*mag*Math.max(.25, Math.cos(diff));
-  }
-  boat.v += (targetV-boat.v)*Math.min(1, dt*(targetV>boat.v ? 2.4 : 1.3));
-  boat.x += Math.cos(boat.h)*boat.v*dt; boat.y += Math.sin(boat.h)*boat.v*dt;
+  steerBoat(boat, ix, iy, SPEED[lv.engine], dt);
   const k = bk();
   pushOut(boat, IX, IY, IR+24*k);
   for (const b of PIER_BUMPS) pushOut(boat, b[0], b[1], 20+20*k);
