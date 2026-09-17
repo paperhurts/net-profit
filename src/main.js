@@ -8,6 +8,7 @@ import { angDiff, clamp, rng } from './core/math';
 import { rgba, shade } from './core/color';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
+import { parseSave, SAVE_KEY, serializeSave } from './state/save';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -29,25 +30,18 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-const SAVE_KEY = 'netprofit.v1';
 let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false;
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, rareFullT = 0;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15};
+const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, holdCaps: HOLD};
 let savedTrip = null;
-try {
-  const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-  if (s) { coins = s.coins|0; earned = s.earned|0; muted = !!s.muted;
-    if (s.trip && typeof s.trip === 'object') savedTrip = s.trip;
-    for (const k in lv) lv[k] = Math.max(0, Math.min(MAXLV, (s.lv && s.lv[k])|0));
-    paint = Math.max(0, Math.min(PAINTS.length-1, s.paint|0));
-    levSeen = !!s.levSeen;
-    wood = Math.max(0, s.wood|0); build = Math.max(0, Math.min(STAGES.length, s.build|0));
-    if (Array.isArray(s.log)) s.log.forEach((n,i) => { if (i < log.length) log[i] = n|0; });
-    if (s.order && SPECIES[s.order.sp] && s.order.n > 0) order = {sp:s.order.sp|0, n:s.order.n|0, have:s.order.have|0, pay:s.order.pay|0}; }
-} catch (e) {}
-function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot()})); } catch (e) {} }
+{ let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
+  const s = parseSave(raw, SAVE_BOUNDS);
+  coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
+  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; savedTrip = s.trip; }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot() || null})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -59,14 +53,11 @@ const net = {x:0, y:0, speed:0, torn:0};
 let Zbase = 1, sharkWarnT = 0;
 const pirate = {state:'away', timer:6, x:0, y:0, h:0, v:0, tx:0, ty:0, age:0, warned:0};
 const wakes = [], flies = [], texts = [];
-if (savedTrip){ // resume an interrupted trip before the camera and net are placed
-  const tx = +savedTrip.x, ty = +savedTrip.y;
-  if (Number.isFinite(tx) && Number.isFinite(ty)){ boat.x = Math.min(WS-160, Math.max(160, tx)); boat.y = Math.min(WS-160, Math.max(160, ty)); }
-  if (Number.isFinite(+savedTrip.h)) boat.h = +savedTrip.h;
-  if (Number.isFinite(+savedTrip.clock)) clock = Math.min(.999, Math.max(0, +savedTrip.clock));
-  if (Array.isArray(savedTrip.hold)){ savedTrip.hold.forEach((n,i) => { if (i < hold.length) hold[i] = Math.max(0, n|0); });
-    holdTotal = hold.reduce((a,b) => a+b, 0);
-    for (let sp = 0; holdTotal > HOLD[lv.hold] && sp < hold.length; sp++){ const k = Math.min(hold[sp], holdTotal - HOLD[lv.hold]); hold[sp] -= k; holdTotal -= k; } }
+if (savedTrip){ // resume an interrupted trip before the camera and net are placed; parseSave already clamped it
+  if (savedTrip.x !== undefined){ boat.x = savedTrip.x; boat.y = savedTrip.y; }
+  if (savedTrip.h !== undefined) boat.h = savedTrip.h;
+  if (savedTrip.clock !== undefined) clock = savedTrip.clock;
+  if (savedTrip.hold){ savedTrip.hold.forEach((n,i) => { hold[i] = n; }); holdTotal = hold.reduce((a,b) => a+b, 0); }
 }
 const cam = {x: boat.x, y: boat.y};
 
