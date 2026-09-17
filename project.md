@@ -48,7 +48,7 @@ All of this is implemented and smoke-tested in the prototype.
 - Boat tier = `floor((net + hold + engine levels) / 3)`, 0–5: dinghy, skiff, cutter, trawler, seiner, flagship. Each tier scales the hull, adds detail (wider cabin → second deck → stern crane), zooms the camera out 2%, unlocks paint, and raises the sailing range.
 - Range per tier is a dashed ring; beyond it the boat is pushed back with a toast.
 - Upgrade level cap = `min(5, 2 + buildStage)`. The base gates the boat.
-- Driftwood (22 logs, 65% spawn inside current range) builds the treehouse palace in five stages. Each stage adds 15% to all sale prices. The dock camera zooms out to frame the island once the boat settles.
+- Driftwood (22 logs, 65% spawn inside current range, and respawn 18–40 s after pickup with the same bias) builds the treehouse palace in five stages. Each stage adds 15% to all sale prices. The dock camera zooms out to frame the island once the boat settles.
 - Orders: "12 mackerel pays 40". Filling one pays a bonus and rolls a new one, restricted to species inside your range. The gold edge arrow points to the nearest school of the order species.
 - Salvage crates (10) give instant coins, scaled by tier.
 - Catch log chips in the shop; rares get a gold ring; leviathan sighting is logged.
@@ -98,12 +98,14 @@ Units are world units (u). The starter boat is ~62 u long.
 | 1 | tree platform | 8 | 0 | +15% prices, upgrade cap → 4 |
 | 2 | treehouse | 20 | 0 | +30%, cap → 5 |
 | 3 | second storey | 40 | 100 | +45%, cap → 6 |
-| 4 | watchtower | 70 | 250 | +60% |
-| 5 | palace dome | 120 | 600 | +75% |
+| 4 | watchtower | 70 | 4,000 | +60% |
+| 5 | palace dome | 120 | 12,000 | +75% |
 
-Other constants: pirate speed 188, pirate unlock 60 lifetime coins, shark charge speed 235, shark orbit speed 95, dolphin escort speed `max(150, boat·1.15 + 50)`, rare swim speed 58, driftwood yield `1–3 + floor(tier/2)`, salvage `[5,8,10,15,20,35] × (1 + floor(tier/2))`.
+Other constants: pirate speed 188, pirate unlock 60 lifetime coins, shark charge speed 235, shark orbit speed 95, dolphin escort speed `max(150, boat·1.15 + 50)`, rare swim speed 58, driftwood yield `1–3 + tier`, salvage `[5,8,10,15,20,35] × (1 + floor(tier/2))`.
 
-**Balance status: mostly untested by humans.** The owner has played the first tiers. She asked for faster early upgrades once (costs were roughly halved). Everything past cutter is numbers I picked to look sensible. Expect to retune.
+**Balance status: lightly tested.** The owner has played to flagship. She asked for faster early upgrades once (costs were roughly halved). Everything past cutter is numbers picked to look sensible. Expect to retune.
+
+Retuned 2026-09-16 after the owner reached flagship with 3,600 idle coins and 20 of 70 driftwood. Driftwood yield now scales with the full tier (was half of it) and respawns favour the current range, because the spawn disc grows almost six times in area from dinghy to flagship while the same 22 logs had to cover it, which left wood per minute at the top at about 40% of a dinghy's. The watchtower and dome now cost 4,000 and 12,000 coins (were 250 and 600). A first pass at 1,200 and 3,500 was banked before the wood was, since a flagship docking pays one to two thousand; at these prices the sweep gates the finish. A carpenter selling wood for coins was considered and rejected: at flagship income it would make driftwood optional exactly when the map is biggest. Where these tables and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
 
 ## How the prototype is built
 
@@ -121,7 +123,7 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 
 **Steering around land.** `around(x, y, tx, ty, R)` returns a tangent waypoint when the straight line to a target would cross the island. Dolphins and the pirate use it, with `pushOut` as a backstop. Any new roaming entity needs the same.
 
-**Debug hook.** `window.__np` exposes boat, net, schools, pirate, sharks, pods, rare, lev, and setters for clock, wood and build. The smoke test drives the game through it. Keep an equivalent in dev builds.
+**Debug hook.** `window.__np` exposes boat, net, schools, pirate, sharks, pods, rare, lev, and setters for clock, wood and build; `hold` and `coins` are getters, `wood` is a setter only, so read the wood count from the HUD pill `#wood`. The smoke test drives the game through it, and so do balance probes in headless Chromium (max the levels, set `build` and `wood`, drop a log on the boat, read the shop). Keep an equivalent in dev builds.
 
 ## Known debt (fix during the port, not before)
 
@@ -132,8 +134,8 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 - Pier depth-sort hack. Tall palace pieces can overlap the hut at some camera positions.
 - Fish heading is derived from frame-to-frame position delta; schools that come on screen snap for a frame.
 - Leviathan path speed is non-uniform (squircle parameterisation).
-- No pause, no tab-visibility handling beyond clamping dt to 50 ms.
-- Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (the owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
+- No pause, no tab-visibility handling beyond clamping dt to 50 ms. On a phone the browser discards a backgrounded tab, and because the hold and clock are not saved the whole trip is lost (owner, 2026-09-16). Save hold, clock and position on visibilitychange.
+- Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
 - Dead code: `isDark`, `mq` (night used to follow the OS theme).
 - The palace is small. It reads as a treehouse wearing a hat. It deserves its own art pass.
 - Accessibility: canvas has a label and the shop is real buttons, but there is no reduced-motion path for screen shake or the day-cycle tint.
@@ -157,14 +159,22 @@ src/
   ui/                hud.ts  shop.ts  toast.ts (queue with priorities)
   audio/             sfx.ts
 legacy/net-profit.html   the reference build, untouched
-tests/smoke.spec.ts
+index.html               the shipping game; identical to legacy until the port starts
+tests/smoke.spec.ts      Playwright, drives the game through window.__np at 390x780
+tests/unit/              Vitest, pure logic; first tests arrive with the first module
+vite.config.ts           base /net-profit/, dev 4830, preview 4831, tailnet hostname allowed
+playwright.config.ts     chromium (CI) and msedge (local fallback) projects, own server on 4831
+biome.json               lint and format: LF, single quotes, 100 columns
+.github/workflows/       ci.yml (typecheck, lint, unit, smoke) and deploy.yml (Pages)
 ```
+
+`src/` does not exist yet; Phase 1 creates it module by module.
 
 Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth()`. Render layers replace the hand-ordered draw list: `underwater, surface, solids(sorted), air, mask, glow, overlay`.
 
 ## Migration plan
 
-**Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source setting has to be switched to GitHub Actions for the deploy workflow to run.
+**Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source is set to GitHub Actions, so nothing deploys until `deploy.yml` reaches `main`; from then on the site is `dist/` only, which is the game and none of the docs.
 
 **Phase 1, parity port.** Move code into modules with no behaviour changes. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
 
@@ -174,6 +184,16 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 
 **Phase 4, new content.** See roadmap. One feature per PR, playable at every commit.
 
+## Working on it
+
+- `npm run dev` serves the game at http://localhost:4830/net-profit/ with hot reload; `npm run preview` serves the production build on 4831. Both ports are pinned strictly because other projects on the same machine use Vite's defaults. Never fall back to 5173 or 4173.
+- Phone testing: `npm run dev -- --host`, then open the Network URL Vite prints. A tailnet hostname works too, since `*.ts.net` is allowed through Vite's host check. Reaching the dev server over the LAN on Windows needs an inbound firewall rule scoped to TCP 4830 on the private profile, not a blanket rule for node.
+- `npm run test:e2e` runs the smoke test in Chromium against the production build on its own server. `npx playwright test --project=msedge` uses the Edge already on Windows when the Chromium download will not complete.
+- Balance probes beat playing to flagship: drive the game in headless Chromium through `window.__np`, exactly as the driftwood retune was checked.
+- CI runs typecheck, lint, unit and smoke on every PR. Merging to `main` builds `dist/` and deploys it to GitHub Pages. Only the game ships; none of the docs are served.
+- Where the tuning tables above and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
+- The people in this doc are "the owner" and "her kid" on purpose. No real names or personal email anywhere in the repo, commits or PRs; the repo commits as the GitHub noreply address.
+
 ## Roadmap (ideas discussed, none built)
 
 Near:
@@ -182,6 +202,7 @@ Near:
 - **Line fishing for legendaries.** Second verb: one giant shadow per zone, timing minigame, trophy mounted on the palace. Nets are volume; lines are single targets.
 - **Palace art pass.** Wings, rope bridge to the hut, dock gate, lights. Make stage 5 worth 258 driftwood.
 - **Leviathan as a gate.** Today it is a sighting. It should become the thing between you and the next island.
+- **Stages 4 and 5 should unlock something.** Past stage 3 the base grows nothing, so the palace trails the boat by construction. The watchtower and dome each want a boat-side reward, and the dock buildings below are the coin sinks the endgame lacks.
 - **Background music.** A layer under the sfx with its own volume, sharing the mute toggle. Tracks load from `assets/music/` and the game stays silent when the folder is empty, so CI and Pages work without it. The folder is gitignored on purpose: the placeholder tracks there are a commercial soundtrack and cannot ship. Needs licensed or original music before it goes live.
 
 Further:
@@ -202,3 +223,10 @@ Further:
 - Anything that roams needs to know the island exists.
 - In night scenes, anything the player must find (driftwood, crates, rares) needs its own small light.
 - Test at phone size first. The isometric squash halves vertical distances, so the world feels smaller on screen than the numbers suggest.
+- Vite's default ports are shared by every Vite project on the machine, and Playwright's `reuseExistingServer` will happily test whichever app answers first. Pin ports and never reuse.
+- Vite blocks any Host header that is not localhost or an IP address. A dev server reached by hostname needs `server.allowedHosts`.
+- A network that advertises IPv6 without routing it hangs Node downloads, including Playwright's browser installer, while curl falls back to IPv4 in milliseconds. If curl works and Node does not, suspect IPv6 first.
+- Git Bash's tar cannot read zip files. `C:\Windows\System32\tar.exe` can.
+- A force-push does not start a GitHub Pages branch build, and with the Pages source set to GitHub Actions nothing deploys until a workflow exists on `main`.
+- Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
+- Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
