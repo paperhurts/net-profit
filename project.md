@@ -168,7 +168,7 @@ biome.json               lint and format: LF, single quotes, 100 columns
 .github/workflows/       ci.yml (typecheck, lint, unit, smoke) and deploy.yml (Pages)
 ```
 
-`src/main.js` is the prototype script moved verbatim out of index.html so Vite serves and bundles it; it is excluded from Biome and not type-checked until Phase 1 splits it into the modules above.
+`src/main.js` is the prototype script moved out of index.html so Vite serves and bundles it; it is excluded from Biome and not type-checked, and shrinks as Phase 1 splits it into the modules above. `core/iso.ts` is the first, with unit tests in `tests/unit/`; main.js keeps `px`, `py`, `dirToWorld` and `onScreen` as thin wrappers so call sites do not change.
 
 Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth()`. Render layers replace the hand-ordered draw list: `underwater, surface, solids(sorted), air, mask, glow, overlay`.
 
@@ -176,7 +176,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 
 **Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source is set to GitHub Actions, so nothing deploys until `deploy.yml` reaches `main`; from then on the site is `dist/` only, which is the game and none of the docs.
 
-**Phase 1, parity port.** Move code into modules with no behaviour changes. Step 1 done 2026-09-17: the inline script became the ES module `src/main.js`, verbatim, and index.html loads it with `type="module"`. Safe because the prototype was already a strict-mode IIFE with no inline handlers or load-event dependence. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
+**Phase 1, parity port.** Move code into modules with no behaviour changes. Step 1 done 2026-09-17: the inline script became the ES module `src/main.js`, verbatim, and index.html loads it with `type="module"`. Safe because the prototype was already a strict-mode IIFE with no inline handlers or load-event dependence. Step 2 done 2026-09-17: the projection became `core/iso.ts`, pure and unit-tested, behind wrappers in main.js. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
 
 **Phase 2, data-driven content.** Species, zones, upgrades, tiers, stages, paints become data with string ids. Save v2 with migration. Balance values live in one place.
 

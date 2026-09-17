@@ -2,6 +2,7 @@
 // serve and bundle it. Phase 1 of project.md splits it into modules; until
 // then it is not linted or type-checked, and legacy/net-profit.html stays the
 // behavioural reference.
+import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from './core/iso';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -110,19 +111,20 @@ if (savedTrip){ // resume an interrupted trip before the camera and net are plac
 const cam = {x: boat.x, y: boat.y};
 
 /* ---------- view ---------- */
-const K = Math.SQRT1_2;
 let W = 0, H = 0, DPR = 1, Z = 1, shx = 0, shy = 0, viewDY = 0, dockView = 0;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
-  Zbase = Math.max(.62, Math.min(1.35, Math.min(W,H)/500)); Z = Zbase;
+  Zbase = baseZoom(W, H); Z = Zbase;
 }
 window.addEventListener('resize', resize); resize();
-const px = (x,y) => ((x-cam.x)-(y-cam.y))*K*Z + W/2 + shx;
-const py = (x,y,z=0) => ((x-cam.x)+(y-cam.y))*K*.5*Z + H/2 + viewDY - z*Z + shy;
-function dirToWorld(dx,dy){ const a = dx/K, b = 2*dy/K; return [(a+b)/2, (b-a)/2]; }
-function onScreen(x,y,m){ const sx = px(x,y), sy = py(x,y); return sx>-m && sx<W+m && sy>-m && sy<H+m; }
+// One mutable view shared with core/iso so the hot paths allocate nothing.
+const view = {camX:0, camY:0, zoom:1, width:0, height:0, shakeX:0, shakeY:0, viewDY:0};
+function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.width = W; view.height = H; view.shakeX = shx; view.shakeY = shy; view.viewDY = viewDY; return view; }
+const px = (x,y) => screenX(x, y, syncView());
+const py = (x,y,z=0) => screenY(x, y, z, syncView());
+const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
