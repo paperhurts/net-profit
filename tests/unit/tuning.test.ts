@@ -3,7 +3,6 @@
  * check the code against it, so the two cannot drift apart again.
  */
 import { describe, expect, it } from 'vitest';
-import doc from '../../project.md?raw';
 import {
   COST,
   HOLD,
@@ -19,25 +18,7 @@ import {
   TIER_NAME,
   TIER_SCALE,
 } from '../../src/data/tuning';
-
-/** Rows of the markdown table whose first data row starts with `| first |`. */
-function tableRows(first: string): string[][] {
-  const lines = doc.split('\n');
-  const start = lines.findIndex((l) => l.startsWith(`| ${first} |`));
-  if (start < 0) throw new Error(`no table row starting with "${first}"`);
-  const rows: string[][] = [];
-  for (let i = start; i < lines.length && lines[i]?.startsWith('|'); i++) {
-    const cells = (lines[i] ?? '')
-      .split('|')
-      .slice(1, -1)
-      .map((c) => c.trim());
-    rows.push(cells);
-  }
-  return rows;
-}
-
-/** "1,200" -> 1200, "–" -> NaN. */
-const num = (s: string | undefined) => Number((s ?? '').replace(/,/g, ''));
+import { num, tableRows } from './doc';
 
 describe('upgrade table', () => {
   const rows = tableRows('1');
