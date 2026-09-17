@@ -2,7 +2,7 @@
 
 A cosy isometric fishing tycoon for the browser. Tow a net through schools of fish, haul the catch home, build up the boat, build up the island, sail further, find bigger things.
 
-This document hands the project from a chat-built prototype to a real repo. It describes what exists, how it works, what is wrong with it, and what comes next. The prototype is `net-profit.html` (one file, ~1,300 lines, no dependencies, no build). Treat that file as the behavioural reference until the port reaches parity.
+This document hands the project from a chat-built prototype to a real repo. It describes what exists, how it works, what is wrong with it, and what comes next. The prototype is `legacy/net-profit.html` (one file, ~1,300 lines, no dependencies, no build). Treat that file as the behavioural reference until the port reaches parity. `index.html` at the repo root began as a copy of it and is where the port happens; the README covers how to run and test.
 
 ## Who this is for
 
@@ -133,7 +133,7 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 - Fish heading is derived from frame-to-frame position delta; schools that come on screen snap for a frame.
 - Leviathan path speed is non-uniform (squircle parameterisation).
 - No pause, no tab-visibility handling beyond clamping dt to 50 ms.
-- Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues.
+- Sound is raw oscillators. Fine for now; wants a tiny sfx module with named cues. The cues themselves stay exactly as they sound (the owner, 2026-09-16: the catch, sell, dolphin whistle and the rest are keepers). Music, when it comes, is a separate layer and never replaces a cue.
 - Dead code: `isDark`, `mq` (night used to follow the OS theme).
 - The palace is small. It reads as a treehouse wearing a hat. It deserves its own art pass.
 - Accessibility: canvas has a label and the shop is real buttons, but there is no reduced-motion path for screen shake or the day-cycle tint.
@@ -164,7 +164,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 
 ## Migration plan
 
-**Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test.
+**Phase 0, scaffold.** Repo, Vite, TS strict, lint, Pages deploy, `legacy/` copy. Port the Playwright smoke test. Done 2026-09-16: Vite + TypeScript strict, Biome, Vitest, Playwright (`tests/smoke.spec.ts`), CI and Pages workflows. The Pages source setting has to be switched to GitHub Actions for the deploy workflow to run.
 
 **Phase 1, parity port.** Move code into modules with no behaviour changes. Done when: the smoke test passes, an existing `netprofit.v1` save loads, and side-by-side play at 390×780 feels identical (tow physics especially).
 
@@ -182,6 +182,7 @@ Near:
 - **Line fishing for legendaries.** Second verb: one giant shadow per zone, timing minigame, trophy mounted on the palace. Nets are volume; lines are single targets.
 - **Palace art pass.** Wings, rope bridge to the hut, dock gate, lights. Make stage 5 worth 258 driftwood.
 - **Leviathan as a gate.** Today it is a sighting. It should become the thing between you and the next island.
+- **Background music.** A layer under the sfx with its own volume, sharing the mute toggle. Tracks load from `assets/music/` and the game stays silent when the folder is empty, so CI and Pages work without it. The folder is gitignored on purpose: the placeholder tracks there are a commercial soundtrack and cannot ship. Needs licensed or original music before it goes live.
 
 Further:
 - **Island 2 and the meta layer.** Reaching a new island unlocks a new mechanic and a renderer upgrade (water shader, shadows, weather, particles). Each island is a chapter in the game growing up.
