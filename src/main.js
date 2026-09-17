@@ -14,6 +14,7 @@ import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
 import { steerBoat, steerBoatRelative } from './entities/boat';
+import { cues as sfx, setMuted, unlock as audio } from './audio/sfx';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -40,6 +41,7 @@ let savedTrip = null;
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
   paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; savedTrip = s.trip; keyMode = s.keys; }
+setMuted(muted);
 function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
@@ -102,19 +104,6 @@ function box(x,y,w,d,z0,z1,side,top){ extrude([[x,y],[x+w,y],[x+w,y+d],[x,y+d]],
 function isoEllipse(x,y,r,z=0){ ctx.beginPath(); ctx.ellipse(px(x,y),py(x,y,z),Math.max(.1,r*Z),Math.max(.1,r*Z*.5),0,0,Math.PI*2); }
 
 /* ---------- audio ---------- */
-let ac = null;
-function audio(){ if (!ac){ try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
-  if (ac && ac.state === 'suspended') ac.resume(); }
-function tone(f,d=.12,type='sine',vol=.1,slide=0,delay=0){
-  if (!ac || muted) return;
-  try {
-    const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
-    o.type = type; o.frequency.setValueAtTime(f,t);
-    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,f*slide),t+d);
-    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+.012); g.gain.exponentialRampToValueAtTime(.0001,t+d);
-    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+d+.03);
-  } catch (e) {}
-}
 
 /* ---------- world ---------- */
 const schools = [];
@@ -183,7 +172,7 @@ const keySmooth = {x:0, y:0};
 const elKeys = $('keys');
 function keysLabel(){ elKeys.textContent = keyMode === 'drive' ? '⌨ drive' : '⌨ point'; elKeys.setAttribute('aria-label', keyMode === 'drive' ? 'Keys drive the boat' : 'Keys point the boat'); }
 function showKeys(){ elKeys.hidden = false; }
-elKeys.addEventListener('click', () => { keyMode = keyMode === 'drive' ? 'point' : 'drive'; keysLabel(); save(); audio(); tone(700,.08,'triangle',.08);
+elKeys.addEventListener('click', () => { keyMode = keyMode === 'drive' ? 'point' : 'drive'; keysLabel(); save(); audio(); sfx.click();
   toast(keyMode === 'drive' ? 'Keys drive the boat. A and D turn, W throttle, S brakes.' : 'Keys point the boat. Hold a direction and it goes that way.', 3200); });
 // The keyboard button is noise on a phone: show it where a mouse lives, or once a key is pressed.
 if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) showKeys();
@@ -257,36 +246,36 @@ function newOrder(){
 elShop.addEventListener('click', e => {
   const b = e.target.closest('.up'); if (!b) return; audio();
   const k = b.dataset.k, l = lv[k]; if (l >= MAXLV) return;
-  if (l >= levelCap(build)){ tone(180,.12,'square',.05); toast(`Build the ${STAGES[build].name} to unlock the next level.`, 2400); return; }
+  if (l >= levelCap(build)){ sfx.denied(); toast(`Build the ${STAGES[build].name} to unlock the next level.`, 2400); return; }
   const t0 = tier();
   const cost = COST[k][l];
-  if (coins < cost){ tone(180,.12,'square',.05); toast(`You need ${cost - coins} more coins.`, 1600); return; }
+  if (coins < cost){ sfx.denied(); toast(`You need ${cost - coins} more coins.`, 1600); return; }
   coins -= cost; lv[k]++;
   if (tier() > t0){
     const fresh = paintsUnlocked(t0); if (fresh < PAINTS.length) paint = fresh;
     toast(`Your boat grew into a ${TIER_NAME[tier()]}. New paint unlocked.`, 3000);
-    tone(392,.12,'triangle',.1,0,.25); tone(523,.12,'triangle',.1,0,.35); tone(784,.3,'triangle',.1,0,.45);
+    sfx.tierUp();
   } else toast('Bought ' + b.querySelector('b').textContent.toLowerCase() + '.', 1600);
   save(); hud(); refreshShop(); resetNet();
-  tone(523,.1,'triangle',.1); tone(659,.1,'triangle',.1,0,.08); tone(784,.16,'triangle',.1,0,.16);
+  sfx.upgrade();
 });
 function sndLabel(){ elSnd.classList.toggle('off', muted); elSnd.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on'); }
-elSnd.addEventListener('click', () => { muted = !muted; sndLabel(); save(); audio(); tone(660,.08,'triangle',.08); });
+elSnd.addEventListener('click', () => { muted = !muted; setMuted(muted); sndLabel(); save(); audio(); sfx.toggleSound(); });
 $('paints').addEventListener('click', e => {
   const b = e.target.closest('.sw'); if (!b) return; audio();
   const i = +b.dataset.i;
-  if (i >= paintsUnlocked(tier())){ toast('More paint unlocks as your boat grows.', 1800); tone(180,.12,'square',.05); return; }
-  paint = i; save(); refreshShop(); tone(700,.08,'triangle',.08);
+  if (i >= paintsUnlocked(tier())){ toast('More paint unlocks as your boat grows.', 1800); sfx.denied(); return; }
+  paint = i; save(); refreshShop(); sfx.click();
 });
 $('build').addEventListener('click', () => { audio();
   if (build >= STAGES.length) return;
   const S = STAGES[build];
-  if (wood < S.wood || coins < S.coins){ tone(180,.12,'square',.05);
+  if (wood < S.wood || coins < S.coins){ sfx.denied();
     toast(wood < S.wood ? `Collect ${S.wood - wood} more driftwood out at sea.` : `You need ${S.coins - coins} more coins.`, 2000); return; }
   wood -= S.wood; coins -= S.coins; build++;
   addText(TX, TY, 130, 'Built the ' + S.name, '#9CF0C0', 22, 2.6);
   toast(`Built the ${S.name}. Fish now sell for ${build*15}% more.`, 3200);
-  [523,659,784,1047].forEach((f,i) => tone(f,.16,'triangle',.1,0,i*.11));
+  sfx.build();
   save(); hud(); hudWood(); refreshShop();
 });
 let rstTimer = 0;
@@ -305,7 +294,7 @@ elRst.addEventListener('click', () => {
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
 });
-$('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); tone(392,.12,'triangle',.1); tone(587,.2,'triangle',.1,0,.1); });
+$('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); sfx.castOff(); });
 sndLabel(); hud(); hudWood(); hudPhase(); refreshShop(); drawOrder();
 keysLabel();
 
@@ -317,8 +306,8 @@ function catchFish(f,sc){
   hold[sc.sp]++; holdTotal++; log[sc.sp]++;
   flies.push({x0:f.x, y0:f.y, z0:0, to:'boat', t:0, dur:.32, c:SPECIES[sc.sp].c, s:SPECIES[sc.sp].s});
   combo = comboT > 0 ? Math.min(combo+1, 14) : 0; comboT = .5;
-  tone(500 + combo*34 + sc.sp*60, .08, 'sine', .07);
-  if (holdTotal >= HOLD[lv.hold]){ toast('Hold full. Head for the dock.'); tone(330,.18,'triangle',.1); tone(262,.25,'triangle',.1,0,.15); }
+  sfx.fish(combo, sc.sp);
+  if (holdTotal >= HOLD[lv.hold]){ toast('Hold full. Head for the dock.'); sfx.holdFull(); }
   hud();
 }
 function sellOne(){
@@ -327,17 +316,17 @@ function sellOne(){
   carry += SPECIES[sp].v*(1 + .15*build); const v = Math.floor(carry); carry -= v;
   coins += v; earned += v; saleSum += v; saleN++;
   flies.push({x0:boat.x, y0:boat.y, z0:12, to:'crate', t:0, dur:.3, c:SPECIES[sp].c, s:SPECIES[sp].s});
-  tone(620 + Math.min(saleN,30)*16 + sp*40, .07, 'triangle', .07);
+  sfx.sale(saleN, sp);
   if (sp === order.sp){ order.have++;
     if (order.have >= order.n){ coins += order.pay; earned += order.pay;
       addText(CRATE.x, CRATE.y, 70, 'Order filled +' + order.pay, '#9CF0C0', 20, 2.2);
-      tone(659,.1,'triangle',.1,0,.1); tone(880,.1,'triangle',.1,0,.2); tone(1319,.3,'triangle',.1,0,.3);
+      sfx.orderFilled();
       newOrder(); } else drawOrder(); }
   hud(); refreshShop();
 }
 function finishSale(){
   addText(CRATE.x, CRATE.y, 40, '+' + saleSum, C.coin, 26, 1.6);
-  tone(880,.1,'triangle',.1); tone(1175,.22,'triangle',.1,0,.09);
+  sfx.sold();
   saleSum = 0; saleN = 0; save();
   if (earned >= PIRATE_UNLOCK && pirate.state === 'away' && !pirate.warned){
     pirate.warned = 1; setTimeout(() => toast('Word is out about your catch. Pirates are about.', 3400), 1700);
@@ -379,7 +368,7 @@ function updatePirate(dt){
     }
     tx = p.tx; ty = p.ty;
     if (holdTotal >= 4 && !boatSafe && dBoat < 720){
-      p.state = 'chase'; toast('Pirates on your tail. Run for the dock.'); tone(196,.2,'sawtooth',.06); tone(185,.3,'sawtooth',.06,0,.2);
+      p.state = 'chase'; toast('Pirates on your tail. Run for the dock.'); sfx.pirateChase();
     } else if (p.age > 50) p.state = 'leave';
   } else if (p.state === 'chase'){
     tx = boat.x + Math.cos(boat.h)*boat.v*.4; ty = boat.y + Math.sin(boat.h)*boat.v*.4; speed = PIRATE_SPEED;
@@ -388,7 +377,7 @@ function updatePirate(dt){
       let n = Math.ceil(holdTotal/2); const took = n;
       for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
       addText(boat.x, boat.y, 46, 'Pirates took ' + took + ' fish', '#FF9A8A', 19, 2);
-      shake = 1; tone(220,.35,'sawtooth',.09,.4); tone(110,.4,'square',.06,.5,.1);
+      shake = 1; sfx.pirateSteal();
       for (let i=0;i<Math.min(took,10);i++) flies.push({x0:boat.x, y0:boat.y, z0:12, to:'pirate', t:-i*.04, dur:.35, c:SPECIES[0].c, s:7});
       hud(); p.state = 'leave';
     } else if (p.age > 70) p.state = 'leave';
@@ -413,7 +402,7 @@ function updateSharks(dt){
       sh.a += dt*.5; tx = sh.home.cx + Math.cos(sh.a)*(sh.home.r+55); ty = sh.home.cy + Math.sin(sh.a)*(sh.home.r+55); sp = 95;
       if (started && !docked && !escorted && sh.cool <= 0 && net.torn <= 0 && net.speed > 22 && dn < 330){
         sh.state = 'charge'; sh.t = 0;
-        if (sharkWarnT <= 0){ sharkWarnT = 9; toast(lv.net >= 3 ? 'Shark incoming. Your net can hold it.' : 'Shark after your net. Steer clear.', 2200); tone(150,.25,'sawtooth',.05); tone(140,.25,'sawtooth',.05,0,.3); }
+        if (sharkWarnT <= 0){ sharkWarnT = 9; toast(lv.net >= 3 ? 'Shark incoming. Your net can hold it.' : 'Shark after your net. Steer clear.', 2200); sfx.sharkWarning(); }
       }
     } else {
       sh.t += dt; tx = net.x; ty = net.y; sp = 235;
@@ -422,11 +411,11 @@ function updateSharks(dt){
           hold[SHARK]++; holdTotal++; log[SHARK]++; sh.alive = false; sh.resp = T + 45;
           flies.push({x0:sh.x, y0:sh.y, z0:0, to:'boat', t:0, dur:.45, c:SPECIES[SHARK].c, s:14});
           addText(sh.x, sh.y, 30, 'Shark caught', '#CFE3EE', 20, 1.8);
-          tone(330,.12,'triangle',.1); tone(494,.12,'triangle',.1,0,.1); tone(740,.25,'triangle',.1,0,.2); hud(); continue;
+          sfx.sharkCaught(); hud(); continue;
         } else if (lv.net >= 3){ sh.state = 'circle'; sh.cool = 8; }
         else { net.torn = 6; const lost = spill(3);
           addText(net.x, net.y, 30, lost ? `Net torn, ${lost} fish lost` : 'Net torn', '#FF9A8A', 19, 2);
-          shake = .7; tone(200,.3,'sawtooth',.08,.35); sh.state = 'circle'; sh.cool = 14; hud(); }
+          shake = .7; sfx.netTorn(); sh.state = 'circle'; sh.cool = 14; hud(); }
       } else if (dn > 560 || sh.t > 7 || docked || escorted || net.torn > 0){ sh.state = 'circle'; sh.cool = 6; }
     }
     const dx = tx-sh.x, dy = ty-sh.y, d = Math.hypot(dx,dy);
@@ -442,7 +431,7 @@ function updateFlotsam(){
       const r = [5,8,10,15,20,35][Math.floor(Math.random()*6)] * (1 + Math.floor(tier()/2));
       coins += r; earned += r; f.alive = false; f.resp = T + 25 + Math.random()*25;
       addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6);
-      tone(784,.09,'triangle',.09); tone(1047,.16,'triangle',.09,0,.08); hud(); save();
+      sfx.salvage(); hud(); save();
     }
   }
 }
@@ -453,7 +442,7 @@ function updateClock(dt){
     if (phase === 'Dawn'){ spawnRare(10); toast('Dawn. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Dusk'){ spawnRare(11); toast('Dusk. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Night') toast('Night. Glowing fish are rising.', 2600);
-    if (phase !== 'Day'){ tone(660,.2,'sine',.06); tone(990,.35,'sine',.05,0,.18); } }
+    if (phase !== 'Day'){ sfx.phaseChange(); } }
 }
 function rarePoint(cx,cy,spread){
   const R = Math.min(range()-140, 2250);
@@ -476,7 +465,7 @@ function updateRare(dt){
     flies.push({x0:rare.x, y0:rare.y, z0:0, to:'boat', t:0, dur:.5, c:S.c, s:15});
     addText(rare.x, rare.y, 40, S.name[0].toUpperCase() + S.name.slice(1) + '!', '#FFF3C4', 24, 2.6);
     for (let i=0;i<14;i++) sparks.push({x:rare.x, y:rare.y, vx:(Math.random()-.5)*160, vy:(Math.random()-.5)*160, z:10, vz:40+Math.random()*60, age:0, life:.9+Math.random()*.6});
-    [784,988,1175,1568].forEach((f,i) => tone(f,.18,'triangle',.1,0,i*.09)); hud(); save();
+    sfx.rareCaught(); hud(); save();
   }
 }
 const sparks = [];
@@ -486,7 +475,7 @@ function updateLeviathan(dt){
   lev.rumbleT -= dt;
   let near = 1e9; for (let i=0;i<LEV_N;i+=3) near = Math.min(near, Math.hypot(lev.trail[i][0]-boat.x, lev.trail[i][1]-boat.y));
   if (started && near < 300 && lev.rumbleT <= 0){ lev.rumbleT = 14; shake = Math.max(shake,.4);
-    tone(55,1.4,'sine',.14); tone(41,1.8,'sine',.12,0,.3);
+    sfx.leviathan();
     toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200);
     if (!levSeen){ levSeen = true; save(); } }
 }
@@ -499,7 +488,7 @@ function updateDrift(){
       const n = 1 + Math.floor(Math.random()*3) + tier();
       wood += n; f.alive = false; f.resp = T + 18 + Math.random()*22;
       addText(f.x, f.y, 24, 'Driftwood +' + n, '#F0C58A', 18, 1.5);
-      tone(233,.07,'square',.05); tone(349,.1,'square',.05,0,.07); hudWood(); save();
+      sfx.driftwood(); hudWood(); save();
     }
   }
 }
@@ -519,7 +508,7 @@ function updateBirdsAndDolphins(dt){
       if (started && !docked && p.cool <= 0 && db < 400 && boat.v > 60){
         p.state = 'escort'; p.t = 0; p.side = Math.random() < .5 ? -1 : 1;
         if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600); }
-        tone(1400,.09,'sine',.05,1.5); tone(1800,.12,'sine',.05,1.3,.1);
+        sfx.dolphins();
       }
     } else {
       p.t += dt; tx = boat.x + c*45 - sn*p.side*75; ty = boat.y + sn*45 + c*p.side*75; sp = Math.max(150, boat.v*1.15 + 50);
@@ -563,7 +552,7 @@ function update(dt){
   boat.x = clamp(boat.x, 40, WS-40); boat.y = clamp(boat.y, 40, WS-40);
   { const R = range(), dI = Math.hypot(boat.x-IX, boat.y-IY); rangeToastT -= dt;
     if (dI > R){ boat.x = IX + (boat.x-IX)/dI*R; boat.y = IY + (boat.y-IY)/dI*R; boat.v *= .93;
-      if (rangeToastT <= 0){ rangeToastT = 9; toast(`Too rough out there for a ${TIER_NAME[tier()]}. Grow your boat to sail further.`, 2800); tone(160,.2,'triangle',.06); } } }
+      if (rangeToastT <= 0){ rangeToastT = 9; toast(`Too rough out there for a ${TIER_NAME[tier()]}. Grow your boat to sail further.`, 2800); sfx.rangeEdge(); } } }
 
   /* net tows behind like a trailer */
   towNet(net, boat, k, towLen(), dt);
