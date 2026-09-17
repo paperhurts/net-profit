@@ -28,7 +28,7 @@ All of this is implemented and smoke-tested in the prototype.
 - Floating joystick (touch or mouse) that points where to go. The keyboard has two feels, chosen by a HUD button that appears where a mouse lives or once a key is pressed, and saved: drive (A and D turn the hull, W is throttle, S brakes; the default) or point (WASD and the arrows aim the boat like the stick, eased over 150 ms). Arrows match WASD in both. Boat has heading, turn rate, acceleration, drag.
 - Net follows the stern at a fixed tow length (trailer physics). Catches any fish within `netWidth/2 + 5` of the net centre while the net is moving (> 22 u/s), the hold has room, and the net is not torn.
 - Hold fills; HUD bar turns red and nudges when full; gold edge arrow points to the dock.
-- Dock ring: entering it opens the shop and auto-sells one fish every 45 ms, cheapest first. Docking also mends a torn net.
+- Dock ring: entering it opens the shop and auto-sells one fish every 45 ms, cheapest first. Docking also mends a torn net. The shop covers where the thumb lives, so a drag on its wood steers the boat straight through it and the panel fades to a quarter while you do; buttons and the catch log still take taps (2026-09-17, after a playtester had to reach over the panel to leave).
 - Upgrades: net width, hold size, engine speed. Six levels each.
 
 **World**
@@ -241,6 +241,7 @@ Further:
 - Git Bash's tar cannot read zip files. `C:\Windows\System32\tar.exe` can.
 - A force-push does not start a GitHub Pages branch build, and with the Pages source set to GitHub Actions nothing deploys until a workflow exists on `main`.
 - Phone browsers discard a backgrounded tab. Anything not saved is a lost trip.
+- A panel that covers the thumb's home must let steering through. Pointer capture makes it one binding: a press on the panel's background anchors the stick and hands the pointer to the canvas.
 - iOS ignores `user-scalable=no`, so a double-tap on any button zooms the page, and once zoomed the canvas's `touch-action: none` swallows the pinch that would zoom back out. `touch-action: manipulation` on the body kills double-tap zoom everywhere and leaves pinch alone. Found by the chief playtester buying an upgrade twice, fast.
 - Coins come from the sweep and wood from errands, so a base gated only on wood always trails the boat. Fix supply before price, and give the late stages something to gate.
 - Price nothing off a single big docking. Take two screenshots ten minutes apart of the owner actually playing and divide; that number was a tenth of the burst.

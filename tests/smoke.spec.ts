@@ -109,6 +109,24 @@ test('core loop: fill the hold at a sardine school, dock, sell', async ({ contex
   expect(await page.evaluate(() => window.__np.coins), 'no coins earned').toBeGreaterThanOrEqual(
     12,
   );
+
+  // The shop is open in the dock. A drag on its wood steers the boat straight through it.
+  const title = await page.locator('#shop h2').boundingBox();
+  if (!title) throw new Error('shop title not visible');
+  const tx = title.x + 8;
+  const ty = title.y + title.height / 2;
+  await page.mouse.move(tx, ty);
+  await page.mouse.down();
+  await page.mouse.move(tx + 60, ty - 60, { steps: 5 });
+  await page.waitForTimeout(500);
+  expect(
+    await page.evaluate(() => window.__np.boat.v),
+    'drag on the shop did not steer',
+  ).toBeGreaterThan(20);
+  expect(await page.locator('#shop').getAttribute('class')).toContain('steer');
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  expect(await page.locator('#shop').getAttribute('class')).not.toContain('steer');
   expect(errors).toEqual([]);
 });
 

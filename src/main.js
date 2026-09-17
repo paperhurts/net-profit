@@ -11,7 +11,7 @@ import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
 import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
-import { bindJoystick, createJoystick, JR, joystickVector } from './input/joystick';
+import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
 import { steerBoat, steerBoatRelative } from './entities/boat';
 import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } from './audio/sfx';
@@ -179,6 +179,8 @@ elKeys.addEventListener('click', () => { keyMode = keyMode === 'drive' ? 'point'
 // The keyboard button is noise on a phone: show it where a mouse lives, or once a key is pressed.
 if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) showKeys();
 bindJoystick(cv, joy, audio);
+// The shop covers where the thumb lives: a drag on its wood steers the boat through it.
+bindJoystickThrough($('shop'), joy, cv, t => !(t && t.closest && (t.closest('button') || t.closest('.log'))), audio);
 bindKeys(window, keys, () => { audio(); showKeys(); });
 window.addEventListener('blur', () => { keys.clear(); joy.on = false; });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
@@ -1058,6 +1060,7 @@ let last = performance.now(), saveT = 0;
 function frame(now){
   const dt = Math.min(.05, Math.max(.001, (now-last)/1000)); last = now;
   update(dt); updateAmbience(dt); draw();
+  elShop.classList.toggle('steer', joy.on && joy.through);
   if (started){ saveT += dt; if (saveT >= 5){ saveT = 0; save(); } }
   requestAnimationFrame(frame);
 }
