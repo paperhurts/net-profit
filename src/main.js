@@ -19,6 +19,7 @@ import { Ambience } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
 import { Pirate } from './entities/pirate';
+import { Sharks } from './entities/sharks';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -55,7 +56,7 @@ let combo = 0, comboT = 0, shake = 0, wakeT = 0;
 const hold = SPECIES.map(() => 0); let holdTotal = 0;
 const boat = {x: DOCK.x+125, y: IY+125, h: .45, v: 0};
 const net = {x:0, y:0, speed:0, torn:0};
-let Zbase = 1, sharkWarnT = 0;
+let Zbase = 1;
 const pirateEntity = new Pirate(); const pirate = pirateEntity.ship;
 const wakes = [], flies = [], texts = [];
 if (savedTrip){ // resume an interrupted trip before the camera and net are placed; parseSave already clamped it
@@ -81,7 +82,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
-const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
+const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -143,10 +144,7 @@ const buoys = [];
 for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push([0,i],[WS,i]); }
 
 function resetNet(){ placeNetBehind(net, boat, bk(), towLen()); }
-const sharks = [];
-(function(){ const want = {4:2, 5:2, 6:2}, cnt = {};
-  for (const sc of schools){ cnt[sc.sp] = cnt[sc.sp] || 0; if (cnt[sc.sp] < (want[sc.sp]||0)){ cnt[sc.sp]++;
-    sharks.push({home:sc, a:Math.random()*6.28, x:sc.ax, y:sc.ay, ang:0, state:'circle', t:0, cool:0, alive:true, resp:0}); } } })();
+const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const flotsam = [];
 function placeFlotsam(f, near=.5){
   if (Math.random() < near){ const a = Math.random()*6.28, R = Math.min(range()-60, 2300), r = 560 + Math.random()*Math.max(120, R-560);
@@ -156,7 +154,9 @@ for (let i=0;i<10;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random(
 const drift = [];
 for (let i=0;i<22;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random()*9, rot:Math.random()*6.28}; placeFlotsam(f, .65); drift.push(f); }
 const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
-const world = { T: 0, started: false, docked: false, boat, rng: Math.random, earned: 0, holdTotal: 0, hullScale: 1 }; // what entities may read
+const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
+  get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; } };
 pirateEntity.onChase = () => { toast('Pirates on your tail. Run for the dock.', 2600, 2); sfx.pirateChase(); };
 pirateEntity.onSteal = (n) => { const took = n;
   for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
@@ -164,6 +164,14 @@ pirateEntity.onSteal = (n) => { const took = n;
   shake = 1; sfx.pirateSteal();
   for (let i=0;i<Math.min(took,10);i++) flies.push({x0:boat.x, y0:boat.y, z0:12, to:'pirate', t:-i*.04, dur:.35, c:SPECIES[0].c, s:7});
   hud(); };
+sharksEntity.onWarn = () => { toast(lv.net >= 3 ? 'Shark incoming. Your net can hold it.' : 'Shark after your net. Steer clear.', 2200, 2); sfx.sharkWarning(); };
+sharksEntity.onCatch = (sh) => { hold[SHARK]++; holdTotal++; log[SHARK]++;
+  flies.push({x0:sh.x, y0:sh.y, z0:0, to:'boat', t:0, dur:.45, c:SPECIES[SHARK].c, s:14});
+  addText(sh.x, sh.y, 30, 'Shark caught', '#CFE3EE', 20, 1.8);
+  sfx.sharkCaught(); hud(); };
+sharksEntity.onTear = () => { net.torn = 6; const lost = spill(3);
+  addText(net.x, net.y, 30, lost ? `Net torn, ${lost} fish lost` : 'Net torn', '#FF9A8A', 19, 2);
+  shake = .7; sfx.netTorn(); hud(); };
 const dolphins = new Dolphins(Math.random);
 let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
 dolphins.onEscort = () => { if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); } sfx.dolphins(); lastWhistleT = T; };
@@ -303,7 +311,7 @@ elRst.addEventListener('click', () => {
   clearTimeout(rstTimer); elRst.classList.remove('sure'); elRst.textContent = '↻';
   coins = 0; earned = 0; lv.net = lv.hold = lv.engine = 0; hold.fill(0); holdTotal = 0; log.fill(0); paint = 0; net.torn = 0;
   order = {sp:0, n:8, have:0, pay:15}; drawOrder();
-  for (const sh of sharks){ sh.alive = true; sh.state = 'circle'; sh.cool = 0; }
+  sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rare.on = false; clock = .13;
   pirateEntity.reset();
@@ -349,36 +357,6 @@ function finishSale(){
   }
 }
 function spill(n){ let lost = 0; for (let sp=0; sp<SPECIES.length && n>0; sp++){ const k = Math.min(hold[sp], n); hold[sp] -= k; holdTotal -= k; n -= k; lost += k; } return lost; }
-function updateSharks(dt){
-  const nw = NETW[lv.net], cap = HOLD[lv.hold]; sharkWarnT -= dt;
-  for (const sh of sharks){
-    if (!sh.alive){ if (T >= sh.resp){ sh.alive = true; sh.state = 'circle'; sh.cool = 4; sh.x = sh.home.cx; sh.y = sh.home.cy; } continue; }
-    sh.cool -= dt;
-    const dn = Math.hypot(net.x-sh.x, net.y-sh.y); let tx, ty, sp;
-    if (sh.state === 'circle'){
-      sh.a += dt*.5; tx = sh.home.cx + Math.cos(sh.a)*(sh.home.r+55); ty = sh.home.cy + Math.sin(sh.a)*(sh.home.r+55); sp = 95;
-      if (started && !docked && !escorted && sh.cool <= 0 && net.torn <= 0 && net.speed > 22 && dn < 330){
-        sh.state = 'charge'; sh.t = 0;
-        if (sharkWarnT <= 0){ sharkWarnT = 9; toast(lv.net >= 3 ? 'Shark incoming. Your net can hold it.' : 'Shark after your net. Steer clear.', 2200, 2); sfx.sharkWarning(); }
-      }
-    } else {
-      sh.t += dt; tx = net.x; ty = net.y; sp = 235;
-      if (dn < nw*.5 + 12){
-        if (lv.net >= 3 && holdTotal < cap){
-          hold[SHARK]++; holdTotal++; log[SHARK]++; sh.alive = false; sh.resp = T + 45;
-          flies.push({x0:sh.x, y0:sh.y, z0:0, to:'boat', t:0, dur:.45, c:SPECIES[SHARK].c, s:14});
-          addText(sh.x, sh.y, 30, 'Shark caught', '#CFE3EE', 20, 1.8);
-          sfx.sharkCaught(); hud(); continue;
-        } else if (lv.net >= 3){ sh.state = 'circle'; sh.cool = 8; }
-        else { net.torn = 6; const lost = spill(3);
-          addText(net.x, net.y, 30, lost ? `Net torn, ${lost} fish lost` : 'Net torn', '#FF9A8A', 19, 2);
-          shake = .7; sfx.netTorn(); sh.state = 'circle'; sh.cool = 14; hud(); }
-      } else if (dn > 560 || sh.t > 7 || docked || escorted || net.torn > 0){ sh.state = 'circle'; sh.cool = 6; }
-    }
-    const dx = tx-sh.x, dy = ty-sh.y, d = Math.hypot(dx,dy);
-    if (d > 1){ const st = Math.min(d, sp*dt); sh.x += dx/d*st; sh.y += dy/d*st; sh.ang = Math.atan2((dx+dy)*.5, dx-dy); }
-  }
-}
 function updateFlotsam(){
   const nr = NETW[lv.net]*.5 + 10, br = 30*bk();
   for (const f of flotsam){
@@ -545,7 +523,7 @@ function update(dt){
 
   updateRare(dt); updateLeviathan(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  world.earned = earned; world.holdTotal = holdTotal; world.hullScale = bk(); pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); updateSharks(dt); updateFlotsam(); updateDrift();
+  pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); sharksEntity.update(dt, world); updateFlotsam(); updateDrift();
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
 
   /* bits */
@@ -674,21 +652,6 @@ function drawFish(){
     }
   }
   ctx.globalAlpha = 1;
-}
-function drawSharks(){
-  for (const sh of sharks){
-    if (!sh.alive || !onScreen(sh.x, sh.y, 60)) continue;
-    const x = px(sh.x,sh.y), y = py(sh.x,sh.y), len = 30*Z, ca = Math.cos(sh.ang), sa = Math.sin(sh.ang), hot = sh.state === 'charge';
-    ctx.fillStyle = 'rgba(24,44,62,.72)';
-    ctx.beginPath(); ctx.ellipse(x,y,len,len*.3,sh.ang,0,Math.PI*2); ctx.fill();
-    const tx = x - ca*len*.9, ty = y - sa*len*.9, ta = sh.ang + Math.sin(T*(hot?12:5))*.4;
-    ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx - Math.cos(ta-.7)*len*.6, ty - Math.sin(ta-.7)*len*.6);
-    ctx.lineTo(tx - Math.cos(ta+.7)*len*.6, ty - Math.sin(ta+.7)*len*.6); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = C.foam; ctx.globalAlpha = .55; ctx.lineWidth = 1.5*Z;
-    ctx.beginPath(); ctx.ellipse(x,y,11*Z,4.5*Z,0,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1;
-    ctx.fillStyle = hot ? '#D2493A' : '#5F7080';
-    ctx.beginPath(); ctx.moveTo(x + ca*7*Z, y + sa*7*Z); ctx.lineTo(x - ca*5*Z, y - sa*5*Z - 18*Z); ctx.lineTo(x - ca*9*Z, y - sa*9*Z); ctx.closePath(); ctx.fill();
-  }
 }
 function drawFlotsam(){
   for (const f of flotsam){ if (!f.alive || !onScreen(f.x,f.y,40)) continue;
@@ -940,10 +903,10 @@ function indicator(wx,wy,bg,kind,pulse){
     ctx.beginPath(); ctx.moveTo(ix-4,iy); ctx.lineTo(ix-10,iy-4.5); ctx.lineTo(ix-10,iy+4.5); ctx.closePath(); ctx.fill(); }
 }
 function draw(){
-  drawView.zoom = Z; drawView.dark = dark;
+  drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); drawLeviathan(); drawFish(); drawRare(); drawSharks(); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
+  drawSea(); drawLeviathan(); drawFish(); drawRare(); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();

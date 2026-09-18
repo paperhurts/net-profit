@@ -11,18 +11,10 @@ import {
 } from '../../src/entities/dolphins';
 import type { World } from '../../src/entities/entity';
 import { IR, IX, IY, WS } from '../../src/world/island';
+import { baseWorld } from './helpers/world';
 
-const world = (over: Partial<World> = {}): World => ({
-  T: 0,
-  started: true,
-  docked: false,
-  boat: { x: IX + 1500, y: IY, h: 0, v: 200 },
-  rng: rng(5),
-  earned: 0,
-  holdTotal: 0,
-  hullScale: 1,
-  ...over,
-});
+const world = (over: Partial<World> = {}): World =>
+  baseWorld({ boat: { x: IX + 1500, y: IY, h: 0, v: 200 }, rng: rng(5), ...over });
 
 const step = (d: Dolphins, w: World, seconds: number) => {
   for (let t = 0; t < seconds; t += 1 / 60) d.update(1 / 60, w);
