@@ -4,18 +4,16 @@ import { PIRATE_SPEED, PIRATE_UNLOCK } from '../../src/data/tuning';
 import { CHASE_RADIUS, Pirate, type PirateWorld, SAFE_RADIUS } from '../../src/entities/pirate';
 import { steerShip } from '../../src/entities/ship';
 import { DOCK, IX, IY, nearestEdgeExit, WS } from '../../src/world/island';
+import { baseWorld } from './helpers/world';
 
-const world = (over: Partial<PirateWorld> = {}): PirateWorld => ({
-  T: 0,
-  started: true,
-  docked: false,
-  boat: { x: IX - 1200, y: IY + 300, h: 0, v: 0 },
-  rng: rng(11),
-  earned: PIRATE_UNLOCK,
-  holdTotal: 8,
-  hullScale: 1,
-  ...over,
-});
+const world = (over: Partial<PirateWorld> = {}): PirateWorld =>
+  baseWorld({
+    boat: { x: IX - 1200, y: IY + 300, h: 0, v: 0 },
+    rng: rng(11),
+    earned: PIRATE_UNLOCK,
+    holdTotal: 8,
+    ...over,
+  });
 
 const run = (p: Pirate, w: PirateWorld, seconds: number) => {
   for (let t = 0; t < seconds; t += 1 / 30) p.update(1 / 30, w);

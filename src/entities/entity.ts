@@ -21,6 +21,16 @@ export type World = {
   holdTotal: number;
   /** The boat's hull scale for its tier. */
   hullScale: number;
+  /** The towed net: position, speed, and seconds of tear left. */
+  net: { x: number; y: number; speed: number; torn: number };
+  /** Net width for the current level. */
+  netWidth: number;
+  /** Net upgrade level; three or better holds a shark. */
+  netLevel: number;
+  /** Fish the hold can take. */
+  holdCap: number;
+  /** A dolphin escort is alongside; sharks keep off. */
+  escorted: boolean;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */
@@ -30,6 +40,8 @@ export type DrawView = {
   py(x: number, y: number, z?: number): number;
   onScreen(x: number, y: number, margin: number): boolean;
   zoom: number;
+  /** Game seconds, for animation. */
+  T: number;
   /** Night strength, 0..1. */
   dark: number;
   /** Palette entries entities use, by name. */
