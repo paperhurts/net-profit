@@ -131,7 +131,7 @@ One IIFE, plain canvas 2D, DOM for HUD and shop, Web Audio oscillators for sound
 - Global mutable state in one closure. No entity interface, no layers, no event bus.
 - Species are coupled by array index (`SHARK = 7`, night = 8–9, rares = 10–11, `RING_R` parallel array). Move to string ids and data files; migrate the save's `log[]` to a map.
 - `refreshShop()` rebuilds paint swatches and log chips via `innerHTML` on every sale tick.
-- One toast slot: important toasts (pirate chase) get overwritten by routine ones (hold full).
+- Toasts (fixed 2026-09-17): `ui/toast.ts` is a queue with three priorities; danger interrupts, the rest wait up to four seconds and give up, and a message never repeats back to back. Pirate and shark warnings are danger; dolphins, tier, palace, the leviathan and the range edge are events; everything else is routine.
 - Pier depth-sort hack. Tall palace pieces can overlap the hut at some camera positions.
 - Fish heading is derived from frame-to-frame position delta; schools that come on screen snap for a frame.
 - Leviathan path speed is non-uniform (squircle parameterisation).
@@ -159,7 +159,7 @@ src/
                      leviathan.ts  rare.ts  flotsam.ts  birds.ts
   render/            sea.ts  solids.ts  ship.ts  fish.ts  night.ts
                      particles.ts  indicators.ts
-  ui/                hud.ts  shop.ts  toast.ts (queue with priorities)
+  ui/                toast.ts done (queue with priorities); hud.ts  shop.ts
   audio/             sfx.ts (done; named cues locked to legacy by test)
 legacy/net-profit.html   the reference build, untouched
 index.html               the shipping game; identical to legacy until the port starts
