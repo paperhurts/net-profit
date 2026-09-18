@@ -55,6 +55,8 @@ export type World = {
   tier: number;
   /** The net is full of jellyfish; nothing else stays in it. */
   netFouled: boolean;
+  /** Palace stages built, which earn pets. */
+  build: number;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */

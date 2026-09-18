@@ -55,8 +55,11 @@ describe('Pirate', () => {
   it('sails in from an edge, well away from the boat, when its timer runs out', () => {
     const p = new Pirate();
     const w = world();
+    let arrivals = 0;
+    p.onProwl = () => arrivals++;
     run(p, w, 6.1);
     expect(p.ship.state).toBe('prowl');
+    expect(arrivals).toBe(1);
     const s = p.ship;
     const offEdge = s.x <= 0 || s.x >= WS || s.y <= 0 || s.y >= WS;
     // It may have moved a step already; the spawn was off an edge.

@@ -211,6 +211,11 @@ export const cues = {
     tone(440, 0.05, 'triangle', 0.05, 1, 0.07);
     tone(360, 0.07, 'triangle', 0.05, 1, 0.14);
   },
+  /** The dog on the pier, barking at the horizon: two short yaps. */
+  bark(): void {
+    tone(520, 0.06, 'square', 0.05, 1.3);
+    tone(430, 0.08, 'square', 0.05, 1.25, 0.11);
+  },
 };
 
 export type Cue = keyof typeof cues;

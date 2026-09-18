@@ -22,6 +22,7 @@ import { Dolphins } from './entities/dolphins';
 import { CRATES, DRIFTWOOD, Flotsam } from './entities/flotsam';
 import { Gulls } from './entities/gulls';
 import { Jellies } from './entities/jellies';
+import { Pets } from './entities/pets';
 import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
@@ -155,7 +156,7 @@ const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; } };
 const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
 crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
 const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
@@ -194,9 +195,13 @@ leviathan.onPass = () => { shake = Math.max(shake,.4);
   if (!levSeen){ levSeen = true; save(); } };
 const jellies = new Jellies();
 jellies.onFoul = () => { toast('Jellyfish in the net. Nothing else will stay in it until you shake them out at the dock.', 3400, 1); sfx.jellies(); };
+const pets = new Pets(build); let dogToastT = 0;
+pets.onEarn = () => toast('A dog has come to live on the pier. It barks when pirates are about.', 3600, 1);
+pets.onBark = () => { sfx.bark(); if (dogToastT <= 0){ dogToastT = 60; toast('The dog is barking at the horizon. Pirates are about.', 3200, 1); } };
+pirateEntity.onProwl = () => pets.alert();
 // One list, one order, for updating and for z within a layer: the prototype's update order, then what came after.
 const scene = new Scene();
-for (const e of [rareEntity, leviathan, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies]) scene.add(e);
+for (const e of [rareEntity, leviathan, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -335,7 +340,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket();
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); jellies.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset();
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -475,7 +480,7 @@ function update(dt){
     if (holdTotal === 0) finishSale();
   } else sellT = 0;
 
-  dolphinToastT -= dt; scene.update(dt, world);
+  dolphinToastT -= dt; dogToastT -= dt; scene.update(dt, world);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
 
@@ -872,5 +877,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, pets, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
