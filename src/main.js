@@ -367,6 +367,8 @@ elRst.addEventListener('click', () => {
 });
 $('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); sfx.castOff(); });
 sndLabel(); hud(); hudWood(); hudPhase(); refreshShop(); drawOrder();
+// A fishmonger who is open but has never asked picks now, rather than making a loaded save wait for dawn.
+if (vendorsOpen(build).fishmonger && market === NO_PICK){ newMarket(); toast(`The fishmonger wants ${SPECIES[market].pl} today. Double pay.`, 3200); }
 keysLabel();
 
 /* ---------- game logic ---------- */
