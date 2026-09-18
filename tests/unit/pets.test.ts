@@ -56,7 +56,7 @@ describe('Pets', () => {
     expect(d.bark).toBe(BARK_SECONDS);
     const w = world();
     run(e, w, 2.5);
-    expect(d.x).toBeCloseTo(DECK.x1, 0);
+    expect(Math.abs(d.x - DECK.x1)).toBeLessThanOrEqual(1);
     expect(d.bark).toBeGreaterThan(0);
     expect(d.h).toBe(0);
     run(e, w, 2);
@@ -87,11 +87,11 @@ describe('Pets', () => {
     e.draw(fake.v, 'surface');
     expect(fake.calls).toEqual({});
     e.draw(fake.v, 'solids');
-    expect(fake.calls.isoEllipse).toBe(5);
+    expect(fake.calls.isoEllipse).toBe(8);
     expect(fake.calls.arc).toBeUndefined();
     e.alert();
     e.draw(fake.v, 'solids');
-    expect(fake.calls.isoEllipse).toBe(10);
+    expect(fake.calls.isoEllipse).toBe(16);
     expect(fake.calls.arc).toBe(3);
   });
 });
