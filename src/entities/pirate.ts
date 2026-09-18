@@ -58,6 +58,8 @@ export class Pirate implements Entity {
   onChase: (() => void) | null = null;
   /** Take this many fish from the hold, most valuable first; the game removes them and shows it. */
   onSteal: ((n: number) => void) | null = null;
+  /** It has just sailed in from an edge. The dog hears of it. */
+  onProwl: (() => void) | null = null;
 
   get visible(): boolean {
     return this.ship.state !== 'away';
@@ -101,6 +103,7 @@ export class Pirate implements Entity {
       p.age = 0;
       p.tx = IX;
       p.ty = IY;
+      this.onProwl?.();
       return;
     }
     p.age += dt;
