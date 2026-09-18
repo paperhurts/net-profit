@@ -20,6 +20,7 @@ import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
 import { CRATES, DRIFTWOOD, Flotsam } from './entities/flotsam';
 import { Gulls } from './entities/gulls';
+import { Jellies } from './entities/jellies';
 import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
@@ -153,7 +154,7 @@ const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; } };
 const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
 crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
 const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
@@ -190,9 +191,11 @@ leviathan.onPass = () => { shake = Math.max(shake,.4);
   sfx.leviathan();
   toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200, 1);
   if (!levSeen){ levSeen = true; save(); } };
-// One list, one order, for updating and for z within a layer: the prototype's update order.
+const jellies = new Jellies();
+jellies.onFoul = () => { toast('Jellyfish in the net. Nothing else will stay in it until you shake them out at the dock.', 3400, 1); sfx.jellies(); };
+// One list, one order, for updating and for z within a layer: the prototype's update order, then what came after.
 const scene = new Scene();
-for (const e of [rareEntity, leviathan, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood]) scene.add(e);
+for (const e of [rareEntity, leviathan, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -324,7 +327,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder();
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); jellies.reset(); clock = .13;
   pirateEntity.reset();
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -447,7 +450,7 @@ function update(dt){
       const dx = x-f.x, dy = y-f.y;
       if (dx*dx+dy*dy > .0004 && dx*dx+dy*dy < 400) f.ang = Math.atan2((dx+dy)*.5, dx-dy);
       f.x = x; f.y = y;
-      if (catching && near && f.grow >= 1 && holdTotal < cap && !(sc.night && dark < .75)){
+      if (catching && near && !jellies.inNet && f.grow >= 1 && holdTotal < cap && !(sc.night && dark < .75)){
         const ex = x-net.x, ey = y-net.y; if (ex*ex+ey*ey < rr) catchFish(f,sc);
       }
     }
@@ -455,7 +458,8 @@ function update(dt){
 
   /* dock */
   const inDock = Math.hypot(boat.x-DOCK.x, boat.y-DOCK.y) < DOCK.r;
-  if (inDock !== docked){ docked = inDock; elShop.classList.toggle('open', docked); elShop.setAttribute('aria-hidden', String(!docked)); if (docked){ refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); } } }
+  if (inDock !== docked){ docked = inDock; elShop.classList.toggle('open', docked); elShop.setAttribute('aria-hidden', String(!docked)); if (docked){ refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
+    if (jellies.inNet){ const n = jellies.shakeOut(); toast(n === 1 ? 'Shook a jellyfish out of the net.' : `Shook ${n} jellyfish out of the net.`, 2400); sfx.jelliesOut(); } } }
   if (docked && holdTotal > 0){
     sellT -= dt;
     while (sellT <= 0 && holdTotal > 0){ sellOne(); sellT += .045; }
@@ -592,6 +596,8 @@ function drawNet(){
     ctx.beginPath(); ctx.moveTo(px(rx,ry), py(rx,ry,6*k));
     ctx.lineTo(px(e[0],e[1]), py(e[0],e[1])); ctx.stroke(); }
   polyPath(pts,0); ctx.fillStyle = torn ? 'rgba(255,120,100,.12)' : 'rgba(255,255,255,.13)'; ctx.fill();
+  if (jellies.inNet){ const k = Math.min(jellies.inNet, 7); ctx.fillStyle = 'rgba(222,190,255,.7)';
+    for (let i=0;i<k;i++){ const p = pts[1 + Math.floor(i*(m-1)/k)]; ctx.beginPath(); ctx.arc(px(p[0],p[1]), py(p[0],p[1], 2+Math.sin(T*2.5+i)*1.5), (3.5+Math.sin(T*3+i))*Z, 0, Math.PI*2); ctx.fill(); } }
   ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1*Z;
   for (let i=1;i<m;i++){ const a = pts[i], b = pts[m-i]; if (i >= m-i) break;
     ctx.beginPath(); ctx.moveTo(px(a[0],a[1]),py(a[0],a[1])); ctx.lineTo(px(b[0],b[1]),py(b[0],b[1])); ctx.stroke(); }
@@ -840,5 +846,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

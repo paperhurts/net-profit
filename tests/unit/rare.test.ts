@@ -97,16 +97,17 @@ describe('Rare', () => {
     expect(slipped).toEqual([10]);
   });
 
-  it('is landed by a fast, whole net when the hold has room', () => {
+  it('is landed by a fast, whole net when the hold has room and no jellyfish', () => {
     const { e, w } = netted({ holdTotal: 3 });
     const caught: number[] = [];
     e.onCatch = (sp) => caught.push(sp);
     e.update(1 / 30, w);
     expect(caught).toEqual([10]);
     expect(e.rare.on).toBe(false);
-    for (const over of [{ started: false }, { torn: 1 }, { speed: 10 }]) {
+    for (const over of [{ started: false }, { torn: 1 }, { speed: 10 }, { fouled: true }]) {
       const fresh = netted({ holdTotal: 3 });
       if ('started' in over) fresh.w.started = false;
+      else if ('fouled' in over) fresh.w.netFouled = true;
       else Object.assign(fresh.w.net, over);
       let n = 0;
       fresh.e.onCatch = () => n++;
