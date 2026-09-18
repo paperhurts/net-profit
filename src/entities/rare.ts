@@ -2,7 +2,7 @@
  * The rare fish, moved verbatim from the prototype script. Dawn and dusk
  * each put one on the water, out past the shallows but inside the boat's
  * range, sparkling and wandering, for eighty seconds. A moving net lands it
- * if the hold has room. The game owns the consequences through callbacks:
+ * if the hold has room and is not full of jellyfish. The game owns the consequences through callbacks:
  * the toast when it slips away, the nudge when the hold is full, and the
  * catch itself with its fireworks and the save.
  */
@@ -119,6 +119,7 @@ export class Rare implements Entity {
       w.started &&
       net.speed > 22 &&
       net.torn <= 0 &&
+      !w.netFouled &&
       Math.hypot(r.x - net.x, r.y - net.y) < w.netWidth * 0.5 + 12
     ) {
       if (w.holdTotal >= w.holdCap) {

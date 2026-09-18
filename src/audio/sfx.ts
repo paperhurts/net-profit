@@ -200,6 +200,17 @@ export const cues = {
   rangeEdge(): void {
     tone(160, 0.2, 'triangle', 0.06);
   },
+  /** The net has scooped its first jellyfish: a soft, wobbly squelch. */
+  jellies(): void {
+    tone(300, 0.18, 'sine', 0.06, 0.7);
+    tone(220, 0.22, 'sine', 0.06, 0.8, 0.12);
+  },
+  /** The jellyfish shaken out at the dock: three quick shakes. */
+  jelliesOut(): void {
+    tone(520, 0.05, 'triangle', 0.05);
+    tone(440, 0.05, 'triangle', 0.05, 1, 0.07);
+    tone(360, 0.07, 'triangle', 0.05, 1, 0.14);
+  },
 };
 
 export type Cue = keyof typeof cues;

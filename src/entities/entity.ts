@@ -53,6 +53,8 @@ export type World = {
   range: number;
   /** The boat's tier, which scales what flotsam pays. */
   tier: number;
+  /** The net is full of jellyfish; nothing else stays in it. */
+  netFouled: boolean;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */
