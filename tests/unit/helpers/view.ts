@@ -56,6 +56,7 @@ export function fakeView(): FakeView {
       star: count('star'),
       box: count('box'),
       extrude: count('extrude'),
+      bird: count('bird'),
     },
   };
   return fake;

@@ -64,6 +64,8 @@ export type DrawView = {
   ): void;
   /** Fill an eight-point star at screen x, y. */
   star(x: number, y: number, r: number): void;
+  /** A gull at world x, y and height z, wings at this phase, this big, this present. */
+  bird(x: number, y: number, z: number, flap: number, scale: number, alpha: number): void;
   /** A solid box on the water: world x, y, footprint w by h, from height z0 to z1, side and top colours. */
   box(
     x: number,
