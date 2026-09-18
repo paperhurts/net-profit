@@ -76,7 +76,9 @@ describe('Jellies', () => {
     const e = new Jellies(rng(3));
     const before = e.bloom.jellies.map((j) => j.ph);
     run(e, world({ started: false }), 1);
-    e.bloom.jellies.forEach((j, i) => expect(j.ph - (before[i] as number)).toBeCloseTo(1.6, 5));
+    for (const [i, j] of e.bloom.jellies.entries()) {
+      expect(j.ph - (before[i] as number)).toBeCloseTo(1.6, 5);
+    }
   });
 
   it('a moving, whole net scoops the jellies it passes over, and the game hears of the first', () => {
