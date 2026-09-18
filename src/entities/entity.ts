@@ -46,6 +46,8 @@ export type DrawView = {
   dark: number;
   /** Palette entries entities use, by name. */
   foam: string;
+  /** Path an ellipse of world radius r at world x, y (and height z); the caller fills or strokes. */
+  isoEllipse(x: number, y: number, r: number, z?: number): void;
   /** Draw a hull with the given look; the prototype's ship renderer until it moves. */
   ship(s: { x: number; y: number; h: number; v: number }, look: import('./ship').ShipLook): void;
   /** Punch a light into the night mask. */

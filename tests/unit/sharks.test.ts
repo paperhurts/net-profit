@@ -218,6 +218,7 @@ describe('Sharks', () => {
       light: () => {},
       glow: () => {},
       indicator: () => {},
+      isoEllipse: () => {},
     };
     const e = new Sharks([school(4, HX, HY), school(4, HX, HY + 40)], rng(1));
     (e.sharks[1] as Shark).alive = false;
