@@ -30,10 +30,15 @@ export type Pet = {
 
 /** The palace stage that brings the dog. */
 export const DOG_STAGE = 1;
-/** The planks the dog keeps to: from the pier root up to the crates, on the deck. */
-export const DECK = { x0: PX0 + 8, x1: PX0 + 86, y0: IY - 10, y1: IY + 10, z: 7 } as const;
+/** The planks the dog keeps to: from the pier root to a body's length short of the crates, on the deck. */
+export const DECK = { x0: PX0 + 10, x1: PX0 + 72, y0: IY - 9, y1: IY + 9, z: 7 } as const;
 export const DOG_SPEED = 40;
 export const BARK_SECONDS = 4;
+/** The stand-in dog's colours: a charcoal coat, near-black ears and tail, a pale muzzle, a buoy-red collar. */
+const COAT = '#2F3138';
+const POINTS = '#15161A';
+const MUZZLE = '#B9BCC6';
+const COLLAR = '#E4572E';
 
 export function makeDog(): Pet {
   return { kind: 'dog', x: PX0 + 30, y: IY, tx: PX0 + 30, ty: IY, h: 0, rest: 1, bark: 0, ph: 0 };
@@ -118,31 +123,57 @@ export class Pets implements Entity {
       const s = Math.sin(p.h);
       const moving = Math.hypot(p.tx - p.x, p.ty - p.y) > 1;
       const bob = moving ? Math.abs(Math.sin(p.ph)) * 1.2 : 0;
-      ctx.fillStyle = 'rgba(0,0,0,.18)';
-      v.isoEllipse(p.x, p.y, 7, z);
+      // Charcoal with a red collar and a pale muzzle, standing on four legs: a brown
+      // dog lying flat on tan planks beside the pier's crates read as one more box.
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      v.isoEllipse(p.x, p.y, 10, z);
       ctx.fill();
-      ctx.fillStyle = '#8B5E3C';
-      v.isoEllipse(p.x, p.y, 6.5, z + 5 + bob);
+      ctx.strokeStyle = POINTS;
+      ctx.lineWidth = 2.2 * Z;
+      for (const [fx, fy] of [
+        [5, 2.5],
+        [5, -2.5],
+        [-5, 2.5],
+        [-5, -2.5],
+      ] as const) {
+        const lx = p.x + c * fx - s * fy;
+        const ly = p.y + s * fx + c * fy;
+        ctx.beginPath();
+        ctx.moveTo(px(lx, ly), py(lx, ly, z));
+        ctx.lineTo(px(lx, ly), py(lx, ly, z + 7 + bob));
+        ctx.stroke();
+      }
+      ctx.fillStyle = COAT;
+      v.isoEllipse(p.x - c * 3.5, p.y - s * 3.5, 6, z + 9 + bob);
       ctx.fill();
-      const hx = p.x + c * 6;
-      const hy = p.y + s * 6;
-      v.isoEllipse(hx, hy, 4, z + 8 + bob);
+      v.isoEllipse(p.x + c * 3.5, p.y + s * 3.5, 6, z + 10 + bob);
       ctx.fill();
-      ctx.fillStyle = '#5E3D1C';
-      v.isoEllipse(hx - s * 3, hy + c * 3, 1.6, z + 11 + bob);
+      ctx.fillStyle = COLLAR;
+      v.isoEllipse(p.x + c * 7, p.y + s * 7, 2.6, z + 13 + bob);
       ctx.fill();
-      v.isoEllipse(hx + s * 3, hy - c * 3, 1.6, z + 11 + bob);
+      const hx = p.x + c * 9.5;
+      const hy = p.y + s * 9.5;
+      ctx.fillStyle = COAT;
+      v.isoEllipse(hx, hy, 4.8, z + 15 + bob);
+      ctx.fill();
+      ctx.fillStyle = MUZZLE;
+      v.isoEllipse(hx + c * 3.6, hy + s * 3.6, 2.3, z + 14 + bob);
+      ctx.fill();
+      ctx.fillStyle = POINTS;
+      v.isoEllipse(hx - s * 3, hy + c * 3, 2.3, z + 17 + bob);
+      ctx.fill();
+      v.isoEllipse(hx + s * 3, hy - c * 3, 2.3, z + 17 + bob);
       ctx.fill();
       const wag = Math.sin(T * (p.bark > 0 ? 18 : 8)) * 4;
-      const bx = p.x - c * 6;
-      const by = p.y - s * 6;
-      ctx.strokeStyle = '#5E3D1C';
-      ctx.lineWidth = 2 * Z;
+      const bx = p.x - c * 9;
+      const by = p.y - s * 9;
+      ctx.strokeStyle = POINTS;
+      ctx.lineWidth = 2.5 * Z;
       ctx.beginPath();
-      ctx.moveTo(px(bx, by), py(bx, by, z + 7 + bob));
+      ctx.moveTo(px(bx, by), py(bx, by, z + 11 + bob));
       ctx.lineTo(
         px(bx - c * 4 - s * wag, by - s * 4 + c * wag),
-        py(bx - c * 4, by - s * 4, z + 12 + bob),
+        py(bx - c * 4, by - s * 4, z + 19 + bob),
       );
       ctx.stroke();
       if (p.bark > 0) {
@@ -150,7 +181,7 @@ export class Pets implements Entity {
         ctx.lineWidth = 1.5 * Z;
         for (let k = 0; k < 3; k++) {
           ctx.beginPath();
-          ctx.arc(px(hx, hy) + (10 + k * 5) * Z, py(hx, hy, z + 9), (3 + k * 2) * Z, -0.6, 0.6);
+          ctx.arc(px(hx, hy) + (12 + k * 5) * Z, py(hx, hy, z + 15), (3 + k * 2) * Z, -0.6, 0.6);
           ctx.stroke();
         }
       }
