@@ -18,6 +18,7 @@ import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } fr
 import { Ambience } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
+import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Sharks } from './entities/sharks';
 (() => {
@@ -82,7 +83,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
-const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
+const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -177,11 +178,11 @@ let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
 dolphins.onEscort = () => { if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); } sfx.dolphins(); lastWhistleT = T; };
 let ambience = null; // built once the first gesture has unlocked audio
 const rare = {on:false, sp:10, x:0, y:0, tx:0, ty:0, t:0, ang:0};
-const LEV_N = 28, lev = {th:Math.random()*6.28, x:0, y:0, trail:[], rumbleT:0};
-function levPos(th){ const A = 2180, c = Math.cos(th), sn = Math.sin(th);
-  return [IX + A*Math.sign(c)*Math.sqrt(Math.abs(c)), IY + A*Math.sign(sn)*Math.sqrt(Math.abs(sn))]; }
-for (let i=0;i<LEV_N;i++) lev.trail.push(levPos(lev.th - i*.016));
-lev.x = lev.trail[0][0]; lev.y = lev.trail[0][1];
+const leviathan = new Leviathan(); const lev = leviathan.lev;
+leviathan.onPass = () => { shake = Math.max(shake,.4);
+  sfx.leviathan();
+  toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200, 1);
+  if (!levSeen){ levSeen = true; save(); } };
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -404,16 +405,6 @@ function updateRare(dt){
   }
 }
 const sparks = [];
-function updateLeviathan(dt){
-  lev.th += dt*.03; const p = levPos(lev.th); lev.x = p[0]; lev.y = p[1];
-  const h = lev.trail[0]; if (Math.hypot(p[0]-h[0], p[1]-h[1]) > 30){ lev.trail.unshift(p); lev.trail.length = LEV_N; }
-  lev.rumbleT -= dt;
-  let near = 1e9; for (let i=0;i<LEV_N;i+=3) near = Math.min(near, Math.hypot(lev.trail[i][0]-boat.x, lev.trail[i][1]-boat.y));
-  if (started && near < 300 && lev.rumbleT <= 0){ lev.rumbleT = 14; shake = Math.max(shake,.4);
-    sfx.leviathan();
-    toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200, 1);
-    if (!levSeen){ levSeen = true; save(); } }
-}
 function updateDrift(){
   const nr = NETW[lv.net]*.5 + 12, br = 30*bk();
   for (const f of drift){
@@ -521,7 +512,7 @@ function update(dt){
     if (holdTotal === 0) finishSale();
   } else sellT = 0;
 
-  updateRare(dt); updateLeviathan(dt);
+  updateRare(dt); leviathan.update(dt, world);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); sharksEntity.update(dt, world); updateFlotsam(); updateDrift();
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
@@ -597,15 +588,6 @@ function fishShape(x,y,len,S,ang,wag){
   ctx.lineTo(tx - Math.cos(ta+.6)*len*S.tail, ty - Math.sin(ta+.6)*len*S.tail); ctx.closePath(); ctx.fill();
 }
 function star(x,y,r){ ctx.beginPath(); for (let i=0;i<8;i++){ const a = i*Math.PI/4, q = i%2 ? r*.28 : r; ctx.lineTo(x+Math.cos(a)*q, y+Math.sin(a)*q); } ctx.closePath(); ctx.fill(); }
-function drawLeviathan(){
-  if (!onScreen(lev.x, lev.y, 700)) return;
-  for (let i=LEV_N-1;i>=0;i--){ const p = lev.trail[i], r = 10 + 52*Math.sin(Math.PI*(i+1.6)/(LEV_N+2));
-    const wob = Math.sin(T*1.1 - i*.55)*14, nx = lev.trail[Math.max(0,i-1)], dx = nx[0]-p[0], dy = nx[1]-p[1], dl = Math.hypot(dx,dy) || 1;
-    const x = p[0] - dy/dl*wob, y = p[1] + dx/dl*wob;
-    ctx.fillStyle = 'rgba(6,20,34,.5)'; isoEllipse(x,y,r); ctx.fill();
-    if (i%3 === 1 && Math.sin(T*1.1 - i*.55) > .15){ const sx = px(x,y), sy = py(x,y), hgt = r*.55*Z*(Math.sin(T*1.1 - i*.55));
-      ctx.fillStyle = '#2E4558'; ctx.beginPath(); ctx.moveTo(sx-r*.35*Z,sy); ctx.lineTo(sx,sy-hgt); ctx.lineTo(sx+r*.35*Z,sy); ctx.closePath(); ctx.fill(); } }
-}
 function drawRare(){
   if (!rare.on || !onScreen(rare.x,rare.y,60)) return; const S = SPECIES[rare.sp];
   ctx.fillStyle = S.c; ctx.globalAlpha = .95; fishShape(px(rare.x,rare.y), py(rare.x,rare.y), S.s*Z, S, rare.ang, Math.sin(T*7)*.35); ctx.globalAlpha = 1;
@@ -619,8 +601,7 @@ function drawGlow(){
       ctx.fillStyle = rgba(S.c, .9*a);
       for (const f of sc.fish){ if (!f.alive || f.grow < .5) continue; const x = px(f.x,f.y), y = py(f.x,f.y);
         if (x<-10||x>W+10||y<-10||y>H+10) continue; ctx.beginPath(); ctx.arc(x,y,2.4*Z,0,Math.PI*2); ctx.fill(); } }
-    if (onScreen(lev.x,lev.y,700)){ ctx.fillStyle = rgba('#7CF5E6', .55*dark);
-      for (let i=0;i<LEV_N;i+=2){ const p = lev.trail[i]; ctx.beginPath(); ctx.arc(px(p[0],p[1]), py(p[0],p[1]), (2+Math.sin(T*2+i)*1)*Z, 0, Math.PI*2); ctx.fill(); } }
+    leviathan.draw(drawView, 'glow');
     ctx.globalCompositeOperation = 'source-over';
   }
   if (rare.on && onScreen(rare.x,rare.y,80)){ const c = SPECIES[rare.sp].c;
@@ -906,7 +887,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); drawLeviathan(); drawFish(); drawRare(); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
+  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); drawRare(); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
