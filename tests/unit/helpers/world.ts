@@ -22,5 +22,6 @@ export const baseWorld = (over: Partial<World> = {}): World => ({
   holdCap: 12,
   escorted: false,
   range: 1150,
+  tier: 0,
   ...over,
 });

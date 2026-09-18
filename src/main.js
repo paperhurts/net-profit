@@ -18,6 +18,7 @@ import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } fr
 import { Ambience } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
+import { CRATES, DRIFTWOOD, Flotsam } from './entities/flotsam';
 import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
@@ -84,7 +85,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
-const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), fishShape: (x,y,len,S,ang,wag) => fishShape(x,y,len,S,ang,wag), star: (x,y,r) => star(x,y,r), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
+const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, coin: C.coin, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), fishShape: (x,y,len,S,ang,wag) => fishShape(x,y,len,S,ang,wag), star: (x,y,r) => star(x,y,r), box: (x,y,w,h,z0,z1,c1,c2) => box(x,y,w,h,z0,z1,c1,c2), extrude: (pts,z0,z1,c1,c2) => extrude(pts,z0,z1,c1,c2), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -147,18 +148,14 @@ for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push(
 
 function resetNet(){ placeNetBehind(net, boat, bk(), towLen()); }
 const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
-const flotsam = [];
-function placeFlotsam(f, near=.5){
-  if (Math.random() < near){ const a = Math.random()*6.28, R = Math.min(range()-60, 2300), r = 560 + Math.random()*Math.max(120, R-560);
-    f.x = clamp(IX+Math.cos(a)*r,160,WS-160); f.y = clamp(IY+Math.sin(a)*r,160,WS-160); return; }
-  do { f.x = 160 + Math.random()*(WS-320); f.y = 160 + Math.random()*(WS-320); } while (Math.hypot(f.x-IX, f.y-IY) < 560); }
-for (let i=0;i<10;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random()*9}; placeFlotsam(f); flotsam.push(f); }
-const drift = [];
-for (let i=0;i<22;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random()*9, rot:Math.random()*6.28}; placeFlotsam(f, .65); drift.push(f); }
 const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; }, get range(){ return range(); } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; }, get range(){ return range(); }, get tier(){ return tier(); } };
+const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
+crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
+const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
+driftwood.onPick = (f, n) => { wood += n; addText(f.x, f.y, 24, 'Driftwood +' + n, '#F0C58A', 18, 1.5); sfx.driftwood(); hudWood(); save(); };
 pirateEntity.onChase = () => { toast('Pirates on your tail. Run for the dock.', 2600, 2); sfx.pirateChase(); };
 pirateEntity.onSteal = (n) => { const took = n;
   for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
@@ -366,19 +363,6 @@ function finishSale(){
   }
 }
 function spill(n){ let lost = 0; for (let sp=0; sp<SPECIES.length && n>0; sp++){ const k = Math.min(hold[sp], n); hold[sp] -= k; holdTotal -= k; n -= k; lost += k; } return lost; }
-function updateFlotsam(){
-  const nr = NETW[lv.net]*.5 + 10, br = 30*bk();
-  for (const f of flotsam){
-    if (!f.alive){ if (T >= f.resp){ placeFlotsam(f); f.alive = true; } continue; }
-    if (!started) continue;
-    if (Math.hypot(f.x-net.x, f.y-net.y) < nr || Math.hypot(f.x-boat.x, f.y-boat.y) < br){
-      const r = [5,8,10,15,20,35][Math.floor(Math.random()*6)] * (1 + Math.floor(tier()/2));
-      coins += r; earned += r; f.alive = false; f.resp = T + 25 + Math.random()*25;
-      addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6);
-      sfx.salvage(); hud(); save();
-    }
-  }
-}
 function updateClock(dt){
   if (started) clock = advanceClock(clock, dt, DAY_LEN);
   { const d = dayState(clock); phase = d.phase; dark = d.dark; warm = d.warm; }
@@ -389,19 +373,6 @@ function updateClock(dt){
     if (phase !== 'Day'){ sfx.phaseChange(); } }
 }
 const sparks = [];
-function updateDrift(){
-  const nr = NETW[lv.net]*.5 + 12, br = 30*bk();
-  for (const f of drift){
-    if (!f.alive){ if (T >= f.resp){ placeFlotsam(f, .65); f.alive = true; } continue; }
-    if (!started) continue;
-    if (Math.hypot(f.x-net.x, f.y-net.y) < nr || Math.hypot(f.x-boat.x, f.y-boat.y) < br){
-      const n = 1 + Math.floor(Math.random()*3) + tier();
-      wood += n; f.alive = false; f.resp = T + 18 + Math.random()*22;
-      addText(f.x, f.y, 24, 'Driftwood +' + n, '#F0C58A', 18, 1.5);
-      sfx.driftwood(); hudWood(); save();
-    }
-  }
-}
 function updateBirdsAndDolphins(dt){
   const want = Math.ceil(holdTotal/HOLD[lv.hold]*4), c = Math.cos(boat.h), sn = Math.sin(boat.h);
   boatGulls.forEach((g,i) => {
@@ -498,7 +469,7 @@ function update(dt){
 
   rareEntity.update(dt, world); leviathan.update(dt, world);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); sharksEntity.update(dt, world); updateFlotsam(); updateDrift();
+  pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); sharksEntity.update(dt, world); crates.update(dt, world); driftwood.update(dt, world);
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
 
   /* bits */
@@ -610,13 +581,6 @@ function drawFish(){
     }
   }
   ctx.globalAlpha = 1;
-}
-function drawFlotsam(){
-  for (const f of flotsam){ if (!f.alive || !onScreen(f.x,f.y,40)) continue;
-    const b = Math.sin(T*1.8 + f.ph)*1.5;
-    isoEllipse(f.x+7,f.y+7,13); ctx.strokeStyle = C.foam; ctx.globalAlpha = .5; ctx.lineWidth = 1.5*Z; ctx.stroke(); ctx.globalAlpha = 1;
-    box(f.x, f.y, 14, 14, -3+b, 9+b, '#B97F45', '#E6B877');
-    ctx.fillStyle = C.coin; isoEllipse(f.x+7, f.y+7, 3, 9.5+b); ctx.fill(); }
 }
 function drawWakes(){
   ctx.fillStyle = C.foam;
@@ -750,14 +714,6 @@ function drawBirds(){
       drawBird(sc.cx+Math.cos(a)*r, sc.cy+Math.sin(a)*r, 78+Math.sin(T+i+j)*8, T*7+i*2+j, 1, 1); } }
   boatGulls.forEach((g,i) => { if (g.a > .03) drawBird(g.x, g.y, 50+i*7+Math.sin(T*1.5+i)*4, T*8+i*1.7, .9, g.a); });
 }
-function drawDrift(){
-  for (const f of drift){ if (!f.alive || !onScreen(f.x,f.y,40)) continue;
-    const b = Math.sin(T*1.6+f.ph)*1.2, r = f.rot + Math.sin(T*.4+f.ph)*.3, c = Math.cos(r), sn = Math.sin(r);
-    const P = (lx,ly) => [f.x + lx*c - ly*sn, f.y + lx*sn + ly*c];
-    isoEllipse(f.x,f.y,17); ctx.strokeStyle = C.foam; ctx.globalAlpha = .45; ctx.lineWidth = 1.5*Z; ctx.stroke(); ctx.globalAlpha = 1;
-    extrude([P(-16,-4),P(16,-4),P(16,4),P(-16,4)], -2+b, 5+b, '#7A5230', '#A9773F');
-    const e = P(9,0); ctx.fillStyle = '#C79A5E'; isoEllipse(e[0],e[1],2.5,5.4+b); ctx.fill(); }
-}
 function drawPier(){
   extrude(PIER, 0, 7, C.wood, C.woodTop);
   ctx.strokeStyle = 'rgba(60,30,0,.18)'; ctx.lineWidth = 1*Z;
@@ -822,8 +778,7 @@ function drawNight(){
   light(net.x, net.y, 0, 150, .8);
   light(IX+50, IY-90, 20, 280, .95);
   if (build >= 2) light(TX, TY, 60, 230, .95);
-  for (const f of drift) if (f.alive && onScreen(f.x,f.y,60)) light(f.x, f.y, 0, 60, .6);
-  for (const f of flotsam) if (f.alive && onScreen(f.x,f.y,60)) light(f.x, f.y, 0, 60, .6);
+  driftwood.draw(drawView, 'mask'); crates.draw(drawView, 'mask');
   light(CRATE.x, CRATE.y, 10, 200, .95);
   pirateEntity.draw(drawView, 'mask');
   ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(nightCv,0,0,W,H);
@@ -864,7 +819,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); rareEntity.draw(drawView, 'surface'); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
+  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); rareEntity.draw(drawView, 'surface'); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); crates.draw(drawView, 'surface'); driftwood.draw(drawView, 'surface'); drawWorldObjects(); drawBirds(); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();

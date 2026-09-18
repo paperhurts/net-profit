@@ -46,6 +46,7 @@ export function fakeView(): FakeView {
       dark: 0,
       T: 0,
       foam: '#fff',
+      coin: '#fc0',
       ship: count('ship'),
       light: count('light'),
       glow: count('glow'),
@@ -53,6 +54,8 @@ export function fakeView(): FakeView {
       isoEllipse: count('isoEllipse'),
       fishShape: count('fishShape'),
       star: count('star'),
+      box: count('box'),
+      extrude: count('extrude'),
     },
   };
   return fake;
