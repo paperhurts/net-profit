@@ -63,6 +63,16 @@ export function around(x: number, y: number, tx: number, ty: number, R: number):
   return [x + ((sg * cy) / dc) * 200 - (cx / dc) * 40, y - ((sg * cx) / dc) * 200 - (cy / dc) * 40];
 }
 
+/** The point just past the nearest side of the world, for something leaving. */
+export function nearestEdgeExit(x: number, y: number): Point {
+  const d = [x, WS - x, y, WS - y];
+  const m = Math.min(...d);
+  if (m === d[0]) return [-260, y];
+  if (m === d[1]) return [WS + 260, y];
+  if (m === d[2]) return [x, -260];
+  return [x, WS + 260];
+}
+
 /** Something with a position and a speed that can be shoved. */
 export type Body = { x: number; y: number; v: number };
 

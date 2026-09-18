@@ -18,6 +18,7 @@ import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } fr
 import { Ambience } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
+import { Pirate } from './entities/pirate';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -55,7 +56,7 @@ const hold = SPECIES.map(() => 0); let holdTotal = 0;
 const boat = {x: DOCK.x+125, y: IY+125, h: .45, v: 0};
 const net = {x:0, y:0, speed:0, torn:0};
 let Zbase = 1, sharkWarnT = 0;
-const pirate = {state:'away', timer:6, x:0, y:0, h:0, v:0, tx:0, ty:0, age:0, warned:0};
+const pirateEntity = new Pirate(); const pirate = pirateEntity.ship;
 const wakes = [], flies = [], texts = [];
 if (savedTrip){ // resume an interrupted trip before the camera and net are placed; parseSave already clamped it
   if (savedTrip.x !== undefined){ boat.x = savedTrip.x; boat.y = savedTrip.y; }
@@ -80,7 +81,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
-const drawView = { ctx, px, py, onScreen, zoom: 1, foam: C.foam }; // what entities may draw with
+const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -155,7 +156,14 @@ for (let i=0;i<10;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random(
 const drift = [];
 for (let i=0;i<22;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random()*9, rot:Math.random()*6.28}; placeFlotsam(f, .65); drift.push(f); }
 const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
-const world = { T: 0, started: false, docked: false, boat, rng: Math.random }; // what entities may read
+const world = { T: 0, started: false, docked: false, boat, rng: Math.random, earned: 0, holdTotal: 0, hullScale: 1 }; // what entities may read
+pirateEntity.onChase = () => { toast('Pirates on your tail. Run for the dock.', 2600, 2); sfx.pirateChase(); };
+pirateEntity.onSteal = (n) => { const took = n;
+  for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
+  addText(boat.x, boat.y, 46, 'Pirates took ' + took + ' fish', '#FF9A8A', 19, 2);
+  shake = 1; sfx.pirateSteal();
+  for (let i=0;i<Math.min(took,10);i++) flies.push({x0:boat.x, y0:boat.y, z0:12, to:'pirate', t:-i*.04, dur:.35, c:SPECIES[0].c, s:7});
+  hud(); };
 const dolphins = new Dolphins(Math.random);
 let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
 dolphins.onEscort = () => { if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); } sfx.dolphins(); lastWhistleT = T; };
@@ -298,7 +306,7 @@ elRst.addEventListener('click', () => {
   for (const sh of sharks){ sh.alive = true; sh.state = 'circle'; sh.cool = 0; }
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rare.on = false; clock = .13;
-  pirate.state = 'away'; pirate.timer = 6;
+  pirateEntity.reset();
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
 });
@@ -339,65 +347,6 @@ function finishSale(){
   if (earned >= PIRATE_UNLOCK && pirate.state === 'away' && !pirate.warned){
     pirate.warned = 1; setTimeout(() => toast('Word is out about your catch. Pirates are about.', 3400, 1), 1700);
   }
-}
-function steerShip(s,tx,ty,maxV,turn,dt){
-  const diff = angDiff(Math.atan2(ty-s.y, tx-s.x), s.h);
-  s.h += clamp(diff, -turn*dt, turn*dt);
-  const tv = maxV*Math.max(.3, Math.cos(diff));
-  s.v += (tv - s.v)*Math.min(1, dt*1.6);
-  s.x += Math.cos(s.h)*s.v*dt; s.y += Math.sin(s.h)*s.v*dt;
-}
-function nearestEdgeExit(x,y){
-  const d = [x, WS-x, y, WS-y], m = Math.min(...d);
-  if (m === d[0]) return [-260, y]; if (m === d[1]) return [WS+260, y];
-  if (m === d[2]) return [x, -260]; return [x, WS+260];
-}
-function updatePirate(dt){
-  const p = pirate;
-  if (earned < PIRATE_UNLOCK) return;
-  if (p.state === 'away'){
-    p.timer -= dt; if (p.timer > 0) return;
-    for (let i=0;i<12;i++){
-      const side = Math.floor(Math.random()*4), t = 200 + Math.random()*(WS-400);
-      const pt = side===0?[-200,t]:side===1?[WS+200,t]:side===2?[t,-200]:[t,WS+200];
-      p.x = pt[0]; p.y = pt[1];
-      if (Math.hypot(p.x-boat.x, p.y-boat.y) > 800) break;
-    }
-    p.h = Math.atan2(IY-p.y, IX-p.x); p.v = 60; p.state = 'prowl'; p.age = 0; p.tx = IX; p.ty = IY; return;
-  }
-  p.age += dt;
-  const dBoat = Math.hypot(boat.x-p.x, boat.y-p.y);
-  const boatSafe = Math.hypot(boat.x-DOCK.x, boat.y-DOCK.y) < 340;
-  let tx = p.tx, ty = p.ty, speed = PIRATE_SPEED*.6;
-  if (p.state === 'prowl'){
-    if (Math.hypot(p.tx-p.x, p.ty-p.y) < 120 || p.age < .1){
-      const a = Math.random()*Math.PI*2, r = 800 + Math.random()*1500;
-      p.tx = clamp(IX+Math.cos(a)*r,150,WS-150); p.ty = clamp(IY+Math.sin(a)*r,150,WS-150);
-    }
-    tx = p.tx; ty = p.ty;
-    if (holdTotal >= 4 && !boatSafe && dBoat < 720){
-      p.state = 'chase'; toast('Pirates on your tail. Run for the dock.', 2600, 2); sfx.pirateChase();
-    } else if (p.age > 50) p.state = 'leave';
-  } else if (p.state === 'chase'){
-    tx = boat.x + Math.cos(boat.h)*boat.v*.4; ty = boat.y + Math.sin(boat.h)*boat.v*.4; speed = PIRATE_SPEED;
-    if (boatSafe || holdTotal === 0){ p.state = 'prowl'; p.age = Math.max(p.age, 25); p.tx = p.x; p.ty = p.y; }
-    else if (dBoat < 30 + 18*bk()){
-      let n = Math.ceil(holdTotal/2); const took = n;
-      for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
-      addText(boat.x, boat.y, 46, 'Pirates took ' + took + ' fish', '#FF9A8A', 19, 2);
-      shake = 1; sfx.pirateSteal();
-      for (let i=0;i<Math.min(took,10);i++) flies.push({x0:boat.x, y0:boat.y, z0:12, to:'pirate', t:-i*.04, dur:.35, c:SPECIES[0].c, s:7});
-      hud(); p.state = 'leave';
-    } else if (p.age > 70) p.state = 'leave';
-  }
-  if (p.state === 'leave'){
-    const ex = nearestEdgeExit(p.x,p.y); tx = ex[0]; ty = ex[1]; speed = PIRATE_SPEED*.9;
-    if (p.x < -180 || p.x > WS+180 || p.y < -180 || p.y > WS+180){ p.state = 'away'; p.timer = 28 + Math.random()*20; return; }
-  }
-  const dd = Math.hypot(p.x-DOCK.x, p.y-DOCK.y);
-  if (dd < 400 && p.state !== 'leave'){ tx = p.x + (p.x-DOCK.x)/dd*300; ty = p.y + (p.y-DOCK.y)/dd*300; }
-  { const ar = around(p.x, p.y, tx, ty, IR+90); tx = ar[0]; ty = ar[1]; }
-  steerShip(p, tx, ty, speed, 1.7, dt); pushOut(p, IX, IY, IR+60);
 }
 function spill(n){ let lost = 0; for (let sp=0; sp<SPECIES.length && n>0; sp++){ const k = Math.min(hold[sp], n); hold[sp] -= k; holdTotal -= k; n -= k; lost += k; } return lost; }
 function updateSharks(dt){
@@ -596,7 +545,7 @@ function update(dt){
 
   updateRare(dt); updateLeviathan(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  updatePirate(dt); updateBirdsAndDolphins(dt); updateSharks(dt); updateFlotsam(); updateDrift();
+  world.earned = earned; world.holdTotal = holdTotal; world.hullScale = bk(); pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); updateSharks(dt); updateFlotsam(); updateDrift();
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
 
   /* bits */
@@ -911,8 +860,7 @@ function drawWorldObjects(){
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
     {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier}
   ];
-  if (pirate.state !== 'away') list.push({d: pirate.x+pirate.y, f: () =>
-    drawShip(pirate, {scale:1.3, hull:'#2B2233', trim:'#B23A48', deck:'#6B5540', cabin:'#3A3145', roof:'#1D1926', mast:'#1D1926', flag:'#111', sail:'#1D1926', heap:0}) });
+  if (pirateEntity.visible) list.push({d: pirateEntity.depth(), f: () => pirateEntity.draw(drawView, 'solids')});
   list.sort((a,b) => a.d-b.d); for (const o of list) o.f();
 }
 function drawBuoys(){
@@ -956,9 +904,9 @@ function drawNight(){
   for (const f of drift) if (f.alive && onScreen(f.x,f.y,60)) light(f.x, f.y, 0, 60, .6);
   for (const f of flotsam) if (f.alive && onScreen(f.x,f.y,60)) light(f.x, f.y, 0, 60, .6);
   light(CRATE.x, CRATE.y, 10, 200, .95);
-  if (pirate.state !== 'away') light(pirate.x, pirate.y, 14, 170, .75);
+  pirateEntity.draw(drawView, 'mask');
   ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(nightCv,0,0,W,H);
-  if (pirate.state !== 'away' && dark > .3){ ctx.globalCompositeOperation = 'screen'; glow(pirate.x, pirate.y, 20, 120, `rgba(255,60,60,${.16*dark})`); }
+  pirateEntity.draw(drawView, 'glow');
   ctx.globalCompositeOperation = 'source-over';
 }
 function drawTexts(){
@@ -992,7 +940,7 @@ function indicator(wx,wy,bg,kind,pulse){
     ctx.beginPath(); ctx.moveTo(ix-4,iy); ctx.lineTo(ix-10,iy-4.5); ctx.lineTo(ix-10,iy+4.5); ctx.closePath(); ctx.fill(); }
 }
 function draw(){
-  drawView.zoom = Z;
+  drawView.zoom = Z; drawView.dark = dark;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
   drawSea(); drawLeviathan(); drawFish(); drawRare(); drawSharks(); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
@@ -1015,7 +963,7 @@ function draw(){
     else if (!anyVis && best) indicator(best.cx, best.cy, '#1F6B7A', SPECIES[best.sp].c, false);
   }
   if (rare.on) indicator(rare.x, rare.y, '#FFF3C4', SPECIES[rare.sp].c, true);
-  if (pirate.state === 'prowl' || pirate.state === 'chase') indicator(pirate.x, pirate.y, '#B23A48', 'pirate', pirate.state === 'chase');
+  pirateEntity.draw(drawView, 'overlay');
 
   if (joy.on && started){
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
