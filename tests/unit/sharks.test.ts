@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rng } from '../../src/core/math';
-import type { DrawView, World } from '../../src/entities/entity';
+import type { World } from '../../src/entities/entity';
 import {
   CHARGE_BREAK,
   CHARGE_SECONDS,
@@ -12,6 +12,7 @@ import {
   WARN_EVERY,
 } from '../../src/entities/sharks';
 import { IX, IY } from '../../src/world/island';
+import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
 const school = (sp: number, x: number, y: number) => ({ sp, ax: x, ay: y, cx: x, cy: y, r: 90 });
@@ -188,38 +189,7 @@ describe('Sharks', () => {
   });
 
   it('draws a body, a tail, a ripple and a fin for each live shark, on the surface layer only', () => {
-    const calls: Record<string, number> = {};
-    const count = (name: string) => () => {
-      calls[name] = (calls[name] ?? 0) + 1;
-    };
-    const ctx = {
-      fillStyle: '',
-      strokeStyle: '',
-      globalAlpha: 1,
-      lineWidth: 1,
-      beginPath: count('beginPath'),
-      ellipse: count('ellipse'),
-      fill: count('fill'),
-      stroke: count('stroke'),
-      moveTo: count('moveTo'),
-      lineTo: count('lineTo'),
-      closePath: count('closePath'),
-    } as unknown as CanvasRenderingContext2D;
-    const v: DrawView = {
-      ctx,
-      px: (x, y) => x - y,
-      py: (x, y, z = 0) => (x + y) * 0.5 - z,
-      onScreen: () => true,
-      zoom: 1,
-      dark: 0,
-      T: 0,
-      foam: '#fff',
-      ship: () => {},
-      light: () => {},
-      glow: () => {},
-      indicator: () => {},
-      isoEllipse: () => {},
-    };
+    const { v, calls } = fakeView();
     const e = new Sharks([school(4, HX, HY), school(4, HX, HY + 40)], rng(1));
     (e.sharks[1] as Shark).alive = false;
     e.draw(v, 'solids');
