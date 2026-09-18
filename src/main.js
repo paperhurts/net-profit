@@ -6,6 +6,7 @@ import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from 
 import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
 import { angDiff, clamp, rng } from './core/math';
 import { rgba, shade } from './core/color';
+import { guidePage } from './data/guide';
 import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
@@ -47,15 +48,17 @@ let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry 
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
-let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK;
+let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK, day = 1;
+const first = new Array(SPECIES.length).fill(0); // the day each species was first landed
+function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
 const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, holdCaps: HOLD};
 let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -169,7 +172,7 @@ pirateEntity.onSteal = (n) => { const took = n;
   for (let i=0;i<Math.min(took,10);i++) flies.push({x0:boat.x, y0:boat.y, z0:12, to:'pirate', t:-i*.04, dur:.35, c:SPECIES[0].c, s:7});
   hud(); };
 sharksEntity.onWarn = () => { toast(lv.net >= 3 ? 'Shark incoming. Your net can hold it.' : 'Shark after your net. Steer clear.', 2200, 2); sfx.sharkWarning(); };
-sharksEntity.onCatch = (sh) => { hold[SHARK]++; holdTotal++; log[SHARK]++;
+sharksEntity.onCatch = (sh) => { hold[SHARK]++; holdTotal++; log[SHARK]++; noteFirst(SHARK);
   flies.push({x0:sh.x, y0:sh.y, z0:0, to:'boat', t:0, dur:.45, c:SPECIES[SHARK].c, s:14});
   addText(sh.x, sh.y, 30, 'Shark caught', '#CFE3EE', 20, 1.8);
   sfx.sharkCaught(); hud(); };
@@ -183,7 +186,7 @@ let ambience = null; // built once the first gesture has unlocked audio
 const rareEntity = new Rare(); const rare = rareEntity.rare;
 rareEntity.onSlip = (sp) => toast(`The ${SPECIES[sp].name} slipped away. It will be back.`, 2400);
 rareEntity.onFull = (sp) => toast(`Hold full. Sell up to land the ${SPECIES[sp].name}.`, 2200);
-rareEntity.onCatch = (sp) => { const S = SPECIES[sp]; hold[sp]++; holdTotal++; log[sp]++; shake = .3;
+rareEntity.onCatch = (sp) => { const S = SPECIES[sp]; hold[sp]++; holdTotal++; log[sp]++; noteFirst(sp); shake = .3;
   flies.push({x0:rare.x, y0:rare.y, z0:0, to:'boat', t:0, dur:.5, c:S.c, s:15});
   addText(rare.x, rare.y, 40, S.name[0].toUpperCase() + S.name.slice(1) + '!', '#FFF3C4', 24, 2.6);
   for (let i=0;i<14;i++) sparks.push({x:rare.x, y:rare.y, vx:(Math.random()-.5)*160, vy:(Math.random()-.5)*160, z:10, vz:40+Math.random()*60, age:0, life:.9+Math.random()*.6});
@@ -329,6 +332,23 @@ $('build').addEventListener('click', () => { audio();
   sfx.build();
   save(); hud(); hudWood(); refreshShop();
 });
+const elGuide = $('guide');
+const LEV_SVG = '<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><ellipse cx="11" cy="7" rx="10" ry="4" fill="currentColor" opacity=".7"/></svg>';
+function renderGuide(){
+  const pages = SPECIES.map((S, sp) => { const g = guidePage(sp, log[sp], first[sp]);
+    return `<article class="page${g.known ? '' : ' unk'}${g.known && S.rare ? ' gold' : ''}">${FISH_SVG(g.known ? S.c : 'currentColor')}<b>${g.name}</b><small>${g.blurb}</small>`
+      + `<div class="facts"><span>${g.where}</span><span>${g.when}</span><span>${g.worth}</span><span>${g.caught}</span></div></article>`; });
+  pages.push(`<article class="page${levSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${levSeen ? 'Leviathan' : '?'}</b><small>${levSeen
+    ? 'Something enormous circles the island far out: a chain of shadows, the odd back breaking the surface, lit at night. You have felt it pass.'
+    : 'Not seen yet. Something enormous circles the island, far out. Sail over it, and go at night.'}</small><div class="facts"><span>About 2,180 out</span><span>Day and night</span><span>Not for catching</span></div></article>`);
+  $('pages').innerHTML = pages.join('');
+}
+function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
+function closeGuide(){ elGuide.hidden = true; sfx.click(); }
+$('guideBtn').addEventListener('click', openGuide);
+$('log').addEventListener('click', openGuide);
+$('guideClose').addEventListener('click', closeGuide);
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !elGuide.hidden) closeGuide(); });
 let rstTimer = 0;
 elRst.addEventListener('click', () => {
   if (!elRst.classList.contains('sure')){
@@ -337,7 +357,7 @@ elRst.addEventListener('click', () => {
   }
   clearTimeout(rstTimer); elRst.classList.remove('sure'); elRst.textContent = '↻';
   coins = 0; earned = 0; lv.net = lv.hold = lv.engine = 0; hold.fill(0); holdTotal = 0; log.fill(0); paint = 0; net.torn = 0;
-  order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket();
+  order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
@@ -354,7 +374,7 @@ function addText(x,y,z,txt,color,size=18,life=1.2){ texts.push({x,y,z,txt,color,
 
 function catchFish(f,sc){
   f.alive = false; f.resp = T + 8 + Math.random()*9 + sc.sp*1.5; sc.alive--;
-  hold[sc.sp]++; holdTotal++; log[sc.sp]++;
+  hold[sc.sp]++; holdTotal++; log[sc.sp]++; noteFirst(sc.sp);
   flies.push({x0:f.x, y0:f.y, z0:0, to:'boat', t:0, dur:.32, c:SPECIES[sc.sp].c, s:SPECIES[sc.sp].s});
   combo = comboT > 0 ? Math.min(combo+1, 14) : 0; comboT = .5;
   sfx.fish(combo, sc.sp);
@@ -389,7 +409,7 @@ function updateClock(dt){
   if (started) clock = advanceClock(clock, dt, DAY_LEN);
   { const d = dayState(clock); phase = d.phase; dark = d.dark; warm = d.warm; }
   if (phase !== lastPhase){ lastPhase = phase; hudPhase();
-    if (phase === 'Dawn'){ if (vendorsOpen(build).fishmonger){ newMarket(); toast(`The fishmonger wants ${SPECIES[market].pl} today. Double pay.`, 3200); } rareEntity.spawn(10, world); toast('Dawn. Something is sparkling out on the water.', 3200); }
+    if (phase === 'Dawn'){ day++; if (vendorsOpen(build).fishmonger){ newMarket(); toast(`The fishmonger wants ${SPECIES[market].pl} today. Double pay.`, 3200); } rareEntity.spawn(10, world); toast('Dawn. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Dusk'){ rareEntity.spawn(11, world); toast('Dusk. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Night') toast('Night. Glowing fish are rising.', 2600);
     if (phase !== 'Day'){ sfx.phaseChange(); } }
@@ -877,5 +897,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, pets, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, pets, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
