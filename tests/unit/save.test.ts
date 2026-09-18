@@ -166,3 +166,22 @@ describe('the fishmonger pick', () => {
     expect(parseSave(JSON.stringify({ market: -7 }), bounds).market).toBe(-1);
   });
 });
+
+describe('days and first catches', () => {
+  it('start at day one with nothing caught in a save from before the guide, and round-trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.day).toBe(1);
+    expect(s.first).toEqual(new Array(bounds.species).fill(0));
+    s.day = 7;
+    s.first[2] = 3;
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.day).toBe(7);
+    expect(back.first[2]).toBe(3);
+  });
+
+  it('never go below day one or a first catch of never', () => {
+    const s = parseSave(JSON.stringify({ day: -4, first: [-1, 2] }), bounds);
+    expect(s.day).toBe(1);
+    expect(s.first.slice(0, 2)).toEqual([0, 2]);
+  });
+});

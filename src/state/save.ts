@@ -37,6 +37,10 @@ export type SaveData = {
   build: number;
   /** The fishmonger's pick of the day, a species index, or -1 when there is none. */
   market: number;
+  /** Dawns seen, counting from 1; the field guide dates first catches by it. */
+  day: number;
+  /** The day each species was first landed, 0 for never. */
+  first: number[];
   levSeen: boolean;
   trip: Trip | null;
   /** How the keyboard steers: drive the boat (A/D turn, W throttle) or point it like the stick. */
@@ -70,6 +74,8 @@ export function defaultSave(b: Bounds): SaveData {
     wood: 0,
     build: 0,
     market: -1,
+    day: 1,
+    first: new Array<number>(b.species).fill(0),
     levSeen: false,
     trip: null,
     keys: 'drive',
@@ -136,6 +142,12 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.wood = Math.max(0, int(o.wood));
   d.build = between(int(o.build), 0, b.stages);
   d.market = o.market === undefined ? -1 : between(int(o.market), -1, b.species - 1);
+  d.day = o.day === undefined ? 1 : Math.max(1, int(o.day));
+  if (Array.isArray(o.first)) {
+    o.first.forEach((n, i) => {
+      if (i < d.first.length) d.first[i] = Math.max(0, int(n));
+    });
+  }
   if (Array.isArray(o.log)) {
     o.log.forEach((n, i) => {
       if (i < d.log.length) d.log[i] = int(n);
@@ -166,6 +178,8 @@ export function serializeSave(d: SaveData): string {
     wood: d.wood,
     build: d.build,
     market: d.market,
+    day: d.day,
+    first: d.first,
     levSeen: d.levSeen,
     trip: d.trip ?? undefined,
     keys: d.keys,

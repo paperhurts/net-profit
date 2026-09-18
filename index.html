@@ -138,6 +138,18 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 .build[aria-disabled="true"]{cursor:default}
 .build:active:not([aria-disabled="true"]){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
 #order b{font-weight:800;opacity:.7}
+#guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
+#guide[hidden]{display:none}
+#guide .planks{max-width:560px;margin:0 auto;padding:10px}
+#guide h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#guide h2 .pill{height:32px;padding:0 10px}
+.page{display:grid;grid-template-columns:44px 1fr;gap:3px 10px;background:var(--card);color:var(--card-fg);border-radius:11px;padding:9px 10px 8px;margin-top:8px}
+.page svg{width:40px;height:26px;grid-row:span 3;align-self:start;margin-top:3px}
+.page b{font-size:15px;font-weight:800;line-height:1.05}
+.page small{font-size:12.5px;font-weight:500;color:var(--muted);line-height:1.25}
+.page .facts{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:12px;font-weight:700;opacity:.85}
+.page.unk{opacity:.65}
+.page.gold{box-shadow:inset 0 0 0 2px var(--coin)}
 #intro{position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:rgba(8,30,40,.35)}
 #intro.gone{display:none}
 #intro .planks{max-width:340px;padding:22px 20px 18px;text-align:center}
@@ -182,6 +194,14 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
     <button class="build" id="build"></button>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>
     <div class="log" id="log" aria-label="Catch log"></div>
+    <button class="build" id="guideBtn"><span><b>Field guide</b><small>Every fish you have met, and where to look for the rest.</small></span><span class="buy">Open</span></button>
+  </div>
+</section>
+
+<section id="guide" hidden aria-label="Field guide">
+  <div class="planks">
+    <h2>Field guide <button class="pill icon" id="guideClose" aria-label="Close the field guide">✕</button></h2>
+    <div id="pages"></div>
   </div>
 </section>
 
