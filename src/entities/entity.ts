@@ -15,6 +15,12 @@ export type World = {
   boat: { x: number; y: number; h: number; v: number };
   /** Random numbers, injectable for tests. */
   rng: () => number;
+  /** Lifetime coins, which wakes the pirate. */
+  earned: number;
+  /** Fish in the hold, which tempts it. */
+  holdTotal: number;
+  /** The boat's hull scale for its tier. */
+  hullScale: number;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */
@@ -24,8 +30,18 @@ export type DrawView = {
   py(x: number, y: number, z?: number): number;
   onScreen(x: number, y: number, margin: number): boolean;
   zoom: number;
+  /** Night strength, 0..1. */
+  dark: number;
   /** Palette entries entities use, by name. */
   foam: string;
+  /** Draw a hull with the given look; the prototype's ship renderer until it moves. */
+  ship(s: { x: number; y: number; h: number; v: number }, look: import('./ship').ShipLook): void;
+  /** Punch a light into the night mask. */
+  light(x: number, y: number, z: number, r: number, k: number): void;
+  /** A soft radial glow in the glow pass. */
+  glow(x: number, y: number, z: number, r: number, color: string): void;
+  /** An edge indicator pointing at something off screen. */
+  indicator(wx: number, wy: number, bg: string, kind: string, pulse: boolean): void;
 };
 
 export interface Entity {

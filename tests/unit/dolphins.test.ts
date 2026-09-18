@@ -18,6 +18,9 @@ const world = (over: Partial<World> = {}): World => ({
   docked: false,
   boat: { x: IX + 1500, y: IY, h: 0, v: 200 },
   rng: rng(5),
+  earned: 0,
+  holdTotal: 0,
+  hullScale: 1,
   ...over,
 });
 

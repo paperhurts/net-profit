@@ -155,7 +155,7 @@ src/
                      with a legacy save in its tests; store.ts and the versioned format are Phase 2
   input/             joystick.ts  keys.ts  (done)
   world/             daycycle.ts and island.ts done; schools.ts and range.ts to come
-  entities/          entity.ts (the contract), boat.ts, net.ts, dolphins.ts done; pirate.ts  shark.ts
+  entities/          entity.ts (the contract), ship.ts, boat.ts, net.ts, dolphins.ts, pirate.ts done; shark.ts
                      leviathan.ts  rare.ts  flotsam.ts  birds.ts
   render/            sea.ts  solids.ts  ship.ts  fish.ts  night.ts
                      particles.ts  indicators.ts
@@ -183,7 +183,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 
 **Phase 2, data-driven content.** Species, zones, upgrades, tiers, stages, paints become data with string ids. Save v2 with migration. Balance values live in one place.
 
-**Phase 3, systems.** Entity interface, render layers, toast queue, sfx cues, pause/visibility, reduced motion. Started 2026-09-17: the toast queue and sfx cues are done, and `entities/entity.ts` holds the contract (`update(dt, world)`, `draw(view, layer)`, optional `depth()`) with the dolphins as the first entity on it, moved verbatim and tested for roaming, joining, escorting and giving up. The game keeps one `world` and one `drawView` object in step each frame for entities to read.
+**Phase 3, systems.** Entity interface, render layers, toast queue, sfx cues, pause/visibility, reduced motion. Started 2026-09-17: the toast queue and sfx cues are done, and `entities/entity.ts` holds the contract (`update(dt, world)`, `draw(view, layer)`, optional `depth()`) with the dolphins as the first entity on it, moved verbatim and tested for roaming, joining, escorting and giving up. The game keeps one `world` and one `drawView` object in step each frame for entities to read. The pirate followed as the second entity: its whole state machine moved verbatim with tests for waking, spawning off an edge, chasing, refusing, stealing half the hold, breaking off and leaving; it draws itself on the solids, mask, glow and overlay layers through the draw view, and the game keeps the consequences (the toast, the cue, the fish actually leaving the hold) as callbacks.
 
 **Phase 4, new content.** See roadmap. One feature per PR, playable at every commit.
 
