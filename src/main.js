@@ -19,6 +19,7 @@ import { Ambience } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
 import { CRATES, DRIFTWOOD, Flotsam } from './entities/flotsam';
+import { Gulls } from './entities/gulls';
 import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
@@ -85,7 +86,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
-const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, coin: C.coin, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), fishShape: (x,y,len,S,ang,wag) => fishShape(x,y,len,S,ang,wag), star: (x,y,r) => star(x,y,r), box: (x,y,w,h,z0,z1,c1,c2) => box(x,y,w,h,z0,z1,c1,c2), extrude: (pts,z0,z1,c1,c2) => extrude(pts,z0,z1,c1,c2), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
+const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, coin: C.coin, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), fishShape: (x,y,len,S,ang,wag) => fishShape(x,y,len,S,ang,wag), star: (x,y,r) => star(x,y,r), bird: (x,y,z,flap,s,a) => drawBird(x,y,z,flap,s,a), box: (x,y,w,h,z0,z1,c1,c2) => box(x,y,w,h,z0,z1,c1,c2), extrude: (pts,z0,z1,c1,c2) => extrude(pts,z0,z1,c1,c2), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -148,7 +149,7 @@ for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push(
 
 function resetNet(){ placeNetBehind(net, boat, bk(), towLen()); }
 const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
-const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
+const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
   get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; }, get range(){ return range(); }, get tier(){ return tier(); } };
@@ -374,12 +375,7 @@ function updateClock(dt){
 }
 const sparks = [];
 function updateBirdsAndDolphins(dt){
-  const want = Math.ceil(holdTotal/HOLD[lv.hold]*4), c = Math.cos(boat.h), sn = Math.sin(boat.h);
-  boatGulls.forEach((g,i) => {
-    const tx = boat.x - c*(55+i*28) + Math.cos(T*1.3+i*2.1)*22, ty = boat.y - sn*(55+i*28) + Math.sin(T*1.1+i*1.7)*22;
-    g.x += (tx-g.x)*Math.min(1,dt*1.8); g.y += (ty-g.y)*Math.min(1,dt*1.8);
-    g.a += ((i < want ? 1 : 0) - g.a)*Math.min(1,dt*2);
-  });
+  gullsEntity.update(dt, world);
   dolphinToastT -= dt;
   dolphins.update(dt, world); escorted = dolphins.escorted;
 }
@@ -707,13 +703,6 @@ function drawBird(x,y,z,flap,k,alpha){
   ctx.globalAlpha = alpha; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.3*Z*k; path(); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx,sy,2*Z*k,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
 }
-function drawBirds(){
-  for (let j=0;j<schools.length;j++){ const sc = schools[j]; if (sc.night || dark > .8 || !onScreen(sc.cx,sc.cy,220*Z)) continue;
-    const fr = sc.alive/sc.n, n = fr > .7 ? 3 : fr > .35 ? 2 : 0, dir = j%2 ? 1 : -1;
-    for (let i=0;i<n;i++){ const a = T*.7*dir + i*(Math.PI*2/n) + j, r = 50 + i*9;
-      drawBird(sc.cx+Math.cos(a)*r, sc.cy+Math.sin(a)*r, 78+Math.sin(T+i+j)*8, T*7+i*2+j, 1, 1); } }
-  boatGulls.forEach((g,i) => { if (g.a > .03) drawBird(g.x, g.y, 50+i*7+Math.sin(T*1.5+i)*4, T*8+i*1.7, .9, g.a); });
-}
 function drawPier(){
   extrude(PIER, 0, 7, C.wood, C.woodTop);
   ctx.strokeStyle = 'rgba(60,30,0,.18)'; ctx.lineWidth = 1*Z;
@@ -819,7 +808,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); rareEntity.draw(drawView, 'surface'); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); crates.draw(drawView, 'surface'); driftwood.draw(drawView, 'surface'); drawWorldObjects(); drawBirds(); drawFlies();
+  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); rareEntity.draw(drawView, 'surface'); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); crates.draw(drawView, 'surface'); driftwood.draw(drawView, 'surface'); drawWorldObjects(); gullsEntity.draw(drawView, 'air'); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
