@@ -17,6 +17,7 @@ import { steerBoat, steerBoatRelative } from './entities/boat';
 import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } from './audio/sfx';
 import { Ambience } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
+import { Dolphins } from './entities/dolphins';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -79,6 +80,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
+const drawView = { ctx, px, py, onScreen, zoom: 1, foam: C.foam }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -153,9 +155,10 @@ for (let i=0;i<10;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random(
 const drift = [];
 for (let i=0;i<22;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random()*9, rot:Math.random()*6.28}; placeFlotsam(f, .65); drift.push(f); }
 const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
-const pods = [0,1].map(i => ({x:IX + (i?-1:1)*900, y:IY + (i?700:-800), tx:IX, ty:IY, h:0, state:'roam', t:0, cool:0, side:1,
-  d:[{ox:0,oy:0,p:0},{ox:-30,oy:26,p:2.1},{ox:-36,oy:-24,p:4.2}]}));
+const world = { T: 0, started: false, docked: false, boat, rng: Math.random }; // what entities may read
+const dolphins = new Dolphins(Math.random);
 let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
+dolphins.onEscort = () => { if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); } sfx.dolphins(); lastWhistleT = T; };
 let ambience = null; // built once the first gesture has unlocked audio
 const rare = {on:false, sp:10, x:0, y:0, tx:0, ty:0, t:0, ang:0};
 const LEV_N = 28, lev = {th:Math.random()*6.28, x:0, y:0, trail:[], rumbleT:0};
@@ -163,8 +166,6 @@ function levPos(th){ const A = 2180, c = Math.cos(th), sn = Math.sin(th);
   return [IX + A*Math.sign(c)*Math.sqrt(Math.abs(c)), IY + A*Math.sign(sn)*Math.sqrt(Math.abs(sn))]; }
 for (let i=0;i<LEV_N;i++) lev.trail.push(levPos(lev.th - i*.016));
 lev.x = lev.trail[0][0]; lev.y = lev.trail[0][1];
-function podWaypoint(p){ const a = Math.random()*6.28, r = 700 + Math.random()*1600; p.tx = clamp(IX+Math.cos(a)*r,200,WS-200); p.ty = clamp(IY+Math.sin(a)*r,200,WS-200); }
-pods.forEach(podWaypoint);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -506,29 +507,8 @@ function updateBirdsAndDolphins(dt){
     g.x += (tx-g.x)*Math.min(1,dt*1.8); g.y += (ty-g.y)*Math.min(1,dt*1.8);
     g.a += ((i < want ? 1 : 0) - g.a)*Math.min(1,dt*2);
   });
-  escorted = false; dolphinToastT -= dt;
-  for (const p of pods){
-    p.cool -= dt; const db = Math.hypot(p.x-boat.x, p.y-boat.y); let tx, ty, sp;
-    if (p.state === 'roam'){
-      if (Math.hypot(p.tx-p.x, p.ty-p.y) < 100) podWaypoint(p);
-      tx = p.tx; ty = p.ty; sp = 120;
-      if (started && !docked && p.cool <= 0 && db < 400 && boat.v > 60){
-        p.state = 'escort'; p.t = 0; p.side = Math.random() < .5 ? -1 : 1;
-        if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); }
-        sfx.dolphins(); lastWhistleT = T;
-      }
-    } else {
-      p.t += dt; tx = boat.x + c*45 - sn*p.side*75; ty = boat.y + sn*45 + c*p.side*75; sp = Math.max(150, boat.v*1.15 + 50);
-      if (db < 280) escorted = true;
-      if (p.t > 30 || docked || db > 800){ p.state = 'roam'; p.cool = 35; podWaypoint(p); }
-    }
-    const ar = around(p.x, p.y, tx, ty, IR+110); tx = ar[0]; ty = ar[1];
-    const dx = tx-p.x, dy = ty-p.y, d = Math.hypot(dx,dy);
-    if (d > 6){ const st = Math.min(d, sp*dt); p.x += dx/d*st; p.y += dy/d*st; p.h += angDiff(Math.atan2(dy,dx), p.h)*Math.min(1,dt*3); }
-    else p.h += angDiff(boat.h, p.h)*Math.min(1,dt*3);
-    pushOut(p, IX, IY, IR+95); for (const b of PIER_BUMPS) pushOut(p, b[0], b[1], 85);
-    for (const q of p.d) q.p += dt*(p.state === 'escort' ? 3.2 : 2.2);
-  }
+  dolphinToastT -= dt;
+  dolphins.update(dt, world); escorted = dolphins.escorted;
 }
 function emitWake(s,k){
   if (s.v < 25) return;
@@ -550,12 +530,13 @@ function updateAmbience(dt){
   ambience.update(dt, {
     on: started && !muted, t: T, speedRatio: boat.v/SPEED[lv.engine], dockness: dockView, dark, phase,
     shoreDist: Math.max(0, Math.min(toIsland, toPier)), gulls,
-    pods: pods.map(p => ({dx: p.x-boat.x, dy: p.y-boat.y, dist: Math.hypot(p.x-boat.x, p.y-boat.y), escort: p.state === 'escort'})),
+    pods: dolphins.pods.map(p => ({dx: p.x-boat.x, dy: p.y-boat.y, dist: Math.hypot(p.x-boat.x, p.y-boat.y), escort: p.state === 'escort'})),
     sinceWhistle: T - lastWhistleT,
   });
 }
 function update(dt){
   T += dt; updateClock(dt);
+  world.T = T; world.started = started; world.docked = docked;
   /* input and boat: the stick points; the keys drive or point, by setting */
   if (started && !joy.on && keyMode === 'drive'){
     const c = keyControls(keys); steerBoatRelative(boat, c.turn, c.throttle, c.brake, SPEED[lv.engine], dt);
@@ -899,23 +880,6 @@ function drawBirds(){
       drawBird(sc.cx+Math.cos(a)*r, sc.cy+Math.sin(a)*r, 78+Math.sin(T+i+j)*8, T*7+i*2+j, 1, 1); } }
   boatGulls.forEach((g,i) => { if (g.a > .03) drawBird(g.x, g.y, 50+i*7+Math.sin(T*1.5+i)*4, T*8+i*1.7, .9, g.a); });
 }
-function drawDolphins(){
-  for (const p of pods){ if (!onScreen(p.x,p.y,140)) continue;
-    const c = Math.cos(p.h), sn = Math.sin(p.h), ang = Math.atan2((c+sn)*.5, c-sn), dirS = Math.cos(ang) >= 0 ? 1 : -1;
-    for (const q of p.d){
-      const wx = p.x + q.ox*c - q.oy*sn, wy = p.y + q.ox*sn + q.oy*c, sp = Math.sin(q.p), up = sp > .3, z = up ? (sp-.3)/.7*26 : 0;
-      const x = px(wx,wy), y0 = py(wx,wy), y = y0 - z*Z, a = ang - (up ? Math.cos(q.p)*.65*dirS : 0), len = 23*Z;
-      if (up && z < 8){ ctx.strokeStyle = C.foam; ctx.globalAlpha = .7; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.ellipse(x,y0,(10+(8-z))*Z,(4.5+(8-z)*.4)*Z,0,0,Math.PI*2); ctx.stroke(); }
-      ctx.globalAlpha = up ? 1 : .42; ctx.fillStyle = up ? '#6E8FA8' : '#23465A';
-      const ca = Math.cos(a), sa = Math.sin(a);
-      ctx.beginPath(); ctx.ellipse(x,y,len,len*.3,a,0,Math.PI*2); ctx.fill();
-      const tx = x-ca*len*.9, ty = y-sa*len*.9;
-      ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx-Math.cos(a-.8)*len*.5, ty-Math.sin(a-.8)*len*.5); ctx.lineTo(tx-Math.cos(a+.8)*len*.5, ty-Math.sin(a+.8)*len*.5); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x+ca*3*Z, y+sa*3*Z-len*.25); ctx.lineTo(x-ca*6*Z, y-sa*6*Z-len*.75); ctx.lineTo(x-ca*7*Z, y-sa*7*Z-len*.2); ctx.closePath(); ctx.fill();
-      if (up){ ctx.fillStyle = '#C5D6E2'; ctx.beginPath(); ctx.ellipse(x+ca*2*Z, y+sa*2*Z+len*.1, len*.6, len*.12, a, 0, Math.PI*2); ctx.fill(); }
-      ctx.globalAlpha = 1;
-    } }
-}
 function drawDrift(){
   for (const f of drift){ if (!f.alive || !onScreen(f.x,f.y,40)) continue;
     const b = Math.sin(T*1.6+f.ph)*1.2, r = f.rot + Math.sin(T*.4+f.ph)*.3, c = Math.cos(r), sn = Math.sin(r);
@@ -1028,9 +992,10 @@ function indicator(wx,wy,bg,kind,pulse){
     ctx.beginPath(); ctx.moveTo(ix-4,iy); ctx.lineTo(ix-10,iy-4.5); ctx.lineTo(ix-10,iy+4.5); ctx.closePath(); ctx.fill(); }
 }
 function draw(){
+  drawView.zoom = Z;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); drawLeviathan(); drawFish(); drawRare(); drawSharks(); drawDolphins(); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
+  drawSea(); drawLeviathan(); drawFish(); drawRare(); drawSharks(); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
@@ -1069,5 +1034,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
