@@ -23,6 +23,10 @@ export const TWY = IY - 2;
 /** Entering this ring opens the shop and sells the hold. */
 export const DOCK = { x: PX0 + 165, y: IY, r: 125 } as const;
 export const CRATE = { x: PX0 + 129, y: IY } as const;
+/** The fishmonger's stall, on the beach just south of the pier root; opens with the watchtower. */
+export const STALL = { x: IX + 150, y: IY + 35 } as const;
+/** The smokehouse, further down the beach; opens with the palace dome. */
+export const SMOKEHOUSE = { x: IX + 130, y: IY + 100 } as const;
 
 export type Point = readonly [number, number];
 
