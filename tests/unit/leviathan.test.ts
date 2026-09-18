@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rng } from '../../src/core/math';
-import type { DrawView, World } from '../../src/entities/entity';
+import type { World } from '../../src/entities/entity';
 import {
   createLev,
   LEV_N,
@@ -10,6 +10,7 @@ import {
   RUMBLE_EVERY,
 } from '../../src/entities/leviathan';
 import { IX, IY } from '../../src/world/island';
+import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
 const step = (e: Leviathan, w: World, frames: number) => {
@@ -80,35 +81,8 @@ describe('Leviathan', () => {
   });
 
   it('draws 28 shadows underwater when on screen, and a chain of lights at night', () => {
-    const calls: Record<string, number> = {};
-    const count = (name: string) => () => {
-      calls[name] = (calls[name] ?? 0) + 1;
-    };
-    const ctx = {
-      fillStyle: '',
-      beginPath: count('beginPath'),
-      arc: count('arc'),
-      fill: count('fill'),
-      moveTo: count('moveTo'),
-      lineTo: count('lineTo'),
-      closePath: count('closePath'),
-    } as unknown as CanvasRenderingContext2D;
-    let onScreen = true;
-    const v: DrawView = {
-      ctx,
-      px: (x, y) => x - y,
-      py: (x, y, z = 0) => (x + y) * 0.5 - z,
-      onScreen: () => onScreen,
-      zoom: 1,
-      dark: 0,
-      T: 0,
-      foam: '#fff',
-      ship: () => {},
-      light: () => {},
-      glow: () => {},
-      indicator: () => {},
-      isoEllipse: count('isoEllipse'),
-    };
+    const fake = fakeView();
+    const { v, calls } = fake;
     const e = new Leviathan(rng(1));
     e.draw(v, 'underwater');
     expect(calls.isoEllipse).toBe(LEV_N);
@@ -118,7 +92,7 @@ describe('Leviathan', () => {
     v.dark = 0.8;
     e.draw(v, 'glow');
     expect(calls.arc).toBe(LEV_N / 2);
-    onScreen = false;
+    fake.onScreen = false;
     e.draw(v, 'underwater');
     e.draw(v, 'glow');
     expect(calls.isoEllipse).toBe(LEV_N);

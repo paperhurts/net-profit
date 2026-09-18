@@ -31,6 +31,8 @@ export type World = {
   holdCap: number;
   /** A dolphin escort is alongside; sharks keep off. */
   escorted: boolean;
+  /** How far from the island the boat may sail. */
+  range: number;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */
@@ -48,6 +50,17 @@ export type DrawView = {
   foam: string;
   /** Path an ellipse of world radius r at world x, y (and height z); the caller fills or strokes. */
   isoEllipse(x: number, y: number, r: number, z?: number): void;
+  /** Draw a fish of a species at screen x, y with this length, heading and tail wag. */
+  fishShape(
+    x: number,
+    y: number,
+    len: number,
+    species: import('../data/tuning').Species,
+    ang: number,
+    wag: number,
+  ): void;
+  /** Fill an eight-point star at screen x, y. */
+  star(x: number, y: number, r: number): void;
   /** Draw a hull with the given look; the prototype's ship renderer until it moves. */
   ship(s: { x: number; y: number; h: number; v: number }, look: import('./ship').ShipLook): void;
   /** Punch a light into the night mask. */

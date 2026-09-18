@@ -20,6 +20,7 @@ import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
 import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
+import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
 (() => {
 'use strict';
@@ -37,7 +38,7 @@ const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
 let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, keyMode = 'drive';
-let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, rareFullT = 0;
+let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15};
@@ -83,7 +84,7 @@ function syncView(){ view.camX = cam.x; view.camY = cam.y; view.zoom = Z; view.w
 const px = (x,y) => screenX(x, y, syncView());
 const py = (x,y,z=0) => screenY(x, y, z, syncView());
 const onScreen = (x,y,m) => isoOnScreen(x, y, m, syncView());
-const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
+const drawView = { ctx, px, py, onScreen, zoom: 1, dark: 0, T: 0, foam: C.foam, ship: (s, look) => drawShip(s, look), isoEllipse: (x,y,r,z) => isoEllipse(x,y,r,z), fishShape: (x,y,len,S,ang,wag) => fishShape(x,y,len,S,ang,wag), star: (x,y,r) => star(x,y,r), light: (x,y,z,r,k) => light(x,y,z,r,k), glow: (x,y,z,r,c) => glow(x,y,z,r,c), indicator: (wx,wy,bg,kind,pulse) => indicator(wx,wy,bg,kind,pulse) }; // what entities may draw with
 const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function isDark(){ const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(mq && mq.matches); }
 
@@ -157,7 +158,7 @@ for (let i=0;i<22;i++){ const f = {x:0, y:0, alive:true, resp:0, ph:Math.random(
 const boatGulls = [0,1,2,3].map(() => ({x:boat.x, y:boat.y, a:0}));
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; }, get range(){ return range(); } };
 pirateEntity.onChase = () => { toast('Pirates on your tail. Run for the dock.', 2600, 2); sfx.pirateChase(); };
 pirateEntity.onSteal = (n) => { const took = n;
   for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
@@ -177,7 +178,14 @@ const dolphins = new Dolphins(Math.random);
 let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
 dolphins.onEscort = () => { if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); } sfx.dolphins(); lastWhistleT = T; };
 let ambience = null; // built once the first gesture has unlocked audio
-const rare = {on:false, sp:10, x:0, y:0, tx:0, ty:0, t:0, ang:0};
+const rareEntity = new Rare(); const rare = rareEntity.rare;
+rareEntity.onSlip = (sp) => toast(`The ${SPECIES[sp].name} slipped away. It will be back.`, 2400);
+rareEntity.onFull = (sp) => toast(`Hold full. Sell up to land the ${SPECIES[sp].name}.`, 2200);
+rareEntity.onCatch = (sp) => { const S = SPECIES[sp]; hold[sp]++; holdTotal++; log[sp]++; shake = .3;
+  flies.push({x0:rare.x, y0:rare.y, z0:0, to:'boat', t:0, dur:.5, c:S.c, s:15});
+  addText(rare.x, rare.y, 40, S.name[0].toUpperCase() + S.name.slice(1) + '!', '#FFF3C4', 24, 2.6);
+  for (let i=0;i<14;i++) sparks.push({x:rare.x, y:rare.y, vx:(Math.random()-.5)*160, vy:(Math.random()-.5)*160, z:10, vz:40+Math.random()*60, age:0, life:.9+Math.random()*.6});
+  sfx.rareCaught(); hud(); save(); };
 const leviathan = new Leviathan(); const lev = leviathan.lev;
 leviathan.onPass = () => { shake = Math.max(shake,.4);
   sfx.leviathan();
@@ -314,7 +322,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder();
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rare.on = false; clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); clock = .13;
   pirateEntity.reset();
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -375,34 +383,10 @@ function updateClock(dt){
   if (started) clock = advanceClock(clock, dt, DAY_LEN);
   { const d = dayState(clock); phase = d.phase; dark = d.dark; warm = d.warm; }
   if (phase !== lastPhase){ lastPhase = phase; hudPhase();
-    if (phase === 'Dawn'){ spawnRare(10); toast('Dawn. Something is sparkling out on the water.', 3200); }
-    else if (phase === 'Dusk'){ spawnRare(11); toast('Dusk. Something is sparkling out on the water.', 3200); }
+    if (phase === 'Dawn'){ rareEntity.spawn(10, world); toast('Dawn. Something is sparkling out on the water.', 3200); }
+    else if (phase === 'Dusk'){ rareEntity.spawn(11, world); toast('Dusk. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Night') toast('Night. Glowing fish are rising.', 2600);
     if (phase !== 'Day'){ sfx.phaseChange(); } }
-}
-function rarePoint(cx,cy,spread){
-  const R = Math.min(range()-140, 2250);
-  for (let i=0;i<20;i++){ const a = Math.random()*6.28, r = spread ? Math.random()*spread : 520 + Math.random()*Math.max(100, R-520);
-    const x = (spread ? cx : IX) + Math.cos(a)*r, y = (spread ? cy : IY) + Math.sin(a)*r, d = Math.hypot(x-IX, y-IY);
-    if (d > 480 && d < R && x > 150 && x < WS-150 && y > 150 && y < WS-150 && (spread || Math.hypot(x-boat.x, y-boat.y) > 420)) return [x,y]; }
-  return [clamp(cx,150,WS-150), clamp(cy,150,WS-150)];
-}
-function spawnRare(sp){ const pt = rarePoint(IX+700, IY, 0); rare.on = true; rare.sp = sp; rare.x = pt[0]; rare.y = pt[1]; rare.tx = pt[0]; rare.ty = pt[1]; rare.t = 80; }
-function updateRare(dt){
-  rareFullT -= dt; if (!rare.on) return;
-  rare.t -= dt; const S = SPECIES[rare.sp];
-  if (rare.t <= 0){ rare.on = false; toast(`The ${S.name} slipped away. It will be back.`, 2400); return; }
-  if (Math.hypot(rare.tx-rare.x, rare.ty-rare.y) < 30){ const pt = rarePoint(rare.x, rare.y, 280); rare.tx = pt[0]; rare.ty = pt[1]; }
-  const dx = rare.tx-rare.x, dy = rare.ty-rare.y, d = Math.hypot(dx,dy) || 1;
-  rare.x += dx/d*58*dt; rare.y += dy/d*58*dt; rare.ang = Math.atan2((dx+dy)*.5, dx-dy);
-  if (started && net.speed > 22 && net.torn <= 0 && Math.hypot(rare.x-net.x, rare.y-net.y) < NETW[lv.net]*.5 + 12){
-    if (holdTotal >= HOLD[lv.hold]){ if (rareFullT <= 0){ rareFullT = 5; toast(`Hold full. Sell up to land the ${S.name}.`, 2200); } return; }
-    hold[rare.sp]++; holdTotal++; log[rare.sp]++; rare.on = false; shake = .3;
-    flies.push({x0:rare.x, y0:rare.y, z0:0, to:'boat', t:0, dur:.5, c:S.c, s:15});
-    addText(rare.x, rare.y, 40, S.name[0].toUpperCase() + S.name.slice(1) + '!', '#FFF3C4', 24, 2.6);
-    for (let i=0;i<14;i++) sparks.push({x:rare.x, y:rare.y, vx:(Math.random()-.5)*160, vy:(Math.random()-.5)*160, z:10, vz:40+Math.random()*60, age:0, life:.9+Math.random()*.6});
-    sfx.rareCaught(); hud(); save();
-  }
 }
 const sparks = [];
 function updateDrift(){
@@ -512,7 +496,7 @@ function update(dt){
     if (holdTotal === 0) finishSale();
   } else sellT = 0;
 
-  updateRare(dt); leviathan.update(dt, world);
+  rareEntity.update(dt, world); leviathan.update(dt, world);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); sharksEntity.update(dt, world); updateFlotsam(); updateDrift();
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
@@ -588,10 +572,6 @@ function fishShape(x,y,len,S,ang,wag){
   ctx.lineTo(tx - Math.cos(ta+.6)*len*S.tail, ty - Math.sin(ta+.6)*len*S.tail); ctx.closePath(); ctx.fill();
 }
 function star(x,y,r){ ctx.beginPath(); for (let i=0;i<8;i++){ const a = i*Math.PI/4, q = i%2 ? r*.28 : r; ctx.lineTo(x+Math.cos(a)*q, y+Math.sin(a)*q); } ctx.closePath(); ctx.fill(); }
-function drawRare(){
-  if (!rare.on || !onScreen(rare.x,rare.y,60)) return; const S = SPECIES[rare.sp];
-  ctx.fillStyle = S.c; ctx.globalAlpha = .95; fishShape(px(rare.x,rare.y), py(rare.x,rare.y), S.s*Z, S, rare.ang, Math.sin(T*7)*.35); ctx.globalAlpha = 1;
-}
 function drawGlow(){
   if (dark > .05){
     ctx.globalCompositeOperation = 'screen';
@@ -604,10 +584,7 @@ function drawGlow(){
     leviathan.draw(drawView, 'glow');
     ctx.globalCompositeOperation = 'source-over';
   }
-  if (rare.on && onScreen(rare.x,rare.y,80)){ const c = SPECIES[rare.sp].c;
-    for (let i=0;i<7;i++){ const a = T*1.4 + i*.9, r = 16 + 10*Math.sin(T*2+i*2), tw = .5 + .5*Math.sin(T*6+i*1.7);
-      ctx.globalAlpha = tw; ctx.fillStyle = i%2 ? '#FFFFFF' : c;
-      star(px(rare.x+Math.cos(a)*r, rare.y+Math.sin(a)*r), py(rare.x+Math.cos(a)*r, rare.y+Math.sin(a)*r, 4+6*tw), (3+3*tw)*Z); } ctx.globalAlpha = 1; }
+  rareEntity.draw(drawView, 'glow');
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = Math.random() < .5 ? '#FFFFFF' : '#FFE58A'; star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
 }
 function drawFish(){
@@ -841,7 +818,7 @@ function drawNight(){
   nctx.globalCompositeOperation = 'destination-out';
   light(boat.x, boat.y, 10, 240 + 40*bk(), 1);
   for (const sc of schools) if (SPECIES[sc.sp].glow && sc.vis) light(sc.cx, sc.cy, 0, sc.r+80, .55);
-  if (rare.on) light(rare.x, rare.y, 0, 130, .85);
+  rareEntity.draw(drawView, 'mask');
   light(net.x, net.y, 0, 150, .8);
   light(IX+50, IY-90, 20, 280, .95);
   if (build >= 2) light(TX, TY, 60, 230, .95);
@@ -887,7 +864,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); drawRare(); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
+  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); rareEntity.draw(drawView, 'surface'); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); drawFlotsam(); drawDrift(); drawWorldObjects(); drawBirds(); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
@@ -906,7 +883,7 @@ function draw(){
     if (want && !wantVis) indicator(want.cx, want.cy, C.coin, SPECIES[want.sp].c, false);
     else if (!anyVis && best) indicator(best.cx, best.cy, '#1F6B7A', SPECIES[best.sp].c, false);
   }
-  if (rare.on) indicator(rare.x, rare.y, '#FFF3C4', SPECIES[rare.sp].c, true);
+  rareEntity.draw(drawView, 'overlay');
   pirateEntity.draw(drawView, 'overlay');
 
   if (joy.on && started){
