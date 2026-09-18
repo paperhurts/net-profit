@@ -152,3 +152,17 @@ describe('serializeSave', () => {
     expect(parseSave(serializeSave(s), bounds)).toEqual(s);
   });
 });
+
+describe('the fishmonger pick', () => {
+  it('is none in a save from before the vendors, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.market).toBe(-1);
+    s.market = 4;
+    expect(parseSave(serializeSave(s), bounds).market).toBe(4);
+  });
+
+  it('is clamped to a species that exists', () => {
+    expect(parseSave(JSON.stringify({ market: 99 }), bounds).market).toBe(bounds.species - 1);
+    expect(parseSave(JSON.stringify({ market: -7 }), bounds).market).toBe(-1);
+  });
+});

@@ -123,10 +123,11 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 #order span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rchips{position:fixed;right:calc(12px + env(safe-area-inset-right));top:calc(58px + env(safe-area-inset-top));pointer-events:none;display:flex;gap:6px}
 #phase i{width:10px;height:10px;border-radius:50%;margin-top:-3px}
-#wood,#phase{
+#wood,#phase,#market{
   background:var(--pill-bg);color:var(--pill-fg);border-radius:12px;padding:7px 11px 4px;font-size:13.5px;font-weight:800;line-height:1;
   display:flex;gap:6px;align-items:center;box-shadow:0 2px 0 var(--pill-shadow)}
-#wood svg{margin-top:-3px}
+#wood svg,#market svg{margin-top:-3px}
+#market[hidden]{display:none}
 .build{width:100%;margin-top:8px;background:var(--card);color:var(--card-fg);border-radius:11px;padding:9px 8px 8px 10px;text-align:left;
   display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 3px 0 rgba(0,0,0,.22)}
 .build > span:first-child{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -167,7 +168,7 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 </div>
 
 <div id="order" aria-live="polite"></div>
-<div id="rchips"><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
+<div id="rchips"><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="market" title="The fishmonger's pick today" hidden></div></div>
 <div id="toast" role="status"></div>
 
 <section id="shop" aria-hidden="true" aria-label="Upgrades">

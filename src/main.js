@@ -6,10 +6,11 @@ import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from 
 import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
 import { angDiff, clamp, rng } from './core/math';
 import { rgba, shade } from './core/color';
+import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
-import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, TWX, TWY, TX, TY, WS } from './world/island';
+import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, STALL, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
@@ -45,15 +46,15 @@ let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry 
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
-let order = {sp:0, n:8, have:0, pay:15};
+let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK;
 const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, holdCaps: HOLD};
 let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -251,7 +252,7 @@ function refreshShop(){
   $('tierTxt').textContent = t >= 5 ? nm + '. Fully grown.' : `${nm}. ${left} upgrade${left>1?'s':''} to grow.`;
   const open = paintsUnlocked(t);
   $('paints').innerHTML = PAINTS.map((p,i) => `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${i>=open?' (locked)':''}" aria-disabled="${i>=open}" style="background:${p.hull};border-color:${p.trim}"></button>`).join('');
-  refreshBuild();
+  refreshBuild(); refreshMarket();
   $('log').innerHTML = SPECIES.map((S,i) => `<span class="chip${log[i]?'':' unk'}${S.rare&&log[i]?' gold':''}" title="${log[i]?S.name:'Not caught yet'}">${FISH_SVG(log[i]?S.c:'currentColor')}${log[i]||'?'}</span>`).join('')
     + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`;
 }
@@ -262,9 +263,9 @@ function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>';
 function refreshBuild(){
   const b = $('build'), mult = Math.round(build*15);
   if (build >= STAGES.length){ b.setAttribute('aria-disabled','true');
-    b.innerHTML = `<span><b>Your palace is finished</b><small>All fish sell for ${mult}% more.</small></span>`; return; }
+    b.innerHTML = `<span><b>Your palace is finished</b><small>All fish sell for ${mult}% more. The fishmonger and the smokehouse are open.</small></span>`; return; }
   const S = STAGES[build], ok = wood >= S.wood && coins >= S.coins;
-  const note = wood < S.wood ? `You have ${wood} of ${S.wood} driftwood.` : coins < S.coins ? `You need ${S.coins - coins} more coins.` : `Fish sell for ${mult+15}% more${build < 3 ? '. Unlocks the next upgrade level' : ''}.`;
+  const note = wood < S.wood ? `You have ${wood} of ${S.wood} driftwood.` : coins < S.coins ? `You need ${S.coins - coins} more coins.` : `Fish sell for ${mult+15}% more${build < 3 ? '. Unlocks the next upgrade level' : build === FISHMONGER_STAGE-1 ? '. Opens the fishmonger, who pays double for his pick of the day' : build === SMOKEHOUSE_STAGE-1 ? '. Opens the smokehouse: tuna, goldfin and shark sell for half again' : ''}.`;
   b.setAttribute('aria-disabled', ok ? 'false' : 'true');
   b.innerHTML = `<span><b>Build the ${S.name}</b><small>${note}</small></span><span class="buy">${S.wood} driftwood${S.coins ? ' and ' + S.coins + ' coins' : ''}</span>`;
 }
@@ -272,9 +273,14 @@ function drawOrder(){
   const S = SPECIES[order.sp];
   $('order').innerHTML = `${FISH_SVG(S.c)}<span>${order.n} ${S.pl} pays ${order.pay}</span><b>${Math.min(order.have,order.n)}/${order.n}</b>`;
 }
+// The deepest species the orders and the fishmonger may ask for: one past the deepest caught, inside the range.
+function reachTop(){ let top = 0; for (let i=0;i<SHARK;i++) if (log[i] > 0) top = i;
+  top = Math.min(SHARK-1, top+1); while (top > 0 && RING_R[top] + 120 > range()) top--; return top; }
+function refreshMarket(){ const el = $('market'); if (!vendorsOpen(build).fishmonger || market === NO_PICK){ el.hidden = true; return; }
+  const S = SPECIES[market]; el.hidden = false; el.innerHTML = FISH_SVG(S.c) + '<span>\u00d72 ' + S.pl + '</span>'; }
+function newMarket(){ market = pickMarket(reachTop(), market, Math.random); refreshMarket(); save(); }
 function newOrder(){
-  let top = 0; for (let i=0;i<SHARK;i++) if (log[i] > 0) top = i;
-  top = Math.min(SHARK-1, top+1); while (top > 0 && RING_R[top] + 120 > range()) top--;
+  const top = reachTop();
   let sp = Math.max(Math.floor(Math.random()*(top+1)), Math.floor(Math.random()*(top+1)));
   if (sp === order.sp && top > 0) sp = (sp + 1) % (top+1);
   const n = Math.max(4, Math.round((15 - sp*1.5)*(.7 + Math.random()*.6)));
@@ -312,7 +318,9 @@ $('build').addEventListener('click', () => { audio();
     toast(wood < S.wood ? `Collect ${S.wood - wood} more driftwood out at sea.` : `You need ${S.coins - coins} more coins.`, 2000); return; }
   wood -= S.wood; coins -= S.coins; build++;
   addText(TX, TY, 130, 'Built the ' + S.name, '#9CF0C0', 22, 2.6);
-  toast(`Built the ${S.name}. Fish now sell for ${build*15}% more.`, 3200, 1);
+  if (build === FISHMONGER_STAGE){ newMarket(); toast(`Built the ${S.name}. The fishmonger has opened: he wants ${SPECIES[market].pl} today, double pay.`, 4000, 1); }
+  else if (build === SMOKEHOUSE_STAGE) toast(`Built the ${S.name}. The smokehouse has opened: tuna, goldfin and shark sell for half again as much.`, 4000, 1);
+  else toast(`Built the ${S.name}. Fish now sell for ${build*15}% more.`, 3200, 1);
   sfx.build();
   save(); hud(); hudWood(); refreshShop();
 });
@@ -324,7 +332,7 @@ elRst.addEventListener('click', () => {
   }
   clearTimeout(rstTimer); elRst.classList.remove('sure'); elRst.textContent = '↻';
   coins = 0; earned = 0; lv.net = lv.hold = lv.engine = 0; hold.fill(0); holdTotal = 0; log.fill(0); paint = 0; net.torn = 0;
-  order = {sp:0, n:8, have:0, pay:15}; drawOrder();
+  order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket();
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); jellies.reset(); clock = .13;
@@ -351,9 +359,10 @@ function catchFish(f,sc){
 function sellOne(){
   let sp = hold.findIndex(n => n > 0); if (sp < 0) return;
   hold[sp]--; holdTotal--;
-  carry += SPECIES[sp].v*(1 + .15*build); const v = Math.floor(carry); carry -= v;
+  carry += salePrice(SPECIES[sp].v, build, sp, market); const v = Math.floor(carry); carry -= v;
   coins += v; earned += v; saleSum += v; saleN++;
-  flies.push({x0:boat.x, y0:boat.y, z0:12, to:'crate', t:0, dur:.3, c:SPECIES[sp].c, s:SPECIES[sp].s});
+  const to = buyer(build, sp, market);
+  flies.push({x0:boat.x, y0:boat.y, z0:12, to: to === 'fishmonger' ? 'stall' : to === 'smokehouse' ? 'smoke' : 'crate', t:0, dur: to === 'dock' ? .3 : .45, c:SPECIES[sp].c, s:SPECIES[sp].s});
   sfx.sale(saleN, sp);
   if (sp === order.sp){ order.have++;
     if (order.have >= order.n){ coins += order.pay; earned += order.pay;
@@ -375,7 +384,7 @@ function updateClock(dt){
   if (started) clock = advanceClock(clock, dt, DAY_LEN);
   { const d = dayState(clock); phase = d.phase; dark = d.dark; warm = d.warm; }
   if (phase !== lastPhase){ lastPhase = phase; hudPhase();
-    if (phase === 'Dawn'){ rareEntity.spawn(10, world); toast('Dawn. Something is sparkling out on the water.', 3200); }
+    if (phase === 'Dawn'){ if (vendorsOpen(build).fishmonger){ newMarket(); toast(`The fishmonger wants ${SPECIES[market].pl} today. Double pay.`, 3200); } rareEntity.spawn(10, world); toast('Dawn. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Dusk'){ rareEntity.spawn(11, world); toast('Dusk. Something is sparkling out on the water.', 3200); }
     else if (phase === 'Night') toast('Night. Glowing fish are rising.', 2600);
     if (phase !== 'Day'){ sfx.phaseChange(); } }
@@ -714,6 +723,21 @@ function drawPier(){
   box(PX0+94, IY-13, 16, 16, 7, 20, '#B97F45', '#DDAA66');
   perched(PX0+102, IY-5, 20);
 }
+function drawStall(){
+  const {x, y} = STALL;
+  box(x-14, y-10, 28, 20, 0, 13, '#8A5A3C', '#C98B5E');
+  box(x-18, y-14, 36, 8, 13, 16, '#B23A48', '#F2E6D8');
+  box(x-18, y+6, 36, 8, 13, 16, '#B23A48', '#F2E6D8');
+  if (market !== NO_PICK){ ctx.fillStyle = SPECIES[market].c; isoEllipse(x, y-13, 4.5, 22); ctx.fill(); }
+}
+function drawSmokehouse(){
+  const {x, y} = SMOKEHOUSE;
+  box(x-16, y-12, 32, 24, 0, 17, '#4A3B33', '#6E5A4E');
+  box(x+5, y-7, 7, 7, 17, 30, '#3A2E28', '#3A2E28');
+  for (let k=0;k<3;k++){ const t = (T*.35 + k/3) % 1;
+    ctx.fillStyle = `rgba(230,230,230,${(1-t)*.35})`; ctx.beginPath();
+    ctx.arc(px(x+8.5, y-3.5), py(x+8.5, y-3.5, 30 + t*36), (4 + t*7)*Z, 0, Math.PI*2); ctx.fill(); }
+}
 function drawWorldObjects(){
   const list = [
     {d: (IX+80)+(IY-70), f: () => { box(IX+20,IY-120,60,50,0,38,'#FFF1D6','#FFF1D6'); box(IX+14,IY-126,72,62,38,47,C.hull,shade(C.hull,1.12)); perched(IX+30,IY-72,47); }},
@@ -729,6 +753,8 @@ function drawWorldObjects(){
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
     {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier}
   ];
+  if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
+  if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   list.push(...scene.solids(drawView));
   list.sort((a,b) => a.d-b.d); for (const o of list) o.f();
 }
@@ -741,7 +767,7 @@ function drawBuoys(){
 }
 function drawFlies(){
   for (const f of flies){ if (f.t < 0) continue;
-    const tgt = f.to === 'boat' ? [boat.x-Math.cos(boat.h)*16*bk(), boat.y-Math.sin(boat.h)*16*bk(), 12*bk()] : f.to === 'crate' ? [CRATE.x,CRATE.y,26] : [pirate.x,pirate.y,16];
+    const tgt = f.to === 'boat' ? [boat.x-Math.cos(boat.h)*16*bk(), boat.y-Math.sin(boat.h)*16*bk(), 12*bk()] : f.to === 'crate' ? [CRATE.x,CRATE.y,26] : f.to === 'stall' ? [STALL.x,STALL.y,18] : f.to === 'smoke' ? [SMOKEHOUSE.x,SMOKEHOUSE.y,20] : [pirate.x,pirate.y,16];
     const t = f.t, e = t*t*(3-2*t), x = f.x0+(tgt[0]-f.x0)*e, y = f.y0+(tgt[1]-f.y0)*e, z = f.z0+(tgt[2]-f.z0)*e + Math.sin(Math.PI*t)*38;
     ctx.fillStyle = f.c; ctx.beginPath(); ctx.ellipse(px(x,y), py(x,y,z), f.s*Z, f.s*.45*Z, t*7, 0, Math.PI*2); ctx.fill(); }
 }
@@ -846,5 +872,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
