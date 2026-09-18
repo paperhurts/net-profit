@@ -155,7 +155,7 @@ export class Flotsam implements Entity {
   }
 
   draw(v: DrawView, layer: Layer): void {
-    if (layer === 'surface') {
+    if (layer === 'afloat') {
       for (const f of this.pieces) {
         if (!f.alive || !v.onScreen(f.x, f.y, 40)) continue;
         this.kind.draw(v, f);

@@ -117,6 +117,7 @@ export class Leviathan implements Entity {
       }
     } else if (layer === 'glow') {
       if (v.dark <= 0.05) return;
+      ctx.globalCompositeOperation = 'screen';
       ctx.fillStyle = rgba('#7CF5E6', 0.55 * v.dark);
       for (let i = 0; i < LEV_N; i += 2) {
         const p = lev.trail[i] as Point;
@@ -124,6 +125,7 @@ export class Leviathan implements Entity {
         ctx.arc(px(p[0], p[1]), py(p[0], p[1]), (2 + Math.sin(T * 2 + i) * 1) * Z, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.globalCompositeOperation = 'source-over';
     }
   }
 }

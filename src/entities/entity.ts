@@ -1,10 +1,28 @@
 /**
  * The contract every creature and object grows into. An entity updates itself
  * from what it can see of the world and draws itself when its layer comes up.
- * Layers replace the prototype's hand-ordered draw list one entity at a time.
+ * The scene in render/layers.ts updates every entity in one order and paints
+ * each layer through all of them where the frame needs it.
  */
 
-export type Layer = 'underwater' | 'surface' | 'solids' | 'air' | 'mask' | 'glow' | 'overlay';
+/**
+ * Where an entity draws, in the order the frame is painted. underwater: shadows
+ * beneath the surface. surface: creatures at the surface, under the wakes and
+ * the net. afloat: things floating on the water, over the net. solids:
+ * depth-sorted with the boat and the island, through depth(). air: above
+ * everything. mask: light punches in the night mask. glow: the glow pass after
+ * the mask; set and restore your own composite. overlay: indicators, over the
+ * floating text.
+ */
+export type Layer =
+  | 'underwater'
+  | 'surface'
+  | 'afloat'
+  | 'solids'
+  | 'air'
+  | 'mask'
+  | 'glow'
+  | 'overlay';
 
 /** What entities may read. Kept small on purpose; add fields as entities need them. */
 export type World = {

@@ -146,15 +146,15 @@ describe('Flotsam', () => {
     for (const p of crates.pieces.slice(1)) p.alive = false;
     for (const p of wood.pieces.slice(2)) p.alive = false;
     const fake = fakeView();
-    crates.draw(fake.v, 'surface');
+    crates.draw(fake.v, 'afloat');
     expect(fake.calls).toEqual({ isoEllipse: 2, stroke: 1, box: 1, fill: 1 });
-    wood.draw(fake.v, 'surface');
+    wood.draw(fake.v, 'afloat');
     expect(fake.calls).toEqual({ isoEllipse: 6, stroke: 3, box: 1, extrude: 2, fill: 3 });
     crates.draw(fake.v, 'mask');
     wood.draw(fake.v, 'mask');
     expect(fake.calls.light).toBe(3);
     fake.onScreen = false;
-    crates.draw(fake.v, 'surface');
+    crates.draw(fake.v, 'afloat');
     wood.draw(fake.v, 'mask');
     expect(fake.calls).toEqual({ isoEllipse: 6, stroke: 3, box: 1, extrude: 2, fill: 3, light: 3 });
   });

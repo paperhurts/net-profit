@@ -170,6 +170,7 @@ export class Pirate implements Entity {
       if (v.dark > 0.3) {
         v.ctx.globalCompositeOperation = 'screen';
         v.glow(p.x, p.y, 20, 120, `rgba(255,60,60,${0.16 * v.dark})`);
+        v.ctx.globalCompositeOperation = 'source-over';
       }
     } else if (layer === 'overlay') {
       if (p.state === 'prowl' || p.state === 'chase') {

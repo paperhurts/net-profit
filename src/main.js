@@ -24,6 +24,7 @@ import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
+import { Scene } from './render/layers';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -152,7 +153,7 @@ const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return escorted; }, get range(){ return range(); }, get tier(){ return tier(); } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); } };
 const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
 crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
 const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
@@ -173,7 +174,7 @@ sharksEntity.onTear = () => { net.torn = 6; const lost = spill(3);
   addText(net.x, net.y, 30, lost ? `Net torn, ${lost} fish lost` : 'Net torn', '#FF9A8A', 19, 2);
   shake = .7; sfx.netTorn(); hud(); };
 const dolphins = new Dolphins(Math.random);
-let escorted = false, dolphinToastT = 0, lastWhistleT = -99;
+let dolphinToastT = 0, lastWhistleT = -99;
 dolphins.onEscort = () => { if (dolphinToastT <= 0){ dolphinToastT = 60; toast('Dolphins alongside. Sharks keep their distance.', 2600, 1); } sfx.dolphins(); lastWhistleT = T; };
 let ambience = null; // built once the first gesture has unlocked audio
 const rareEntity = new Rare(); const rare = rareEntity.rare;
@@ -189,6 +190,9 @@ leviathan.onPass = () => { shake = Math.max(shake,.4);
   sfx.leviathan();
   toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200, 1);
   if (!levSeen){ levSeen = true; save(); } };
+// One list, one order, for updating and for z within a layer: the prototype's update order.
+const scene = new Scene();
+for (const e of [rareEntity, leviathan, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -374,11 +378,6 @@ function updateClock(dt){
     if (phase !== 'Day'){ sfx.phaseChange(); } }
 }
 const sparks = [];
-function updateBirdsAndDolphins(dt){
-  gullsEntity.update(dt, world);
-  dolphinToastT -= dt;
-  dolphins.update(dt, world); escorted = dolphins.escorted;
-}
 function emitWake(s,k){
   if (s.v < 25) return;
   const c = Math.cos(s.h), sn = Math.sin(s.h);
@@ -463,9 +462,8 @@ function update(dt){
     if (holdTotal === 0) finishSale();
   } else sellT = 0;
 
-  rareEntity.update(dt, world); leviathan.update(dt, world);
+  dolphinToastT -= dt; scene.update(dt, world);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  pirateEntity.update(dt, world); updateBirdsAndDolphins(dt); sharksEntity.update(dt, world); crates.update(dt, world); driftwood.update(dt, world);
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
 
   /* bits */
@@ -548,10 +546,9 @@ function drawGlow(){
       ctx.fillStyle = rgba(S.c, .9*a);
       for (const f of sc.fish){ if (!f.alive || f.grow < .5) continue; const x = px(f.x,f.y), y = py(f.x,f.y);
         if (x<-10||x>W+10||y<-10||y>H+10) continue; ctx.beginPath(); ctx.arc(x,y,2.4*Z,0,Math.PI*2); ctx.fill(); } }
-    leviathan.draw(drawView, 'glow');
     ctx.globalCompositeOperation = 'source-over';
   }
-  rareEntity.draw(drawView, 'glow');
+  scene.draw(drawView, 'glow');
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = Math.random() < .5 ? '#FFFFFF' : '#FFE58A'; star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
 }
 function drawFish(){
@@ -726,7 +723,7 @@ function drawWorldObjects(){
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
     {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier}
   ];
-  if (pirateEntity.visible) list.push({d: pirateEntity.depth(), f: () => pirateEntity.draw(drawView, 'solids')});
+  list.push(...scene.solids(drawView));
   list.sort((a,b) => a.d-b.d); for (const o of list) o.f();
 }
 function drawBuoys(){
@@ -763,15 +760,12 @@ function drawNight(){
   nctx.globalCompositeOperation = 'destination-out';
   light(boat.x, boat.y, 10, 240 + 40*bk(), 1);
   for (const sc of schools) if (SPECIES[sc.sp].glow && sc.vis) light(sc.cx, sc.cy, 0, sc.r+80, .55);
-  rareEntity.draw(drawView, 'mask');
+  scene.draw(drawView, 'mask');
   light(net.x, net.y, 0, 150, .8);
   light(IX+50, IY-90, 20, 280, .95);
   if (build >= 2) light(TX, TY, 60, 230, .95);
-  driftwood.draw(drawView, 'mask'); crates.draw(drawView, 'mask');
   light(CRATE.x, CRATE.y, 10, 200, .95);
-  pirateEntity.draw(drawView, 'mask');
   ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(nightCv,0,0,W,H);
-  pirateEntity.draw(drawView, 'glow');
   ctx.globalCompositeOperation = 'source-over';
 }
 function drawTexts(){
@@ -808,7 +802,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); leviathan.draw(drawView, 'underwater'); drawFish(); rareEntity.draw(drawView, 'surface'); sharksEntity.draw(drawView, 'surface'); dolphins.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); crates.draw(drawView, 'surface'); driftwood.draw(drawView, 'surface'); drawWorldObjects(); gullsEntity.draw(drawView, 'air'); drawFlies();
+  drawSea(); scene.draw(drawView, 'underwater'); drawFish(); scene.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); scene.draw(drawView, 'afloat'); drawWorldObjects(); scene.draw(drawView, 'air'); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
@@ -827,8 +821,7 @@ function draw(){
     if (want && !wantVis) indicator(want.cx, want.cy, C.coin, SPECIES[want.sp].c, false);
     else if (!anyVis && best) indicator(best.cx, best.cy, '#1F6B7A', SPECIES[best.sp].c, false);
   }
-  rareEntity.draw(drawView, 'overlay');
-  pirateEntity.draw(drawView, 'overlay');
+  scene.draw(drawView, 'overlay');
 
   if (joy.on && started){
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
