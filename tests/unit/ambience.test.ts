@@ -36,6 +36,12 @@ describe('waveMix', () => {
     expect(waveMix(1, 0, 0).hiss).toBeGreaterThan(waveMix(0.5, 0, 0).hiss);
     expect(waveMix(1, 1, 0).hiss).toBe(0);
   });
+  it('keeps a surf going even at rest, a little less in the dock and at night', () => {
+    expect(waveMix(0, 0, 0).surf).toBe(1);
+    expect(waveMix(0, 1, 0).surf).toBeCloseTo(0.5);
+    expect(waveMix(0, 0, 1).surf).toBeCloseTo(0.75);
+    expect(waveMix(0, 1, 1).surf).toBeGreaterThan(0.3);
+  });
   it('breathes slower and deeper out at sea than at the dock', () => {
     expect(waveMix(0, 0, 0).period).toBeGreaterThan(waveMix(0, 1, 0).period);
     expect(waveMix(0, 0, 0).depth).toBeGreaterThan(waveMix(0, 1, 0).depth);
@@ -72,7 +78,7 @@ describe('padNotes', () => {
     expect(padNotes('Night')).toHaveLength(2);
     for (const phase of ['Dawn', 'Day', 'Dusk', 'Night'] as const) {
       const notes = padNotes(phase);
-      expect(notes[0]).toBeCloseTo(87.31);
+      expect(notes[0]).toBeCloseTo(174.61);
       // Everything stays well under the dolphin whistle's band.
       for (const f of notes) expect(f).toBeLessThan(500);
     }

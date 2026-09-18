@@ -7,6 +7,11 @@
  *
  * The pure helpers at the top are unit-tested; the Ambience class owns the
  * Web Audio graph and is exercised by the browser smoke run.
+ *
+ * Tuned 2026-09-18: the first mix was only ever heard on a phone, whose
+ * speaker cannot play the pad's 87 Hz root, so on a desktop the pad read as an
+ * engine hum and masked the swell. The pad went up an octave and down by
+ * half, and the surf came in: the mid wash that says water on any speaker.
  */
 import type { Phase } from '../world/daycycle';
 
@@ -26,6 +31,8 @@ export type WaveMix = {
   swell: number;
   /** Level of the bright wake hiss, 0..1. */
   hiss: number;
+  /** Level of the surf, the mid wash that crests with each swell, always on, 0..1. */
+  surf: number;
   /** Low-pass cutoff for the swell in Hz. */
   cutoff: number;
   /** Seconds per swell; short and shallow inside the dock ring. */
@@ -42,7 +49,8 @@ export function waveMix(speedRatio: number, dockness: number, dark: number): Wav
   return {
     swell: (1 - k * 0.6) * (1 - n * 0.4),
     hiss: s ** 1.5 * 0.8 * (1 - k),
-    cutoff: 400 * (1 - n * 0.35),
+    surf: (1 - k * 0.5) * (1 - n * 0.25),
+    cutoff: 700 * (1 - n * 0.35),
     period: 7 - 4 * k,
     depth: 0.6 - 0.3 * k,
   };
@@ -54,6 +62,12 @@ export function swellPhase(t: number, period: number): number {
 }
 
 /** Wind chimes fade in over the last CHIME_RANGE units to the shore or pier. */
+/** The surf's gain at the crest; brown noise is thin up there, so this is above one. */
+export const SURF_LEVEL = 1.5;
+/** The surf's band sweeps from here up by SURF_SWEEP as a swell crests; all of it under the dolphin whistle. */
+export const SURF_BASE = 650;
+export const SURF_SWEEP = 450;
+
 export const CHIME_RANGE = 400;
 
 export function chimeLevel(distToShore: number): number {
@@ -63,15 +77,15 @@ export function chimeLevel(distToShore: number): number {
 /** F pentatonic, three octaves up, for the chimes. */
 export const CHIME_NOTES = [1396.9, 1568, 1760, 2093, 2349.3, 2793.8] as const;
 
-/** The pad's notes per phase: F2, C3, F3, with an A3 at dawn and dusk and two notes at night. */
+/** The pad's notes per phase: F3, C4, F4, with an A4 at dawn and dusk and two notes at night. */
 export function padNotes(phase: Phase): number[] {
-  const F2 = 87.31;
-  const C3 = 130.81;
   const F3 = 174.61;
-  const A3 = 220;
-  if (phase === 'Night') return [F2, C3];
-  if (phase === 'Dawn' || phase === 'Dusk') return [F2, C3, F3, A3];
-  return [F2, C3, F3];
+  const C4 = 261.63;
+  const F4 = 349.23;
+  const A4 = 440;
+  if (phase === 'Night') return [F3, C4];
+  if (phase === 'Dawn' || phase === 'Dusk') return [F3, C4, F4, A4];
+  return [F3, C4, F4];
 }
 
 /** Stereo position for something dx, dy from the boat in world units: screen-x leaning. */
@@ -137,6 +151,8 @@ export class Ambience {
   private readonly swellGain: GainNode;
   private readonly swellFilter: BiquadFilterNode;
   private readonly hissGain: GainNode;
+  private readonly surfGain: GainNode;
+  private readonly surfFilter: BiquadFilterNode;
   private readonly padGain: GainNode;
   private readonly padOscs: OscillatorNode[] = [];
   private padTarget: number[] = [];
@@ -156,13 +172,13 @@ export class Ambience {
     this.master.gain.value = 0;
     this.master.connect(destination);
 
-    // Waves: one brown-noise loop through two paths, the low swell and the bright hiss.
+    // Waves: one brown-noise loop through three paths: the low swell, the surf and the wake hiss.
     const noise = ctx.createBufferSource();
     noise.buffer = brownNoise(ctx, 3);
     noise.loop = true;
     this.swellFilter = ctx.createBiquadFilter();
     this.swellFilter.type = 'lowpass';
-    this.swellFilter.frequency.value = 400;
+    this.swellFilter.frequency.value = 700;
     this.swellGain = ctx.createGain();
     this.swellGain.gain.value = 0;
     noise.connect(this.swellFilter).connect(this.swellGain).connect(this.master);
@@ -173,19 +189,40 @@ export class Ambience {
     this.hissGain = ctx.createGain();
     this.hissGain.gain.value = 0;
     noise.connect(hissFilter).connect(this.hissGain).connect(this.master);
+    this.surfFilter = ctx.createBiquadFilter();
+    this.surfFilter.type = 'bandpass';
+    this.surfFilter.frequency.value = SURF_BASE;
+    this.surfFilter.Q.value = 0.9;
+    // Two lids on the surf in series, so the wash stays under the dolphin whistle's band.
+    const surfLid = ctx.createBiquadFilter();
+    surfLid.type = 'lowpass';
+    surfLid.frequency.value = 1250;
+    surfLid.Q.value = 0.7;
+    const surfLid2 = ctx.createBiquadFilter();
+    surfLid2.type = 'lowpass';
+    surfLid2.frequency.value = 1250;
+    surfLid2.Q.value = 0.7;
+    this.surfGain = ctx.createGain();
+    this.surfGain.gain.value = 0;
+    noise
+      .connect(this.surfFilter)
+      .connect(surfLid)
+      .connect(surfLid2)
+      .connect(this.surfGain)
+      .connect(this.master);
     noise.start();
 
     // The pad: four detuned triangles under a low-pass; notes come from padNotes.
     const padFilter = ctx.createBiquadFilter();
     padFilter.type = 'lowpass';
-    padFilter.frequency.value = 500;
+    padFilter.frequency.value = 800;
     this.padGain = ctx.createGain();
     this.padGain.gain.value = 0;
     padFilter.connect(this.padGain).connect(this.master);
     for (let i = 0; i < 4; i++) {
       const o = ctx.createOscillator();
       o.type = 'triangle';
-      o.frequency.value = 87.31;
+      o.frequency.value = 174.61;
       o.detune.value = (i - 1.5) * 6;
       const g = ctx.createGain();
       g.gain.value = 0;
@@ -214,13 +251,16 @@ export class Ambience {
     // Waves.
     const w = waveMix(s.speedRatio, s.dockness, s.dark);
     const breath = 1 - w.depth + w.depth * swellPhase(s.t, w.period);
-    this.swellGain.gain.setTargetAtTime(0.55 * w.swell * breath, now, 0.1);
+    this.swellGain.gain.setTargetAtTime(0.4 * w.swell * breath, now, 0.1);
     this.swellFilter.frequency.setTargetAtTime(w.cutoff * (0.8 + 0.4 * breath), now, 0.2);
     this.hissGain.gain.setTargetAtTime(0.35 * w.hiss, now, 0.15);
+    const crest = swellPhase(s.t, w.period) ** 2;
+    this.surfGain.gain.setTargetAtTime(SURF_LEVEL * w.surf * (0.2 + 0.8 * crest), now, 0.12);
+    this.surfFilter.frequency.setTargetAtTime(SURF_BASE + SURF_SWEEP * crest, now, 0.2);
 
     // The pad: fade voices to the chord for the phase, with a slow chorus.
     const notes = padNotes(s.phase);
-    this.padGain.gain.setTargetAtTime(0.16 * (1 - s.dark * 0.3), now, 0.5);
+    this.padGain.gain.setTargetAtTime(0.08 * (1 - s.dark * 0.3), now, 0.5);
     this.padOscs.forEach((o, i) => {
       const f = notes[i];
       const g = this.padVoiceGains[i];
