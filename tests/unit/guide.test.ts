@@ -8,8 +8,7 @@ import {
   whenText,
   whereText,
 } from '../../src/data/guide';
-import { SHARK, SPECIES } from '../../src/data/tuning';
-import game from '../../src/main.js?raw';
+import { RINGS, SHARK, SPECIES } from '../../src/data/tuning';
 
 describe('the field guide', () => {
   it('has a line for every species, and the shark is where the tuning says', () => {
@@ -18,17 +17,11 @@ describe('the field guide', () => {
     expect(SHARK_SP).toBe(SHARK);
   });
 
-  it('places every school where the world builder rings it', () => {
-    const calls = [...game.matchAll(/ringOf\((\d+),\s*(\d+),\s*(\d+),\s*(\d+),[^)]*?(true)?\)/g)];
-    expect(calls.length).toBe(Object.keys(HABITAT).length);
-    for (const m of calls) {
-      const sp = Number(m[4]);
-      expect(HABITAT[sp], `species ${sp}`).toEqual({
-        r0: Number(m[2]),
-        r1: Number(m[3]),
-        ...(m[5] ? { night: true } : {}),
-      });
-    }
+  it('places every school where the tuning rings it', () => {
+    expect(Object.keys(HABITAT)).toHaveLength(RINGS.length);
+    expect(HABITAT[0]).toEqual({ r0: 560, r1: 700 });
+    expect(HABITAT[8]).toEqual({ r0: 950, r1: 1450, night: true });
+    expect(HABITAT[7]).toBeUndefined();
   });
 
   it('names the smallest boat that reaches a ring, by the orders rule', () => {

@@ -11,6 +11,7 @@ import {
   PAINTS,
   RANGE,
   RING_R,
+  RINGS,
   SHARK,
   SPECIES,
   SPEED,
@@ -73,6 +74,10 @@ describe('species table', () => {
     ]);
     expect(SPECIES.filter((s) => s.rare).map((s) => s.name)).toEqual(['sunrise koi', 'dusk ray']);
     expect(RING_R).toHaveLength(SHARK);
+    // The orders' radii are the near edges of the day rings, species 0 to 6.
+    RING_R.forEach((r, sp) => {
+      expect(RINGS.find((ring) => ring.sp === sp)?.r0).toBe(r);
+    });
   });
 });
 
