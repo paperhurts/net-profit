@@ -834,21 +834,27 @@ function drawBird(x,y,z,flap,k,alpha){
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx,sy,2*Z*k,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
 }
 // The Ten Cent Bridge: pilings and two stone abutments, a plank deck with rails, a lamp, and the toll sign at the beach end.
-function drawBridge(){
-  const {ax, ay, bx, by, w, z} = BRIDGE, L = Math.hypot(bx-ax, by-ay), ux = (bx-ax)/L, uy = (by-ay)/L, nx = -uy, ny = ux, h = w/2;
-  for (const t of [.1,.23,.49,.58,.83,.94]){ const x = ax+(bx-ax)*t, y = ay+(by-ay)*t; box(x-4, y-4, 8, 8, 0, z, shade(C.wood,.72), C.wood); }
-  for (const a of ABUTMENTS) box(a[0]-16, a[1]-16, 32, 32, 0, z+2, '#8E989E', '#C3CBCF');
-  extrude([[ax+nx*h,ay+ny*h],[bx+nx*h,by+ny*h],[bx-nx*h,by-ny*h],[ax-nx*h,ay-ny*h]], z, z+4, C.wood, C.woodTop);
+// It is drawn in parts along the span, each sorted by its own depth: one object as long as this cannot have one depth, and
+// sorting the whole of it round the boat, as the pier does, painted it over the palace tree whenever the boat was in front.
+const BRIDGE_PARTS = 6;
+function bridgeAt(d, o=0){ const {ax, ay, bx, by} = BRIDGE, L = Math.hypot(bx-ax, by-ay), ux = (bx-ax)/L, uy = (by-ay)/L; return [ax+ux*d-uy*o, ay+uy*d+ux*o]; }
+function bridgePartDepth(i){ const L = Math.hypot(BRIDGE.bx-BRIDGE.ax, BRIDGE.by-BRIDGE.ay), m = bridgeAt(L*(i+.5)/BRIDGE_PARTS); return m[0]+m[1]; }
+function drawBridgePart(i){
+  const {ax, ay, bx, by, w, z} = BRIDGE, L = Math.hypot(bx-ax, by-ay), ux = (bx-ax)/L, uy = (by-ay)/L, h = w/2;
+  const d0 = L*i/BRIDGE_PARTS, d1 = L*(i+1)/BRIDGE_PARTS, last = i === BRIDGE_PARTS-1, mine = d => d >= d0 && (d < d1 || (last && d <= L));
+  for (const t of [.1,.23,.49,.58,.83,.94]){ if (!mine(L*t)) continue; const q = bridgeAt(L*t); box(q[0]-4, q[1]-4, 8, 8, 0, z, shade(C.wood,.72), C.wood); }
+  for (const a of ABUTMENTS) if (mine((a[0]-ax)*ux + (a[1]-ay)*uy)) box(a[0]-16, a[1]-16, 32, 32, 0, z+2, '#8E989E', '#C3CBCF');
+  extrude([bridgeAt(d0,h), bridgeAt(d1,h), bridgeAt(d1,-h), bridgeAt(d0,-h)], z, z+4, C.wood, C.woodTop);
   ctx.strokeStyle = 'rgba(60,30,0,.18)'; ctx.lineWidth = 1*Z;
-  for (let d = 12; d < L-6; d += 14){ const x = ax+ux*d, y = ay+uy*d; ctx.beginPath(); ctx.moveTo(px(x+nx*h,y+ny*h),py(x+nx*h,y+ny*h,z+4)); ctx.lineTo(px(x-nx*h,y-ny*h),py(x-nx*h,y-ny*h,z+4)); ctx.stroke(); }
+  for (let d = 12; d < L-6; d += 14){ if (!mine(d)) continue; const l = bridgeAt(d,h), r = bridgeAt(d,-h); ctx.beginPath(); ctx.moveTo(px(l[0],l[1]),py(l[0],l[1],z+4)); ctx.lineTo(px(r[0],r[1]),py(r[0],r[1],z+4)); ctx.stroke(); }
   ctx.strokeStyle = '#7A5230'; ctx.lineWidth = 1.6*Z;
-  for (const side of [1,-1]){ const ox = nx*h*side, oy = ny*h*side;
-    ctx.beginPath(); ctx.moveTo(px(ax+ox,ay+oy),py(ax+ox,ay+oy,z+13)); ctx.lineTo(px(bx+ox,by+oy),py(bx+ox,by+oy,z+13)); ctx.stroke();
-    for (let d = 0; d <= L; d += 29){ const x = ax+ux*d+ox, y = ay+uy*d+oy; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,z+4)); ctx.lineTo(px(x,y),py(x,y,z+13)); ctx.stroke(); } }
-  { const a = ABUTMENTS[0], lx = a[0]+BRIDGE_SOUTH[0]*h, ly = a[1]+BRIDGE_SOUTH[1]*h;
+  for (const side of [1,-1]){ const f = bridgeAt(d0,h*side), t = bridgeAt(d1,h*side);
+    ctx.beginPath(); ctx.moveTo(px(f[0],f[1]),py(f[0],f[1],z+13)); ctx.lineTo(px(t[0],t[1]),py(t[0],t[1],z+13)); ctx.stroke();
+    for (let d = 0; d <= L; d += 29){ if (!mine(d)) continue; const q = bridgeAt(d,h*side); ctx.beginPath(); ctx.moveTo(px(q[0],q[1]),py(q[0],q[1],z+4)); ctx.lineTo(px(q[0],q[1]),py(q[0],q[1],z+13)); ctx.stroke(); } }
+  { const a = ABUTMENTS[0]; if (mine((a[0]-ax)*ux + (a[1]-ay)*uy)){ const lx = a[0]+BRIDGE_SOUTH[0]*h, ly = a[1]+BRIDGE_SOUTH[1]*h;
     ctx.strokeStyle = '#3A2E28'; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(lx,ly),py(lx,ly,z+4)); ctx.lineTo(px(lx,ly),py(lx,ly,z+30)); ctx.stroke();
-    ctx.fillStyle = dark > .3 ? '#FFE9A8' : '#E8D9A8'; ctx.beginPath(); ctx.arc(px(lx,ly),py(lx,ly,z+32),3.2*Z,0,Math.PI*2); ctx.fill(); }
-  { const sx0 = bx + ux*6 + BRIDGE_SOUTH[0]*(h+10), sy0 = by + uy*6 + BRIDGE_SOUTH[1]*(h+10); // at the beach end: the palace tree hides the island end
+    ctx.fillStyle = dark > .3 ? '#FFE9A8' : '#E8D9A8'; ctx.beginPath(); ctx.arc(px(lx,ly),py(lx,ly,z+32),3.2*Z,0,Math.PI*2); ctx.fill(); } }
+  if (last){ const sx0 = bx + ux*6 + BRIDGE_SOUTH[0]*(h+10), sy0 = by + uy*6 + BRIDGE_SOUTH[1]*(h+10); // at the beach end: the palace tree hides the island end
     box(sx0-1.5, sy0-1.5, 3, 3, 0, 26, '#5E3D1C', '#7A5230');
     const sx = px(sx0,sy0), sy = py(sx0,sy0,33); ctx.save();
     ctx.fillStyle = '#5E3D1C'; ctx.fillRect(sx-16*Z, sy-10*Z, 32*Z, 20*Z); ctx.fillStyle = C.trim; ctx.fillRect(sx-14.5*Z, sy-8.5*Z, 29*Z, 17*Z);
@@ -900,10 +906,9 @@ function drawWorldObjects(){
       drawShip(boat, {scale:bk(), tier:tier(), hull:P.hull, trim:P.trim, deck:C.deck, cabin:C.cabin, roof:P.roof, mast:C.wood, flag:P.flag,
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
     {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier},
-    // The bridge sorts round the boat as the pier does: behind a boat on its south side, in front of one to the north.
-    {d: boat.x+boat.y + ((boat.x-BRIDGE.ax)*BRIDGE_SOUTH[0] + (boat.y-BRIDGE.ay)*BRIDGE_SOUTH[1] > 0 ? -1 : 1), f: drawBridge},
     {d: BEACH.x+BEACH.y, f: drawBeachThings}
   ];
+  for (let i=0;i<BRIDGE_PARTS;i++) list.push({d: bridgePartDepth(i), f: () => drawBridgePart(i)});
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   list.push(...scene.solids(drawView));
