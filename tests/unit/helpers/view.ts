@@ -32,6 +32,7 @@ export function fakeView(): FakeView {
     stroke: count('stroke'),
     moveTo: count('moveTo'),
     lineTo: count('lineTo'),
+    quadraticCurveTo: count('quadraticCurveTo'),
     closePath: count('closePath'),
   } as unknown as CanvasRenderingContext2D;
   const fake: FakeView = {

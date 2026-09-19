@@ -214,3 +214,12 @@ describe('the shipwright gear', () => {
     });
   });
 });
+
+describe('the manta sighting', () => {
+  it('is unseen in a save from before the mantas, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.mantaSeen).toBe(false);
+    s.mantaSeen = true;
+    expect(parseSave(serializeSave(s), bounds).mantaSeen).toBe(true);
+  });
+});
