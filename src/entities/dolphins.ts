@@ -5,7 +5,7 @@
  * their distance. Three dolphins per pod porpoise in turn.
  */
 import { angDiff, clamp } from '../core/math';
-import { around, IR, IX, IY, PIER_BUMPS, pushOut, WS } from '../world/island';
+import { around, BEACH, IR, IX, IY, PIER_BUMPS, pushOut, WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export type Dolphin = { ox: number; oy: number; p: number };
@@ -122,6 +122,7 @@ export class Dolphins implements Entity {
         p.h += angDiff(Math.atan2(dy, dx), p.h) * Math.min(1, dt * 3);
       } else p.h += angDiff(boat.h, p.h) * Math.min(1, dt * 3);
       pushOut(p, IX, IY, IR + 95);
+      pushOut(p, BEACH.x, BEACH.y, BEACH.r + 40);
       for (const b of PIER_BUMPS) pushOut(p, b[0], b[1], 85);
       for (const q of p.d) q.p += dt * (p.state === 'escort' ? 3.2 : 2.2);
     }

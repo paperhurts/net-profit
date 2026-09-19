@@ -25,6 +25,55 @@ export const DOCK = { x: PX0 + 165, y: IY, r: 125 } as const;
 export const CRATE = { x: PX0 + 129, y: IY } as const;
 /** The fishmonger's stall, on the beach just south of the pier root; opens with the watchtower. */
 export const STALL = { x: IX + 150, y: IY + 35 } as const;
+/**
+ * The Ten Cent Bridge, named for a bridge the owner's family crossed to reach the beach. It
+ * leaves the island's west shore at 200 degrees, in the gap between two sardine schools, and
+ * ends at a little beach of its own. Hulls are pushed off it, as off the pier.
+ */
+export const BRIDGE_ANGLE = (200 * Math.PI) / 180;
+const BU = Math.cos(BRIDGE_ANGLE);
+const BV = Math.sin(BRIDGE_ANGLE);
+/** How far the span runs from the shore to the beach. */
+export const BRIDGE_SPAN = 232;
+export const BRIDGE = {
+  ax: IX + BU * (IR - 8),
+  ay: IY + BV * (IR - 8),
+  bx: IX + BU * (IR + BRIDGE_SPAN),
+  by: IY + BV * (IR + BRIDGE_SPAN),
+  /** Deck width and height off the water. */
+  w: 22,
+  z: 12,
+} as const;
+export const BEACH = {
+  x: IX + BU * (IR + BRIDGE_SPAN + 74),
+  y: IY + BV * (IR + BRIDGE_SPAN + 74),
+  r: 86,
+} as const;
+/** Circles along the span that hulls are pushed off. */
+export const BRIDGE_BUMPS: readonly Point[] = Array.from({ length: 7 }, (_, i): Point => {
+  const r = IR + 14 + i * 32;
+  return [IX + BU * r, IY + BV * r];
+});
+/** The two large stone abutments, a third and two thirds of the way across. */
+export const ABUTMENTS: readonly Point[] = [0.36, 0.7].map((t): Point => {
+  const r = IR + BRIDGE_SPAN * t;
+  return [IX + BU * r, IY + BV * r];
+});
+/** The unit vector across the bridge toward its south side, which faces the viewer. */
+export const BRIDGE_SOUTH: Point = [BV, -BU];
+
+/** Whether a point is on the beach or the bridge, or within pad of either: no place for flotsam or fish. */
+export function nearBeach(x: number, y: number, pad: number): boolean {
+  if (Math.hypot(x - BEACH.x, y - BEACH.y) < BEACH.r + pad) return true;
+  const dx = BRIDGE.bx - BRIDGE.ax;
+  const dy = BRIDGE.by - BRIDGE.ay;
+  const t = Math.max(
+    0,
+    Math.min(1, ((x - BRIDGE.ax) * dx + (y - BRIDGE.ay) * dy) / (dx * dx + dy * dy)),
+  );
+  return Math.hypot(x - (BRIDGE.ax + dx * t), y - (BRIDGE.ay + dy * t)) < BRIDGE.w / 2 + pad;
+}
+
 /** The smokehouse, further down the beach; opens with the palace dome. */
 export const SMOKEHOUSE = { x: IX + 130, y: IY + 100 } as const;
 

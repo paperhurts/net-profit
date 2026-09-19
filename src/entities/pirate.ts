@@ -9,7 +9,7 @@
 
 import { clamp } from '../core/math';
 import { PIRATE_SPEED, PIRATE_UNLOCK } from '../data/tuning';
-import { around, DOCK, IR, IX, IY, nearestEdgeExit, pushOut, WS } from '../world/island';
+import { around, BEACH, DOCK, IR, IX, IY, nearestEdgeExit, pushOut, WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { type Ship, type ShipLook, steerShip } from './ship';
 
@@ -162,6 +162,7 @@ export class Pirate implements Entity {
     }
     steerShip(p, tx, ty, speed, 1.7, dt);
     pushOut(p, IX, IY, IR + 60);
+    pushOut(p, BEACH.x, BEACH.y, BEACH.r + 50);
   }
 
   draw(v: DrawView, layer: Layer): void {

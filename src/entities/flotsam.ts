@@ -9,7 +9,7 @@
  * cue, the HUD and the save.
  */
 import { clamp } from '../core/math';
-import { IX, IY, type Point, WS } from '../world/island';
+import { IX, IY, nearBeach, type Point, WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export type Piece = {
@@ -48,6 +48,14 @@ export const SALVAGE = [5, 8, 10, 15, 20, 35] as const;
  * the world past the shallows. Either way it stays 160 off the rim.
  */
 export function placeFlotsam(f: Piece, near: number, w: FlotsamWorld): void {
+  // The prototype's placement, tried again on the rare roll that lands on the beach or the bridge.
+  for (let tries = 0; tries < 8; tries++) {
+    placeOnce(f, near, w);
+    if (!nearBeach(f.x, f.y, 50)) return;
+  }
+}
+
+function placeOnce(f: Piece, near: number, w: FlotsamWorld): void {
   if (w.rng() < near) {
     const a = w.rng() * 6.28;
     const R = Math.min(w.range - 60, 2300);

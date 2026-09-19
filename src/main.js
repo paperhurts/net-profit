@@ -12,7 +12,7 @@ import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STA
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
-import { around, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, STALL, TWX, TWY, TX, TY, WS } from './world/island';
+import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_SOUTH, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, STALL, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
@@ -459,6 +459,8 @@ function update(dt){
   const k = bk();
   pushOut(boat, IX, IY, IR+24*k);
   for (const b of PIER_BUMPS) pushOut(boat, b[0], b[1], 20+20*k);
+  for (const b of BRIDGE_BUMPS) pushOut(boat, b[0], b[1], 18+20*k);
+  pushOut(boat, BEACH.x, BEACH.y, BEACH.r+24*k);
   boat.x = clamp(boat.x, 40, WS-40); boat.y = clamp(boat.y, 40, WS-40);
   { const R = range(), dI = Math.hypot(boat.x-IX, boat.y-IY); rangeToastT -= dt;
     if (dI > R){ boat.x = IX + (boat.x-IX)/dI*R; boat.y = IY + (boat.y-IY)/dI*R; boat.v *= .93;
@@ -514,6 +516,7 @@ function drawSea(){
   isoEllipse(IX,IY,1600); ctx.fillStyle = C.mid; ctx.fill();
   isoEllipse(IX,IY,880);  ctx.fillStyle = C.shallow; ctx.fill();
   isoEllipse(IX,IY,IR+150); ctx.fillStyle = C.shore; ctx.fill();
+  isoEllipse(BEACH.x,BEACH.y,BEACH.r+60); ctx.fillStyle = C.shore; ctx.fill();
   ctx.restore();
 
   /* wave glints across the visible patch of world */
@@ -543,6 +546,8 @@ function drawSea(){
   /* island, flat parts */
   isoEllipse(IX,IY,IR+9+Math.sin(T*1.3)*3); ctx.strokeStyle = C.foam; ctx.globalAlpha = .7; ctx.lineWidth = 4*Z; ctx.stroke(); ctx.globalAlpha = 1;
   isoEllipse(IX,IY,IR); ctx.fillStyle = C.sand; ctx.fill();
+  isoEllipse(BEACH.x,BEACH.y,BEACH.r+7+Math.sin(T*1.3+2)*3); ctx.strokeStyle = C.foam; ctx.globalAlpha = .7; ctx.lineWidth = 4*Z; ctx.stroke(); ctx.globalAlpha = 1;
+  isoEllipse(BEACH.x,BEACH.y,BEACH.r); ctx.fillStyle = C.sand; ctx.fill();
   isoEllipse(IX-25,IY-12,150); ctx.fillStyle = C.grass; ctx.fill();
 
   /* dock zone */
@@ -724,6 +729,36 @@ function drawBird(x,y,z,flap,k,alpha){
   ctx.globalAlpha = alpha; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.3*Z*k; path(); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx,sy,2*Z*k,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
 }
+// The Ten Cent Bridge: pilings and two stone abutments, a plank deck with rails, a lamp, and the toll sign at the beach end.
+function drawBridge(){
+  const {ax, ay, bx, by, w, z} = BRIDGE, L = Math.hypot(bx-ax, by-ay), ux = (bx-ax)/L, uy = (by-ay)/L, nx = -uy, ny = ux, h = w/2;
+  for (const t of [.1,.23,.49,.58,.83,.94]){ const x = ax+(bx-ax)*t, y = ay+(by-ay)*t; box(x-4, y-4, 8, 8, 0, z, shade(C.wood,.72), C.wood); }
+  for (const a of ABUTMENTS) box(a[0]-16, a[1]-16, 32, 32, 0, z+2, '#8E989E', '#C3CBCF');
+  extrude([[ax+nx*h,ay+ny*h],[bx+nx*h,by+ny*h],[bx-nx*h,by-ny*h],[ax-nx*h,ay-ny*h]], z, z+4, C.wood, C.woodTop);
+  ctx.strokeStyle = 'rgba(60,30,0,.18)'; ctx.lineWidth = 1*Z;
+  for (let d = 12; d < L-6; d += 14){ const x = ax+ux*d, y = ay+uy*d; ctx.beginPath(); ctx.moveTo(px(x+nx*h,y+ny*h),py(x+nx*h,y+ny*h,z+4)); ctx.lineTo(px(x-nx*h,y-ny*h),py(x-nx*h,y-ny*h,z+4)); ctx.stroke(); }
+  ctx.strokeStyle = '#7A5230'; ctx.lineWidth = 1.6*Z;
+  for (const side of [1,-1]){ const ox = nx*h*side, oy = ny*h*side;
+    ctx.beginPath(); ctx.moveTo(px(ax+ox,ay+oy),py(ax+ox,ay+oy,z+13)); ctx.lineTo(px(bx+ox,by+oy),py(bx+ox,by+oy,z+13)); ctx.stroke();
+    for (let d = 0; d <= L; d += 29){ const x = ax+ux*d+ox, y = ay+uy*d+oy; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,z+4)); ctx.lineTo(px(x,y),py(x,y,z+13)); ctx.stroke(); } }
+  { const a = ABUTMENTS[0], lx = a[0]+BRIDGE_SOUTH[0]*h, ly = a[1]+BRIDGE_SOUTH[1]*h;
+    ctx.strokeStyle = '#3A2E28'; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(lx,ly),py(lx,ly,z+4)); ctx.lineTo(px(lx,ly),py(lx,ly,z+30)); ctx.stroke();
+    ctx.fillStyle = dark > .3 ? '#FFE9A8' : '#E8D9A8'; ctx.beginPath(); ctx.arc(px(lx,ly),py(lx,ly,z+32),3.2*Z,0,Math.PI*2); ctx.fill(); }
+  { const sx0 = bx + ux*6 + BRIDGE_SOUTH[0]*(h+10), sy0 = by + uy*6 + BRIDGE_SOUTH[1]*(h+10); // at the beach end: the palace tree hides the island end
+    box(sx0-1.5, sy0-1.5, 3, 3, 0, 26, '#5E3D1C', '#7A5230');
+    const sx = px(sx0,sy0), sy = py(sx0,sy0,33); ctx.save();
+    ctx.fillStyle = '#5E3D1C'; ctx.fillRect(sx-16*Z, sy-10*Z, 32*Z, 20*Z); ctx.fillStyle = C.trim; ctx.fillRect(sx-14.5*Z, sy-8.5*Z, 29*Z, 17*Z);
+    ctx.fillStyle = C.ink; ctx.font = `800 ${12*Z}px Grandstander, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('10\u00a2', sx, sy+1*Z); ctx.restore(); }
+}
+// What is on the beach: an umbrella and a towel, for now.
+function drawBeachThings(){
+  const x = BEACH.x-22, y = BEACH.y-26; // up the beach, clear of the toll sign
+  box(x-34, y+14, 26, 13, 0, 1, '#2B8A99', '#5BBFB5');
+  ctx.strokeStyle = '#7A5230'; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,0)); ctx.lineTo(px(x,y),py(x,y,34)); ctx.stroke();
+  for (let i=0;i<8;i++){ const a0 = i*Math.PI/4, a1 = (i+1)*Math.PI/4, r = 24;
+    ctx.fillStyle = i%2 ? C.trim : C.hull; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,40));
+    ctx.lineTo(px(x+Math.cos(a0)*r,y+Math.sin(a0)*r),py(x+Math.cos(a0)*r,y+Math.sin(a0)*r,30)); ctx.lineTo(px(x+Math.cos(a1)*r,y+Math.sin(a1)*r),py(x+Math.cos(a1)*r,y+Math.sin(a1)*r,30)); ctx.closePath(); ctx.fill(); }
+}
 function drawPier(){
   extrude(PIER, 0, 7, C.wood, C.woodTop);
   ctx.strokeStyle = 'rgba(60,30,0,.18)'; ctx.lineWidth = 1*Z;
@@ -760,7 +795,10 @@ function drawWorldObjects(){
       const P = PAINTS[paint];
       drawShip(boat, {scale:bk(), tier:tier(), hull:P.hull, trim:P.trim, deck:C.deck, cabin:C.cabin, roof:P.roof, mast:C.wood, flag:P.flag,
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
-    {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier}
+    {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier},
+    // The bridge sorts round the boat as the pier does: behind a boat on its south side, in front of one to the north.
+    {d: boat.x+boat.y + ((boat.x-BRIDGE.ax)*BRIDGE_SOUTH[0] + (boat.y-BRIDGE.ay)*BRIDGE_SOUTH[1] > 0 ? -1 : 1), f: drawBridge},
+    {d: BEACH.x+BEACH.y, f: drawBeachThings}
   ];
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
@@ -806,6 +844,7 @@ function drawNight(){
   light(IX+50, IY-90, 20, 280, .95);
   if (build >= 2) light(TX, TY, 60, 230, .95);
   light(CRATE.x, CRATE.y, 10, 200, .95);
+  light(ABUTMENTS[0][0], ABUTMENTS[0][1], 40, 190, .9);
   ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(nightCv,0,0,W,H);
   ctx.globalCompositeOperation = 'source-over';
 }
