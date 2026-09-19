@@ -8,7 +8,7 @@
  */
 import { clamp } from '../core/math';
 import { SPECIES } from '../data/tuning';
-import { IX, IY, type Point, WS } from '../world/island';
+import { IX, IY, nearBeach, type Point, WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export type RareFish = {
@@ -57,6 +57,7 @@ export function rarePoint(cx: number, cy: number, spread: number, w: RareWorld):
       x < WS - 150 &&
       y > 150 &&
       y < WS - 150 &&
+      !nearBeach(x, y, 40) &&
       (spread || Math.hypot(x - w.boat.x, y - w.boat.y) > 420)
     )
       return [x, y];

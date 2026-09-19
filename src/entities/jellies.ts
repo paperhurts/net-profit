@@ -9,7 +9,7 @@
  */
 import { rgba } from '../core/color';
 import { angDiff, clamp } from '../core/math';
-import { IR, IX, IY, pushOut, WS } from '../world/island';
+import { BEACH, IR, IX, IY, pushOut, WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export type Jelly = {
@@ -111,7 +111,9 @@ export class Jellies implements Entity {
     const dIsl = Math.hypot(b.x - IX, b.y - IY);
     let want = b.h;
     if (dIsl < ISLAND_BERTH + 150) want = Math.atan2(b.y - IY, b.x - IX);
-    else if (b.x < RIM + 150) want = 0;
+    else if (Math.hypot(b.x - BEACH.x, b.y - BEACH.y) < BEACH.r + b.r + 120) {
+      want = Math.atan2(b.y - BEACH.y, b.x - BEACH.x);
+    } else if (b.x < RIM + 150) want = 0;
     else if (b.x > WS - RIM - 150) want = Math.PI;
     else if (b.y < RIM + 150) want = Math.PI / 2;
     else if (b.y > WS - RIM - 150) want = -Math.PI / 2;
@@ -119,6 +121,7 @@ export class Jellies implements Entity {
     b.x = clamp(b.x + Math.cos(b.h) * DRIFT_SPEED * dt, RIM, WS - RIM);
     b.y = clamp(b.y + Math.sin(b.h) * DRIFT_SPEED * dt, RIM, WS - RIM);
     pushOut(b, IX, IY, ISLAND_BERTH);
+    pushOut(b, BEACH.x, BEACH.y, BEACH.r + b.r + 20);
     for (const j of b.jellies) {
       j.ph += dt * 1.6;
       if (!j.alive && w.T >= j.resp) j.alive = true;
