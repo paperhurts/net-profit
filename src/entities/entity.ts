@@ -57,6 +57,10 @@ export type World = {
   netFouled: boolean;
   /** Palace stages built, which earn pets. */
   build: number;
+  /** The fine mesh is fitted: jellyfish slip through the net. */
+  fineMesh: boolean;
+  /** The share of the hold a pirate takes: half, or a quarter with the strongbox. */
+  stealShare: number;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */

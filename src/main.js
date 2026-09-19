@@ -6,6 +6,7 @@ import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from 
 import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
 import { angDiff, clamp, rng } from './core/math';
 import { rgba, shade } from './core/color';
+import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
 import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
@@ -51,15 +52,16 @@ const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK, day = 1;
 const first = new Array(SPECIES.length).fill(0); // the day each species was first landed
+const gear = noGear(); // what the shipwright has fitted
 function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
 const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, holdCaps: HOLD};
 let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; Object.assign(gear, s.gear); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, gear, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -160,7 +162,7 @@ const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; }, get fineMesh(){ return gear.mesh; }, get stealShare(){ return stealShare(gear); } };
 const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
 crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
 const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
@@ -263,7 +265,9 @@ function refreshShop(){
   $('tierTxt').textContent = t >= 5 ? nm + '. Fully grown.' : `${nm}. ${left} upgrade${left>1?'s':''} to grow.`;
   const open = paintsUnlocked(t);
   $('paints').innerHTML = PAINTS.map((p,i) => `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${i>=open?' (locked)':''}" aria-disabled="${i>=open}" style="background:${p.hull};border-color:${p.trim}"></button>`).join('');
-  refreshBuild(); refreshMarket();
+  // A fully grown boat has nothing left to buy here, so the three maxed cards fold away and the panel stays short.
+  elShop.querySelector('.row').hidden = lv.net >= MAXLV && lv.hold >= MAXLV && lv.engine >= MAXLV;
+  refreshBuild(); refreshMarket(); refreshGear();
   $('log').innerHTML = SPECIES.map((S,i) => `<span class="chip${log[i]?'':' unk'}${S.rare&&log[i]?' gold':''}" title="${log[i]?S.name:'Not caught yet'}">${FISH_SVG(log[i]?S.c:'currentColor')}${log[i]||'?'}</span>`).join('')
     + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`
     + `<span class="chip${whaleSeen?' gold':' unk'}">${whaleSeen?'Whales sighted':'A song, far out?'}</span>`;
@@ -272,6 +276,9 @@ const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidd
 const LOG_SVG = '<svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true"><rect x="1" y="2" width="18" height="8" rx="4" fill="#A9773F" stroke="#5E3D1C" stroke-width="1.5"/><circle cx="15.5" cy="6" r="1.8" fill="#E6B877"/></svg>';
 function hudPhase(){ $('phase').innerHTML = `<i style="background:${PHASE_C[phase]}"></i><span>${phase}</span>`; }
 function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>'; }
+function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier());
+  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
+    return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join(''); }
 function refreshBuild(){
   const b = $('build'), mult = Math.round(build*15);
   if (build >= STAGES.length){ b.setAttribute('aria-disabled','true');
@@ -336,6 +343,10 @@ $('build').addEventListener('click', () => { audio();
   sfx.build();
   save(); hud(); hudWood(); refreshShop();
 });
+$('gear').addEventListener('click', e => { const b = e.target.closest('.gear'); if (!b) return; audio();
+  const id = b.dataset.g, no = refusal(id, gear, coins); if (no === 'fitted') return;
+  if (no === 'coins'){ sfx.denied(); toast(`${GEAR[id].blurb} You need ${GEAR[id].cost - coins} more coins.`, 2600); return; }
+  coins -= GEAR[id].cost; gear[id] = true; sfx.upgrade(); toast(GEAR[id].fitted, 3200, 1); save(); hud(); refreshShop(); });
 const elGuide = $('guide');
 const LEV_SVG = '<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><ellipse cx="11" cy="7" rx="10" ry="4" fill="currentColor" opacity=".7"/></svg>';
 function renderGuide(){
@@ -367,7 +378,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; Object.assign(gear, noGear()); rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset();
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -907,5 +918,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, pets, whales, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, pets, whales, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

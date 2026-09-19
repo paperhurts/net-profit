@@ -3,7 +3,8 @@
  * pulsing, glowing at night, the prettiest thing out there and the one thing
  * the sweep has to respect. Tow the net through it and the net fills with
  * jellies, and nothing else will stay in it until they are shaken out at the
- * dock. The entity owns the bloom and the count in the net; the game gates
+ * dock, unless the shipwright's fine mesh is fitted, which lets them slip
+ * through. The entity owns the bloom and the count in the net; the game gates
  * its sweep on that count, tells the player, and shakes them out on docking.
  */
 import { rgba } from '../core/color';
@@ -123,7 +124,7 @@ export class Jellies implements Entity {
       if (!j.alive && w.T >= j.resp) j.alive = true;
     }
     const net = w.net;
-    if (!w.started || net.speed <= 22 || net.torn > 0) return;
+    if (!w.started || w.fineMesh || net.speed <= 22 || net.torn > 0) return;
     const reach = w.netWidth * 0.5 + SCOOP_REACH;
     if (Math.hypot(net.x - b.x, net.y - b.y) > b.r + reach) return;
     for (const j of b.jellies) {

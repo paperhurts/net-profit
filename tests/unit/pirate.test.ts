@@ -112,6 +112,21 @@ describe('Pirate', () => {
     expect(p.ship.state).toBe('leave');
   });
 
+  it('takes only a quarter from a boat with a strongbox', () => {
+    const p = new Pirate();
+    const w = world({ holdTotal: 9, stealShare: 0.25 });
+    run(p, w, 6.1);
+    p.ship.x = w.boat.x + 300;
+    p.ship.y = w.boat.y;
+    run(p, w, 0.5);
+    let stolen = 0;
+    p.onSteal = (n) => (stolen = n);
+    p.ship.x = w.boat.x + 10;
+    p.ship.y = w.boat.y;
+    p.update(1 / 30, w);
+    expect(stolen).toBe(3);
+  });
+
   it('breaks off a chase when the boat reaches the dock, and gives up prowling after fifty seconds', () => {
     const p = new Pirate();
     const w = world();

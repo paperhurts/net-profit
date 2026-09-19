@@ -44,6 +44,8 @@ export type SaveData = {
   levSeen: boolean;
   /** The whales have been sighted. */
   whaleSeen: boolean;
+  /** What the shipwright has fitted. */
+  gear: { mesh: boolean; strongbox: boolean };
   trip: Trip | null;
   /** How the keyboard steers: drive the boat (A/D turn, W throttle) or point it like the stick. */
   keys: KeyMode;
@@ -80,6 +82,7 @@ export function defaultSave(b: Bounds): SaveData {
     first: new Array<number>(b.species).fill(0),
     levSeen: false,
     whaleSeen: false,
+    gear: { mesh: false, strongbox: false },
     trip: null,
     keys: 'drive',
   };
@@ -143,6 +146,10 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.paint = between(int(o.paint), 0, b.paints - 1);
   d.levSeen = !!o.levSeen;
   d.whaleSeen = !!o.whaleSeen;
+  if (o.gear && typeof o.gear === 'object') {
+    const g = o.gear as Record<string, unknown>;
+    d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
+  }
   d.wood = Math.max(0, int(o.wood));
   d.build = between(int(o.build), 0, b.stages);
   d.market = o.market === undefined ? -1 : between(int(o.market), -1, b.species - 1);
@@ -186,6 +193,7 @@ export function serializeSave(d: SaveData): string {
     first: d.first,
     levSeen: d.levSeen,
     whaleSeen: d.whaleSeen,
+    gear: d.gear,
     trip: d.trip ?? undefined,
     keys: d.keys,
   });

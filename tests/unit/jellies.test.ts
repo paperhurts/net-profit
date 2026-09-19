@@ -107,6 +107,15 @@ describe('Jellies', () => {
     }
   });
 
+  it('lets a fine mesh pass clean through', () => {
+    const { e, w } = netted({ fineMesh: true });
+    let fouls = 0;
+    e.onFoul = () => fouls++;
+    e.update(1 / 30, w);
+    expect([e.inNet, fouls]).toEqual([0, 0]);
+    expect(e.bloom.jellies.every((j) => j.alive)).toBe(true);
+  });
+
   it('a scooped jelly is back in the bloom after a minute', () => {
     const { e, w } = netted();
     e.update(1 / 30, w);
