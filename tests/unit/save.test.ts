@@ -194,3 +194,23 @@ describe('the whale sighting', () => {
     expect(parseSave(serializeSave(s), bounds).whaleSeen).toBe(true);
   });
 });
+
+describe('the shipwright gear', () => {
+  it('is unfitted in a save from before the shipwright, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.gear).toEqual({ mesh: false, strongbox: false });
+    s.gear.mesh = true;
+    expect(parseSave(serializeSave(s), bounds).gear).toEqual({ mesh: true, strongbox: false });
+  });
+
+  it('reads anything odd as unfitted', () => {
+    expect(parseSave(JSON.stringify({ gear: 'all of it' }), bounds).gear).toEqual({
+      mesh: false,
+      strongbox: false,
+    });
+    expect(parseSave(JSON.stringify({ gear: { mesh: 1, hat: true } }), bounds).gear).toEqual({
+      mesh: true,
+      strongbox: false,
+    });
+  });
+});

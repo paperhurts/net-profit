@@ -135,7 +135,7 @@ export class Pirate implements Entity {
         p.tx = p.x;
         p.ty = p.y;
       } else if (dBoat < 30 + 18 * w.hullScale) {
-        this.onSteal?.(Math.ceil(w.holdTotal / 2));
+        this.onSteal?.(Math.ceil(w.holdTotal * w.stealShare));
         p.state = 'leave';
       } else if (p.age > 70) p.state = 'leave';
     }
