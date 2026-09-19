@@ -211,6 +211,12 @@ export const cues = {
     tone(440, 0.05, 'triangle', 0.05, 1, 0.07);
     tone(360, 0.07, 'triangle', 0.05, 1, 0.14);
   },
+  /** A manta coming down: a low whump, with an octave on top for speakers that cannot play the bottom. */
+  whump(): void {
+    tone(110, 0.32, 'sine', 0.12, 0.45);
+    tone(220, 0.2, 'triangle', 0.05, 0.5);
+    tone(70, 0.4, 'triangle', 0.07, 0.6, 0.03);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);
