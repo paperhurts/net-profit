@@ -4,7 +4,7 @@
 // behavioural reference.
 import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from './core/iso';
 import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
-import { angDiff, clamp, rng } from './core/math';
+import { clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
@@ -31,6 +31,7 @@ import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
 import { Whales } from './entities/whales';
 import { Scene } from './render/layers';
+import { createSchools, resetSchools, updateSchools } from './world/schools';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -126,34 +127,7 @@ function isoEllipse(x,y,r,z=0){ ctx.beginPath(); ctx.ellipse(px(x,y),py(x,y,z),M
 /* ---------- audio ---------- */
 
 /* ---------- world ---------- */
-const schools = [];
-(function buildSchools(){
-  const R = rng(11);
-  function ringOf(n,r0,r1,sp,count,rad,base,night){
-    for (let i=0;i<n;i++){
-      const ang = base + i*(Math.PI*2/n) + (i ? (R()-.5)*.5 : 0);
-      const r = r0 + R()*(r1-r0);
-      const sc = {ax: clamp(IX+Math.cos(ang)*r,220,WS-220), ay: clamp(IY+Math.sin(ang)*r,220,WS-220),
-        cx:0, cy:0, r:rad, sp, n:count, alive:count, p:R()*9, q:R()*9, spin:(R()<.5?-1:1)*(.05+R()*.05), fish:[]};
-      sc.cx = sc.ax; sc.cy = sc.ay;
-      for (let j=0;j<count;j++){
-        const a = R()*Math.PI*2, d = Math.sqrt(R())*rad;
-        sc.fish.push({ox:Math.cos(a)*d, oy:Math.sin(a)*d, ph:R()*9, w:.8+R()*.9, a:9+R()*14,
-          alive:true, grow:1, resp:0, x:sc.ax, y:sc.ay, ang:0});
-      }
-      sc.night = !!night; schools.push(sc);
-    }
-  }
-  ringOf(5, 560, 700, 0, 46, 105, .3);
-  ringOf(5, 900, 1060, 1, 42, 105, 1.1);
-  ringOf(5, 1260, 1440, 2, 40, 100, .6);
-  ringOf(4, 1620, 1780, 3, 20, 80, 2.0);
-  ringOf(4, 1960, 2120, 4, 26, 110, .2);
-  ringOf(4, 2280, 2440, 5, 26, 85, 1.4);
-  ringOf(2, 2850, 3150, 6, 24, 80, Math.PI/4);
-  ringOf(4, 950, 1450, 8, 30, 95, .9, true);
-  ringOf(3, 1900, 2450, 9, 26, 90, 2.6, true);
-})();
+const schools = createSchools();
 const buoys = [];
 for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push([0,i],[WS,i]); }
 
@@ -380,7 +354,7 @@ elRst.addEventListener('click', () => {
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; Object.assign(gear, noGear()); rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset();
-  for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
+  resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
 });
 $('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); sfx.castOff(); });
@@ -486,30 +460,11 @@ function update(dt){
   towNet(net, boat, k, towLen(), dt);
 
   /* fish */
-  const cap = HOLD[lv.hold], nw = NETW[lv.net], rr = (nw*.5+5)*(nw*.5+5);
+  const cap = HOLD[lv.hold], nw = NETW[lv.net];
   net.torn = Math.max(0, net.torn - dt);
   const catching = started && net.speed > 22 && net.torn <= 0;
   comboT -= dt;
-  for (const sc of schools){
-    sc.cx = sc.ax + Math.sin(T*.05+sc.p)*60; sc.cy = sc.ay + Math.cos(T*.04+sc.q)*60;
-    if (sc.night && dark < .5){ sc.vis = false; continue; }
-    const near = Math.hypot(net.x-sc.cx, net.y-sc.cy) < sc.r + nw + 80;
-    sc.vis = onScreen(sc.cx, sc.cy, (sc.r+80)*Z);
-    const rot = T*sc.spin, cr = Math.cos(rot), sr = Math.sin(rot);
-    for (const f of sc.fish){
-      if (!f.alive){ if (T >= f.resp){ f.alive = true; f.grow = 0; sc.alive++; } else continue; }
-      if (!near && !sc.vis) continue;
-      if (f.grow < 1) f.grow = Math.min(1, f.grow + dt*1.3);
-      const hx = f.ox*cr - f.oy*sr, hy = f.ox*sr + f.oy*cr;
-      const x = sc.cx + hx + Math.cos(f.ph + T*f.w)*f.a, y = sc.cy + hy + Math.sin(f.ph*1.7 + T*f.w*1.3)*f.a*.7;
-      const dx = x-f.x, dy = y-f.y;
-      if (dx*dx+dy*dy > .0004 && dx*dx+dy*dy < 400) f.ang = Math.atan2((dx+dy)*.5, dx-dy);
-      f.x = x; f.y = y;
-      if (catching && near && !jellies.inNet && f.grow >= 1 && holdTotal < cap && !(sc.night && dark < .75)){
-        const ex = x-net.x, ey = y-net.y; if (ex*ex+ey*ey < rr) catchFish(f,sc);
-      }
-    }
-  }
+  updateSchools(schools, {T, dt, dark, net, netWidth: nw, catching: catching && !jellies.inNet, zoom: Z, onScreen, hasRoom: () => holdTotal < cap}, catchFish);
 
   /* dock */
   const inDock = Math.hypot(boat.x-DOCK.x, boat.y-DOCK.y) < DOCK.r;

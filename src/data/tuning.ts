@@ -137,6 +137,37 @@ export const SHARK = 7;
 /** Inner radius of each day species' ring of schools, by species index. */
 export const RING_R = [560, 900, 1260, 1620, 1960, 2280, 2850] as const;
 
+/** One ring of schools round the island. */
+export type Ring = {
+  /** Schools in the ring. */
+  n: number;
+  /** Near and far edge, from the island. */
+  r0: number;
+  r1: number;
+  /** Species index. */
+  sp: number;
+  /** Fish per school, and the school's radius. */
+  count: number;
+  rad: number;
+  /** Angle of the first school, radians. */
+  base: number;
+  /** Rises only at night. */
+  night?: boolean;
+};
+
+/** Where the fish are, in the order the world is built; the order matters, because the builder draws from one seeded stream. */
+export const RINGS: readonly Ring[] = [
+  { n: 5, r0: 560, r1: 700, sp: 0, count: 46, rad: 105, base: 0.3 },
+  { n: 5, r0: 900, r1: 1060, sp: 1, count: 42, rad: 105, base: 1.1 },
+  { n: 5, r0: 1260, r1: 1440, sp: 2, count: 40, rad: 100, base: 0.6 },
+  { n: 4, r0: 1620, r1: 1780, sp: 3, count: 20, rad: 80, base: 2.0 },
+  { n: 4, r0: 1960, r1: 2120, sp: 4, count: 26, rad: 110, base: 0.2 },
+  { n: 4, r0: 2280, r1: 2440, sp: 5, count: 26, rad: 85, base: 1.4 },
+  { n: 2, r0: 2850, r1: 3150, sp: 6, count: 24, rad: 80, base: Math.PI / 4 },
+  { n: 4, r0: 950, r1: 1450, sp: 8, count: 30, rad: 95, base: 0.9, night: true },
+  { n: 3, r0: 1900, r1: 2450, sp: 9, count: 26, rad: 90, base: 2.6, night: true },
+];
+
 /** Sailing range from the island per boat tier; the flagship is unlimited. */
 export const RANGE = [1150, 1600, 2000, 2400, 2900, 1e9] as const;
 

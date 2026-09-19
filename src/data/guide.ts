@@ -7,23 +7,15 @@
  * still tells you where to look. Line-caught fish, sizes and the legendary
  * pages come with the bridge and the second verb.
  */
-import { RANGE, SPECIES, TIER_NAME } from './tuning';
+import { RANGE, RINGS, SPECIES, TIER_NAME } from './tuning';
 
 /** Where a species' schools sit: the ring's near and far edge, and whether they only rise at night. */
 export type Habitat = { r0: number; r1: number; night?: boolean };
 
-/** The rings, straight from the world builder's ringOf calls; a test holds them to it. */
-export const HABITAT: Readonly<Record<number, Habitat>> = {
-  0: { r0: 560, r1: 700 },
-  1: { r0: 900, r1: 1060 },
-  2: { r0: 1260, r1: 1440 },
-  3: { r0: 1620, r1: 1780 },
-  4: { r0: 1960, r1: 2120 },
-  5: { r0: 2280, r1: 2440 },
-  6: { r0: 2850, r1: 3150 },
-  8: { r0: 950, r1: 1450, night: true },
-  9: { r0: 1900, r1: 2450, night: true },
-};
+/** The rings, from the same table the world is built from. */
+export const HABITAT: Readonly<Record<number, Habitat>> = Object.fromEntries(
+  RINGS.map((r) => [r.sp, r.night ? { r0: r.r0, r1: r.r1, night: true } : { r0: r.r0, r1: r.r1 }]),
+);
 
 /** Species index of the shark, the dawn rare and the dusk rare. */
 export const SHARK_SP = 7;
