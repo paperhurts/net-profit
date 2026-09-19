@@ -211,6 +211,28 @@ export const cues = {
     tone(440, 0.05, 'triangle', 0.05, 1, 0.07);
     tone(360, 0.07, 'triangle', 0.05, 1, 0.14);
   },
+  /** The cast: the whirr of line going out, and the plop. */
+  cast(): void {
+    tone(520, 0.1, 'sine', 0.05, 1.9);
+    tone(880, 0.08, 'sine', 0.04, 0.5, 0.14);
+  },
+  /** Fish on. */
+  strike(): void {
+    tone(740, 0.07, 'square', 0.06);
+    tone(988, 0.14, 'square', 0.06, 1, 0.08);
+  },
+  /** The line parts, or finds the piling. */
+  lineSnap(): void {
+    tone(900, 0.05, 'square', 0.07, 0.4);
+    tone(180, 0.24, 'triangle', 0.07, 0.6, 0.05);
+  },
+  /** A snook on the deck: two notes for a short, the whole run for one worth keeping. */
+  snookLanded(keeper: boolean): void {
+    const notes = keeper ? [523, 659, 784, 1047, 1319] : [523, 784];
+    notes.forEach((f, i) => {
+      tone(f, 0.16, 'triangle', 0.07, 1, i * 0.1);
+    });
+  },
   /** A manta coming down: a low whump, with an octave on top for speakers that cannot play the bottom. */
   whump(): void {
     tone(110, 0.32, 'sine', 0.12, 0.45);

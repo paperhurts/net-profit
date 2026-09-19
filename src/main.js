@@ -8,11 +8,12 @@ import { clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
+import { CAST_RANGE, CAST_SPEED, Fight, MISS_LINE, snookHome, TOLL } from './fishing/snook';
 import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
-import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_SOUTH, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, STALL, TWX, TWY, TX, TY, WS } from './world/island';
+import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_SOUTH, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
@@ -55,15 +56,17 @@ const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK, day = 1;
 const first = new Array(SPECIES.length).fill(0); // the day each species was first landed
 const gear = noGear(); // what the shipwright has fitted
+const snook = {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}; // the fishing log
+let fight = null, pullSmooth = 0, slipT = 0, slipShow = 9, castShown = false; // the line: a Fight while one is out
 function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
 const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, holdCaps: HOLD};
 let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; Object.assign(gear, s.gear); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, gear, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -249,7 +252,8 @@ function refreshShop(){
   $('log').innerHTML = SPECIES.map((S,i) => `<span class="chip${log[i]?'':' unk'}${S.rare&&log[i]?' gold':''}" title="${log[i]?S.name:'Not caught yet'}">${FISH_SVG(log[i]?S.c:'currentColor')}${log[i]||'?'}</span>`).join('')
     + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`
     + `<span class="chip${whaleSeen?' gold':' unk'}">${whaleSeen?'Whales sighted':'A song, far out?'}</span>`
-    + `<span class="chip${mantaSeen?' gold':' unk'}">${mantaSeen?'Mantas sighted':'Wings in the water?'}</span>`;
+    + `<span class="chip${mantaSeen?' gold':' unk'}">${mantaSeen?'Mantas sighted':'Wings in the water?'}</span>`
+    + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
 const LOG_SVG = '<svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true"><rect x="1" y="2" width="18" height="8" rx="4" fill="#A9773F" stroke="#5E3D1C" stroke-width="1.5"/><circle cx="15.5" cy="6" r="1.8" fill="#E6B877"/></svg>';
@@ -341,6 +345,11 @@ function renderGuide(){
   pages.push(`<article class="page${mantaSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${mantaSeen ? 'Manta rays' : '?'}</b><small>${mantaSeen
     ? 'A squadron of three to five, gliding the middle rings in a V. Stay near and, every so often, one leaps clear of the water and comes down with a whump.'
     : 'Not seen yet. Something with wings glides the middle rings.'}</small><div class="facts"><span>1,200 to 1,700 out</span><span>Day and night</span><span>The net slides off them</span></div></article>`);
+  pages.push(`<article class="page${snook.landed ? ' gold' : ' unk'}">${FISH_SVG(snook.landed ? '#C9D3D6' : 'currentColor')}<b>${snook.landed ? 'Snook' : '?'}</b><small>${snook.landed
+    ? 'Silver, with a black line down its side and yellow fins. It holds in the shadow of the far abutment and runs for the piling the moment it feels the hook. Most of them get there.'
+    : 'Not landed yet. Something big holds in the shadow of the bridge when the light goes. A net will not take it.'}</small><div class="facts"><span>By line only: tie up south of the bridge and cast, ${TOLL} coins</span><span>Dusk, night and dawn</span>`
+    + `<span>${snook.casts} casts. Landed ${snook.landed}, kept ${snook.kept}${snook.best ? ', best ' + snook.best + ' inches' : ''}${snook.firstDay ? ', first on day ' + snook.firstDay : ''}</span></div></article>`);
+  if (snook.giant) pages.push(`<article class="page gold">${FISH_SVG('#F0C544')}<b>Grampy's Snook</b><small>Over forty inches, which is over the slot, so back she went. The photo is on the wall.</small><div class="facts"><span>Landed ${snook.giant}</span><span>One keeper in five, they say</span></div></article>`);
   $('pages').innerHTML = pages.join('');
 }
 function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
@@ -360,7 +369,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; Object.assign(gear, noGear()); rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -442,11 +451,105 @@ function updateAmbience(dt){
     sinceWhistle: T - lastWhistleT,
   });
 }
+/* ---------- the line: casting for the snook from a boat tied up south of the bridge ---------- */
+function canCast(){
+  if (!started || docked || fight || !snookHome(phase) || boat.v > CAST_SPEED) return false;
+  const dx = boat.x-SNOOK_SPOT[0], dy = boat.y-SNOOK_SPOT[1];
+  return Math.hypot(dx,dy) < CAST_RANGE && dx*BRIDGE_SOUTH[0] + dy*BRIDGE_SOUTH[1] > 20;
+}
+// Where the hooked fish is: out from the abutment along the south side, swinging a little as it fights.
+function fishAt(){ const sway = Math.sin(T*3.1)*10*(fight.running ? 1 : .4), d = 12 + fight.d;
+  return [SNOOK_SPOT[0] + BRIDGE_SOUTH[0]*d - BRIDGE_SOUTH[1]*sway, SNOOK_SPOT[1] + BRIDGE_SOUTH[1]*d + BRIDGE_SOUTH[0]*sway]; }
+function landSnook(f){
+  snook.landed++; snook.best = Math.max(snook.best, f.inches); if (!snook.firstDay) snook.firstDay = day;
+  const at = fishAt();
+  if (f.kind === 'short'){ toast(`A snook, ${f.inches} inches. Too short to keep. Back it goes.`, 3800, 1);
+    addText(at[0], at[1], 30, `${f.inches} in. Released`, '#CFE3EE', 20, 2.2); sfx.snookLanded(false); }
+  else { shake = .5;
+    for (let i=0;i<18;i++) sparks.push({x:boat.x, y:boat.y, vx:(Math.random()-.5)*180, vy:(Math.random()-.5)*180, z:12, vz:50+Math.random()*70, age:0, life:1+Math.random()*.7});
+    if (f.kind === 'giant'){ snook.giant++; toast(`Grampy's Snook. ${f.inches} inches. Too big to keep, so back she goes, after the photo.`, 5600, 2);
+      addText(boat.x, boat.y, 50, "Grampy's Snook!", '#FFF3C4', 26, 3.2); }
+    else { snook.kept++; toast(`A snook, ${f.inches} inches. Big enough to keep. It goes up on the wall.`, 4600, 2);
+      addText(boat.x, boat.y, 50, 'Snook!', '#FFF3C4', 26, 3); }
+    sfx.snookLanded(true); }
+  save(); refreshShop();
+}
+function updateFishing(dt){
+  const show = canCast(); if (show !== castShown){ castShown = show; $('cast').hidden = !show; }
+  // A net towed past the spot finds nothing: the snook slides under it, with a splash so you know it was there.
+  slipT -= dt; slipShow += dt;
+  if (started && !fight && snookHome(phase) && slipT <= 0 && net.speed > 22 && Math.hypot(net.x-SNOOK_SPOT[0], net.y-SNOOK_SPOT[1]) < NETW[lv.net]*.5 + 24){
+    slipT = 45; slipShow = 0; toast('Something big slid under the net by the bridge.', 3200); }
+  if (!fight) return;
+  const v = joy.on ? joystickVector(joy) : keyVector(keys);
+  pullSmooth += (Math.min(1, Math.hypot(v[0], v[1])) - pullSmooth) * Math.min(1, dt*8);
+  const was = fight.state; fight.update(dt, pullSmooth, Math.random);
+  if (was === 'waiting' && fight.state === 'fight'){ sfx.strike(); shake = .35; toast('Fish on. Pull when it sulks, ease off when it runs.', 3200, 2); }
+  if (fight.state === 'landed'){ const f = fight; landSnook(f); fight = null; }
+  else if (fight.state === 'lost' || docked){ const at = fishAt(); sfx.lineSnap(); shake = .4;
+    addText(at[0], at[1], 30, fight.lost === 'snap' ? 'The line parted' : 'Into the piling', '#FF9A8A', 19, 2);
+    toast(MISS_LINE, 3600, 1); fight = null; save(); }
+}
+function cast(){
+  audio(); if (!canCast()) return;
+  if (coins < TOLL){ sfx.denied(); toast(`A cast costs ${TOLL} coins.`, 1800); return; }
+  coins -= TOLL; snook.casts++; pullSmooth = 0; fight = new Fight(Math.random, window.__npCastAs); sfx.cast(); hud(); save();
+}
+$('cast').addEventListener('click', cast);
+// A silver fish with a black line down its side and yellow fins: the snook, at this screen point.
+const SNOOK_LOOK = {c:'#C9D3D6', fat:.2, tail:.42};
+function snookShape(x, y, len, ang, wag, alpha){
+  const ca = Math.cos(ang), sa = Math.sin(ang); ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#E3C34A'; fishShape(x - ca*len*.12, y - sa*len*.12, len*.98, {fat:.12, tail:.46}, ang, wag);
+  ctx.fillStyle = SNOOK_LOOK.c; ctx.beginPath(); ctx.ellipse(x, y, len, len*SNOOK_LOOK.fat, ang, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#15181A'; ctx.lineWidth = Math.max(1, len*.06); ctx.beginPath(); ctx.moveTo(x - ca*len*.8, y - sa*len*.8); ctx.lineTo(x + ca*len*.75, y + sa*len*.75); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+// At home and unhooked: a long shadow finning in the abutment's shade, and the splash when a net goes over it.
+function drawSnookShadow(){
+  if (!snookHome(phase) || !onScreen(SNOOK_SPOT[0], SNOOK_SPOT[1], 80)) return;
+  const x = px(SNOOK_SPOT[0], SNOOK_SPOT[1]), y = py(SNOOK_SPOT[0], SNOOK_SPOT[1]);
+  if (!fight || fight.state === 'waiting'){ ctx.fillStyle = 'rgba(10,28,40,.45)'; ctx.globalAlpha = 1;
+    const a = Math.PI*.92 + Math.sin(T*.6)*.12; fishShape(x, y, 17*Z, {fat:.2, tail:.42}, a, Math.sin(T*2.2)*.3); }
+  if (slipShow < 1.2){ const t = slipShow/1.2; ctx.strokeStyle = C.foam; ctx.globalAlpha = .85*(1-t); ctx.lineWidth = 2.4*Z*(1-t) + .5;
+    ctx.beginPath(); ctx.ellipse(x, y, (10+44*t)*Z, (5+20*t)*Z, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
+}
+// The line, the float or the fish on the end of it, and the rod's tension over the boat.
+function drawFishing(){
+  if (!fight) return;
+  const waiting = fight.state === 'waiting', at = waiting ? [SNOOK_SPOT[0] + BRIDGE_SOUTH[0]*22, SNOOK_SPOT[1] + BRIDGE_SOUTH[1]*22] : fishAt();
+  const bx = px(boat.x, boat.y), by = py(boat.x, boat.y, 30*bk()), fx = px(at[0], at[1]), fy = py(at[0], at[1], 0);
+  const sag = (waiting ? 26 : 34*(1 - fight.tension))*Z;
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.2*Z; ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo((bx+fx)/2, (by+fy)/2 + sag, fx, fy); ctx.stroke();
+  if (waiting){ const bob = Math.sin(T*4)*1.5*Z; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(fx, fy+bob, 3.4*Z, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = C.hull; ctx.beginPath(); ctx.arc(fx, fy+bob-1.6*Z, 3.4*Z, Math.PI, 0); ctx.fill(); return; }
+  if (fight.running){ const t = (T*1.6)%1; ctx.strokeStyle = C.foam; ctx.globalAlpha = .8*(1-t); ctx.lineWidth = 2*Z;
+    ctx.beginPath(); ctx.ellipse(fx, fy, (8+26*t)*Z, (4+12*t)*Z, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
+  // It faces the abutment when it runs, and is dragged round to face the boat when it sulks.
+  const home = [SNOOK_SPOT[0]-at[0], SNOOK_SPOT[1]-at[1]], dirw = fight.running ? home : [-home[0], -home[1]];
+  const ang = Math.atan2((dirw[0]+dirw[1])*.5, dirw[0]-dirw[1]);
+  snookShape(fx, fy, (fight.kind === 'giant' ? 27 : fight.kind === 'keeper' ? 21 : 17)*Z, ang, Math.sin(T*(fight.running ? 16 : 7))*.45, .95);
+}
+function drawTension(){
+  if (!fight || fight.state !== 'fight') return;
+  const x = px(boat.x, boat.y), y = py(boat.x, boat.y, 78*bk()), w = 84, h = 11, t = Math.min(1, fight.tension);
+  ctx.fillStyle = 'rgba(18,48,58,.8)'; ctx.beginPath(); ctx.roundRect(x-w/2-3, y-h/2-3, w+6, h+6, 8); ctx.fill();
+  ctx.fillStyle = t < .6 ? '#7BD389' : t < .85 ? C.coin : C.hull; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, Math.max(h, w*t), h, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(x-w/2 + w*.85, y-h/2-2, 2, h+4);
+}
+// What has been landed hangs on the hut's front wall: a mount for the first keeper, a gilt photo for the giant.
+function drawTrophies(){
+  const wy = IY-70;
+  if (snook.kept > 0){ box(IX+27, wy, 26, 1.6, 15, 29, '#5E3D1C', '#7A5230'); snookShape(px(IX+40, wy+1.7), py(IX+40, wy+1.7, 22), 8.5*Z, Math.PI*.04, 0, 1); }
+  if (snook.giant > 0){ box(IX+56, wy, 20, 1.6, 13, 31, '#C9982A', '#F0C544'); box(IX+58, wy+.2, 16, 1.6, 15, 29, '#FFF6E5', '#FFF6E5');
+    snookShape(px(IX+66, wy+1.9), py(IX+66, wy+1.9, 22), 6.2*Z, Math.PI*.04, 0, 1); }
+}
 function update(dt){
   T += dt; updateClock(dt);
   world.T = T; world.started = started; world.docked = docked;
   /* input and boat: the stick points; the keys drive or point, by setting */
-  if (started && !joy.on && keyMode === 'drive'){
+  if (fight){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
+  else if (started && !joy.on && keyMode === 'drive'){
     const c = keyControls(keys); steerBoatRelative(boat, c.turn, c.throttle, c.brake, SPEED[lv.engine], dt);
   } else {
     let ix = 0, iy = 0;
@@ -487,6 +590,7 @@ function update(dt){
   } else sellT = 0;
 
   dolphinToastT -= dt; dogToastT -= dt; scene.update(dt, world);
+  updateFishing(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
 
@@ -784,7 +888,7 @@ function drawSmokehouse(){
 }
 function drawWorldObjects(){
   const list = [
-    {d: (IX+80)+(IY-70), f: () => { box(IX+20,IY-120,60,50,0,38,'#FFF1D6','#FFF1D6'); box(IX+14,IY-126,72,62,38,47,C.hull,shade(C.hull,1.12)); perched(IX+30,IY-72,47); }},
+    {d: (IX+80)+(IY-70), f: () => { box(IX+20,IY-120,60,50,0,38,'#FFF1D6','#FFF1D6'); box(IX+14,IY-126,72,62,38,47,C.hull,shade(C.hull,1.12)); perched(IX+30,IY-72,47); drawTrophies(); }},
     {d: (IX+118)+(IY-30), f: () => drawPalm(IX+118,IY-30,10)},
     {d: (IX-150)+(IY-70), f: () => drawPalm(IX-150,IY-70,-8)},
     {d: (IX+50)+(IY+125), f: () => drawPalm(IX+50,IY+125,7)},
@@ -882,7 +986,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
-  drawSea(); scene.draw(drawView, 'underwater'); drawFish(); scene.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); scene.draw(drawView, 'afloat'); drawWorldObjects(); scene.draw(drawView, 'air'); drawFlies();
+  drawSea(); scene.draw(drawView, 'underwater'); drawFish(); drawSnookShadow(); scene.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); scene.draw(drawView, 'afloat'); drawWorldObjects(); drawFishing(); scene.draw(drawView, 'air'); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
@@ -902,6 +1006,7 @@ function draw(){
     else if (!anyVis && best) indicator(best.cx, best.cy, '#1F6B7A', SPECIES[best.sp].c, false);
   }
   scene.draw(drawView, 'overlay');
+  drawTension();
 
   if (joy.on && started){
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
@@ -920,5 +1025,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, pets, whales, mantas, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

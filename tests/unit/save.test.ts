@@ -223,3 +223,20 @@ describe('the manta sighting', () => {
     expect(parseSave(serializeSave(s), bounds).mantaSeen).toBe(true);
   });
 });
+
+describe('the fishing log', () => {
+  it('is empty in a save from before the snook, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.snook).toEqual({ casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 });
+    s.snook = { casts: 61, landed: 5, kept: 1, giant: 0, best: 31, firstDay: 4 };
+    expect(parseSave(serializeSave(s), bounds).snook).toEqual(s.snook);
+  });
+
+  it('never goes negative', () => {
+    const s = parseSave(
+      JSON.stringify({ snook: { casts: -3, landed: 'two', best: 29.7 } }),
+      bounds,
+    );
+    expect(s.snook).toEqual({ casts: 0, landed: 0, kept: 0, giant: 0, best: 29, firstDay: 0 });
+  });
+});

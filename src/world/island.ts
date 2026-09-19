@@ -62,6 +62,12 @@ export const ABUTMENTS: readonly Point[] = [0.36, 0.7].map((t): Point => {
 /** The unit vector across the bridge toward its south side, which faces the viewer. */
 export const BRIDGE_SOUTH: Point = [BV, -BU];
 
+/** Where the snook holds: in the shadow of the far abutment, on the south side. */
+export const SNOOK_SPOT: Point = [
+  (ABUTMENTS[1] as Point)[0] + BRIDGE_SOUTH[0] * 30,
+  (ABUTMENTS[1] as Point)[1] + BRIDGE_SOUTH[1] * 30,
+];
+
 /** Whether a point is on the beach or the bridge, or within pad of either: no place for flotsam or fish. */
 export function nearBeach(x: number, y: number, pad: number): boolean {
   if (Math.hypot(x - BEACH.x, y - BEACH.y) < BEACH.r + pad) return true;
