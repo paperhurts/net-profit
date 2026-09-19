@@ -48,6 +48,15 @@ export type SaveData = {
   mantaSeen: boolean;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
+  /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
+  snook: {
+    casts: number;
+    landed: number;
+    kept: number;
+    giant: number;
+    best: number;
+    firstDay: number;
+  };
   trip: Trip | null;
   /** How the keyboard steers: drive the boat (A/D turn, W throttle) or point it like the stick. */
   keys: KeyMode;
@@ -86,6 +95,7 @@ export function defaultSave(b: Bounds): SaveData {
     whaleSeen: false,
     mantaSeen: false,
     gear: { mesh: false, strongbox: false },
+    snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
   };
@@ -154,6 +164,12 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
   }
+  if (o.snook && typeof o.snook === 'object') {
+    const k = o.snook as Record<string, unknown>;
+    for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
+      d.snook[f] = Math.max(0, int(k[f]));
+    }
+  }
   d.wood = Math.max(0, int(o.wood));
   d.build = between(int(o.build), 0, b.stages);
   d.market = o.market === undefined ? -1 : between(int(o.market), -1, b.species - 1);
@@ -199,6 +215,7 @@ export function serializeSave(d: SaveData): string {
     whaleSeen: d.whaleSeen,
     mantaSeen: d.mantaSeen,
     gear: d.gear,
+    snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
   });
