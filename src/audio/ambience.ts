@@ -1,6 +1,6 @@
 /**
- * Ambience: waves, gulls, a calm pad, wind chimes near shore, and dolphins
- * chirping when a pod is close. All procedural, on one bus that ducks under
+ * Ambience: waves, gulls, a calm pad, wind chimes near shore, dolphins
+ * chirping when a pod is close, and the whales singing in the far water. All procedural, on one bus that ducks under
  * every cue so nothing cute gets stepped on. Designed with the cues in mind:
  * the dolphin whistle lives around 1.4 to 2.4 kHz and ends on C7 and D7, so
  * the pad is rooted on F and nothing here sits in that band for long.
@@ -108,6 +108,79 @@ export const CHIRP_RANGE = 350;
 /** No chirps this long after the escort whistle; that moment is the whistle's. */
 export const CHIRP_HOLD_AFTER_WHISTLE = 2;
 
+/** Whales are heard from this far by day, and this far at night, when the song carries. */
+export const WHALE_EARSHOT: readonly [number, number] = [1400, 2300];
+
+export function whaleEarshot(dark: number): number {
+  const n = Math.min(1, Math.max(0, dark));
+  return WHALE_EARSHOT[0] + (WHALE_EARSHOT[1] - WHALE_EARSHOT[0]) * n;
+}
+
+/** How loud a whale this far off is, 0..1: full within a third of earshot, nothing at its edge. */
+export function whaleLevel(dist: number, dark: number): number {
+  const e = whaleEarshot(dark);
+  return Math.min(1, Math.max(0, (e - dist) / (e * (2 / 3))));
+}
+
+/** Seconds until the mother's next phrase: fourteen to twenty-six. */
+export function nextWhaleSong(r: () => number): number {
+  return 14 + r() * 12;
+}
+
+/** One slide of a whale's voice: from, to, seconds. */
+export type Glide = readonly [from: number, to: number, seconds: number];
+/** One partial of a voice: a multiple of the sung pitch, and how loud. */
+export type Overtone = readonly [mult: number, amp: number];
+export type WhaleVoice = {
+  band: readonly [number, number];
+  overtones: readonly Overtone[];
+  /** How long a glide lasts: floor and spread, seconds. */
+  glide: readonly [number, number];
+};
+
+/**
+ * The mother sings low and long, the calf higher and shorter. The overtones are what a phone
+ * speaker can play of a note it cannot; every partial of both stays under the dolphin whistle's
+ * band, which starts at 1.4 kHz, and a test holds them to it.
+ */
+export const MOTHER_VOICE: WhaleVoice = {
+  band: [110, 420],
+  overtones: [
+    [1, 1],
+    [2, 0.4],
+    [3, 0.12],
+  ],
+  glide: [1.1, 1.5],
+};
+export const CALF_VOICE: WhaleVoice = {
+  band: [260, 620],
+  overtones: [
+    [1, 1],
+    [2, 0.2],
+  ],
+  glide: [0.6, 0.8],
+};
+/** The breath between two glides of a phrase. */
+export const GLIDE_GAP = 0.3;
+
+/** A phrase: two to four glides wandering inside the voice's band, each starting near where the last ended. */
+export function whalePhrase(r: () => number, voice: WhaleVoice): Glide[] {
+  const [lo, hi] = voice.band;
+  const n = 2 + Math.floor(r() * 3);
+  const out: Glide[] = [];
+  let f = lo + r() * (hi - lo);
+  for (let i = 0; i < n; i++) {
+    const to = lo + r() * (hi - lo);
+    out.push([f, to, voice.glide[0] + r() * voice.glide[1]]);
+    f = Math.min(hi, Math.max(lo, to * (0.92 + r() * 0.16)));
+  }
+  return out;
+}
+
+export function phraseSeconds(phrase: readonly Glide[]): number {
+  return phrase.reduce((s, g) => s + g[2] + GLIDE_GAP, 0);
+}
+
 /* ---------- the bus ---------- */
 
 export type PodSound = { dx: number; dy: number; dist: number; escort: boolean };
@@ -126,6 +199,8 @@ export type Snapshot = {
   /** Awake gulls near enough to be heard, as (dx, dy) from the boat. */
   gulls: { dx: number; dy: number }[];
   pods: PodSound[];
+  /** The whales from the boat, mother first, then calf. */
+  whales: { dx: number; dy: number; dist: number }[];
   /** Seconds since the escort whistle last played. */
   sinceWhistle: number;
 };
@@ -160,6 +235,9 @@ export class Ambience {
   private sinceCue = 10;
   private gullTimer: number;
   private chirpTimer: number;
+  private whaleTimer: number;
+  private calfDue = 0;
+  private readonly whaleBus: GainNode;
   private level = 0;
 
   constructor(ctx: AudioContext, destination: AudioNode, r: () => number = Math.random) {
@@ -167,10 +245,22 @@ export class Ambience {
     this.r = r;
     this.gullTimer = nextGullCry(r);
     this.chirpTimer = nextChirp(r);
+    this.whaleTimer = nextWhaleSong(r);
 
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     this.master.connect(destination);
+
+    // The whales' echo: one shared delay loop, so a song's own nodes can go when it ends.
+    this.whaleBus = ctx.createGain();
+    this.whaleBus.connect(this.master);
+    const echo = ctx.createDelay(1);
+    echo.delayTime.value = 0.42;
+    const echoBack = ctx.createGain();
+    echoBack.gain.value = 0.36;
+    this.whaleBus.connect(echo);
+    echo.connect(echoBack).connect(echo);
+    echo.connect(this.master);
 
     // Waves: one brown-noise loop through three paths: the low swell, the surf and the wake hiss.
     const noise = ctx.createBufferSource();
@@ -306,6 +396,33 @@ export class Ambience {
         if (p) this.chirp(panFor(p.dx, p.dy), p.escort && this.r() < 0.4);
       }
     }
+
+    // Whales: the mother sings a phrase now and then when she is in earshot, and the calf answers higher.
+    if (this.calfDue > 0) {
+      this.calfDue -= dt;
+      const c = s.whales[1];
+      if (this.calfDue <= 0 && c) {
+        const lv = whaleLevel(c.dist, s.dark);
+        if (lv > 0)
+          this.whaleSong(
+            whalePhrase(this.r, CALF_VOICE),
+            CALF_VOICE,
+            panFor(c.dx, c.dy),
+            0.09 * lv,
+          );
+      }
+    }
+    this.whaleTimer -= dt;
+    if (this.whaleTimer <= 0) {
+      this.whaleTimer = nextWhaleSong(this.r);
+      const m = s.whales[0];
+      const lv = m ? whaleLevel(m.dist, s.dark) : 0;
+      if (m && lv > 0 && s.sinceWhistle > CHIRP_HOLD_AFTER_WHISTLE) {
+        const phrase = whalePhrase(this.r, MOTHER_VOICE);
+        this.whaleSong(phrase, MOTHER_VOICE, panFor(m.dx, m.dy), 0.14 * lv);
+        this.calfDue = phraseSeconds(phrase) + 0.8 + this.r() * 1.4;
+      }
+    }
   }
 
   private voice(pan: number): { g: GainNode; t: number } {
@@ -379,5 +496,41 @@ export class Ambience {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.035, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + (double ? 0.26 : 0.12));
+  }
+
+  /** A whale: sines gliding through the phrase together, swelling and fading on each glide, into the echo. */
+  private whaleSong(phrase: readonly Glide[], voice: WhaleVoice, pan: number, vol: number): void {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    const p = ctx.createStereoPanner();
+    p.pan.value = pan;
+    g.connect(p).connect(this.whaleBus);
+    const oscs = voice.overtones.map(([mult, amp]) => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      const og = ctx.createGain();
+      og.gain.value = amp;
+      o.connect(og).connect(g);
+      return { o, mult };
+    });
+    let at = t;
+    for (const [from, to, dur] of phrase) {
+      for (const { o, mult } of oscs) {
+        o.frequency.setValueAtTime(from * mult, at);
+        o.frequency.exponentialRampToValueAtTime(to * mult, at + dur);
+      }
+      // Swell, hold, fall away: linear, because an exponential ramp from nothing is a blip, not a moan.
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(vol, at + dur * 0.3);
+      g.gain.setValueAtTime(vol, at + dur * 0.6);
+      g.gain.linearRampToValueAtTime(0, at + dur);
+      at += dur + GLIDE_GAP;
+    }
+    for (const { o } of oscs) {
+      o.start(t);
+      o.stop(at);
+    }
   }
 }

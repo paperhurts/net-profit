@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CALF_VOICE,
   CHIME_RANGE,
   chimeLevel,
   DUCK_DEPTH,
   DUCK_TIME,
   duckGain,
+  MOTHER_VOICE,
   nextChirp,
   nextGullCry,
+  nextWhaleSong,
   padNotes,
   panFor,
+  phraseSeconds,
   swellPhase,
   waveMix,
+  whaleEarshot,
+  whaleLevel,
+  whalePhrase,
 } from '../../src/audio/ambience';
 import { rng } from '../../src/core/math';
 
@@ -105,6 +112,58 @@ describe('timers', () => {
       const c = nextChirp(r);
       expect(c).toBeGreaterThanOrEqual(4);
       expect(c).toBeLessThan(10);
+    }
+  });
+});
+
+describe('the whales', () => {
+  it('are heard further at night, full up close and not at all past earshot', () => {
+    expect(whaleEarshot(0)).toBe(1400);
+    expect(whaleEarshot(1)).toBe(2300);
+    expect(whaleEarshot(7)).toBe(2300);
+    expect(whaleLevel(100, 0)).toBe(1);
+    expect(whaleLevel(1400, 0)).toBe(0);
+    expect(whaleLevel(1800, 0)).toBe(0);
+    expect(whaleLevel(1800, 1)).toBeGreaterThan(0);
+    expect(whaleLevel(900, 0)).toBeGreaterThan(whaleLevel(1200, 0));
+  });
+
+  it('sing every fourteen to twenty-six seconds', () => {
+    expect(nextWhaleSong(() => 0)).toBe(14);
+    expect(nextWhaleSong(() => 1)).toBe(26);
+  });
+
+  it('keep every partial of both voices under the dolphin whistle, the calf above its mother', () => {
+    for (const v of [MOTHER_VOICE, CALF_VOICE]) {
+      const top = v.band[1] * Math.max(...v.overtones.map((o) => o[0]));
+      expect(top).toBeLessThan(1400);
+      // Something a phone speaker can play: a partial that reaches past 500 Hz.
+      expect(top).toBeGreaterThan(500);
+    }
+    expect(CALF_VOICE.band[0]).toBeGreaterThan(MOTHER_VOICE.band[0]);
+    expect(CALF_VOICE.glide[0]).toBeLessThan(MOTHER_VOICE.glide[0]);
+  });
+
+  it('phrase in two to four glides that stay inside the band and join up', () => {
+    let seed = 1;
+    const r = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let i = 0; i < 200; i++) {
+      const v = i % 2 ? MOTHER_VOICE : CALF_VOICE;
+      const p = whalePhrase(r, v);
+      expect(p.length).toBeGreaterThanOrEqual(2);
+      expect(p.length).toBeLessThanOrEqual(4);
+      for (const [from, to, dur] of p) {
+        for (const f of [from, to]) {
+          expect(f).toBeGreaterThanOrEqual(v.band[0]);
+          expect(f).toBeLessThanOrEqual(v.band[1]);
+        }
+        expect(dur).toBeGreaterThanOrEqual(v.glide[0]);
+        expect(dur).toBeLessThanOrEqual(v.glide[0] + v.glide[1]);
+      }
+      expect(phraseSeconds(p)).toBeGreaterThan(p.length * v.glide[0]);
     }
   });
 });

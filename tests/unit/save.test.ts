@@ -185,3 +185,12 @@ describe('days and first catches', () => {
     expect(s.first.slice(0, 2)).toEqual([0, 2]);
   });
 });
+
+describe('the whale sighting', () => {
+  it('is unseen in a save from before the whales, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.whaleSeen).toBe(false);
+    s.whaleSeen = true;
+    expect(parseSave(serializeSave(s), bounds).whaleSeen).toBe(true);
+  });
+});

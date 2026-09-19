@@ -28,6 +28,7 @@ import { Leviathan } from './entities/leviathan';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
+import { Whales } from './entities/whales';
 import { Scene } from './render/layers';
 (() => {
 'use strict';
@@ -44,7 +45,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, keyMode = 'drive';
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
@@ -56,9 +57,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -196,6 +197,8 @@ leviathan.onPass = () => { shake = Math.max(shake,.4);
   sfx.leviathan();
   toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200, 1);
   if (!levSeen){ levSeen = true; save(); } };
+const whales = new Whales(Math.random);
+whales.onSight = () => { if (!whaleSeen){ whaleSeen = true; save(); toast('A whale and her calf. Ease off and listen.', 3800, 1); } };
 const jellies = new Jellies();
 jellies.onFoul = () => { toast('Jellyfish in the net. Nothing else will stay in it until you shake them out at the dock.', 3400, 1); sfx.jellies(); };
 const pets = new Pets(build); let dogToastT = 0;
@@ -204,7 +207,7 @@ pets.onBark = () => { sfx.bark(); if (dogToastT <= 0){ dogToastT = 60; toast('Th
 pirateEntity.onProwl = () => pets.alert();
 // One list, one order, for updating and for z within a layer: the prototype's update order, then what came after.
 const scene = new Scene();
-for (const e of [rareEntity, leviathan, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets]) scene.add(e);
+for (const e of [rareEntity, leviathan, whales, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -262,7 +265,8 @@ function refreshShop(){
   $('paints').innerHTML = PAINTS.map((p,i) => `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${i>=open?' (locked)':''}" aria-disabled="${i>=open}" style="background:${p.hull};border-color:${p.trim}"></button>`).join('');
   refreshBuild(); refreshMarket();
   $('log').innerHTML = SPECIES.map((S,i) => `<span class="chip${log[i]?'':' unk'}${S.rare&&log[i]?' gold':''}" title="${log[i]?S.name:'Not caught yet'}">${FISH_SVG(log[i]?S.c:'currentColor')}${log[i]||'?'}</span>`).join('')
-    + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`;
+    + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`
+    + `<span class="chip${whaleSeen?' gold':' unk'}">${whaleSeen?'Whales sighted':'A song, far out?'}</span>`;
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
 const LOG_SVG = '<svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true"><rect x="1" y="2" width="18" height="8" rx="4" fill="#A9773F" stroke="#5E3D1C" stroke-width="1.5"/><circle cx="15.5" cy="6" r="1.8" fill="#E6B877"/></svg>';
@@ -341,6 +345,9 @@ function renderGuide(){
   pages.push(`<article class="page${levSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${levSeen ? 'Leviathan' : '?'}</b><small>${levSeen
     ? 'Something enormous circles the island far out: a chain of shadows, the odd back breaking the surface, lit at night. You have felt it pass.'
     : 'Not seen yet. Something enormous circles the island, far out. Sail over it, and go at night.'}</small><div class="facts"><span>About 2,180 out</span><span>Day and night</span><span>Not for catching</span></div></article>`);
+  pages.push(`<article class="page${whaleSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${whaleSeen ? 'Whale and calf' : '?'}</b><small>${whaleSeen
+    ? 'A mother and her calf, round and round the far water. They come up to breathe, and they sing: she low, the calf higher. At night the song carries.'
+    : 'Not seen yet. Listen out in the far water, best at night.'}</small><div class="facts"><span>1,750 to 2,250 out</span><span>Day and night</span><span>Not for catching</span></div></article>`);
   $('pages').innerHTML = pages.join('');
 }
 function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
@@ -360,7 +367,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset();
   for (const sc of schools){ sc.alive = sc.n; for (const f of sc.fish){ f.alive = true; f.grow = 1; } }
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -438,6 +445,7 @@ function updateAmbience(dt){
     on: started && !muted, t: T, speedRatio: boat.v/SPEED[lv.engine], dockness: dockView, dark, phase,
     shoreDist: Math.max(0, Math.min(toIsland, toPier)), gulls,
     pods: dolphins.pods.map(p => ({dx: p.x-boat.x, dy: p.y-boat.y, dist: Math.hypot(p.x-boat.x, p.y-boat.y), escort: p.state === 'escort'})),
+    whales: whales.all.map(w => ({dx: w.x-boat.x, dy: w.y-boat.y, dist: Math.hypot(w.x-boat.x, w.y-boat.y)})),
     sinceWhistle: T - lastWhistleT,
   });
 }
@@ -899,5 +907,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, pets, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, jellies, pets, whales, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
