@@ -42,6 +42,8 @@ export type SaveData = {
   /** The day each species was first landed, 0 for never. */
   first: number[];
   levSeen: boolean;
+  /** The whales have been sighted. */
+  whaleSeen: boolean;
   trip: Trip | null;
   /** How the keyboard steers: drive the boat (A/D turn, W throttle) or point it like the stick. */
   keys: KeyMode;
@@ -77,6 +79,7 @@ export function defaultSave(b: Bounds): SaveData {
     day: 1,
     first: new Array<number>(b.species).fill(0),
     levSeen: false,
+    whaleSeen: false,
     trip: null,
     keys: 'drive',
   };
@@ -139,6 +142,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   for (const k of ['net', 'hold', 'engine'] as const) d.lv[k] = between(int(lv[k]), 0, b.maxLevel);
   d.paint = between(int(o.paint), 0, b.paints - 1);
   d.levSeen = !!o.levSeen;
+  d.whaleSeen = !!o.whaleSeen;
   d.wood = Math.max(0, int(o.wood));
   d.build = between(int(o.build), 0, b.stages);
   d.market = o.market === undefined ? -1 : between(int(o.market), -1, b.species - 1);
@@ -181,6 +185,7 @@ export function serializeSave(d: SaveData): string {
     day: d.day,
     first: d.first,
     levSeen: d.levSeen,
+    whaleSeen: d.whaleSeen,
     trip: d.trip ?? undefined,
     keys: d.keys,
   });
