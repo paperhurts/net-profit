@@ -18,7 +18,9 @@
  * makes it catchable by a person. Without it the rod had to ease on the very
  * frame the run began: a thumb a third of a second late pulled through the
  * start of every run, the line ratcheted tighter each time, and it parted
- * before the fish tired. The tests play it with that thumb.
+ * before the fish tired. And a thumb on glass is down or up, so the rod is
+ * too: hold to pull, let go to ease off, and a full pull through a sulk wins
+ * back more line than a run takes. The tests play it with that thumb.
  */
 import type { Phase } from '../world/daycycle';
 
@@ -64,8 +66,12 @@ export type FightState = 'waiting' | 'fight' | 'landed' | 'lost';
 /** How far from the piling a hooked fish starts, and the most line it can be given. */
 export const START_DISTANCE = 70;
 export const MAX_DISTANCE = 120;
-/** Units a second: a full pull, a run, the drift of a sulking fish, and the run nothing stops. */
-export const PULL_SPEED = 34;
+/**
+ * Units a second: a full pull, a run, the drift of a sulking fish, and the run nothing stops. The
+ * pull outpaces a run by half, so a hand that holds through every sulk and lets go for every run
+ * gains line; at 34 it lost a little each time and the fish walked to the piling.
+ */
+export const PULL_SPEED = 48;
 export const RUN_SPEED = 32;
 export const GIANT_RUN_SPEED = 36;
 export const SULK_DRIFT = 6;

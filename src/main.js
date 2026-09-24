@@ -484,10 +484,12 @@ function updateFishing(dt){
   if (started && !fight && snookHome(phase) && slipT <= 0 && net.speed > 22 && Math.hypot(net.x-SNOOK_SPOT[0], net.y-SNOOK_SPOT[1]) < NETW[lv.net]*.5 + 24){
     slipT = 45; slipShow = 0; toast('Something big slid under the net by the bridge.', 3200); }
   if (!fight) return;
-  const v = joy.on ? joystickVector(joy) : keyVector(keys);
-  pullSmooth = smoothPull(pullSmooth, Math.hypot(v[0], v[1]), dt);
+  // A thumb on the rod is down or up: any press pulls in full, however far it drags. A short drag used to
+  // pull at a third and lose every fish to the piling. The keys are the same, any held key pulls.
+  const v = keyVector(keys);
+  pullSmooth = smoothPull(pullSmooth, joy.on ? 1 : Math.hypot(v[0], v[1]), dt);
   const was = fight.state, told = fight.telling; fight.update(dt, pullSmooth, Math.random);
-  if (was === 'waiting' && fight.state === 'fight'){ sfx.strike(); shake = .35; toast('Fish on. Drag to pull while it sulks. Ease off when it shakes its head.', 3600, 2); }
+  if (was === 'waiting' && fight.state === 'fight'){ sfx.strike(); shake = .35; toast('Fish on. Hold to pull while it sulks. Let go when it shakes its head.', 3600, 2); }
   if (!told && fight.telling) sfx.headShake();
   if (fight.state === 'landed'){ const f = fight; landSnook(f); fight = null; }
   else if (fight.state === 'lost' || docked){ const at = fishAt(); sfx.lineSnap(); shake = .4;
@@ -546,11 +548,11 @@ function drawTension(){
   ctx.fillStyle = 'rgba(18,48,58,.8)'; ctx.beginPath(); ctx.roundRect(x-w/2-3, y-h/2-3, w+6, h+6, 8); ctx.fill();
   ctx.fillStyle = t < .6 ? '#7BD389' : t < .85 ? C.coin : C.hull; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, Math.max(h, w*t), h, 6); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(x-w/2 + w*.85, y-h/2-2, 2, h+4);
-  // What the rod wants now, in the toast's words: the tell and the run both say ease off.
-  const ease = fight.running || fight.telling;
+  // What the rod wants now, in the toast's words: the tell and the run both say let go.
+  const ease = fight.running || fight.telling, word = ease ? 'Let go' : 'Hold';
   ctx.font = '800 15px Grandstander, ui-rounded, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 5; ctx.strokeStyle = C.ink; ctx.strokeText(ease ? 'Ease off' : 'Pull', x, y-h/2-15);
-  ctx.fillStyle = ease ? C.coin : '#FFF6E5'; ctx.fillText(ease ? 'Ease off' : 'Pull', x, y-h/2-15);
+  ctx.lineWidth = 5; ctx.strokeStyle = C.ink; ctx.strokeText(word, x, y-h/2-15);
+  ctx.fillStyle = ease ? C.coin : '#FFF6E5'; ctx.fillText(word, x, y-h/2-15);
 }
 // What has been landed hangs on the hut's front wall: a mount for the first keeper, a gilt photo for the giant.
 function drawTrophies(){

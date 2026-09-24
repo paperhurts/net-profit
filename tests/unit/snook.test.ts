@@ -20,23 +20,22 @@ const yank: Hand = () => 1;
 const slack: Hand = () => 0;
 
 /**
- * A person on the stick. Everything reaches the thumb `late` seconds after it happens, give or
- * take a tenth on each change of the fish; the grip is never exact, three quarters to all the way
- * on a sulk and not quite nothing when easing off. They pull when it sulks and ease off when it
- * shakes its head or runs (or, not reading the tell, only once it runs), give a little line near
- * the piling and back off a hot line. Seeded, so every run of the tests plays the same hands.
+ * A person on the rod, doing what the word over the tension bar says. A thumb on glass is down or
+ * up, so they hold on a sulk and let go when it shakes its head or runs (or, not reading the tell,
+ * only once it runs), and let go of a hot line. Everything reaches the thumb `late` seconds after it
+ * happens, give or take a tenth on each change of the fish. No partial pressure and no saving it
+ * from the piling: the words alone have to be enough. Seeded, so every run plays the same hands.
  */
 function person(seed: number, late = 1 / 3, readsTell = true): Hand {
   const own = rng(seed);
-  const seen: { at: number; tension: number; d: number }[] = [];
+  const seen: { at: number; tension: number }[] = [];
   const due: { at: number; ease: boolean }[] = [];
   let t = 0;
   let shown: boolean | null = null;
   let cue: boolean | null = null;
-  let grip = 0;
   return (f, dt) => {
     t += dt;
-    seen.push({ at: t, tension: f.tension, d: f.d });
+    seen.push({ at: t, tension: f.tension });
     while (seen.length > 1 && (seen[1] as (typeof seen)[number]).at <= t - late) seen.shift();
     if (f.state === 'fight') {
       const ease = f.running || (readsTell && f.telling);
@@ -48,12 +47,9 @@ function person(seed: number, late = 1 / 3, readsTell = true): Hand {
     for (let next = due[0]; next && next.at <= t; next = due[0]) {
       due.shift();
       cue = next.ease;
-      grip = cue ? own() * 0.15 : 0.75 + own() * 0.25;
     }
-    const then = seen[0] as (typeof seen)[number];
-    if (cue === null) return 0;
-    if (then.tension > 0.8) return 0.1;
-    return cue && then.d < 40 ? 0.45 : grip;
+    if (cue === null || cue) return 0;
+    return (seen[0] as (typeof seen)[number]).tension > 0.8 ? 0 : 1;
   };
 }
 
@@ -155,7 +151,9 @@ describe('the fight', () => {
   it('is landed by a person a third of a second late, whenever the fish could be landed at all', () => {
     expect(landings('short', (s) => person(s))).toBeGreaterThanOrEqual(196);
     expect(landings('keeper', (s) => person(s))).toBeGreaterThanOrEqual(196);
-    expect(landings('giant', (s) => person(s))).toBeGreaterThanOrEqual(170);
+    const giant = landings('giant', (s) => person(s));
+    expect(giant).toBeGreaterThanOrEqual(145);
+    expect(giant).toBeLessThan(196);
   });
 
   it('still comes in for a slow hand, half a second late, and the giant is the one that gets away', () => {
@@ -163,13 +161,13 @@ describe('the fight', () => {
     const short = landings('short', slow);
     const giant = landings('giant', slow);
     expect(short).toBeGreaterThanOrEqual(190);
-    expect(giant).toBeGreaterThanOrEqual(100);
+    expect(landings('keeper', slow)).toBeGreaterThanOrEqual(190);
+    expect(giant).toBeGreaterThanOrEqual(140);
     expect(giant).toBeLessThan(short);
-    expect(giant).toBeLessThan(landings('giant', (s) => person(s)));
   });
 
-  it('is the tell that makes it: the same person waiting for the run loses more than half', () => {
-    expect(landings('short', (s) => person(s, 1 / 3, false))).toBeLessThan(100);
+  it('is the tell that makes it: the same person waiting for the run loses most of them', () => {
+    expect(landings('short', (s) => person(s, 1 / 3, false))).toBeLessThan(50);
   });
 
   it('parts the line for a player who only ever heaves, and gives the fish the piling for one who never pulls', () => {
