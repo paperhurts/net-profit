@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test';
 // machine, and a smoke test that quietly drives the wrong app is worse than
 // one that fails to start.
 const PORT = 4831;
-const BASE = '/net-profit/';
+const BASE = '/';
 const URL = `http://localhost:${PORT}${BASE}`;
 
 export default defineConfig({
