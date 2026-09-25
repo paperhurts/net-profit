@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // GitHub Pages serves the project site under /net-profit/.
-  base: '/net-profit/',
+  // Relative asset URLs, so one build works at net-profit.paperhurts.dev, under
+  // `vite preview`, and at the old paperhurts.dev/net-profit/ path while it redirects.
+  base: './',
   // Other projects on this machine own 5173 (Reader dev), 4173 (Reader prod) and
   // more via server-start. Net Profit takes 4830 for dev and 4831 for preview and the
   // smoke test, strictly, so a busy port fails loudly instead of drifting.

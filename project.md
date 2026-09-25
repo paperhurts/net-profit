@@ -178,7 +178,7 @@ legacy/net-profit.html   the reference build, untouched
 index.html               the shipping game; identical to legacy until the port starts
 tests/smoke.spec.ts      Playwright, drives the game through window.__np at 390x780
 tests/unit/              Vitest, pure logic; first tests arrive with the first module
-vite.config.ts           base /net-profit/, dev 4830, preview 4831, tailnet hostname allowed
+vite.config.ts           relative base, dev 4830, preview 4831, tailnet hostname allowed
 playwright.config.ts     chromium (CI) and msedge (local fallback) projects, own server on 4831
 biome.json               lint and format: LF, single quotes, 100 columns
 .github/workflows/       ci.yml (typecheck, lint, unit, smoke) and deploy.yml (Pages)
@@ -202,7 +202,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 
 ## Working on it
 
-- `npm run dev` serves the game at http://localhost:4830/net-profit/ with hot reload; `npm run preview` serves the production build on 4831. Both ports are pinned strictly because other projects on the same machine use Vite's defaults. Never fall back to 5173 or 4173.
+- `npm run dev` serves the game at http://localhost:4830/ with hot reload; `npm run preview` serves the production build on 4831. Both ports are pinned strictly because other projects on the same machine use Vite's defaults. Never fall back to 5173 or 4173.
 - Phone testing: `npm run dev -- --host`, then open the Network URL Vite prints. A tailnet hostname works too, since `*.ts.net` is allowed through Vite's host check. Reaching the dev server over the LAN on Windows needs an inbound firewall rule scoped to TCP 4830 on the private profile, not a blanket rule for node.
 - `npm run test:e2e` runs the smoke test in Chromium against the production build on its own server. `npx playwright test --project=msedge` uses the Edge already on Windows when the Chromium download will not complete.
 - Balance probes beat playing to flagship: drive the game in headless Chromium through `window.__np`, exactly as the driftwood retune was checked.
