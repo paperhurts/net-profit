@@ -5,6 +5,7 @@ import {
   Fight,
   INCHES,
   MISS_LINE,
+  NEVER_LINE,
   ODDS,
   rollCatch,
   rollInches,
@@ -206,6 +207,19 @@ describe('the fight', () => {
     }
     expect(bolted).toBe(true);
     expect(f.state).toBe('lost');
+  });
+
+  it('says so over the fish when it was never coming in, and how any other was lost', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const r = rng(seed);
+      expect(play(new Fight(r, 'none'), person(seed * 7919 + 13), r).lostWords).toBe(NEVER_LINE);
+    }
+    for (const kind of ['none', 'short', 'keeper', 'giant'] as const) {
+      const a = rng(11);
+      expect(play(new Fight(a, kind), yank, a).lostWords).toBe('The line parted');
+      const b = rng(11);
+      expect(play(new Fight(b, kind), slack, b).lostWords).toBe('Into the piling');
+    }
   });
 
   it('comes to one landing in ten casts and one keeper in fifty for a person, over twenty thousand casts', () => {

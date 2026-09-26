@@ -493,7 +493,7 @@ function updateFishing(dt){
   if (!told && fight.telling) sfx.headShake();
   if (fight.state === 'landed'){ const f = fight; landSnook(f); fight = null; }
   else if (fight.state === 'lost' || docked){ const at = fishAt(); sfx.lineSnap(); shake = .4;
-    addText(at[0], at[1], 30, fight.lost === 'snap' ? 'The line parted' : 'Into the piling', '#FF9A8A', 19, 2);
+    addText(at[0], at[1], 30, fight.lostWords, '#FF9A8A', 19, 2);
     toast(MISS_LINE, 3600, 1); fight = null; save(); }
 }
 function cast(){
