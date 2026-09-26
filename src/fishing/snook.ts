@@ -13,6 +13,14 @@
  * runs or the line parts, pull when it sulks or it gets to the piling, and a
  * fish that could have been landed is lost by playing it badly. Every miss
  * ends the same way: the snook is still under the bridge.
+ *
+ * It shakes its head before every run but the first, and that tell is what
+ * makes it catchable by a person. Without it the rod had to ease on the very
+ * frame the run began: a thumb a third of a second late pulled through the
+ * start of every run, the line ratcheted tighter each time, and it parted
+ * before the fish tired. And a thumb on glass is down or up, so the rod is
+ * too: hold to pull, let go to ease off, and a full pull through a sulk wins
+ * back more line than a run takes. The tests play it with that thumb.
  */
 import type { Phase } from '../world/daycycle';
 
@@ -58,12 +66,25 @@ export type FightState = 'waiting' | 'fight' | 'landed' | 'lost';
 /** How far from the piling a hooked fish starts, and the most line it can be given. */
 export const START_DISTANCE = 70;
 export const MAX_DISTANCE = 120;
-/** Units a second: a full pull, a run, the drift of a sulking fish, and the run nothing stops. */
-export const PULL_SPEED = 34;
+/**
+ * Units a second: a full pull, a run, the drift of a sulking fish, and the run nothing stops. The
+ * pull outpaces a run by half, so a hand that holds through every sulk and lets go for every run
+ * gains line; at 34 it lost a little each time and the fish walked to the piling.
+ */
+export const PULL_SPEED = 48;
 export const RUN_SPEED = 32;
-export const GIANT_RUN_SPEED = 34;
+export const GIANT_RUN_SPEED = 36;
 export const SULK_DRIFT = 6;
 export const BOLT_SPEED = 95;
+/** Seconds of head-shaking before each run: enough for a thumb that sees it to lift in time. */
+export const TELL = 0.45;
+/** How quickly the rod follows the stick, per second, so a flick is not a yank. */
+export const PULL_EASE = 8;
+
+/** The rod after dt seconds of the stick held at `stick` (0..1). */
+export function smoothPull(rod: number, stick: number, dt: number): number {
+  return rod + (Math.min(1, stick) - rod) * Math.min(1, dt * PULL_EASE);
+}
 
 export class Fight {
   state: FightState = 'waiting';
@@ -79,6 +100,8 @@ export class Fight {
   stamina: number;
   /** Running for the abutment right now, or sulking. */
   running = true;
+  /** Shaking its head at the end of a sulk: it runs next. It still pulls like a sulk. */
+  telling = false;
   /** The last run, on a fish that was never going to be landed. */
   bolting = false;
   /** Why it was lost. */
@@ -107,14 +130,24 @@ export class Fight {
     if (!this.bolting) {
       this.phaseT -= dt;
       if (this.phaseT <= 0) {
-        if (this.running) this.runs++;
-        this.running = !this.running;
-        this.phaseT = this.running ? 0.9 + rng() * 0.6 : 0.8 + rng() * 0.6;
+        if (this.running) {
+          this.runs++;
+          this.running = false;
+          this.phaseT = 0.8 + rng() * 0.6;
+        } else if (!this.telling) {
+          this.telling = true;
+          this.phaseT = TELL;
+        } else {
+          this.telling = false;
+          this.running = true;
+          this.phaseT = 0.9 + rng() * 0.6;
+        }
       }
       // A fish that was never coming in shows it on its third run, or sooner if it is being beaten.
       if (this.kind === 'none' && ((this.running && this.runs >= 2) || this.stamina < 0.6)) {
         this.bolting = true;
         this.running = true;
+        this.telling = false;
       }
     }
     const run = this.bolting

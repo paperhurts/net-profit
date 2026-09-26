@@ -8,7 +8,7 @@ import { clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
-import { CAST_RANGE, CAST_SPEED, Fight, MISS_LINE, snookHome, TOLL } from './fishing/snook';
+import { CAST_RANGE, CAST_SPEED, Fight, MAX_DISTANCE, MISS_LINE, smoothPull, snookHome, TOLL } from './fishing/snook';
 import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
@@ -457,9 +457,12 @@ function canCast(){
   const dx = boat.x-SNOOK_SPOT[0], dy = boat.y-SNOOK_SPOT[1];
   return Math.hypot(dx,dy) < CAST_RANGE && dx*BRIDGE_SOUTH[0] + dy*BRIDGE_SOUTH[1] > 20;
 }
-// Where the hooked fish is: out from the abutment along the south side, swinging a little as it fights.
-function fishAt(){ const sway = Math.sin(T*3.1)*10*(fight.running ? 1 : .4), d = 12 + fight.d;
-  return [SNOOK_SPOT[0] + BRIDGE_SOUTH[0]*d - BRIDGE_SOUTH[1]*sway, SNOOK_SPOT[1] + BRIDGE_SOUTH[1]*d + BRIDGE_SOUTH[0]*sway]; }
+// Where the hooked fish is: on the line from the abutment to the boat, as far out as it has been let run,
+// swinging a little as it fights. Never under the hull, where the tell and the run could not be seen.
+function fishAt(){ const sway = Math.sin(T*3.1)*10*(fight.running ? 1 : .4);
+  const ox = boat.x-SNOOK_SPOT[0], oy = boat.y-SNOOK_SPOT[1], L = Math.hypot(ox, oy) || 1, ux = ox/L, uy = oy/L;
+  const d = Math.max(0, L-34)*Math.max(0, fight.d)/MAX_DISTANCE;
+  return [SNOOK_SPOT[0] + ux*d - uy*sway, SNOOK_SPOT[1] + uy*d + ux*sway]; }
 function landSnook(f){
   snook.landed++; snook.best = Math.max(snook.best, f.inches); if (!snook.firstDay) snook.firstDay = day;
   const at = fishAt();
@@ -481,10 +484,13 @@ function updateFishing(dt){
   if (started && !fight && snookHome(phase) && slipT <= 0 && net.speed > 22 && Math.hypot(net.x-SNOOK_SPOT[0], net.y-SNOOK_SPOT[1]) < NETW[lv.net]*.5 + 24){
     slipT = 45; slipShow = 0; toast('Something big slid under the net by the bridge.', 3200); }
   if (!fight) return;
-  const v = joy.on ? joystickVector(joy) : keyVector(keys);
-  pullSmooth += (Math.min(1, Math.hypot(v[0], v[1])) - pullSmooth) * Math.min(1, dt*8);
-  const was = fight.state; fight.update(dt, pullSmooth, Math.random);
-  if (was === 'waiting' && fight.state === 'fight'){ sfx.strike(); shake = .35; toast('Fish on. Pull when it sulks, ease off when it runs.', 3200, 2); }
+  // A thumb on the rod is down or up: any press pulls in full, however far it drags. A short drag used to
+  // pull at a third and lose every fish to the piling. The keys are the same, any held key pulls.
+  const v = keyVector(keys);
+  pullSmooth = smoothPull(pullSmooth, joy.on ? 1 : Math.hypot(v[0], v[1]), dt);
+  const was = fight.state, told = fight.telling; fight.update(dt, pullSmooth, Math.random);
+  if (was === 'waiting' && fight.state === 'fight'){ sfx.strike(); shake = .35; toast('Fish on. Hold to pull while it sulks. Let go when it shakes its head.', 3600, 2); }
+  if (!told && fight.telling) sfx.headShake();
   if (fight.state === 'landed'){ const f = fight; landSnook(f); fight = null; }
   else if (fight.state === 'lost' || docked){ const at = fishAt(); sfx.lineSnap(); shake = .4;
     addText(at[0], at[1], 30, fight.lost === 'snap' ? 'The line parted' : 'Into the piling', '#FF9A8A', 19, 2);
@@ -525,10 +531,16 @@ function drawFishing(){
     ctx.fillStyle = C.hull; ctx.beginPath(); ctx.arc(fx, fy+bob-1.6*Z, 3.4*Z, Math.PI, 0); ctx.fill(); return; }
   if (fight.running){ const t = (T*1.6)%1; ctx.strokeStyle = C.foam; ctx.globalAlpha = .8*(1-t); ctx.lineWidth = 2*Z;
     ctx.beginPath(); ctx.ellipse(fx, fy, (8+26*t)*Z, (4+12*t)*Z, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
+  // The tell: it shakes its head at the surface and throws spray, then runs.
+  if (fight.telling){ ctx.fillStyle = C.foam;
+    for (let i=0;i<9;i++){ const ph = (T*3.2 + i/9)%1, a = i*2.4; ctx.globalAlpha = .9*(1-ph);
+      ctx.beginPath(); ctx.arc(fx + Math.cos(a)*22*ph*Z, fy + Math.sin(a)*9*ph*Z - Math.sin(Math.PI*ph)*16*Z, 2.2*Z, 0, Math.PI*2); ctx.fill(); }
+    const t = (T*4)%1; ctx.strokeStyle = C.foam; ctx.globalAlpha = .9*(1-t); ctx.lineWidth = 2.6*Z;
+    ctx.beginPath(); ctx.ellipse(fx, fy, (12+30*t)*Z, (6+14*t)*Z, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
   // It faces the abutment when it runs, and is dragged round to face the boat when it sulks.
   const home = [SNOOK_SPOT[0]-at[0], SNOOK_SPOT[1]-at[1]], dirw = fight.running ? home : [-home[0], -home[1]];
-  const ang = Math.atan2((dirw[0]+dirw[1])*.5, dirw[0]-dirw[1]);
-  snookShape(fx, fy, (fight.kind === 'giant' ? 27 : fight.kind === 'keeper' ? 21 : 17)*Z, ang, Math.sin(T*(fight.running ? 16 : 7))*.45, .95);
+  const ang = Math.atan2((dirw[0]+dirw[1])*.5, dirw[0]-dirw[1]) + (fight.telling ? Math.sin(T*30)*.6 : 0);
+  snookShape(fx, fy, (fight.kind === 'giant' ? 27 : fight.kind === 'keeper' ? 21 : 17)*Z, ang, Math.sin(T*(fight.running || fight.telling ? 16 : 7))*.45, .95);
 }
 function drawTension(){
   if (!fight || fight.state !== 'fight') return;
@@ -536,6 +548,11 @@ function drawTension(){
   ctx.fillStyle = 'rgba(18,48,58,.8)'; ctx.beginPath(); ctx.roundRect(x-w/2-3, y-h/2-3, w+6, h+6, 8); ctx.fill();
   ctx.fillStyle = t < .6 ? '#7BD389' : t < .85 ? C.coin : C.hull; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, Math.max(h, w*t), h, 6); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(x-w/2 + w*.85, y-h/2-2, 2, h+4);
+  // What the rod wants now, in the toast's words: the tell and the run both say let go.
+  const ease = fight.running || fight.telling, word = ease ? 'Let go' : 'Hold';
+  ctx.font = '800 15px Grandstander, ui-rounded, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 5; ctx.strokeStyle = C.ink; ctx.strokeText(word, x, y-h/2-15);
+  ctx.fillStyle = ease ? C.coin : '#FFF6E5'; ctx.fillText(word, x, y-h/2-15);
 }
 // What has been landed hangs on the hut's front wall: a mount for the first keeper, a gilt photo for the giant.
 function drawTrophies(){

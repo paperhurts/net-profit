@@ -8,26 +8,70 @@ import {
   ODDS,
   rollCatch,
   rollInches,
+  smoothPull,
   snookHome,
+  TELL,
   TOLL,
 } from '../../src/fishing/snook';
 
-/** How a player works the rod, given the fight in front of them. */
-type Policy = (f: Fight) => number;
-/** Pulls when it sulks, eases when it runs, gives a little more when the piling is close, backs off a hot line. */
-const good: Policy = (f) => {
-  if (f.tension > 0.8) return 0.1;
-  if (f.running) return f.d < 40 ? 0.45 : 0.2;
-  return 1;
-};
-const yank: Policy = () => 1;
-const slack: Policy = () => 0;
+/** How a player works the stick, frame by frame: 0 is hands off, 1 is heaving. */
+type Hand = (f: Fight, dt: number) => number;
+const yank: Hand = () => 1;
+const slack: Hand = () => 0;
 
-function play(f: Fight, policy: Policy, r: () => number): Fight {
-  for (let i = 0; i < 60 * 30 && (f.state === 'waiting' || f.state === 'fight'); i++) {
-    f.update(1 / 30, policy(f), r);
+/**
+ * A person on the rod, doing what the word over the tension bar says. A thumb on glass is down or
+ * up, so they hold on a sulk and let go when it shakes its head or runs (or, not reading the tell,
+ * only once it runs), and let go of a hot line. Everything reaches the thumb `late` seconds after it
+ * happens, give or take a tenth on each change of the fish. No partial pressure and no saving it
+ * from the piling: the words alone have to be enough. Seeded, so every run plays the same hands.
+ */
+function person(seed: number, late = 1 / 3, readsTell = true): Hand {
+  const own = rng(seed);
+  const seen: { at: number; tension: number }[] = [];
+  const due: { at: number; ease: boolean }[] = [];
+  let t = 0;
+  let shown: boolean | null = null;
+  let cue: boolean | null = null;
+  return (f, dt) => {
+    t += dt;
+    seen.push({ at: t, tension: f.tension });
+    while (seen.length > 1 && (seen[1] as (typeof seen)[number]).at <= t - late) seen.shift();
+    if (f.state === 'fight') {
+      const ease = f.running || (readsTell && f.telling);
+      if (ease !== shown) {
+        shown = ease;
+        due.push({ at: t + Math.max(0.1, late + (own() * 2 - 1) * 0.1), ease });
+      }
+    }
+    for (let next = due[0]; next && next.at <= t; next = due[0]) {
+      due.shift();
+      cue = next.ease;
+    }
+    if (cue === null || cue) return 0;
+    return (seen[0] as (typeof seen)[number]).tension > 0.8 ? 0 : 1;
+  };
+}
+
+/** Play a cast to the end at sixty frames a second, the rod following the stick as in the game. */
+function play(f: Fight, hand: Hand, r: () => number): Fight {
+  const dt = 1 / 60;
+  let rod = 0;
+  for (let i = 0; i < 60 * 60 && (f.state === 'waiting' || f.state === 'fight'); i++) {
+    rod = smoothPull(rod, hand(f, dt), dt);
+    f.update(dt, rod, r);
   }
   return f;
+}
+
+/** Of 200 seeded casts of this kind, how many this hand lands. */
+function landings(kind: Catch, hand: (seed: number) => Hand): number {
+  let landed = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const r = rng(seed);
+    if (play(new Fight(r, kind), hand(seed * 7919 + 13), r).state === 'landed') landed++;
+  }
+  return landed;
 }
 
 describe('the cast', () => {
@@ -76,15 +120,54 @@ describe('the fight', () => {
     expect(f.running).toBe(true);
   });
 
-  it('can be won, played well, whenever the fish could be landed at all', () => {
-    for (const kind of ['short', 'keeper', 'giant'] as const) {
-      let landed = 0;
-      for (let seed = 1; seed <= 200; seed++) {
-        const r = rng(seed);
-        if (play(new Fight(r, kind), good, r).state === 'landed') landed++;
-      }
-      expect(landed, kind).toBeGreaterThanOrEqual(kind === 'giant' ? 150 : 180);
+  it('shakes its head before every run but the first, for as long as TELL', () => {
+    const r = rng(3);
+    const f = new Fight(r, 'keeper');
+    const hand = person(3);
+    const dt = 1 / 60;
+    let rod = 0;
+    const phases: { kind: 'sulk' | 'tell' | 'run'; t: number }[] = [];
+    while (f.state === 'waiting' || f.state === 'fight') {
+      rod = smoothPull(rod, hand(f, dt), dt);
+      f.update(dt, rod, r);
+      if (f.state !== 'fight') continue;
+      const kind = f.telling ? 'tell' : f.running ? 'run' : 'sulk';
+      const last = phases[phases.length - 1];
+      if (last && last.kind === kind) last.t += dt;
+      else phases.push({ kind, t: dt });
     }
+    expect(f.state).toBe('landed');
+    const runs = phases.filter((p) => p.kind === 'run').length;
+    expect(runs).toBeGreaterThanOrEqual(4);
+    phases.forEach((p, i) => {
+      if (p.kind !== 'run' || i === 0) return;
+      const before = phases[i - 1] as (typeof phases)[number];
+      expect(before.kind).toBe('tell');
+      expect(before.t).toBeCloseTo(TELL, 1);
+    });
+    expect(TELL).toBeGreaterThanOrEqual(0.4);
+  });
+
+  it('is landed by a person a third of a second late, whenever the fish could be landed at all', () => {
+    expect(landings('short', (s) => person(s))).toBeGreaterThanOrEqual(196);
+    expect(landings('keeper', (s) => person(s))).toBeGreaterThanOrEqual(196);
+    const giant = landings('giant', (s) => person(s));
+    expect(giant).toBeGreaterThanOrEqual(145);
+    expect(giant).toBeLessThan(196);
+  });
+
+  it('still comes in for a slow hand, half a second late, and the giant is the one that gets away', () => {
+    const slow = (s: number) => person(s, 1 / 2);
+    const short = landings('short', slow);
+    const giant = landings('giant', slow);
+    expect(short).toBeGreaterThanOrEqual(190);
+    expect(landings('keeper', slow)).toBeGreaterThanOrEqual(190);
+    expect(giant).toBeGreaterThanOrEqual(140);
+    expect(giant).toBeLessThan(short);
+  });
+
+  it('is the tell that makes it: the same person waiting for the run loses most of them', () => {
+    expect(landings('short', (s) => person(s, 1 / 3, false))).toBeLessThan(50);
   });
 
   it('parts the line for a player who only ever heaves, and gives the fish the piling for one who never pulls', () => {
@@ -99,28 +182,33 @@ describe('the fight', () => {
   });
 
   it('cannot be won, however it is played, when the snook was never coming in', () => {
-    for (const policy of [good, yank, slack]) {
-      for (let seed = 1; seed <= 100; seed++) {
-        const r = rng(seed);
-        const f = play(new Fight(r, 'none'), policy, r);
-        expect(f.state).toBe('lost');
-      }
-    }
+    const hands: ((seed: number) => Hand)[] = [
+      (s) => person(s, 0.1),
+      (s) => person(s),
+      (s) => person(s, 1 / 2),
+      () => yank,
+      () => slack,
+    ];
+    for (const hand of hands) expect(landings('none', hand)).toBe(0);
   });
 
   it('shows its hand on the third run: a bolt no rod could stop', () => {
     const r = rng(7);
     const f = new Fight(r, 'none');
+    const hand = person(7);
+    const dt = 1 / 60;
+    let rod = 0;
     let bolted = false;
-    for (let i = 0; i < 40 * 30 && f.state !== 'lost'; i++) {
-      f.update(1 / 30, good(f), r);
+    for (let i = 0; i < 40 * 60 && f.state !== 'lost'; i++) {
+      rod = smoothPull(rod, hand(f, dt), dt);
+      f.update(dt, rod, r);
       bolted = bolted || f.bolting;
     }
     expect(bolted).toBe(true);
     expect(f.state).toBe('lost');
   });
 
-  it('comes to one landing in ten casts and one keeper in fifty for a good hand, over twenty thousand casts', () => {
+  it('comes to one landing in ten casts and one keeper in fifty for a person, over twenty thousand casts', () => {
     const master = rng(2026);
     const tally: Record<Catch | 'lostLandable', number> = {
       none: 0,
@@ -131,8 +219,9 @@ describe('the fight', () => {
     };
     const casts = 20000;
     for (let i = 0; i < casts; i++) {
-      const r = rng(Math.floor(master() * 1e9));
-      const f = play(new Fight(r), good, r);
+      const seed = Math.floor(master() * 1e9);
+      const r = rng(seed);
+      const f = play(new Fight(r), person(seed + 1), r);
       if (f.state === 'landed') tally[f.kind]++;
       else if (f.kind !== 'none') tally.lostLandable++;
     }

@@ -216,6 +216,12 @@ export const cues = {
     tone(520, 0.1, 'sine', 0.05, 1.9);
     tone(880, 0.08, 'sine', 0.04, 0.5, 0.14);
   },
+  /** The snook shakes its head and the reel ticks: it runs next, so ease off. */
+  headShake(): void {
+    tone(660, 0.04, 'square', 0.04);
+    tone(660, 0.04, 'square', 0.04, 1, 0.09);
+    tone(620, 0.05, 'square', 0.04, 1, 0.18);
+  },
   /** Fish on. */
   strike(): void {
     tone(740, 0.07, 'square', 0.06);
