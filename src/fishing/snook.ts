@@ -12,7 +12,10 @@
  * that is what snook do. The fight is real all the same: ease off when it
  * runs or the line parts, pull when it sulks or it gets to the piling, and a
  * fish that could have been landed is lost by playing it badly. Every miss
- * ends the same way: the snook is still under the bridge.
+ * ends the same way: the snook is still under the bridge. But the words over
+ * the fish say which miss it was, and the last run says it was never coming
+ * in, because a miss that looks like every other teaches nothing, and the
+ * owner lost cast after cast without knowing whether it was her.
  *
  * It shakes its head before every run but the first, and that tell is what
  * makes it catchable by a person. Without it the rod had to ease on the very
@@ -29,6 +32,8 @@ export const TOLL = 10;
 /** Of all casts: a fish that can be landed, one big enough to keep, and the giant. */
 export const ODDS = { landed: 1 / 10, keeper: 1 / 50, giant: 1 / 250 } as const;
 export const MISS_LINE = 'The snook is still under the bridge.';
+/** Over the fish as it goes, on the last run no rod could stop, however the line ended. */
+export const NEVER_LINE = 'Never coming in';
 /** The boat must be this close to the spot, on the south side and all but stopped, to cast. */
 export const CAST_RANGE = 170;
 export const CAST_SPEED = 40;
@@ -116,6 +121,12 @@ export class Fight {
     this.wait = 1.5 + rng() * 2.5;
     this.stamina = this.kind === 'giant' ? 1.3 : 1;
     this.phaseT = 0.7 + rng() * 0.5;
+  }
+
+  /** The words over the fish once it is lost: the run nothing stops, or how a fish was let go. */
+  get lostWords(): string {
+    if (this.bolting) return NEVER_LINE;
+    return this.lost === 'snap' ? 'The line parted' : 'Into the piling';
   }
 
   /** pull is 0..1: how hard the rod is being worked this frame. */
