@@ -239,6 +239,12 @@ export const cues = {
       tone(f, 0.16, 'triangle', 0.07, 1, i * 0.1);
     });
   },
+  /** The leviathan rising at the buoys: a growl, with an octave on top so a phone can hear it. */
+  leviathanRise(): void {
+    tone(98, 0.9, 'sawtooth', 0.05, 0.7);
+    tone(196, 0.7, 'triangle', 0.06, 0.75, 0.05);
+    tone(55, 1.2, 'sine', 0.1, 0, 0.1);
+  },
   /** A manta coming down: a low whump, with an octave on top for speakers that cannot play the bottom. */
   whump(): void {
     tone(110, 0.32, 'sine', 0.12, 0.45);
