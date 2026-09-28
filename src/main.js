@@ -178,6 +178,18 @@ leviathan.onPass = () => { shake = Math.max(shake,.4);
   sfx.leviathan();
   toast(levSeen ? 'The leviathan passes beneath you.' : 'Something enormous is moving beneath you.', 3200, 1);
   if (!levSeen){ levSeen = true; save(); } };
+// At the buoys it rises across a flagship's way. Turning away is the counter; running into it costs fish, never the boat.
+let levRisen = false;
+leviathan.onRise = () => { shake = Math.max(shake,.35); sfx.leviathanRise();
+  toast(levRisen ? 'The leviathan rises. Turn away.' : 'The leviathan is rising across your way. Turn away from the spines.', 3000, 2);
+  levRisen = true; if (!levSeen){ levSeen = true; save(); } };
+leviathan.onHit = () => { let n = Math.ceil(holdTotal/3); const lost = n;
+  for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
+  shake = 1; sfx.whump(); resetNet();
+  addText(boat.x, boat.y, 44, lost ? `${lost} fish overboard` : 'Shoved back', '#FF9A8A', 19, 2);
+  toasts.clear(); toast(lost ? `The leviathan knocked ${lost} fish overboard. Turn away when the spines rise.` : 'The leviathan shoved you back. Turn away when the spines rise.', 3400, 2);
+  hud(); save(); };
+leviathan.onMiss = () => toast('It sank. Cross now, while it is down.', 2600, 1);
 const whales = new Whales(Math.random);
 whales.onSight = () => { if (!whaleSeen){ whaleSeen = true; save(); toast('A whale and her calf. Ease off and listen.', 3800, 1); } };
 const mantas = new Mantas(Math.random);
@@ -338,7 +350,7 @@ function renderGuide(){
     return `<article class="page${g.known ? '' : ' unk'}${g.known && S.rare ? ' gold' : ''}">${FISH_SVG(g.known ? S.c : 'currentColor')}<b>${g.name}</b><small>${g.blurb}</small>`
       + `<div class="facts"><span>${g.where}</span><span>${g.when}</span><span>${g.worth}</span><span>${g.caught}</span></div></article>`; });
   pages.push(`<article class="page${levSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${levSeen ? 'Leviathan' : '?'}</b><small>${levSeen
-    ? 'Something enormous circles the island far out: a chain of shadows, the odd back breaking the surface, lit at night. You have felt it pass.'
+    ? 'Something enormous circles the island far out: a chain of shadows, the odd back breaking the surface, lit at night. It guards the buoys: make for them in a flagship and it rises across your way. Turn away from the spines.'
     : 'Not seen yet. Something enormous circles the island, far out. Sail over it, and go at night.'}</small><div class="facts"><span>About 2,180 out</span><span>Day and night</span><span>Not for catching</span></div></article>`);
   pages.push(`<article class="page${whaleSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${whaleSeen ? 'Whale and calf' : '?'}</b><small>${whaleSeen
     ? 'A mother and her calf, round and round the far water. They come up to breathe, and they sing: she low, the calf higher. At night the song carries.'
