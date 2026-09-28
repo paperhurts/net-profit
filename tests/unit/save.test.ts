@@ -127,6 +127,19 @@ describe('parseSave', () => {
     });
   });
 
+  it('keeps a flagship out in the deep where it was, and no further than the deep runs', () => {
+    const trip = JSON.stringify({ trip: { x: -700, y: 5300 } });
+    expect(parseSave(trip, { ...bounds, deep: 1200 }).trip).toEqual({ x: -700, y: 5300 });
+    expect(
+      parseSave(JSON.stringify({ trip: { x: -9000, y: 9000 } }), { ...bounds, deep: 1200 }).trip,
+    ).toEqual({
+      x: -1040,
+      y: 5840,
+    });
+    // Without the deep in the bounds, a trip is held inside the buoys as it always was.
+    expect(parseSave(trip, bounds).trip).toEqual({ x: 160, y: 4640 });
+  });
+
   it('applies only the trip fields that make sense', () => {
     const s = parseSave(
       JSON.stringify({ trip: { x: 'far', y: 100, h: 'nope', clock: 0.3 } }),

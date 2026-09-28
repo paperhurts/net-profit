@@ -7,14 +7,19 @@
  * still tells you where to look. Line-caught fish, sizes and the legendary
  * pages come with the bridge and the second verb.
  */
-import { RANGE, RINGS, SPECIES, TIER_NAME } from './tuning';
+import { DEEP_RINGS, RANGE, RINGS, SPECIES, TIER_NAME } from './tuning';
 
-/** Where a species' schools sit: the ring's near and far edge, and whether they only rise at night. */
-export type Habitat = { r0: number; r1: number; night?: boolean };
+/** Where a species' schools sit: the ring's near and far edge, whether they only rise at night, and whether past the buoys. */
+export type Habitat = { r0: number; r1: number; night?: boolean; deep?: boolean };
 
-/** The rings, from the same table the world is built from. */
+/** The rings, from the same tables the world is built from. */
 export const HABITAT: Readonly<Record<number, Habitat>> = Object.fromEntries(
-  RINGS.map((r) => [r.sp, r.night ? { r0: r.r0, r1: r.r1, night: true } : { r0: r.r0, r1: r.r1 }]),
+  [...RINGS, ...DEEP_RINGS].map((r) => {
+    const h: Habitat = { r0: r.r0, r1: r.r1 };
+    if (r.night) h.night = true;
+    if (r.deep) h.deep = true;
+    return [r.sp, h];
+  }),
 );
 
 /** Species index of the shark, the dawn rare and the dusk rare. */
@@ -36,6 +41,7 @@ export const BLURBS: readonly string[] = [
   'Night fish of the far rings, each one a small light. Worth the dark.',
   'Once a dawn, somewhere inside your range, sparkling. Eighty seconds, then gone.',
   'Once a dusk, the same, and worth even more. The prettiest thing you will land.',
+  'Green and gold with a blue back, and only in the deep. Look for the floating weed; they school under it.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -48,6 +54,7 @@ const cap = (s: string): string => s[0]?.toUpperCase() + s.slice(1);
 
 export function whereText(sp: number): string {
   const h = HABITAT[sp];
+  if (h?.deep) return `Past the buoys, ${h.r0} to ${h.r1} out. Flagship only.`;
   if (h) return `Schools ${h.r0} to ${h.r1} out. ${cap(boatFor(h.r0))} range.`;
   if (sp === SHARK_SP) return 'Circling the tuna, goldfin and lanternfish schools.';
   if (sp === DAWN_SP || sp === DUSK_SP) return 'Anywhere inside your range, past the shallows.';

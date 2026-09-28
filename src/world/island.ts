@@ -5,10 +5,17 @@
  * `pushOut` is the backstop for them and the boat.
  */
 
-/** World size in units; the island sits at its centre. */
+/** World size in units; the island sits at its centre. The buoys ring its edge. */
 export const WS = 4800;
 export const IX = 2400;
 export const IY = 2400;
+/** How far the deep runs past the buoys on every side. Only the flagship crosses them. */
+export const DEEP = 1200;
+
+/** Past the buoys, out in the deep. */
+export function pastBuoys(x: number, y: number): boolean {
+  return x < 0 || x > WS || y < 0 || y > WS;
+}
 /** Island radius. */
 export const IR = 210;
 /** Where the pier leaves the beach. */

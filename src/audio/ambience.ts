@@ -41,18 +41,23 @@ export type WaveMix = {
   depth: number;
 };
 
-/** speedRatio is boat speed over top speed; dockness 0..1 is the dock view; dark 0..1 is night. */
-export function waveMix(speedRatio: number, dockness: number, dark: number): WaveMix {
+/**
+ * speedRatio is boat speed over top speed; dockness 0..1 is the dock view; dark 0..1 is night;
+ * deepness 0..1 is how far out past the buoys, where the swell breathes deeper and lower and the
+ * surf is louder. The period stays put: sliding it while sailing would flutter the swell's phase.
+ */
+export function waveMix(speedRatio: number, dockness: number, dark: number, deepness = 0): WaveMix {
   const s = Math.min(1, Math.max(0, speedRatio));
   const k = Math.min(1, Math.max(0, dockness));
   const n = Math.min(1, Math.max(0, dark));
+  const d = Math.min(1, Math.max(0, deepness));
   return {
     swell: (1 - k * 0.6) * (1 - n * 0.4),
     hiss: s ** 1.5 * 0.8 * (1 - k),
-    surf: (1 - k * 0.5) * (1 - n * 0.25),
-    cutoff: 700 * (1 - n * 0.35),
+    surf: (1 - k * 0.5) * (1 - n * 0.25) * (1 + d * 0.25),
+    cutoff: 700 * (1 - n * 0.35) * (1 - d * 0.25),
     period: 7 - 4 * k,
-    depth: 0.6 - 0.3 * k,
+    depth: 0.6 - 0.3 * k + 0.3 * d,
   };
 }
 
@@ -193,6 +198,8 @@ export type Snapshot = {
   speedRatio: number;
   dockness: number;
   dark: number;
+  /** How far out past the buoys, 0..1. */
+  deepness?: number;
   phase: Phase;
   /** Distance from the boat to the nearest bit of shore or pier. */
   shoreDist: number;
@@ -339,7 +346,7 @@ export class Ambience {
     this.master.gain.setTargetAtTime(this.level, now, 0.05);
 
     // Waves.
-    const w = waveMix(s.speedRatio, s.dockness, s.dark);
+    const w = waveMix(s.speedRatio, s.dockness, s.dark, s.deepness);
     const breath = 1 - w.depth + w.depth * swellPhase(s.t, w.period);
     this.swellGain.gain.setTargetAtTime(0.4 * w.swell * breath, now, 0.1);
     this.swellFilter.frequency.setTargetAtTime(w.cutoff * (0.8 + 0.4 * breath), now, 0.2);

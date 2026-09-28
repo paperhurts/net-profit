@@ -71,6 +71,8 @@ export type Bounds = {
   stages: number;
   species: number;
   worldSize: number;
+  /** How far past the buoys a boat can be; a flagship saved out in the deep stays there. */
+  deep?: number;
   /** Hold capacity per hold level, to trim a restored hold that no longer fits. */
   holdCaps: readonly number[];
 };
@@ -111,8 +113,9 @@ function parseTrip(raw: unknown, b: Bounds, holdLevel: number): Trip | null {
   const x = Number(t.x);
   const y = Number(t.y);
   if (Number.isFinite(x) && Number.isFinite(y)) {
-    trip.x = between(x, 160, b.worldSize - 160);
-    trip.y = between(y, 160, b.worldSize - 160);
+    const deep = b.deep ?? 0;
+    trip.x = between(x, 160 - deep, b.worldSize - 160 + deep);
+    trip.y = between(y, 160 - deep, b.worldSize - 160 + deep);
   }
   const h = Number(t.h);
   if (Number.isFinite(h)) trip.h = h;

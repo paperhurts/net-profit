@@ -6,9 +6,10 @@
 import { describe, expect, it } from 'vitest';
 import legacy from '../../legacy/net-profit.html?raw';
 import { clamp, rng } from '../../src/core/math';
-import { RINGS } from '../../src/data/tuning';
-import { IX, IY, WS } from '../../src/world/island';
+import { DEEP_RINGS, MAHI, RINGS } from '../../src/data/tuning';
+import { DEEP, IX, IY, pastBuoys, WS } from '../../src/world/island';
 import {
+  createDeepSchools,
   createSchools,
   type Fish,
   resetSchools,
@@ -89,6 +90,32 @@ describe('createSchools', () => {
         for (const f of sc.fish) expect(Math.hypot(f.ox, f.oy)).toBeLessThanOrEqual(ring.rad);
       }
     }
+  });
+});
+
+describe('createDeepSchools', () => {
+  it('puts a school of mahi-mahi past each side of the buoys, wholly in the deep and short of its end', () => {
+    const deep = createDeepSchools();
+    expect(deep).toHaveLength(DEEP_RINGS.reduce((n, r) => n + r.n, 0));
+    const sides = new Set<string>();
+    for (const sc of deep) {
+      expect(sc.sp).toBe(MAHI);
+      expect(sc.night).toBe(false);
+      // The whole shoal, drift included, stays past the buoys and inside the deep.
+      const reach = sc.r + 60;
+      const out = Math.max(-sc.ax, sc.ax - WS, -sc.ay, sc.ay - WS);
+      expect(out).toBeGreaterThan(reach);
+      expect(out).toBeLessThan(DEEP - reach);
+      for (const f of sc.fish) expect(pastBuoys(sc.ax + f.ox, sc.ay + f.oy)).toBe(true);
+      sides.add(sc.ax > WS ? 'e' : sc.ax < 0 ? 'w' : sc.ay > WS ? 's' : 'n');
+    }
+    expect(sides.size).toBe(4);
+  });
+
+  it('leaves the home water exactly as the prototype built it', () => {
+    const home = createSchools();
+    expect(home.every((sc) => !pastBuoys(sc.ax, sc.ay))).toBe(true);
+    expect(home.some((sc) => sc.sp === MAHI)).toBe(false);
   });
 });
 

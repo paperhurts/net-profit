@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   around,
   CRATE,
+  DEEP,
   DOCK,
   IR,
   IX,
@@ -9,6 +10,7 @@ import {
   PIER,
   PIER_BUMPS,
   PX0,
+  pastBuoys,
   pushOut,
   WS,
 } from '../../src/world/island';
@@ -25,6 +27,17 @@ describe('the island', () => {
       expect(bx).toBeGreaterThan(PX0);
       expect(bx).toBeLessThan(PX0 + 155);
     }
+  });
+});
+
+describe('the buoys', () => {
+  it('ring the edge of the world; past them is the deep, a band as wide as DEEP', () => {
+    expect(pastBuoys(IX, IY)).toBe(false);
+    expect(pastBuoys(0, 0)).toBe(false);
+    expect(pastBuoys(WS, WS)).toBe(false);
+    expect(pastBuoys(-1, IY)).toBe(true);
+    expect(pastBuoys(IX, WS + 1)).toBe(true);
+    expect(DEEP).toBeGreaterThan(1000);
   });
 });
 

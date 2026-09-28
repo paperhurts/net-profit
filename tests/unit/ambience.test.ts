@@ -38,6 +38,18 @@ describe('waveMix', () => {
     expect(dockNight.swell).toBeLessThan(sea.swell * 0.4);
     expect(dockNight.cutoff).toBeLessThan(sea.cutoff);
   });
+  it('swells deeper and lower past the buoys, on the same beat, and is unchanged inside them', () => {
+    expect(waveMix(0.5, 0, 0.3, 0)).toEqual(waveMix(0.5, 0, 0.3));
+    const home = waveMix(0.5, 0, 0);
+    const deep = waveMix(0.5, 0, 0, 1);
+    expect(deep.depth).toBeGreaterThan(home.depth);
+    expect(deep.depth).toBeLessThanOrEqual(1);
+    expect(deep.cutoff).toBeLessThan(home.cutoff);
+    expect(deep.surf).toBeGreaterThan(home.surf);
+    expect(deep.period).toBe(home.period);
+    expect(deep.swell).toBe(home.swell);
+    expect(waveMix(0.5, 0, 0, 7)).toEqual(deep);
+  });
   it('hisses with speed but not in the dock', () => {
     expect(waveMix(0, 0, 0).hiss).toBe(0);
     expect(waveMix(1, 0, 0).hiss).toBeGreaterThan(waveMix(0.5, 0, 0).hiss);

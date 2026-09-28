@@ -95,6 +95,27 @@ describe('Pirate', () => {
     }
   });
 
+  it('will not follow a boat past the buoys, and breaks off a chase when it crosses them', () => {
+    const p = new Pirate();
+    const w = world({ boat: { x: WS + 300, y: IY, h: 0, v: 0 } });
+    run(p, w, 6.1);
+    p.ship.x = w.boat.x - 300;
+    p.ship.y = w.boat.y;
+    run(p, w, 1);
+    expect(p.ship.state).toBe('prowl');
+
+    const q = new Pirate();
+    const v = world();
+    run(q, v, 6.1);
+    q.ship.x = v.boat.x + 300;
+    q.ship.y = v.boat.y;
+    run(q, v, 0.5);
+    expect(q.ship.state).toBe('chase');
+    v.boat.x = -40;
+    q.update(1 / 30, v);
+    expect(q.ship.state).toBe('prowl');
+  });
+
   it('steals half the hold on contact and then leaves', () => {
     const p = new Pirate();
     const w = world({ holdTotal: 9 });

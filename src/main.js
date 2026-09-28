@@ -13,7 +13,7 @@ import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STA
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
-import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_SOUTH, CRATE, DOCK, IR, IX, IY, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, TWX, TWY, TX, TY, WS } from './world/island';
+import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_SOUTH, CRATE, DEEP, DOCK, IR, IX, IY, pastBuoys, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, TWX, TWY, TX, TY, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
@@ -33,7 +33,7 @@ import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
 import { Whales } from './entities/whales';
 import { Scene } from './render/layers';
-import { createSchools, resetSchools, updateSchools } from './world/schools';
+import { createDeepSchools, createSchools, resetSchools, updateSchools } from './world/schools';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -50,7 +50,7 @@ const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
 let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, keyMode = 'drive';
-let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0;
+let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK, day = 1;
@@ -59,7 +59,7 @@ const gear = noGear(); // what the shipwright has fitted
 const snook = {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}; // the fishing log
 let fight = null, pullSmooth = 0, slipT = 0, slipShow = 9, castShown = false; // the line: a Fight while one is out
 function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
-const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, holdCaps: HOLD};
+const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, deep: DEEP, holdCaps: HOLD};
 let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
@@ -131,7 +131,8 @@ function isoEllipse(x,y,r,z=0){ ctx.beginPath(); ctx.ellipse(px(x,y),py(x,y,z),M
 /* ---------- audio ---------- */
 
 /* ---------- world ---------- */
-const schools = createSchools();
+const deepSchools = createDeepSchools(); // past the buoys, under the weed
+const schools = [...createSchools(), ...deepSchools];
 const buoys = [];
 for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push([0,i],[WS,i]); }
 
@@ -445,6 +446,7 @@ function updateAmbience(dt){
   for (const sc of schools) if (sc.alive > 0 && onScreen(sc.cx, sc.cy, 0)) gulls.push({dx: sc.cx-boat.x, dy: sc.cy-boat.y});
   ambience.update(dt, {
     on: started && !muted, t: T, speedRatio: boat.v/SPEED[lv.engine], dockness: dockView, dark, phase,
+    deepness: clamp(Math.max(-boat.x, boat.x-WS, -boat.y, boat.y-WS)/400, 0, 1),
     shoreDist: Math.max(0, Math.min(toIsland, toPier)), gulls,
     pods: dolphins.pods.map(p => ({dx: p.x-boat.x, dy: p.y-boat.y, dist: Math.hypot(p.x-boat.x, p.y-boat.y), escort: p.state === 'escort'})),
     whales: whales.all.map(w => ({dx: w.x-boat.x, dy: w.y-boat.y, dist: Math.hypot(w.x-boat.x, w.y-boat.y)})),
@@ -581,7 +583,14 @@ function update(dt){
   for (const b of PIER_BUMPS) pushOut(boat, b[0], b[1], 20+20*k);
   for (const b of BRIDGE_BUMPS) pushOut(boat, b[0], b[1], 18+20*k);
   pushOut(boat, BEACH.x, BEACH.y, BEACH.r+24*k);
-  boat.x = clamp(boat.x, 40, WS-40); boat.y = clamp(boat.y, 40, WS-40);
+  // The buoys hold every boat but the flagship, which goes on into the deep as far as the deep runs.
+  { const m = tier() === TIER_NAME.length-1 ? DEEP : 0, x0 = boat.x, y0 = boat.y;
+    boat.x = clamp(boat.x, 40-m, WS-40+m); boat.y = clamp(boat.y, 40-m, WS-40+m);
+    if ((boat.x !== x0 || boat.y !== y0) && rangeToastT <= 0){ rangeToastT = 9;
+      toast(m ? 'Nothing out here but water. For now.' : 'Only a flagship can cross the buoys.', 2800, 1); sfx.rangeEdge(); } }
+  { const deep = pastBuoys(boat.x, boat.y); deepToastT -= dt;
+    if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast('Past the buoys, into the deep. Mahi-mahi school under the floating weed.', 3400, 1); }
+    wasDeep = deep; }
   { const R = range(), dI = Math.hypot(boat.x-IX, boat.y-IY); rangeToastT -= dt;
     if (dI > R){ boat.x = IX + (boat.x-IX)/dI*R; boat.y = IY + (boat.y-IY)/dI*R; boat.v *= .93;
       if (rangeToastT <= 0){ rangeToastT = 9; toast(`Too rough out there for a ${TIER_NAME[tier()]}. Grow your boat to sail further.`, 2800, 1); sfx.rangeEdge(); } } }
@@ -629,9 +638,13 @@ function update(dt){
 }
 
 /* ---------- drawing ---------- */
+// Past the buoys the water darkens in bands, like the depth rings inside them; past the last band the deep ends.
+const DEEP_BANDS = [[DEEP, '#155565'], [DEEP*.62, '#185D6C'], [DEEP*.28, C.abyss]];
+function square(m){ return [[-m,-m],[WS+m,-m],[WS+m,WS+m],[-m,WS+m]]; }
 function drawSea(){
-  ctx.fillStyle = C.abyss; ctx.fillRect(0,0,W,H);
-  polyPath([[0,0],[WS,0],[WS,WS],[0,WS]],0); ctx.fillStyle = C.lagoon; ctx.fill();
+  ctx.fillStyle = '#114A58'; ctx.fillRect(0,0,W,H);
+  for (const [m, c] of DEEP_BANDS){ polyPath(square(m),0); ctx.fillStyle = c; ctx.fill(); }
+  polyPath(square(0),0); ctx.fillStyle = C.lagoon; ctx.fill();
   ctx.save(); ctx.clip();
   isoEllipse(IX,IY,2250); ctx.fillStyle = '#30949F'; ctx.fill();
   isoEllipse(IX,IY,1600); ctx.fillStyle = C.mid; ctx.fill();
@@ -647,18 +660,23 @@ function drawSea(){
     x0 = Math.min(x0,wx); x1 = Math.max(x1,wx); y0 = Math.min(y0,wy); y1 = Math.max(y1,wy);
   }
   const G = 130; ctx.strokeStyle = C.foam; ctx.lineWidth = 2*Z; ctx.lineCap = 'round';
-  for (let gx = Math.max(0,Math.floor(x0/G)*G); gx <= Math.min(WS,x1); gx += G){
-    for (let gy = Math.max(0,Math.floor(y0/G)*G); gy <= Math.min(WS,y1); gy += G){
+  for (let gx = Math.max(-DEEP,Math.floor(x0/G)*G); gx <= Math.min(WS+DEEP,x1); gx += G){
+    for (let gy = Math.max(-DEEP,Math.floor(y0/G)*G); gy <= Math.min(WS+DEEP,y1); gy += G){
       const hsh = Math.sin(gx*12.9898+gy*78.233)*43758.5453, r = hsh - Math.floor(hsh);
       const wx = gx + r*90, wy = gy + ((r*7)%1)*90;
       if (Math.hypot(wx-IX, wy-IY) < IR+30) continue;
-      const sx = px(wx,wy), sy = py(wx,wy); if (sx<-20||sx>W+20||sy<-20||sy>H+20) continue;
+      const sx = px(wx,wy), sy = py(wx,wy); if (sx<-40||sx>W+40||sy<-40||sy>H+40) continue;
+      if (pastBuoys(wx, wy)){ // the deep's swell: bigger, slower, and every other one
+        if (r > .5) continue;
+        const ph = Math.sin(T*.6 + r*30); ctx.globalAlpha = .08 + .14*(ph*.5+.5); ctx.lineWidth = 2.6*Z;
+        ctx.beginPath(); ctx.ellipse(sx + ph*9*Z, sy, 22*Z, 7*Z, 0, Math.PI*1.12, Math.PI*1.88); ctx.stroke(); ctx.lineWidth = 2*Z; continue; }
       const ph = Math.sin(T*1.1 + r*30);
       ctx.globalAlpha = .1 + .16*(ph*.5+.5);
       ctx.beginPath(); ctx.ellipse(sx + ph*5*Z, sy, 11*Z, 4*Z, 0, Math.PI*1.12, Math.PI*1.88); ctx.stroke();
     }
   }
   ctx.globalAlpha = 1;
+  drawWeed();
 
   /* how far this boat can go */
   { const R = range(); if (R < 1e8){ const dI = Math.hypot(boat.x-IX, boat.y-IY), hot = dI > R-260;
@@ -676,6 +694,16 @@ function drawSea(){
   ctx.setLineDash([10*Z,9*Z]); ctx.lineDashOffset = holdTotal ? -T*26 : 0;
   ctx.strokeStyle = holdTotal ? C.coin : C.foam; ctx.globalAlpha = holdTotal ? .95 : .45; ctx.lineWidth = 3*Z; ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha = 1;
+}
+// Floating weed over each school in the deep: mahi-mahi shelter under it, so it is how you find them.
+function drawWeed(){
+  for (let i=0;i<deepSchools.length;i++){ const sc = deepSchools[i]; if (!onScreen(sc.cx, sc.cy, 180)) continue;
+    // A ragged line of small clumps along one flank of the school, drifting with it.
+    const a = sc.p, ca = Math.cos(a), sa = Math.sin(a), side = sc.r*.7;
+    for (let k=0;k<18;k++){ const t = (k-8.5)*17, n = side + Math.sin(k*2.3+i)*14 + Math.sin(k*.7)*10, bob = Math.sin(T*.8+k)*2.5;
+      const x = sc.cx + ca*t - sa*n + bob, y = sc.cy + sa*t + ca*n;
+      isoEllipse(x, y, 8 + (k*7+i*3)%7); ctx.fillStyle = k%3 ? 'rgba(186,150,58,.92)' : 'rgba(222,190,92,.95)'; ctx.fill();
+      if (k%2){ isoEllipse(x+7, y-4, 3.2); ctx.fillStyle = 'rgba(240,214,120,.95)'; ctx.fill(); } } }
 }
 function fishShape(x,y,len,S,ang,wag){
   const ca = Math.cos(ang), sa = Math.sin(ang);
