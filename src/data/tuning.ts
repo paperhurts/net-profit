@@ -129,6 +129,18 @@ export const SPECIES: readonly Species[] = [
     tail: 0.6,
     rare: true,
   },
+  // Only in the deep, past the buoys, under the floating weed: green and gold with a blue back.
+  {
+    name: 'mahi-mahi',
+    pl: 'mahi-mahi',
+    v: 30,
+    c: '#C9D845',
+    s: 14,
+    fat: 0.42,
+    tail: 1.05,
+    mark: '#2B9BD8',
+    dot: true,
+  },
 ];
 
 /** Index of the shark in SPECIES. */
@@ -153,6 +165,8 @@ export type Ring = {
   base: number;
   /** Rises only at night. */
   night?: boolean;
+  /** Past the buoys, where only the flagship goes. */
+  deep?: boolean;
 };
 
 /** Where the fish are, in the order the world is built; the order matters, because the builder draws from one seeded stream. */
@@ -166,6 +180,17 @@ export const RINGS: readonly Ring[] = [
   { n: 2, r0: 2850, r1: 3150, sp: 6, count: 24, rad: 80, base: Math.PI / 4 },
   { n: 4, r0: 950, r1: 1450, sp: 8, count: 30, rad: 95, base: 0.9, night: true },
   { n: 3, r0: 1900, r1: 2450, sp: 9, count: 26, rad: 90, base: 2.6, night: true },
+];
+
+/** Index of the mahi-mahi in SPECIES, the deep's fish. */
+export const MAHI = 12;
+
+/**
+ * The deep's schools, one past each side of the buoys. Built from their own seed after the home
+ * water, so the rings the prototype built stay bit for bit what they were.
+ */
+export const DEEP_RINGS: readonly Ring[] = [
+  { n: 4, r0: 2750, r1: 3100, sp: MAHI, count: 24, rad: 100, base: 0, deep: true },
 ];
 
 /** Sailing range from the island per boat tier; the flagship is unlimited. */

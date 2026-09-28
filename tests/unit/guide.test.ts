@@ -8,7 +8,7 @@ import {
   whenText,
   whereText,
 } from '../../src/data/guide';
-import { RINGS, SHARK, SPECIES } from '../../src/data/tuning';
+import { DEEP_RINGS, MAHI, RINGS, SHARK, SPECIES } from '../../src/data/tuning';
 
 describe('the field guide', () => {
   it('has a line for every species, and the shark is where the tuning says', () => {
@@ -18,8 +18,9 @@ describe('the field guide', () => {
   });
 
   it('places every school where the tuning rings it', () => {
-    expect(Object.keys(HABITAT)).toHaveLength(RINGS.length);
+    expect(Object.keys(HABITAT)).toHaveLength(RINGS.length + DEEP_RINGS.length);
     expect(HABITAT[0]).toEqual({ r0: 560, r1: 700 });
+    expect(HABITAT[MAHI]).toEqual({ r0: 2750, r1: 3100, deep: true });
     expect(HABITAT[8]).toEqual({ r0: 950, r1: 1450, night: true });
     expect(HABITAT[7]).toBeUndefined();
   });
@@ -39,6 +40,8 @@ describe('the field guide', () => {
     expect(whereText(7)).toContain('goldfin');
     expect(whenText(10)).toBe('Dawn, for eighty seconds.');
     expect(whereText(11)).toContain('inside your range');
+    expect(whereText(MAHI)).toBe('Past the buoys, 2750 to 3100 out. Flagship only.');
+    expect(whenText(MAHI)).toBe('By day.');
   });
 
   it('keeps an uncaught species to itself but still points the way', () => {

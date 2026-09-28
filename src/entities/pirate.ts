@@ -3,13 +3,26 @@
  * contract. Wakes once the player has earned enough, sails in from an edge,
  * prowls, chases a boat carrying four or more fish that is away from the
  * dock, steals half the hold on contact, and leaves. Never comes within 400
- * units of the dock. The game owns the consequences through callbacks: the
- * toast and cue on a chase, and the actual removal of fish on a steal.
+ * units of the dock, and never follows a boat past the buoys: the deep is the
+ * leviathan's, and pirates know it. The game owns the consequences through
+ * callbacks: the toast and cue on a chase, and the actual removal of fish on
+ * a steal.
  */
 
 import { clamp } from '../core/math';
 import { PIRATE_SPEED, PIRATE_UNLOCK } from '../data/tuning';
-import { around, BEACH, DOCK, IR, IX, IY, nearestEdgeExit, pushOut, WS } from '../world/island';
+import {
+  around,
+  BEACH,
+  DOCK,
+  IR,
+  IX,
+  IY,
+  nearestEdgeExit,
+  pastBuoys,
+  pushOut,
+  WS,
+} from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { type Ship, type ShipLook, steerShip } from './ship';
 
@@ -108,7 +121,8 @@ export class Pirate implements Entity {
     }
     p.age += dt;
     const dBoat = Math.hypot(boat.x - p.x, boat.y - p.y);
-    const boatSafe = Math.hypot(boat.x - DOCK.x, boat.y - DOCK.y) < SAFE_RADIUS;
+    const boatSafe =
+      Math.hypot(boat.x - DOCK.x, boat.y - DOCK.y) < SAFE_RADIUS || pastBuoys(boat.x, boat.y);
     let tx = p.tx;
     let ty = p.ty;
     let speed = PIRATE_SPEED * 0.6;

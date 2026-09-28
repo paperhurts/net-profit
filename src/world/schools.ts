@@ -7,8 +7,8 @@
  * until render/fish.ts.
  */
 import { clamp, rng } from '../core/math';
-import { RINGS } from '../data/tuning';
-import { IX, IY, WS } from './island';
+import { DEEP_RINGS, RINGS, type Ring } from '../data/tuning';
+import { DEEP, IX, IY, WS } from './island';
 
 export type Fish = {
   /** Offset from the school's centre before the school's slow spin. */
@@ -54,17 +54,27 @@ export type School = {
 
 /** The seed the world is built from, so every player fishes the same water. */
 export const SCHOOL_SEED = 11;
+/** The deep's own seed, so adding it left the home water as it was. */
+export const DEEP_SEED = 23;
 
-export function createSchools(R: () => number = rng(SCHOOL_SEED)): School[] {
+/** Anchors keep this far inside the edge of the water their rings are in. */
+const MARGIN = 220;
+
+export function createSchools(
+  R: () => number = rng(SCHOOL_SEED),
+  rings: readonly Ring[] = RINGS,
+  lo = MARGIN,
+  hi = WS - MARGIN,
+): School[] {
   const schools: School[] = [];
-  for (const ring of RINGS) {
+  for (const ring of rings) {
     const { n, r0, r1, sp, count, rad, base } = ring;
     for (let i = 0; i < n; i++) {
       const ang = base + i * ((Math.PI * 2) / n) + (i ? (R() - 0.5) * 0.5 : 0);
       const r = r0 + R() * (r1 - r0);
       const sc: School = {
-        ax: clamp(IX + Math.cos(ang) * r, 220, WS - 220),
-        ay: clamp(IY + Math.sin(ang) * r, 220, WS - 220),
+        ax: clamp(IX + Math.cos(ang) * r, lo, hi),
+        ay: clamp(IY + Math.sin(ang) * r, lo, hi),
         cx: 0,
         cy: 0,
         r: rad,
@@ -101,6 +111,11 @@ export function createSchools(R: () => number = rng(SCHOOL_SEED)): School[] {
     }
   }
   return schools;
+}
+
+/** The schools past the buoys, out where only the flagship goes. */
+export function createDeepSchools(R: () => number = rng(DEEP_SEED)): School[] {
+  return createSchools(R, DEEP_RINGS, MARGIN - DEEP, WS - MARGIN + DEEP);
 }
 
 /** What one frame of the sweep needs to know. */
