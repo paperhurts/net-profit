@@ -34,6 +34,7 @@ export function fakeView(): FakeView {
     lineTo: count('lineTo'),
     quadraticCurveTo: count('quadraticCurveTo'),
     closePath: count('closePath'),
+    fillText: count('fillText'),
   } as unknown as CanvasRenderingContext2D;
   const fake: FakeView = {
     calls,
