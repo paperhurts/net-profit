@@ -27,5 +27,6 @@ export const baseWorld = (over: Partial<World> = {}): World => ({
   build: 0,
   fineMesh: false,
   stealShare: 0.5,
+  dark: 0,
   ...over,
 });

@@ -261,6 +261,16 @@ export const cues = {
     tone(260, 0.18, 'sine', 0.06, 0.45);
     tone(520, 0.12, 'triangle', 0.04, 0.5, 0.02);
   },
+  /** The anglerfish's jaws opening under the boat: a rising creak, an octave above it. */
+  anglerOpen(): void {
+    tone(110, 1, 'sawtooth', 0.045, 1.9);
+    tone(220, 1, 'triangle', 0.05, 1.9);
+  },
+  /** The jaws closing: a sharp clack and a thump. */
+  anglerSnap(): void {
+    tone(760, 0.06, 'square', 0.06, 0.3);
+    tone(150, 0.28, 'sawtooth', 0.07, 0.5, 0.03);
+  },
   /** A manta coming down: a low whump, with an octave on top for speakers that cannot play the bottom. */
   whump(): void {
     tone(110, 0.32, 'sine', 0.12, 0.45);

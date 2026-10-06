@@ -28,6 +28,7 @@ import { Jellies } from './entities/jellies';
 import { Pets } from './entities/pets';
 import { Leviathan } from './entities/leviathan';
 import { Cthuluviathan } from './entities/cthuluviathan';
+import { Anglerfish } from './entities/anglerfish';
 import { Mantas } from './entities/mantas';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
@@ -50,7 +51,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, keyMode = 'drive';
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
@@ -65,9 +66,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -143,7 +144,7 @@ const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; }, get fineMesh(){ return gear.mesh; }, get stealShare(){ return stealShare(gear); } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; }, get fineMesh(){ return gear.mesh; }, get stealShare(){ return stealShare(gear); }, get dark(){ return dark; } };
 const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
 crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
 const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
@@ -219,7 +220,19 @@ cthulu.onGrab = () => { let n = Math.ceil(holdTotal/5); const lost = n;
   toasts.clear(); toast(lost ? `A tentacle took ${lost} fish. Steer off the bubbles.` : 'A tentacle grabbed the boat. Steer off the bubbles.', 2600, 2);
   hud(); save(); };
 cthulu.onSleep = () => toast('The Cthuluviathan has gone back to sleep.', 2400, 1);
-for (const e of [rareEntity, leviathan, cthulu, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets]) scene.add(e);
+// The anglerfish fishes for boats in the deep at night: its light looks like glowing fish, and there are none out there.
+const angler = new Anglerfish();
+angler.onOpen = () => { sfx.anglerOpen(); shake = Math.max(shake,.25);
+  toast(anglerSeen ? 'Turn away from the light.' : 'That light is no fish. Turn away.', 2400, 2);
+  if (!anglerSeen){ anglerSeen = true; save(); } };
+angler.onBite = () => { let n = Math.ceil(holdTotal/4); const lost = n;
+  for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
+  net.torn = Math.max(net.torn, 10); sfx.anglerSnap(); sfx.netTorn(); shake = Math.max(shake,.7);
+  addText(boat.x, boat.y, 44, lost ? `Bitten: ${lost} fish` : 'Net bitten', '#FF9A8A', 19, 1.8);
+  toasts.clear(); toast(`The anglerfish bit your net${lost ? ` and took ${lost} fish` : ''}. It is torn: dock to mend it.`, 3400, 2);
+  hud(); save(); };
+angler.onMiss = () => { sfx.anglerSnap(); toast('Its jaws shut on nothing. It sank back into the dark.', 2600, 1); };
+for (const e of [rareEntity, leviathan, cthulu, angler, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -283,6 +296,7 @@ function refreshShop(){
     + `<span class="chip${whaleSeen?' gold':' unk'}">${whaleSeen?'Whales sighted':'A song, far out?'}</span>`
     + `<span class="chip${mantaSeen?' gold':' unk'}">${mantaSeen?'Mantas sighted':'Wings in the water?'}</span>`
     + `<span class="chip${cthuluSeen?' gold':' unk'}">${cthuluSeen?'Cthuluviathan sighted':'Something asleep?'}</span>`
+    + `<span class="chip${anglerSeen?' gold':' unk'}">${anglerSeen?'Anglerfish sighted':'A light in the deep?'}</span>`
     + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
@@ -378,6 +392,9 @@ function renderGuide(){
   pages.push(`<article class="page${cthuluSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${cthuluSeen ? 'Cthuluviathan' : '?'}</b><small>${cthuluSeen
     ? 'An octopus for a head, a fistful of tentacles for a face, and two small wings. It sleeps in a sunken city in a far corner of the deep and snores. Sail by fast or close and it wakes, and a tentacle comes up wherever the water boils. Go slowly and it dreams on.'
     : 'Not seen yet. Something sleeps in a sunken city, far out in the deep. Go quietly.'}</small><div class="facts"><span>A corner of the deep</span><span>Asleep, mostly</span><span>Not for catching</span></div></article>`);
+  pages.push(`<article class="page${anglerSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${anglerSeen ? 'Anglerfish' : '?'}</b><small>${anglerSeen
+    ? 'A light in the deep at night, with what look like glowing fish around it. There are no glowing fish in the deep. Make for the light and its jaws open under you: turn away. Caught, the net tears and a quarter of the hold is gone.'
+    : 'Not seen yet. Something out in the deep fishes for boats at night.'}</small><div class="facts"><span>The deep</span><span>Night only</span><span>Not for catching</span></div></article>`);
   pages.push(`<article class="page${snook.landed ? ' gold' : ' unk'}">${FISH_SVG(snook.landed ? '#C9D3D6' : 'currentColor')}<b>${snook.landed ? 'Snook' : '?'}</b><small>${snook.landed
     ? 'Silver, with a black line down its side and yellow fins. It holds in the shadow of the far abutment and runs for the piling the moment it feels the hook. Most of them get there.'
     : 'Not landed yet. Something big holds in the shadow of the bridge when the light goes. A net will not take it.'}</small><div class="facts"><span>By line only: tie up south of the bridge and cast, ${TOLL} coins</span><span>Dusk, night and dawn</span>`
@@ -402,7 +419,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -1110,5 +1127,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, cthulu, angler, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

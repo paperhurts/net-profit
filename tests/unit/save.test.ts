@@ -246,6 +246,15 @@ describe('the Cthuluviathan sighting', () => {
   });
 });
 
+describe('the anglerfish sighting', () => {
+  it('is unseen in a save from before it, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.anglerSeen).toBe(false);
+    s.anglerSeen = true;
+    expect(parseSave(serializeSave(s), bounds).anglerSeen).toBe(true);
+  });
+});
+
 describe('the fishing log', () => {
   it('is empty in a save from before the snook, and survives a round trip', () => {
     const s = parseSave(legacy, bounds);
