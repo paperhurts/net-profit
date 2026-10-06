@@ -245,6 +245,22 @@ export const cues = {
     tone(196, 0.7, 'triangle', 0.06, 0.75, 0.05);
     tone(55, 1.2, 'sine', 0.1, 0, 0.1);
   },
+  /** The Cthuluviathan snoring in its sunken city: a slow low saw in and out, with the octave on top. */
+  snore(): void {
+    tone(92, 1.1, 'sawtooth', 0.035, 1.25);
+    tone(184, 1.1, 'triangle', 0.04, 1.25);
+  },
+  /** The Cthuluviathan waking: a bellow that drops, an octave above it, and a high cry. */
+  cthuluWake(): void {
+    tone(78, 1.4, 'sawtooth', 0.06, 0.6);
+    tone(156, 1.1, 'square', 0.035, 0.65, 0.08);
+    tone(330, 0.6, 'triangle', 0.05, 1.6, 0.35);
+  },
+  /** A tentacle bursting out of the water. */
+  tentacle(): void {
+    tone(260, 0.18, 'sine', 0.06, 0.45);
+    tone(520, 0.12, 'triangle', 0.04, 0.5, 0.02);
+  },
   /** A manta coming down: a low whump, with an octave on top for speakers that cannot play the bottom. */
   whump(): void {
     tone(110, 0.32, 'sine', 0.12, 0.45);

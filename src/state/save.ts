@@ -46,6 +46,8 @@ export type SaveData = {
   whaleSeen: boolean;
   /** The manta rays have been sighted. */
   mantaSeen: boolean;
+  /** The Cthuluviathan seen asleep in its sunken city. */
+  cthuluSeen: boolean;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -96,6 +98,7 @@ export function defaultSave(b: Bounds): SaveData {
     levSeen: false,
     whaleSeen: false,
     mantaSeen: false,
+    cthuluSeen: false,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -163,6 +166,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.levSeen = !!o.levSeen;
   d.whaleSeen = !!o.whaleSeen;
   d.mantaSeen = !!o.mantaSeen;
+  d.cthuluSeen = !!o.cthuluSeen;
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -217,6 +221,7 @@ export function serializeSave(d: SaveData): string {
     levSeen: d.levSeen,
     whaleSeen: d.whaleSeen,
     mantaSeen: d.mantaSeen,
+    cthuluSeen: d.cthuluSeen,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,

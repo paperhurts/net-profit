@@ -237,6 +237,15 @@ describe('the manta sighting', () => {
   });
 });
 
+describe('the Cthuluviathan sighting', () => {
+  it('is unseen in a save from before it, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.cthuluSeen).toBe(false);
+    s.cthuluSeen = true;
+    expect(parseSave(serializeSave(s), bounds).cthuluSeen).toBe(true);
+  });
+});
+
 describe('the fishing log', () => {
   it('is empty in a save from before the snook, and survives a round trip', () => {
     const s = parseSave(legacy, bounds);
