@@ -22,6 +22,7 @@ type Np = {
   coins: number;
   clock: number;
   phase: string;
+  walker: { state: string; x: number; y: number; nearBoat: boolean };
 };
 
 declare global {
@@ -255,5 +256,48 @@ test('trip: hold, position and clock survive the tab being discarded', async ({
   expect(Math.hypot(after.x - before.x, after.y - before.y), 'boat moved').toBeLessThan(40);
   expect(after.clock, 'clock was lost').toBeGreaterThan(0.41);
   expect(after.clock).toBeLessThan(0.45);
+  expect(errors).toEqual([]);
+});
+
+test('ashore: step off at the dock, walk up the pier onto the island, and back aboard', async ({
+  context,
+  page,
+}) => {
+  // Tied up in the dock ring, as a trip saved there comes back.
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible();
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  expect(await page.locator('#shop').getAttribute('class')).not.toContain('open');
+  // The way back is not offered under the thumb that lands to start walking.
+  await expect(page.locator('#aboard')).toBeHidden();
+
+  /** Hold the stick in a world direction. */
+  const stick = async (wx: number, wy: number) => {
+    const sx = wx - wy;
+    const sy = (wx + wy) / 2;
+    const n = Math.hypot(sx, sy);
+    await page.mouse.move(CX, CY);
+    await page.mouse.down();
+    await page.mouse.move(CX + (sx / n) * 60, CY + (sy / n) * 60, { steps: 3 });
+  };
+  // Up the pier, past the crates, onto the sand.
+  await stick(-1, 0);
+  await page.waitForTimeout(2600);
+  await page.mouse.up();
+  const there = await page.evaluate(() => window.__np.walker.x);
+  expect(there, 'did not walk up the pier onto the island').toBeLessThan(ISLAND + 200);
+
+  // And back down it to the boat.
+  await stick(1, 0);
+  await page.waitForFunction(() => window.__np.walker.nearBoat, null, { timeout: 6000 });
+  await page.mouse.up();
+  await expect(page.locator('#aboard')).toBeVisible();
+  await page.click('#aboard');
+  await page.waitForFunction(() => window.__np.walker.state === 'aboard', null, { timeout: 2000 });
+  await expect(page.locator('#shop')).toHaveClass(/open/);
   expect(errors).toEqual([]);
 });

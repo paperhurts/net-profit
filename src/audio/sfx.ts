@@ -277,6 +277,11 @@ export const cues = {
     tone(220, 0.2, 'triangle', 0.05, 0.5);
     tone(70, 0.4, 'triangle', 0.07, 0.6, 0.03);
   },
+  /** A hop between the boat and the pier: a knock on wood. */
+  hop(): void {
+    tone(240, 0.07, 'triangle', 0.07, 0.7);
+    tone(480, 0.04, 'sine', 0.03, 0.8);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

@@ -13,7 +13,7 @@ import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STA
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
-import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_SOUTH, CRATE, DEEP, DOCK, IR, IX, IY, pastBuoys, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, TWX, TWY, TX, TY, WS } from './world/island';
+import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_PARTS, BRIDGE_SOUTH, bridgeAt, bridgePartDepth, CRATE, DEEP, DOCK, IR, IX, IY, pastBuoys, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, TOLL_SIGN, TWX, TWY, TX, TY, UMBRELLA, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
@@ -29,6 +29,7 @@ import { Pets } from './entities/pets';
 import { Leviathan } from './entities/leviathan';
 import { Cthuluviathan } from './entities/cthuluviathan';
 import { Anglerfish } from './entities/anglerfish';
+import { WALK_ZOOM, Walker } from './entities/walker';
 import { Mantas } from './entities/mantas';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
@@ -90,7 +91,7 @@ wasDeep = pastBuoys(boat.x, boat.y); // a trip restored out in the deep has not 
 const cam = {x: boat.x, y: boat.y};
 
 /* ---------- view ---------- */
-let W = 0, H = 0, DPR = 1, Z = 1, shx = 0, shy = 0, viewDY = 0, dockView = 0;
+let W = 0, H = 0, DPR = 1, Z = 1, shx = 0, shy = 0, viewDY = 0, dockView = 0, walkView = 0;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
@@ -232,7 +233,11 @@ angler.onBite = () => { let n = Math.ceil(holdTotal/4); const lost = n;
   toasts.clear(); toast(`The anglerfish bit your net${lost ? ` and took ${lost} fish` : ''}. It is torn: dock to mend it.`, 3400, 2);
   hud(); save(); };
 angler.onMiss = () => { sfx.anglerSnap(); toast('Its jaws shut on nothing. It sank back into the dark.', 2600, 1); };
-for (const e of [rareEntity, leviathan, cthulu, angler, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets]) scene.add(e);
+// Off the boat: tie up at the pier and walk the island. The stick walks the figure while it is ashore.
+const walker = new Walker(); let ashoreTold = false;
+walker.onHop = () => sfx.hop();
+walker.onLand = () => { if (!ashoreTold){ ashoreTold = true; toast('Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.', 3800, 1); } save(); };
+for (const e of [rareEntity, leviathan, cthulu, angler, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -420,7 +425,7 @@ elRst.addEventListener('click', () => {
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
-  pirateEntity.reset();
+  pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
 });
@@ -553,6 +558,9 @@ function cast(){
   coins -= TOLL; snook.casts++; pullSmooth = 0; fight = new Fight(Math.random, window.__npCastAs); sfx.cast(); hud(); save();
 }
 $('cast').addEventListener('click', cast);
+const elAshore = $('ashore'), elAboard = $('aboard'); let shopOpen = false, aboardShown = false;
+elAshore.addEventListener('click', () => { audio(); if (walker.stepAshore()) toasts.clear(); });
+elAboard.addEventListener('click', () => { audio(); walker.goAboard(); });
 // A silver fish with a black line down its side and yellow fins: the snook, at this screen point.
 const SNOOK_LOOK = {c:'#C9D3D6', fat:.2, tail:.42};
 function snookShape(x, y, len, ang, wag, alpha){
@@ -617,6 +625,12 @@ function update(dt){
   world.T = T; world.started = started; world.docked = docked;
   /* input and boat: the stick points; the keys drive or point, by setting */
   if (fight){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
+  else if (!walker.aboard){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt);
+    // Ashore the stick walks, and the keys always point: driving a person by turning them reads as a tank.
+    let ix = 0, iy = 0;
+    if (joy.on){ const v = joystickVector(joy); ix = v[0]; iy = v[1]; }
+    else { const v = keyVector(keys); smoothVector(keySmooth, v[0], v[1], dt); ix = keySmooth.x; iy = keySmooth.y; }
+    walker.intent(ix, iy); }
   else if (started && !joy.on && keyMode === 'drive'){
     const c = keyControls(keys); steerBoatRelative(boat, c.turn, c.throttle, c.brake, SPEED[lv.engine], dt);
   } else {
@@ -656,8 +670,11 @@ function update(dt){
 
   /* dock */
   const inDock = Math.hypot(boat.x-DOCK.x, boat.y-DOCK.y) < DOCK.r;
-  if (inDock !== docked){ docked = inDock; elShop.classList.toggle('open', docked); elShop.setAttribute('aria-hidden', String(!docked)); if (docked){ refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
+  if (inDock !== docked){ docked = inDock; if (docked){ refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
     if (jellies.inNet){ const n = jellies.shakeOut(); toast(n === 1 ? 'Shook a jellyfish out of the net.' : `Shook ${n} jellyfish out of the net.`, 2400); sfx.jelliesOut(); } } }
+  // The shop is the dock while aboard; ashore it folds away so the stick has the screen.
+  { const open = docked && walker.aboard; if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
+      elShop.classList.toggle('open', open); elShop.setAttribute('aria-hidden', String(!open)); elAshore.hidden = !open; } }
   if (docked && holdTotal > 0){
     sellT -= dt;
     while (sellT <= 0 && holdTotal > 0){ sellOne(); sellT += .045; }
@@ -665,9 +682,10 @@ function update(dt){
   } else sellT = 0;
 
   dolphinToastT -= dt; dogToastT -= dt; scene.update(dt, world);
+  if (walker.nearBoat !== aboardShown){ aboardShown = walker.nearBoat; elAboard.hidden = !aboardShown; }
   updateFishing(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView) - Z)*Math.min(1, dt*4);
+  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView) - Z)*Math.min(1, dt*4);
 
   /* bits */
   wakeT -= dt;
@@ -680,8 +698,11 @@ function update(dt){
 
   /* camera leads the boat a little */
   let lx = boat.x + Math.cos(boat.h)*boat.v*.3, ly = boat.y + Math.sin(boat.h)*boat.v*.3;
-  dockView += ((docked && boat.v < 70 ? 1 : 0) - dockView)*Math.min(1, dt*1.6);
+  dockView += ((docked && walker.aboard && boat.v < 70 ? 1 : 0) - dockView)*Math.min(1, dt*1.6);
   const w = .4*dockView; lx = lx*(1-w) + TX*w; ly = ly*(1-w) + (TY-30)*w;
+  // Ashore the camera comes in close and follows the figure, leading it a little.
+  walkView += ((walker.shown ? 1 : 0) - walkView)*Math.min(1, dt*2.2);
+  lx += (walker.x + walker.vx*.3 - lx)*walkView; ly += (walker.y + walker.vy*.3 - ly)*walkView;
   viewDY = -Math.min(150, H*.17)*dockView;
   cam.x += (lx-cam.x)*Math.min(1, dt*3.5); cam.y += (ly-cam.y)*Math.min(1, dt*3.5);
 }
@@ -930,9 +951,6 @@ function drawBird(x,y,z,flap,k,alpha){
 // The Ten Cent Bridge: pilings and two stone abutments, a plank deck with rails, a lamp, and the toll sign at the beach end.
 // It is drawn in parts along the span, each sorted by its own depth: one object as long as this cannot have one depth, and
 // sorting the whole of it round the boat, as the pier does, painted it over the palace tree whenever the boat was in front.
-const BRIDGE_PARTS = 6;
-function bridgeAt(d, o=0){ const {ax, ay, bx, by} = BRIDGE, L = Math.hypot(bx-ax, by-ay), ux = (bx-ax)/L, uy = (by-ay)/L; return [ax+ux*d-uy*o, ay+uy*d+ux*o]; }
-function bridgePartDepth(i){ const L = Math.hypot(BRIDGE.bx-BRIDGE.ax, BRIDGE.by-BRIDGE.ay), m = bridgeAt(L*(i+.5)/BRIDGE_PARTS); return m[0]+m[1]; }
 function drawBridgePart(i){
   const {ax, ay, bx, by, w, z} = BRIDGE, L = Math.hypot(bx-ax, by-ay), ux = (bx-ax)/L, uy = (by-ay)/L, h = w/2;
   const d0 = L*i/BRIDGE_PARTS, d1 = L*(i+1)/BRIDGE_PARTS, last = i === BRIDGE_PARTS-1, mine = d => d >= d0 && (d < d1 || (last && d <= L));
@@ -948,7 +966,7 @@ function drawBridgePart(i){
   { const a = ABUTMENTS[0]; if (mine((a[0]-ax)*ux + (a[1]-ay)*uy)){ const lx = a[0]+BRIDGE_SOUTH[0]*h, ly = a[1]+BRIDGE_SOUTH[1]*h;
     ctx.strokeStyle = '#3A2E28'; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(lx,ly),py(lx,ly,z+4)); ctx.lineTo(px(lx,ly),py(lx,ly,z+30)); ctx.stroke();
     ctx.fillStyle = dark > .3 ? '#FFE9A8' : '#E8D9A8'; ctx.beginPath(); ctx.arc(px(lx,ly),py(lx,ly,z+32),3.2*Z,0,Math.PI*2); ctx.fill(); } }
-  if (last){ const sx0 = bx + ux*6 + BRIDGE_SOUTH[0]*(h+10), sy0 = by + uy*6 + BRIDGE_SOUTH[1]*(h+10); // at the beach end: the palace tree hides the island end
+  if (last){ const [sx0, sy0] = TOLL_SIGN; // at the beach end: the palace tree hides the island end
     box(sx0-1.5, sy0-1.5, 3, 3, 0, 26, '#5E3D1C', '#7A5230');
     const sx = px(sx0,sy0), sy = py(sx0,sy0,33); ctx.save();
     ctx.fillStyle = '#5E3D1C'; ctx.fillRect(sx-16*Z, sy-10*Z, 32*Z, 20*Z); ctx.fillStyle = C.trim; ctx.fillRect(sx-14.5*Z, sy-8.5*Z, 29*Z, 17*Z);
@@ -956,7 +974,7 @@ function drawBridgePart(i){
 }
 // What is on the beach: an umbrella and a towel, for now.
 function drawBeachThings(){
-  const x = BEACH.x-22, y = BEACH.y-26; // up the beach, clear of the toll sign
+  const [x, y] = UMBRELLA; // up the beach, clear of the toll sign
   box(x-34, y+14, 26, 13, 0, 1, '#2B8A99', '#5BBFB5');
   ctx.strokeStyle = '#7A5230'; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,0)); ctx.lineTo(px(x,y),py(x,y,34)); ctx.stroke();
   for (let i=0;i<8;i++){ const a0 = i*Math.PI/4, a1 = (i+1)*Math.PI/4, r = 24;
@@ -987,6 +1005,7 @@ function drawSmokehouse(){
     ctx.arc(px(x+8.5, y-3.5), py(x+8.5, y-3.5, 30 + t*36), (4 + t*7)*Z, 0, Math.PI*2); ctx.fill(); }
 }
 function drawWorldObjects(){
+  const pierD = boat.x+boat.y + (boat.y < IY ? 1 : -1), dog = pets.dog;
   const list = [
     {d: (IX+80)+(IY-70), f: () => { box(IX+20,IY-120,60,50,0,38,'#FFF1D6','#FFF1D6'); box(IX+14,IY-126,72,62,38,47,C.hull,shade(C.hull,1.12)); perched(IX+30,IY-72,47); drawTrophies(); }},
     {d: (IX+118)+(IY-30), f: () => drawPalm(IX+118,IY-30,10)},
@@ -999,13 +1018,15 @@ function drawWorldObjects(){
       const P = PAINTS[paint];
       drawShip(boat, {scale:bk(), tier:tier(), hull:P.hull, trim:P.trim, deck:C.deck, cabin:C.cabin, roof:P.roof, mast:C.wood, flag:P.flag,
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
-    {d: boat.x+boat.y + (boat.y < IY ? 1 : -1), f: drawPier},
+    {d: pierD, f: drawPier},
     {d: BEACH.x+BEACH.y, f: drawBeachThings}
   ];
   for (let i=0;i<BRIDGE_PARTS;i++) list.push({d: bridgePartDepth(i), f: () => drawBridgePart(i)});
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   list.push(...scene.solids(drawView));
+  if (walker.shown){ walker.shirt = PAINTS[paint].hull;
+    list.push({d: walker.sortDepth(build, pierD, dog ? {x: dog.x, y: dog.y, d: pets.depth()} : null), f: () => walker.draw(drawView, 'solids')}); }
   list.sort((a,b) => a.d-b.d); for (const o of list) o.f();
 }
 function drawBuoys(){
@@ -1062,7 +1083,7 @@ function drawTexts(){
 }
 const placed = [];
 function indicator(wx,wy,bg,kind,pulse){
-  const x = px(wx,wy), y = py(wx,wy), m = 32, top = 100, bot = docked ? 300 : m;
+  const x = px(wx,wy), y = py(wx,wy), m = 32, top = 100, bot = shopOpen ? 300 : m;
   if (x>m && x<W-m && y>top && y<H-bot) return;
   const cx = W/2, cy = (top + H - bot)/2, dx = x-cx, dy = y-cy;
   const tx = dx ? ((dx>0 ? W-m-cx : cx-m)/Math.abs(dx)) : 1e9, ty = dy ? ((dy>0 ? H-bot-cy : cy-top)/Math.abs(dy)) : 1e9;
@@ -1097,7 +1118,8 @@ function draw(){
 
   const full = holdTotal >= HOLD[lv.hold];
   if (!docked) indicator(DOCK.x, DOCK.y, full ? C.coin : C.trim, 'dock', full);
-  if (!full && started){
+  if (walker.shown) indicator(boat.x, boat.y, C.trim, 'dock', false); // the way back to the boat
+  else if (!full && started){
     let best = null, bd = 1e9, anyVis = false, want = null, wd = 1e9, wantVis = false;
     const R = range();
     for (const sc of schools){ if (sc.alive < sc.n*.35 || (sc.night && dark < .75) || Math.hypot(sc.cx-IX, sc.cy-IY) > R-40) continue;
@@ -1127,5 +1149,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, cthulu, angler, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, cthulu, angler, walker, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

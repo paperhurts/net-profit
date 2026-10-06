@@ -69,10 +69,34 @@ export const ABUTMENTS: readonly Point[] = [0.36, 0.7].map((t): Point => {
 /** The unit vector across the bridge toward its south side, which faces the viewer. */
 export const BRIDGE_SOUTH: Point = [BV, -BU];
 
+/** A point along the bridge's line, d from its island end and o to its north side. */
+export function bridgeAt(d: number, o = 0): Point {
+  return [BRIDGE.ax + BU * d - BV * o, BRIDGE.ay + BV * d + BU * o];
+}
+/**
+ * The bridge is drawn in this many parts along the span, each sorted by its own
+ * depth: one object as long as this cannot have one depth.
+ */
+export const BRIDGE_PARTS = 6;
+/** The depth a part of the bridge is sorted at: the world x + y of its middle. */
+export function bridgePartDepth(i: number): number {
+  const L = Math.hypot(BRIDGE.bx - BRIDGE.ax, BRIDGE.by - BRIDGE.ay);
+  const m = bridgeAt((L * (i + 0.5)) / BRIDGE_PARTS);
+  return m[0] + m[1];
+}
+
 /** Where the snook holds: in the shadow of the far abutment, on the south side. */
 export const SNOOK_SPOT: Point = [
   (ABUTMENTS[1] as Point)[0] + BRIDGE_SOUTH[0] * 30,
   (ABUTMENTS[1] as Point)[1] + BRIDGE_SOUTH[1] * 30,
+];
+
+/** The pole of the umbrella on the beach, up the sand and clear of the toll sign. */
+export const UMBRELLA: Point = [BEACH.x - 22, BEACH.y - 26];
+/** The post of the toll sign, just past the beach end of the bridge on its south side. */
+export const TOLL_SIGN: Point = [
+  BRIDGE.bx + BU * 6 + BRIDGE_SOUTH[0] * (BRIDGE.w / 2 + 10),
+  BRIDGE.by + BV * 6 + BRIDGE_SOUTH[1] * (BRIDGE.w / 2 + 10),
 ];
 
 /** Whether a point is on the beach or the bridge, or within pad of either: no place for flotsam or fish. */
