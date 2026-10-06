@@ -155,6 +155,14 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 #cast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #cast:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#aboard{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+  background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#aboard:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+/* A tab standing up off the plank sign's right corner, so it is there whenever the shop is. */
+#shop .planks{position:relative}
+#ashore{position:absolute;right:10px;top:-52px;background:var(--buoy);color:var(--buoy-fg);font-size:16px;height:42px;padding:3px 18px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#ashore:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
 #guide .planks{max-width:560px;margin:0 auto;padding:10px}
@@ -200,9 +208,11 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 <div id="rchips"><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
 <div id="toast" role="status"></div>
 <button class="pill" id="cast" hidden>Cast · 10</button>
+<button class="pill" id="aboard" hidden>Back aboard</button>
 
 <section id="shop" aria-hidden="true" aria-label="Upgrades">
   <div class="planks">
+    <button class="pill" id="ashore" hidden>Step ashore</button>
     <h2>Upgrades <span id="tierTxt"></span></h2>
     <div class="row">
       <button class="up" data-k="net"><b>Wider net</b><div class="pips"></div><small></small><div class="buy"></div></button>
