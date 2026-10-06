@@ -61,6 +61,8 @@ export type World = {
   fineMesh: boolean;
   /** The share of the hold a pirate takes: half, or a quarter with the strongbox. */
   stealShare: number;
+  /** How dark it is, 0 by day to 1 at the depth of night. */
+  dark: number;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */
