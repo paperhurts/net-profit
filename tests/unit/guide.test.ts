@@ -8,7 +8,15 @@ import {
   whenText,
   whereText,
 } from '../../src/data/guide';
-import { DEEP_RINGS, MAHI, RINGS, SHARK, SPECIES } from '../../src/data/tuning';
+import {
+  DEEP_RINGS,
+  ISLE2_RINGS,
+  MAHI,
+  PARROT,
+  RINGS,
+  SHARK,
+  SPECIES,
+} from '../../src/data/tuning';
 
 describe('the field guide', () => {
   it('has a line for every species, and the shark is where the tuning says', () => {
@@ -18,7 +26,10 @@ describe('the field guide', () => {
   });
 
   it('places every school where the tuning rings it', () => {
-    expect(Object.keys(HABITAT)).toHaveLength(RINGS.length + DEEP_RINGS.length);
+    expect(Object.keys(HABITAT)).toHaveLength(
+      RINGS.length + DEEP_RINGS.length + ISLE2_RINGS.length,
+    );
+    expect(HABITAT[PARROT]).toEqual({ r0: 400, r1: 460, deep: true, isle2: true });
     expect(HABITAT[0]).toEqual({ r0: 560, r1: 700 });
     expect(HABITAT[MAHI]).toEqual({ r0: 2750, r1: 3100, deep: true });
     expect(HABITAT[8]).toEqual({ r0: 950, r1: 1450, night: true });
@@ -42,6 +53,7 @@ describe('the field guide', () => {
     expect(whereText(11)).toContain('inside your range');
     expect(whereText(MAHI)).toBe('Past the buoys, 2750 to 3100 out. Flagship only.');
     expect(whenText(MAHI)).toBe('By day.');
+    expect(whereText(PARROT)).toBe('Round island 2, in the far corner of the deep. Flagship only.');
   });
 
   it('keeps an uncaught species to itself but still points the way', () => {

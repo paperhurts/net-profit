@@ -264,6 +264,15 @@ describe('the dog', () => {
   });
 });
 
+describe('island 2', () => {
+  it('is unseen in a save from before it, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle2Seen).toBe(false);
+    s.isle2Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle2Seen).toBe(true);
+  });
+});
+
 describe('the fishing log', () => {
   it('is empty in a save from before the snook, and survives a round trip', () => {
     const s = parseSave(legacy, bounds);

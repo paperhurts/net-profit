@@ -311,3 +311,28 @@ test('ashore: step off at the dock, pet the dog, walk up the pier onto the islan
   await expect(page.locator('#shop')).toHaveClass(/open/);
   expect(errors).toEqual([]);
 });
+
+test('island 2: sell at the trading post and step ashore on its sand', async ({
+  context,
+  page,
+}) => {
+  // A flagship already out in the deep by island 2, with mahi-mahi in the hold.
+  const hold = new Array(14).fill(0);
+  hold[12] = 6;
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -600 + 330 * Math.SQRT1_2, y: 5400 - 330 * Math.SQRT1_2, h: 2.36, clock: 0.3, hold },
+  });
+  await page.waitForFunction(() => window.__np.hold === 0, null, { timeout: 4000 });
+  expect(
+    await page.evaluate(() => window.__np.coins),
+    'the trading post paid nothing',
+  ).toBeGreaterThan(100);
+  await expect(page.locator('#ashore')).toBeVisible();
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const at = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
+  expect(Math.hypot((at[0] ?? 0) + 600, (at[1] ?? 0) - 5400), 'not on island 2').toBeLessThan(230);
+  expect(errors).toEqual([]);
+});

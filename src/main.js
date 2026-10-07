@@ -29,14 +29,15 @@ import { PET_REACH, Pets } from './entities/pets';
 import { Leviathan } from './entities/leviathan';
 import { Cthuluviathan } from './entities/cthuluviathan';
 import { Anglerfish } from './entities/anglerfish';
-import { WALK_ZOOM, Walker } from './entities/walker';
+import { dockAt, HOME_DOCK, ISLE2_DOCK, WALK_ZOOM, Walker } from './entities/walker';
+import { DOCK2, ISLE2, PALMS2, POST, TOWER } from './world/isle2';
 import { Mantas } from './entities/mantas';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
 import { Whales } from './entities/whales';
 import { Scene } from './render/layers';
-import { createDeepSchools, createSchools, resetSchools, updateSchools } from './world/schools';
+import { createDeepSchools, createIsle2Schools, createSchools, resetSchools, updateSchools } from './world/schools';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -52,7 +53,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, keyMode = 'drive';
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
@@ -67,9 +68,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -136,7 +137,7 @@ function isoEllipse(x,y,r,z=0){ ctx.beginPath(); ctx.ellipse(px(x,y),py(x,y,z),M
 
 /* ---------- world ---------- */
 const deepSchools = createDeepSchools(); // past the buoys, under the weed
-const schools = [...createSchools(), ...deepSchools];
+const schools = [...createSchools(), ...deepSchools, ...createIsle2Schools()];
 const buoys = [];
 for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push([0,i],[WS,i]); }
 
@@ -145,7 +146,7 @@ const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
 const gullsEntity = new Gulls(schools, boat), boatGulls = gullsEntity.gulls;
 const world = { T: 0, started: false, docked: false, boat, rng: Math.random, net, // what entities may read; the getters stay live
   get earned(){ return earned; }, get holdTotal(){ return holdTotal; }, get hullScale(){ return bk(); },
-  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; }, get fineMesh(){ return gear.mesh; }, get stealShare(){ return stealShare(gear); }, get dark(){ return dark; }, get ashore(){ return walker.state === 'ashore' ? walker : null; } };
+  get netWidth(){ return NETW[lv.net]; }, get netLevel(){ return lv.net; }, get holdCap(){ return HOLD[lv.hold]; }, get escorted(){ return dolphins.escorted; }, get range(){ return range(); }, get tier(){ return tier(); }, get netFouled(){ return jellies.inNet > 0; }, get build(){ return build; }, get fineMesh(){ return gear.mesh; }, get stealShare(){ return stealShare(gear); }, get dark(){ return dark; }, get ashore(){ return walker.state === 'ashore' && walker.dock === HOME_DOCK ? walker : null; } };
 const crates = new Flotsam(CRATES, world), flotsam = crates.pieces;
 crates.onPick = (f, r) => { coins += r; earned += r; addText(f.x, f.y, 24, 'Salvage +' + r, C.coin, 19, 1.6); sfx.salvage(); hud(); save(); };
 const driftwood = new Flotsam(DRIFTWOOD, world), drift = driftwood.pieces;
@@ -238,9 +239,11 @@ angler.onBite = () => { let n = Math.ceil(holdTotal/4); const lost = n;
   hud(); save(); };
 angler.onMiss = () => { sfx.anglerSnap(); toast('Its jaws shut on nothing. It sank back into the dark.', 2600, 1); };
 // Off the boat: tie up at the pier and walk the island. The stick walks the figure while it is ashore.
-const walker = new Walker(); let ashoreTold = false;
+const walker = new Walker();
 walker.onHop = () => sfx.hop();
-walker.onLand = () => { if (!ashoreTold){ ashoreTold = true; toast('Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.', 3800, 1); } save(); };
+const ashoreTold = new Set(); // each landing explains itself once a visit
+walker.onLand = () => { if (!ashoreTold.has(walker.dock)){ ashoreTold.add(walker.dock);
+    toast(walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : 'Ashore on island 2. Nobody has climbed that tower yet. The boat waits on the beach.', 3800, 1); } save(); };
 for (const e of [rareEntity, leviathan, cthulu, angler, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
@@ -306,6 +309,7 @@ function refreshShop(){
     + `<span class="chip${mantaSeen?' gold':' unk'}">${mantaSeen?'Mantas sighted':'Wings in the water?'}</span>`
     + `<span class="chip${cthuluSeen?' gold':' unk'}">${cthuluSeen?'Cthuluviathan sighted':'Something asleep?'}</span>`
     + `<span class="chip${anglerSeen?' gold':' unk'}">${anglerSeen?'Anglerfish sighted':'A light in the deep?'}</span>`
+    + `<span class="chip${isle2Seen?' gold':' unk'}">${isle2Seen?'Island 2 found':'Land past the deep?'}</span>`
     + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
@@ -428,7 +432,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -457,17 +461,17 @@ function sellOne(){
   carry += salePrice(SPECIES[sp].v, build, sp, market); const v = Math.floor(carry); carry -= v;
   coins += v; earned += v; saleSum += v; saleN++;
   const to = buyer(build, sp, market);
-  flies.push({x0:boat.x, y0:boat.y, z0:12, to: to === 'fishmonger' ? 'stall' : to === 'smokehouse' ? 'smoke' : 'crate', t:0, dur: to === 'dock' ? .3 : .45, c:SPECIES[sp].c, s:SPECIES[sp].s});
+  flies.push({x0:boat.x, y0:boat.y, z0:12, to: dockHere === ISLE2_DOCK ? 'post' : to === 'fishmonger' ? 'stall' : to === 'smokehouse' ? 'smoke' : 'crate', t:0, dur: to === 'dock' ? .3 : .45, c:SPECIES[sp].c, s:SPECIES[sp].s});
   sfx.sale(saleN, sp);
   if (sp === order.sp){ order.have++;
     if (order.have >= order.n){ coins += order.pay; earned += order.pay;
-      addText(CRATE.x, CRATE.y, 70, 'Order filled +' + order.pay, '#9CF0C0', 20, 2.2);
+      addText(saleSpot().x, saleSpot().y, 70, 'Order filled +' + order.pay, '#9CF0C0', 20, 2.2);
       sfx.orderFilled();
       newOrder(); } else drawOrder(); }
   hud(); refreshShop();
 }
 function finishSale(){
-  addText(CRATE.x, CRATE.y, 40, '+' + saleSum, C.coin, 26, 1.6);
+  addText(saleSpot().x, saleSpot().y, 40, '+' + saleSum, C.coin, 26, 1.6);
   sfx.sold();
   saleSum = 0; saleN = 0; save();
   if (earned >= PIRATE_UNLOCK && pirate.state === 'away' && !pirate.warned){
@@ -497,7 +501,7 @@ function emitWake(s,k){
 
 function updateAmbience(dt){
   if (!ambience){ const ctx = getContext(); if (!ctx) return; ambience = new Ambience(ctx, ctx.destination); setCueListener(() => ambience.duck()); }
-  const toIsland = Math.hypot(boat.x-IX, boat.y-IY) - IR;
+  const toIsland = Math.min(Math.hypot(boat.x-IX, boat.y-IY) - IR, Math.hypot(boat.x-ISLE2.x, boat.y-ISLE2.y) - ISLE2.r);
   let toPier = Infinity; for (const b of PIER_BUMPS) toPier = Math.min(toPier, Math.hypot(boat.x-b[0], boat.y-b[1]) - 30);
   const gulls = [];
   boatGulls.forEach(g => { if (g.a > .5) gulls.push({dx: g.x-boat.x, dy: g.y-boat.y}); });
@@ -563,7 +567,10 @@ function cast(){
 }
 $('cast').addEventListener('click', cast);
 const elAshore = $('ashore'), elAboard = $('aboard'); let shopOpen = false, aboardShown = false;
-elAshore.addEventListener('click', () => { audio(); if (walker.stepAshore()) toasts.clear(); });
+let dockHere = HOME_DOCK; // the dock the boat is in, or was in last
+const POST_MID = {x: (POST.x0+POST.x1)/2, y: (POST.y0+POST.y1)/2};
+function saleSpot(){ return dockHere === ISLE2_DOCK ? POST_MID : CRATE; }
+elAshore.addEventListener('click', () => { audio(); if (walker.stepAshore(dockHere)) toasts.clear(); });
 elAboard.addEventListener('click', () => { audio(); walker.goAboard(); });
 // A tap, not a drag: ashore, a tap on the dog pats it, if the figure is near enough to reach.
 let tapFrom = null;
@@ -658,14 +665,17 @@ function update(dt){
   for (const b of PIER_BUMPS) pushOut(boat, b[0], b[1], 20+20*k);
   for (const b of BRIDGE_BUMPS) pushOut(boat, b[0], b[1], 18+20*k);
   pushOut(boat, BEACH.x, BEACH.y, BEACH.r+24*k);
+  pushOut(boat, ISLE2.x, ISLE2.y, ISLE2.r+24*k);
   // The buoys hold every boat but the flagship, which goes on into the deep as far as the deep runs.
   { const m = tier() === TIER_NAME.length-1 ? DEEP : 0, x0 = boat.x, y0 = boat.y;
     boat.x = clamp(boat.x, 40-m, WS-40+m); boat.y = clamp(boat.y, 40-m, WS-40+m);
     if ((boat.x !== x0 || boat.y !== y0) && rangeToastT <= 0){ rangeToastT = 9;
       toast(m ? 'Nothing out here but water. For now.' : 'Only a flagship can cross the buoys.', 2800, 1); sfx.rangeEdge(); } }
   { const deep = pastBuoys(boat.x, boat.y); deepToastT -= dt;
-    if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast('Past the buoys, into the deep. Mahi-mahi school under the floating weed.', 3400, 1); }
+    if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast(isle2Seen ? 'Past the buoys, into the deep. Mahi-mahi school under the floating weed.' : 'Past the buoys, into the deep. There is land out here: follow the green marker.', 3400, 1); }
     wasDeep = deep; }
+  if (!isle2Seen && Math.hypot(boat.x-ISLE2.x, boat.y-ISLE2.y) < ISLE2.r + 700){ isle2Seen = true; save(); refreshShop();
+    toast('Land ho: island 2. Parrotfish school round it, and the trading post buys your catch.', 4200, 1); sfx.tierUp(); }
   { const R = range(), dI = Math.hypot(boat.x-IX, boat.y-IY); rangeToastT -= dt;
     if (dI > R){ boat.x = IX + (boat.x-IX)/dI*R; boat.y = IY + (boat.y-IY)/dI*R; boat.v *= .93;
       if (rangeToastT <= 0){ rangeToastT = 9; toast(`Too rough out there for a ${TIER_NAME[tier()]}. Grow your boat to sail further.`, 2800, 1); sfx.rangeEdge(); } } }
@@ -681,7 +691,7 @@ function update(dt){
   updateSchools(schools, {T, dt, dark, net, netWidth: nw, catching: catching && !jellies.inNet, zoom: Z, onScreen, hasRoom: () => holdTotal < cap}, catchFish);
 
   /* dock */
-  const inDock = Math.hypot(boat.x-DOCK.x, boat.y-DOCK.y) < DOCK.r;
+  const dk = dockAt(boat.x, boat.y), inDock = !!dk; if (dk) dockHere = dk;
   if (inDock !== docked){ docked = inDock; if (docked){ refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
     if (jellies.inNet){ const n = jellies.shakeOut(); toast(n === 1 ? 'Shook a jellyfish out of the net.' : `Shook ${n} jellyfish out of the net.`, 2400); sfx.jelliesOut(); } } }
   // The shop is the dock while aboard; ashore it folds away so the stick has the screen.
@@ -711,7 +721,7 @@ function update(dt){
   /* camera leads the boat a little */
   let lx = boat.x + Math.cos(boat.h)*boat.v*.3, ly = boat.y + Math.sin(boat.h)*boat.v*.3;
   dockView += ((docked && walker.aboard && boat.v < 70 ? 1 : 0) - dockView)*Math.min(1, dt*1.6);
-  const w = .4*dockView; lx = lx*(1-w) + TX*w; ly = ly*(1-w) + (TY-30)*w;
+  const w = .4*dockView, isle2 = dockHere === ISLE2_DOCK; lx = lx*(1-w) + (isle2 ? ISLE2.x : TX)*w; ly = ly*(1-w) + (isle2 ? ISLE2.y : TY-30)*w;
   // Ashore the camera comes in close and follows the figure, leading it a little.
   walkView += ((walker.shown ? 1 : 0) - walkView)*Math.min(1, dt*2.2);
   lx += (walker.x + walker.vx*.3 - lx)*walkView; ly += (walker.y + walker.vy*.3 - ly)*walkView;
@@ -734,6 +744,11 @@ function drawSea(){
   isoEllipse(IX,IY,IR+150); ctx.fillStyle = C.shore; ctx.fill();
   isoEllipse(BEACH.x,BEACH.y,BEACH.r+60); ctx.fillStyle = C.shore; ctx.fill();
   ctx.restore();
+  // Island 2's shallows, out in the deep.
+  if (onScreen(ISLE2.x, ISLE2.y, (ISLE2.r+340)*Z)){
+    isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+330); ctx.fillStyle = '#20808B'; ctx.fill();
+    isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+180); ctx.fillStyle = C.shallow; ctx.fill();
+    isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+70); ctx.fillStyle = C.shore; ctx.fill(); }
 
   /* wave glints across the visible patch of world */
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -746,7 +761,7 @@ function drawSea(){
     for (let gy = Math.max(-DEEP,Math.floor(y0/G)*G); gy <= Math.min(WS+DEEP,y1); gy += G){
       const hsh = Math.sin(gx*12.9898+gy*78.233)*43758.5453, r = hsh - Math.floor(hsh);
       const wx = gx + r*90, wy = gy + ((r*7)%1)*90;
-      if (Math.hypot(wx-IX, wy-IY) < IR+30) continue;
+      if (Math.hypot(wx-IX, wy-IY) < IR+30 || Math.hypot(wx-ISLE2.x, wy-ISLE2.y) < ISLE2.r+30) continue;
       const sx = px(wx,wy), sy = py(wx,wy); if (sx<-40||sx>W+40||sy<-40||sy>H+40) continue;
       if (pastBuoys(wx, wy)){ // the deep's swell: bigger, slower, and every other one
         if (r > .5) continue;
@@ -770,8 +785,16 @@ function drawSea(){
   isoEllipse(BEACH.x,BEACH.y,BEACH.r+7+Math.sin(T*1.3+2)*3); ctx.strokeStyle = C.foam; ctx.globalAlpha = .7; ctx.lineWidth = 4*Z; ctx.stroke(); ctx.globalAlpha = 1;
   isoEllipse(BEACH.x,BEACH.y,BEACH.r); ctx.fillStyle = C.sand; ctx.fill();
   isoEllipse(IX-25,IY-12,150); ctx.fillStyle = C.grass; ctx.fill();
+  if (onScreen(ISLE2.x, ISLE2.y, (ISLE2.r+40)*Z)){
+    isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+9+Math.sin(T*1.3+4)*3); ctx.strokeStyle = C.foam; ctx.globalAlpha = .7; ctx.lineWidth = 4*Z; ctx.stroke(); ctx.globalAlpha = 1;
+    isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r); ctx.fillStyle = C.sand; ctx.fill();
+    isoEllipse(ISLE2.x-30,ISLE2.y+20,165); ctx.fillStyle = '#6FB062'; ctx.fill(); }
 
   /* dock zone */
+  if (isle2Seen || pastBuoys(boat.x, boat.y)){ isoEllipse(DOCK2.x,DOCK2.y,DOCK2.r);
+    ctx.setLineDash([10*Z,9*Z]); ctx.lineDashOffset = holdTotal ? -T*26 : 0;
+    ctx.strokeStyle = holdTotal ? C.coin : C.foam; ctx.globalAlpha = holdTotal ? .95 : .45; ctx.lineWidth = 3*Z; ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1; }
   isoEllipse(DOCK.x,DOCK.y,DOCK.r);
   ctx.setLineDash([10*Z,9*Z]); ctx.lineDashOffset = holdTotal ? -T*26 : 0;
   ctx.strokeStyle = holdTotal ? C.coin : C.foam; ctx.globalAlpha = holdTotal ? .95 : .45; ctx.lineWidth = 3*Z; ctx.stroke();
@@ -806,6 +829,8 @@ function drawGlow(){
         if (x<-10||x>W+10||y<-10||y>H+10) continue; ctx.beginPath(); ctx.arc(x,y,2.4*Z,0,Math.PI*2); ctx.fill(); } }
     ctx.globalCompositeOperation = 'source-over';
   }
+  if (dark > .05 && onScreen(TOWER.x, TOWER.y, 300)){ ctx.globalCompositeOperation = 'screen';
+    glow(TOWER.x, TOWER.y, TOWER.h-30, 70, rgba('#B98AFF', .45*dark*(.8+.2*Math.sin(T*2)))); ctx.globalCompositeOperation = 'source-over'; }
   scene.draw(drawView, 'glow');
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = Math.random() < .5 ? '#FFFFFF' : '#FFE58A'; star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
 }
@@ -1016,6 +1041,32 @@ function drawSmokehouse(){
     ctx.fillStyle = `rgba(230,230,230,${(1-t)*.35})`; ctx.beginPath();
     ctx.arc(px(x+8.5, y-3.5), py(x+8.5, y-3.5, 30 + t*36), (4 + t*7)*Z, 0, Math.PI*2); ctx.fill(); }
 }
+// Island 2's trading post: plank walls, a green roof, a door on the near side and a fish over it.
+function drawPost(){
+  const {x0, y0, x1, y1} = POST;
+  box(x0+4, y0+4, x1-x0-8, y1-y0-8, 0, 30, '#E9D3A6', '#E9D3A6');
+  ctx.fillStyle = '#6B4A2C'; ctx.beginPath(); // the door, on the south face
+  ctx.moveTo(px(x0+16,y1-4),py(x0+16,y1-4,0)); ctx.lineTo(px(x0+28,y1-4),py(x0+28,y1-4,0));
+  ctx.lineTo(px(x0+28,y1-4),py(x0+28,y1-4,20)); ctx.lineTo(px(x0+16,y1-4),py(x0+16,y1-4,20)); ctx.closePath(); ctx.fill();
+  box(x0, y0, x1-x0, y1-y0, 30, 38, '#2F8A78', shade('#2F8A78', 1.15));
+  ctx.fillStyle = SPECIES[13].c; fishShape(px(x0+38,y1), py(x0+38,y1,26), 8*Z, SPECIES[13], Math.PI, 0);
+}
+// Island 2's tower: eight sides of grey stone, a door at its foot, slit windows, battlements and an empty pole.
+// Nobody has climbed it yet. At night something at the top shows a purple light.
+function drawTower2(){
+  const {x, y, r, h} = TOWER, pts = [];
+  for (let i=0;i<8;i++){ const a = i*Math.PI/4 + Math.PI/8; pts.push([x+Math.cos(a)*r, y+Math.sin(a)*r]); }
+  extrude(pts, 0, h, '#8F9893', '#B9C1BC');
+  const c = r*.924*Math.SQRT1_2, fx = x+c, fy = y+c, tx = -Math.SQRT1_2, ty = Math.SQRT1_2; // the face toward the viewer
+  const quad = (w, z0, z1, col) => { ctx.fillStyle = col; ctx.beginPath();
+    ctx.moveTo(px(fx-tx*w,fy-ty*w),py(fx-tx*w,fy-ty*w,z0)); ctx.lineTo(px(fx+tx*w,fy+ty*w),py(fx+tx*w,fy+ty*w,z0));
+    ctx.lineTo(px(fx+tx*w,fy+ty*w),py(fx+tx*w,fy+ty*w,z1)); ctx.lineTo(px(fx-tx*w,fy-ty*w),py(fx-tx*w,fy-ty*w,z1)); ctx.closePath(); ctx.fill(); };
+  quad(7, 0, 24, '#3A2E28');
+  for (const z of [62, 104]) quad(2, z, z+11, dark > .3 ? '#B98AFF' : '#2B2F31');
+  const top = pts.map(p => p).sort((a,b) => (a[0]+a[1])-(b[0]+b[1]));
+  for (const p of top) box(p[0]-4, p[1]-4, 8, 8, h, h+9, '#8F9893', '#C3CAC5');
+  ctx.strokeStyle = C.wood; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,h)); ctx.lineTo(px(x,y),py(x,y,h+40)); ctx.stroke();
+}
 function drawWorldObjects(){
   const pierD = boat.x+boat.y + (boat.y < IY ? 1 : -1), dog = pets.dog;
   const list = [
@@ -1034,6 +1085,9 @@ function drawWorldObjects(){
     {d: BEACH.x+BEACH.y, f: drawBeachThings}
   ];
   for (let i=0;i<BRIDGE_PARTS;i++) list.push({d: bridgePartDepth(i), f: () => drawBridgePart(i)});
+  if (onScreen(ISLE2.x, ISLE2.y, (ISLE2.r+260)*Z)){
+    list.push({d: POST.x1+POST.y1, f: drawPost}, {d: TOWER.x+TOWER.y, f: drawTower2});
+    PALMS2.forEach((p, i) => list.push({d: p[0]+p[1], f: () => drawPalm(p[0], p[1], [8,-9,6,-7,10][i])})); }
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   list.push(...scene.solids(drawView));
@@ -1050,7 +1104,7 @@ function drawBuoys(){
 }
 function drawFlies(){
   for (const f of flies){ if (f.t < 0) continue;
-    const tgt = f.to === 'boat' ? [boat.x-Math.cos(boat.h)*16*bk(), boat.y-Math.sin(boat.h)*16*bk(), 12*bk()] : f.to === 'crate' ? [CRATE.x,CRATE.y,26] : f.to === 'stall' ? [STALL.x,STALL.y,18] : f.to === 'smoke' ? [SMOKEHOUSE.x,SMOKEHOUSE.y,20] : [pirate.x,pirate.y,16];
+    const tgt = f.to === 'boat' ? [boat.x-Math.cos(boat.h)*16*bk(), boat.y-Math.sin(boat.h)*16*bk(), 12*bk()] : f.to === 'crate' ? [CRATE.x,CRATE.y,26] : f.to === 'post' ? [POST_MID.x,POST_MID.y,26] : f.to === 'stall' ? [STALL.x,STALL.y,18] : f.to === 'smoke' ? [SMOKEHOUSE.x,SMOKEHOUSE.y,20] : [pirate.x,pirate.y,16];
     const t = f.t, e = t*t*(3-2*t), x = f.x0+(tgt[0]-f.x0)*e, y = f.y0+(tgt[1]-f.y0)*e, z = f.z0+(tgt[2]-f.z0)*e + Math.sin(Math.PI*t)*38;
     ctx.fillStyle = f.c; ctx.beginPath(); ctx.ellipse(px(x,y), py(x,y,z), f.s*Z, f.s*.45*Z, t*7, 0, Math.PI*2); ctx.fill(); }
 }
@@ -1080,6 +1134,7 @@ function drawNight(){
   light(IX+50, IY-90, 20, 280, .95);
   if (build >= 2) light(TX, TY, 60, 230, .95);
   light(CRATE.x, CRATE.y, 10, 200, .95);
+  light(POST_MID.x, POST_MID.y, 20, 230, .95);
   light(ABUTMENTS[0][0], ABUTMENTS[0][1], 40, 190, .9);
   ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(nightCv,0,0,W,H);
   ctx.globalCompositeOperation = 'source-over';
@@ -1130,6 +1185,7 @@ function draw(){
 
   const full = holdTotal >= HOLD[lv.hold];
   if (!docked) indicator(DOCK.x, DOCK.y, full ? C.coin : C.trim, 'dock', full);
+  if (walker.aboard && pastBuoys(boat.x, boat.y) && !(docked && dockHere === ISLE2_DOCK)) indicator(DOCK2.x, DOCK2.y, '#9CF0C0', 'dock', !isle2Seen); // the way to island 2
   if (walker.shown) indicator(boat.x, boat.y, C.trim, 'dock', false); // the way back to the boat
   else if (!full && started){
     let best = null, bd = 1e9, anyVis = false, want = null, wd = 1e9, wantVis = false;
