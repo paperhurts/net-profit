@@ -5,6 +5,7 @@
  * holds one. A versioned format with migration is Phase 2.
  */
 import { type Flag, parseFlag } from '../data/flag';
+import { SPEAR_MAX } from '../data/spear';
 
 export const SAVE_KEY = 'netprofit.v1';
 
@@ -59,6 +60,8 @@ export type SaveData = {
   flag: Flag | null;
   /** The gulper has hunted the boat. */
   gulperSeen: boolean;
+  /** The spear's level from the shipwright: 0 for none. */
+  spear: number;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -115,6 +118,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle2Seen: false,
     flag: null,
     gulperSeen: false,
+    spear: 0,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -188,6 +192,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle2Seen = !!o.isle2Seen;
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
+  d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -248,6 +253,7 @@ export function serializeSave(d: SaveData): string {
     isle2Seen: d.isle2Seen,
     flag: d.flag,
     gulperSeen: d.gulperSeen,
+    spear: d.spear,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,

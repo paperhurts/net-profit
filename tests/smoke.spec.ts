@@ -27,6 +27,7 @@ type Np = {
   petted: boolean;
   swallowing: boolean;
   hp: number;
+  shallows: { fish: { x: number; y: number }[] };
 };
 
 declare global {
@@ -381,5 +382,39 @@ test('health: the gulper eats a boat that sits still, and spits it out at home w
   expect(after.hold, 'the catch came back with the boat').toBe(0);
   expect(Math.hypot(after.x - 2400, after.y - 2400), 'not spat out at home').toBeLessThan(700);
   expect(after.hp).toBe(100);
+  expect(errors).toEqual([]);
+});
+
+test('spear: ashore on island 2, a parrotfish in range brings the throw button, and a throw pays', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Stand on the sand straight in from a fish.
+  await page.evaluate(() => {
+    const f = window.__np.shallows.fish[0];
+    if (!f) return;
+    const a = Math.atan2(f.y - 5400, f.x + 600);
+    window.__np.walker.x = -600 + Math.cos(a) * 214;
+    window.__np.walker.y = 5400 + Math.sin(a) * 214;
+  });
+  await expect(page.locator('#throw')).toBeVisible();
+  const before = await page.evaluate(() => window.__np.coins);
+  await page.click('#throw');
+  await page.waitForFunction((c) => window.__np.coins > c, before, { timeout: 2000 });
   expect(errors).toEqual([]);
 });

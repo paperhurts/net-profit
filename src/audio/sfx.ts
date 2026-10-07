@@ -293,6 +293,15 @@ export const cues = {
     tone(180, 0.12, 'square', 0.05, 2.2);
     tone(900, 0.25, 'triangle', 0.04, 0.5, 0.08);
   },
+  /** A spear thrown: a quick whoosh. */
+  spearThrow(): void {
+    tone(500, 0.12, 'triangle', 0.04, 0.5);
+  },
+  /** A spear finds its fish: a splash and a bright note. */
+  spearHit(): void {
+    tone(300, 0.1, 'square', 0.04, 0.6);
+    tone(988, 0.15, 'triangle', 0.06, 1, 0.06);
+  },
   /** A hop between the boat and the pier: a knock on wood. */
   hop(): void {
     tone(240, 0.07, 'triangle', 0.07, 0.7);

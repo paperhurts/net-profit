@@ -369,6 +369,10 @@ export class Walker implements Entity {
   /** The gait: its phase, and how much of a stride the legs are taking, 0..1. */
   ph = 0;
   gait = 0;
+  /** Seconds left of a throw, with the arm up and forward. */
+  throwT = 0;
+  /** Whether it carries a spear, which shows over its shoulder while it walks. */
+  armed = false;
   readonly prints: Print[] = [];
   /** The shirt, which the game keeps in the boat's paint. */
   shirt = '#E4572E';
@@ -437,6 +441,12 @@ export class Walker implements Entity {
     return true;
   }
 
+  /** Face a point and throw at it. */
+  throwAt(x: number, y: number): void {
+    this.h = Math.atan2(y - this.y, x - this.x);
+    this.throwT = 0.3;
+  }
+
   /** The stick or the keys, as a screen-space vector of magnitude 0..1. */
   intent(ix: number, iy: number): void {
     this.ix = ix;
@@ -470,6 +480,7 @@ export class Walker implements Entity {
     const k = w.hullScale;
     this.now = w.T;
     this.t += dt;
+    this.throwT = Math.max(0, this.throwT - dt);
     const first = this.prints[0];
     if (first && this.now - first.t > PRINT_LIFE) this.prints.shift();
     if (this.state === 'mooring') {
@@ -648,13 +659,33 @@ export class Walker implements Entity {
     ctx.strokeStyle = this.shirt;
     ctx.lineWidth = 2.2 * Z;
     for (const side of [-1, 1]) {
-      const [hx, hy] = this.hand(side);
+      let [hx, hy] = this.hand(side);
+      let hz = z + 9;
+      // Throwing, the near arm goes up and forward.
+      if (side === 1 && this.throwT > 0) {
+        hx = x + c * 7 - s * 3;
+        hy = y + s * 7 + c * 3;
+        hz = z + 21;
+      }
       const sx = x - s * 4.2 * side;
       const sy = y + c * 4.2 * side;
       ctx.beginPath();
       ctx.moveTo(px(sx, sy), py(sx, sy, z + 16));
-      ctx.lineTo(px(hx, hy), py(hx, hy, z + 9));
+      ctx.lineTo(px(hx, hy), py(hx, hy, hz));
       ctx.stroke();
+    }
+    // A spear over the shoulder, between throws.
+    if (this.armed && this.throwT <= 0) {
+      const sx = x - s * 4.2 - c * 6;
+      const sy = y + c * 4.2 - s * 6;
+      ctx.strokeStyle = '#8A5A2B';
+      ctx.lineWidth = 1.6 * Z;
+      ctx.beginPath();
+      ctx.moveTo(px(sx, sy), py(sx, sy, z + 4));
+      ctx.lineTo(px(sx + c * 14, sy + s * 14), py(sx + c * 14, sy + s * 14, z + 30));
+      ctx.stroke();
+      ctx.strokeStyle = this.shirt;
+      ctx.lineWidth = 2.2 * Z;
     }
     if (v.dark > 0.2) {
       const [hx, hy] = this.hand(-1);
