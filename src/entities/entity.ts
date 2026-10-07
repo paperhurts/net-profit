@@ -63,6 +63,8 @@ export type World = {
   stealShare: number;
   /** How dark it is, 0 by day to 1 at the depth of night. */
   dark: number;
+  /** The figure walking the island, or null while aboard. The dog follows it. */
+  ashore: { x: number; y: number } | null;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */

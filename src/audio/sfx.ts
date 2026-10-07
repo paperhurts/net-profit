@@ -282,6 +282,11 @@ export const cues = {
     tone(240, 0.07, 'triangle', 0.07, 0.7);
     tone(480, 0.04, 'sine', 0.03, 0.8);
   },
+  /** The dog patted: a happy rising yip. */
+  yip(): void {
+    tone(700, 0.06, 'triangle', 0.05, 1.25);
+    tone(900, 0.09, 'triangle', 0.05, 1.2, 0.08);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

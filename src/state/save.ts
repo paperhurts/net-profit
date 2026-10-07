@@ -50,6 +50,8 @@ export type SaveData = {
   cthuluSeen: boolean;
   /** The anglerfish's jaws seen opening, out in the deep at night. */
   anglerSeen: boolean;
+  /** The dog has been patted at least once: the game stops saying how. */
+  petted: boolean;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -102,6 +104,7 @@ export function defaultSave(b: Bounds): SaveData {
     mantaSeen: false,
     cthuluSeen: false,
     anglerSeen: false,
+    petted: false,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -171,6 +174,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.mantaSeen = !!o.mantaSeen;
   d.cthuluSeen = !!o.cthuluSeen;
   d.anglerSeen = !!o.anglerSeen;
+  d.petted = !!o.petted;
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -227,6 +231,7 @@ export function serializeSave(d: SaveData): string {
     mantaSeen: d.mantaSeen,
     cthuluSeen: d.cthuluSeen,
     anglerSeen: d.anglerSeen,
+    petted: d.petted,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,
