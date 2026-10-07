@@ -9,11 +9,14 @@
  * home across the buoys ends the hunt. A bite costs the boat a third of its
  * health and the gulper lunges on past; three bites and the game has it eaten
  * (the game does the eating, the spitting out in the home shallows and the
- * lost hold). After a hunt it sinks and rests a while.
+ * lost hold). After a hunt it sinks and rests a while. A harpoon in its head
+ * makes it flinch and slow; four in one hunt and it is driven off, down into
+ * the dark for a good while.
  */
 
 import { rgba } from '../core/color';
 import { angDiff, clamp } from '../core/math';
+import { AWAY, RESOLVE } from '../data/harpoon';
 import { DEEP, pastBuoys, WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -63,6 +66,8 @@ export class Gulper implements Entity {
   /** How far up it has come, 0 deep to 1 at the surface; how wide its mouth is. */
   up = 0;
   gape = 0;
+  /** Harpoon hits left this hunt before it is driven off. */
+  resolve = RESOLVE.gulper;
   /** The body, head first. */
   readonly body: { x: number; y: number }[] = [];
   /** It has started hunting the boat. */
@@ -99,6 +104,7 @@ export class Gulper implements Entity {
         this.state = 'hunt';
         this.t = 0;
         this.lunge = 0;
+        this.resolve = RESOLVE.gulper;
         this.onHunt?.();
       }
     } else if (this.state === 'hunt') {
@@ -158,6 +164,25 @@ export class Gulper implements Entity {
         q.y = p.y + (dy / dl) * LINK;
       }
     }
+  }
+
+  /** Where a harpoon would strike it: its head, while it is up and hunting. */
+  mark(): { x: number; y: number } | null {
+    return this.state === 'hunt' && this.up > 0.5
+      ? (this.body[0] as { x: number; y: number })
+      : null;
+  }
+
+  /** A harpoon struck its head: it flinches and slows, and at no resolve left it is driven off. */
+  harpoon(power: number): boolean {
+    if (this.state !== 'hunt') return false;
+    this.resolve = Math.max(0, this.resolve - power);
+    this.v *= 0.35;
+    if (this.resolve > 0) return false;
+    this.state = 'rest';
+    this.cool = AWAY;
+    this.t = 0;
+    return true;
   }
 
   /** Turn toward a point at no more than rate radians a second (0 for straight on), and swim at speed. */

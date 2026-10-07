@@ -6,9 +6,12 @@
  * wherever the boat is about to be. The water boils there for a second first,
  * so the counter is to steer off the bubbles. A tentacle that catches the
  * boat takes fish, never the boat, never coins. Get out of its reach and it
- * goes back to sleep. The tests dodge it with a person's reaction.
+ * goes back to sleep. The tests dodge it with a person's reaction. A harpoon in
+ * a tentacle sends it straight back down; five in one waking and it is driven
+ * off, sunk into its city to sulk for a good while.
  */
 import { rgba } from '../core/color';
+import { AWAY, RESOLVE } from '../data/harpoon';
 import { WS } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -96,6 +99,8 @@ export class Cthuluviathan implements Entity {
   snoreT = 0;
   stirT = 0;
   sighted = false;
+  /** Harpoon hits left this waking before it is driven off. */
+  resolve = RESOLVE.cthulu;
   /** How far the boat was from its city last frame, for the edge marker. */
   boatD = Infinity;
   /** The boat came within SIGHT_RADIUS for the first time this session. */
@@ -145,6 +150,7 @@ export class Cthuluviathan implements Entity {
         this.awakeT = 0;
         this.calmT = 0;
         this.strikeT = 0.6;
+        this.resolve = RESOLVE.cthulu;
         this.onWake?.();
       } else if (d < WAKE_RADIUS && b.v > STIR_SPEED && this.stirT <= 0) {
         this.stirT = STIR_EVERY;
@@ -176,6 +182,41 @@ export class Cthuluviathan implements Entity {
         this.onGrab?.();
       }
     }
+  }
+
+  /** Where a harpoon would strike: the standing tentacle nearest the boat, while it is awake. */
+  mark(b: { x: number; y: number }): Tentacle | null {
+    if (this.state !== 'awake') return null;
+    let best: Tentacle | null = null;
+    let bd = Infinity;
+    for (const t of this.tentacles) {
+      if (t.hit || tentaclePhase(t.t) !== 'up') continue;
+      const d = Math.hypot(t.x - b.x, t.y - b.y);
+      if (d < bd) {
+        bd = d;
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  /** A harpoon struck a tentacle: it sinks at once, and at no resolve left the whole beast is driven off. */
+  harpoon(power: number, at: Tentacle | null): boolean {
+    if (this.state !== 'awake') return false;
+    if (at && this.tentacles.includes(at)) {
+      at.hit = true;
+      at.t = Math.max(at.t, WARN + UP);
+    }
+    this.resolve = Math.max(0, this.resolve - power);
+    if (this.resolve > 0) return false;
+    this.state = 'asleep';
+    this.drowsy = AWAY;
+    for (const t of this.tentacles) {
+      t.hit = true;
+      if (tentaclePhase(t.t) === 'warn') t.t = WARN + UP + SINK;
+      else t.t = Math.max(t.t, WARN + UP);
+    }
+    return true;
   }
 
   draw(v: DrawView, layer: Layer): void {

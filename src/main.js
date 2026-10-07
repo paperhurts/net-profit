@@ -37,6 +37,7 @@ import { Sorcerer } from './entities/sorcerer';
 import { DOOR, entry, ROOF, ROOMS, STEP, stairs } from './world/tower';
 import { Spears } from './entities/spears';
 import { nextSpear, spearAt } from './data/spear';
+import { drivePrize, HARPOON_LEVEL, HARPOON_POWER, HARPOON_RANGE, HARPOON_RELOAD, noDriven, RESOLVE, TROPHY } from './data/harpoon';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
 import { dockAt, HOME_DOCK, ISLE2_DOCK, WALK_ZOOM, Walker, walkerDepth, walkStep } from './entities/walker';
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
@@ -70,6 +71,7 @@ const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK, day = 1;
 const first = new Array(SPECIES.length).fill(0); // the day each species was first landed
 const gear = noGear(); // what the shipwright has fitted
+const driven = noDriven(); // how many times the harpoon has driven off each leviathan
 const snook = {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}; // the fishing log
 let fight = null, pullSmooth = 0, slipT = 0, slipShow = 9, castShown = false; // the line: a Fight while one is out
 function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
@@ -78,9 +80,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; gulperSeen = s.gulperSeen; spear = s.spear; masks = s.masks; towerTaken = s.towerTaken; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; gulperSeen = s.gulperSeen; spear = s.spear; masks = s.masks; towerTaken = s.towerTaken; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gulperSeen, spear, masks, towerTaken, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gulperSeen, spear, masks, towerTaken, driven, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -197,7 +199,7 @@ leviathan.onPass = () => { shake = Math.max(shake,.4);
 // At the buoys it rises across a flagship's way. Turning away is the counter; running into it costs fish, never the boat.
 let levRisen = false;
 leviathan.onRise = () => { shake = Math.max(shake,.35); sfx.leviathanRise();
-  toast(levRisen ? 'The leviathan rises. Turn away.' : 'The leviathan is rising across your way. Turn away from the spines.', 3000, 2);
+  toast(hasHarpoon() ? `The leviathan rises. Turn away, or harpoon it: ${hitsWord('guard')} drive it off.` : levRisen ? 'The leviathan rises. Turn away.' : 'The leviathan is rising across your way. Turn away from the spines.', 3000, 2);
   levRisen = true; if (!levSeen){ levSeen = true; save(); } };
 leviathan.onHit = () => { let n = Math.ceil(holdTotal/3); const lost = n;
   for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
@@ -228,7 +230,7 @@ const cthulu = new Cthuluviathan();
 cthulu.onSight = () => { if (!cthuluSeen){ cthuluSeen = true; save(); toast('A sunken city, and something asleep in it: the Cthuluviathan. Go slowly.', 4200, 1); } };
 cthulu.onSnore = () => sfx.snore();
 cthulu.onStir = () => toast('It stirs. Slow down.', 1800, 1);
-cthulu.onWake = () => { shake = Math.max(shake,.5); sfx.cthuluWake(); toast('The Cthuluviathan is awake. Steer off the bubbles: that is where a tentacle comes up.', 3400, 2); };
+cthulu.onWake = () => { shake = Math.max(shake,.5); sfx.cthuluWake(); toast(hasHarpoon() ? `The Cthuluviathan is awake. Steer off the bubbles, and harpoon the tentacles: ${hitsWord('cthulu')} drive it off.` : 'The Cthuluviathan is awake. Steer off the bubbles: that is where a tentacle comes up.', 3400, 2); };
 cthulu.onTentacle = () => sfx.tentacle();
 cthulu.onGrab = () => { let n = Math.ceil(holdTotal/5); const lost = n;
   for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
@@ -240,17 +242,47 @@ cthulu.onSleep = () => toast('The Cthuluviathan has gone back to sleep.', 2400, 
 // The anglerfish fishes for boats in the deep at night: its light looks like glowing fish, and there are none out there.
 const angler = new Anglerfish();
 angler.onOpen = () => { sfx.anglerOpen(); shake = Math.max(shake,.25);
-  toast(anglerSeen ? 'Turn away from the light.' : 'That light is no fish. Turn away.', 2400, 2);
+  toast(hasHarpoon() ? 'Its jaws are opening! Turn away, or harpoon the light.' : anglerSeen ? 'Turn away from the light.' : 'That light is no fish. Turn away.', 2400, 2);
   if (!anglerSeen){ anglerSeen = true; save(); } };
 angler.onBite = () => { sfx.anglerSnap(); swallow('angler'); };
 angler.onMiss = () => { sfx.anglerSnap(); toast('Its jaws shut on nothing. It sank back into the dark.', 2600, 1); };
 // The gulper hunts the east side of the deep, and eats boats. Run, and turn hard when it closes.
 const gulper = new Gulper();
 gulper.onHunt = () => { sfx.gulperHunt(); shake = Math.max(shake,.3);
-  toast(gulperSeen ? 'The gulper is hunting you. Run!' : 'Something with an enormous mouth is coming up behind you. Run, and turn hard when it closes.', 3200, 2);
+  toast(hasHarpoon() ? `The gulper is hunting you. Run, or let it close and harpoon it: ${hitsWord('gulper')} drive it off.` : gulperSeen ? 'The gulper is hunting you. Run!' : 'Something with an enormous mouth is coming up behind you. Run, and turn hard when it closes.', 3200, 2);
   if (!gulperSeen){ gulperSeen = true; save(); refreshShop(); } };
 gulper.onBite = () => { sfx.anglerSnap(); damage(HURT.gulper, 'gulper'); };
 gulper.onGiveUp = () => { if (swallowT <= 0) toast('The gulper gave up and sank.', 2200, 1); };
+// The harpoon, the spear's top level, on the bow: it fires at the nearest leviathan that is up and in reach,
+// on a line, and always lands. Enough hits drive one off for a trophy; it is never killed.
+let harpoonAt = 0;
+function hasHarpoon(){ return spear >= HARPOON_LEVEL; }
+function hitsWord(k){ return (['no', 'one', 'two', 'three', 'four', 'five', 'six'][RESOLVE[k]] || RESOLVE[k]) + ' hits'; }
+const BOW = { get x(){ return boat.x + Math.cos(boat.h)*30*bk(); }, get y(){ return boat.y + Math.sin(boat.h)*30*bk(); } };
+// Each leviathan, what it is, and where a harpoon would strike it now.
+function beasts(){ return [['guard', leviathan, leviathan.mark(boat)], ['cthulu', cthulu, cthulu.mark(boat)], ['angler', angler, angler.mark()], ['gulper', gulper, gulper.mark()]]; }
+const BEAST_Z = {guard: 30, cthulu: 36, angler: 6, gulper: 6};
+function harpoonTarget(){ if (!hasHarpoon() || walker.state !== 'aboard' || !started || docked || swallowT > 0) return null;
+  let best = null, bd = HARPOON_RANGE;
+  for (const [k, e, m] of beasts()){ if (!m) continue; const d = Math.hypot(m.x - boat.x, m.y - boat.y); if (d < bd){ bd = d; best = {k, e, m}; } }
+  return best; }
+function fireHarpoon(){ if (T < harpoonAt) return; const t = harpoonTarget(); if (!t) return;
+  harpoonAt = T + HARPOON_RELOAD; sfx.spearThrow(); const z = BEAST_Z[t.k];
+  spears.launch(BOW.x, BOW.y, 14, t.m, z, () => { const before = t.e.resolve;
+    if (t.e.harpoon(HARPOON_POWER, t.m)) driveOff(t.k);
+    else if (t.e.resolve < before){ sfx.spearHit(); shake = Math.max(shake, .2); addText(t.m.x, t.m.y, z + 24, 'Hit!', '#FFF3C4', 18, 1); } }, BOW); }
+function driveOff(k){ const prize = drivePrize(driven[k]); driven[k]++; coins += prize; earned += prize;
+  shake = 1; sfx.tierUp(); for (let i=0;i<18;i++) sparks.push({x:boat.x, y:boat.y, vx:(Math.random()-.5)*180, vy:(Math.random()-.5)*180, z:20, vz:50+Math.random()*70, age:0, life:1+Math.random()*.7});
+  addText(boat.x, boat.y, 60, '+' + prize, C.coin, 24, 2.4); toasts.clear();
+  toast(`${TROPHY[k].told} +${prize} coins.`, 4800, 2); hud(); refreshShop(); save(); }
+// Over each leviathan in reach: its resolve as pips, and a ring on the one the harpoon would fire at.
+function drawHarpoonMarks(){ if (!hasHarpoon() || walker.state !== 'aboard') return; const tg = harpoonTarget();
+  for (const [k, e, m] of beasts()){ if (!m || Math.hypot(m.x - boat.x, m.y - boat.y) > HARPOON_RANGE*1.5) continue;
+    const n = RESOLVE[k], sx = px(m.x, m.y), sy = py(m.x, m.y, BEAST_Z[k] + 40);
+    for (let i=0;i<n;i++){ ctx.fillStyle = i < e.resolve ? '#FF5A6A' : 'rgba(255,255,255,.4)';
+      ctx.beginPath(); ctx.arc(sx + (i - (n-1)/2)*11*Z, sy, 4*Z, 0, Math.PI*2); ctx.fill(); }
+    if (tg && tg.k === k){ ctx.strokeStyle = T < harpoonAt ? 'rgba(255,243,196,.45)' : 'rgba(255,243,196,.95)'; ctx.lineWidth = 2.4*Z;
+      isoEllipse(m.x, m.y, 30 + Math.sin(T*6)*3, 2); ctx.stroke(); } } }
 // Health only goes down past the buoys. At none, whatever did it swallows the boat, and spits it out at home.
 function damage(n, by){ if (swallowT > 0) return; hp = hurt(hp, n); shake = Math.max(shake,.6);
   addText(boat.x, boat.y, 60, '-' + n, '#FF6F6F', 20, 1.4); hudHull();
@@ -403,6 +435,8 @@ function refreshShop(){
     + `<span class="chip${towerTaken?' gold':' unk'}">${towerTaken ? 'Tower taken' : 'Who is in the tower?'}</span>`
     + `<span class="chip${masks?' gold':' unk'}">${masks ? 'Skull masks ' + masks : 'Masks on island 2?'}</span>`
     + `<span class="chip${gulperSeen?' gold':' unk'}">${gulperSeen?'Gulper escaped':'An open mouth?'}</span>`
+    + Object.keys(TROPHY).filter(k => driven[k]).map(k => `<span class="chip gold">${TROPHY[k].name}${driven[k] > 1 ? ' \u00d7' + driven[k] : ''}</span>`).join('')
+    + (hasHarpoon() && !Object.keys(TROPHY).some(k => driven[k]) ? '<span class="chip unk">Harpoon a leviathan?</span>' : '')
     + `<span class="chip${isle2Seen?' gold':' unk'}">${isle2Seen?'Island 2 found':'Land past the deep?'}</span>`
     + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
@@ -415,7 +449,7 @@ function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier()
     return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join('')
     + (() => { const n = nextSpear(spear), have = spearAt(spear);
       return n ? `<button class="gear" data-s="1" aria-disabled="${coins < n.cost ? 'true' : 'false'}"><b>${n.name}</b><span class="buy">${n.cost}</span><small>${n.blurb}</small></button>`
-        : `<button class="gear" data-s="1" aria-disabled="true"><b>${have.name}</b><span class="buy">Owned</span><small>The best spear there is.</small></button>`; })(); }
+        : `<button class="gear" data-s="1" aria-disabled="true"><b>${have.name}</b><span class="buy">Owned</span><small>On the bow. Past the buoys, fire it at a leviathan.</small></button>`; })(); }
 function refreshBuild(){
   const b = $('build'), mult = Math.round(build*15);
   if (build >= STAGES.length){ b.setAttribute('aria-disabled','true');
@@ -489,13 +523,16 @@ $('gear').addEventListener('click', e => { const b = e.target.closest('.gear'); 
   coins -= GEAR[id].cost; gear[id] = true; sfx.upgrade(); toast(GEAR[id].fitted, 3200, 1); save(); hud(); refreshShop(); });
 const elGuide = $('guide');
 const LEV_SVG = '<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><ellipse cx="11" cy="7" rx="10" ry="4" fill="currentColor" opacity=".7"/></svg>';
+// A leviathan's last fact in the guide: how often the harpoon has driven it off, or what it takes.
+function beastFact(k){ const n = driven[k];
+  return n ? `Driven off ${n === 1 ? 'once' : n + ' times'}: ${TROPHY[k].name.toLowerCase()}` : hasHarpoon() ? `${RESOLVE[k]} harpoon hits drive it off` : 'Not for catching'; }
 function renderGuide(){
   const pages = SPECIES.map((S, sp) => { const g = guidePage(sp, log[sp], first[sp]);
     return `<article class="page${g.known ? '' : ' unk'}${g.known && S.rare ? ' gold' : ''}">${FISH_SVG(g.known ? S.c : 'currentColor')}<b>${g.name}</b><small>${g.blurb}</small>`
       + `<div class="facts"><span>${g.where}</span><span>${g.when}</span><span>${g.worth}</span><span>${g.caught}</span></div></article>`; });
   pages.push(`<article class="page${levSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${levSeen ? 'Leviathan' : '?'}</b><small>${levSeen
     ? 'Something enormous circles the island far out: a chain of shadows, the odd back breaking the surface, lit at night. It guards the buoys: make for them in a flagship and it rises across your way. Turn away from the spines.'
-    : 'Not seen yet. Something enormous circles the island, far out. Sail over it, and go at night.'}</small><div class="facts"><span>About 2,180 out</span><span>Day and night</span><span>Not for catching</span></div></article>`);
+    : 'Not seen yet. Something enormous circles the island, far out. Sail over it, and go at night.'}</small><div class="facts"><span>About 2,180 out</span><span>Day and night</span><span>${beastFact('guard')}</span></div></article>`);
   pages.push(`<article class="page${whaleSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${whaleSeen ? 'Whale and calf' : '?'}</b><small>${whaleSeen
     ? 'A mother and her calf, round and round the far water. They come up to breathe, and they sing: she low, the calf higher. At night the song carries.'
     : 'Not seen yet. Listen out in the far water, best at night.'}</small><div class="facts"><span>1,750 to 2,250 out</span><span>Day and night</span><span>Not for catching</span></div></article>`);
@@ -504,10 +541,10 @@ function renderGuide(){
     : 'Not seen yet. Something with wings glides the middle rings.'}</small><div class="facts"><span>1,200 to 1,700 out</span><span>Day and night</span><span>The net slides off them</span></div></article>`);
   pages.push(`<article class="page${cthuluSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${cthuluSeen ? 'Cthuluviathan' : '?'}</b><small>${cthuluSeen
     ? 'An octopus for a head, a fistful of tentacles for a face, and two small wings. It sleeps in a sunken city in a far corner of the deep and snores. Sail by fast or close and it wakes, and a tentacle comes up wherever the water boils. Go slowly and it dreams on.'
-    : 'Not seen yet. Something sleeps in a sunken city, far out in the deep. Go quietly.'}</small><div class="facts"><span>A corner of the deep</span><span>Asleep, mostly</span><span>Not for catching</span></div></article>`);
+    : 'Not seen yet. Something sleeps in a sunken city, far out in the deep. Go quietly.'}</small><div class="facts"><span>A corner of the deep</span><span>Asleep, mostly</span><span>${beastFact('cthulu')}</span></div></article>`);
   pages.push(`<article class="page${anglerSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${anglerSeen ? 'Anglerfish' : '?'}</b><small>${anglerSeen
     ? 'A light in the deep at night, with what look like glowing fish around it. There are no glowing fish in the deep. Make for the light and its jaws open under you: turn away. Caught, it swallows the boat whole and spits it out in the home shallows, without your catch.'
-    : 'Not seen yet. Something out in the deep fishes for boats at night.'}</small><div class="facts"><span>The deep</span><span>Night only</span><span>Not for catching</span></div></article>`);
+    : 'Not seen yet. Something out in the deep fishes for boats at night.'}</small><div class="facts"><span>The deep</span><span>Night only</span><span>${beastFact('angler')}</span></div></article>`);
   pages.push(`<article class="page${towerTaken ? ' gold' : ' unk'}">${LEV_SVG}<b>${towerTaken ? 'Leviathan sorcerer' : '?'}</b><small>${towerTaken
     ? 'It lived at the top of island 2\'s tower: a serpent\'s finned tail, wings and a bird\'s head. It flies round the roof throwing purple bolts at where you stand, and swoops in to peck, which is when your spear can reach it. Hurt, it gets angry and throws three at a time. The tower is yours now, and flies your flag.'
     : 'Not met yet. Something at the top of island 2\'s tower shows a purple light at night. Two floors of monkeys stand in the way.'}</small><div class="facts"><span>Island 2's tower</span><span>Eight spear hits</span><span>${towerTaken ? 'Taken' : 'Not taken'}</span></div></article>`);
@@ -516,7 +553,7 @@ function renderGuide(){
     : 'Not met yet. Something lives in the huts on the far side of island 2. Take a spear.'}</small><div class="facts"><span>Island 2</span><span>Three hearts ashore</span><span>${masks} masks</span></div></article>`);
   pages.push(`<article class="page${gulperSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${gulperSeen ? 'Gulper' : '?'}</b><small>${gulperSeen
     ? 'A giant gulper eel, black as the deep, with a mouth like a pelican\'s and a pink light at the tip of its tail. It hunts the east side of the deep. Each bite takes a third of the boat\'s health; three and it eats the boat, which it spits out at home without the catch. It is slower than a flagship flat out: run, and turn hard when it closes.'
-    : 'Not seen yet. Something with an enormous mouth hunts the east side of the deep. Watch for a pink light.'}</small><div class="facts"><span>East side of the deep</span><span>Day and night</span><span>Not for catching</span></div></article>`);
+    : 'Not seen yet. Something with an enormous mouth hunts the east side of the deep. Watch for a pink light.'}</small><div class="facts"><span>East side of the deep</span><span>Day and night</span><span>${beastFact('gulper')}</span></div></article>`);
   pages.push(`<article class="page${snook.landed ? ' gold' : ' unk'}">${FISH_SVG(snook.landed ? '#C9D3D6' : 'currentColor')}<b>${snook.landed ? 'Snook' : '?'}</b><small>${snook.landed
     ? 'Silver, with a black line down its side and yellow fins. It holds in the shadow of the far abutment and runs for the piling the moment it feels the hook. Most of them get there.'
     : 'Not landed yet. Something big holds in the shadow of the bridge when the light goes. A net will not take it.'}</small><div class="facts"><span>By line only: tie up south of the bridge and cast, ${TOLL} coins</span><span>Dusk, night and dawn</span>`
@@ -557,7 +594,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; gulperSeen = false; spear = 0; masks = 0; towerTaken = false; leaveTower(false); monkeys.reset(); hearts = HEARTS; shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; gulperSeen = false; spear = 0; masks = 0; towerTaken = false; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); hearts = HEARTS; shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -697,14 +734,15 @@ const POST_MID = {x: (POST.x0+POST.x1)/2, y: (POST.y0+POST.y1)/2};
 function saleSpot(){ return dockHere === ISLE2_DOCK ? POST_MID : CRATE; }
 elAshore.addEventListener('click', () => { audio(); if (walker.stepAshore(dockHere)) toasts.clear(); });
 elAboard.addEventListener('click', () => { audio(); walker.goAboard(); });
-const elThrow = $('throw'); let throwShown = false;
+const elThrow = $('throw'); let throwShown = null, throwWait = false;
 const elClimb = $('climb'), elLeave = $('leave'); let climbShown = null, leaveShown = null;
 elClimb.addEventListener('click', () => { audio(); const a = climbAction(); if (a === 'door') enterTower();
   else if (a === 'stairs'){ toRoom(floor + 1); if (hearts < HEARTS){ hearts = HEARTS; hudHearts(); toast('You catch your breath on the stairs. Hearts full.', 2000); } } });
 elLeave.addEventListener('click', () => { audio(); if (floor < 0) return;
   if (towerWon){ leaveTower(false); walker.knockOut(); toast('Back aboard. The tower is yours.', 2400, 1); } else { leaveTower(); toast('Out of the tower. Come back with more spears.', 2200); } });
-elThrow.addEventListener('click', () => { audio(); throwSpear(); });
-window.addEventListener('keydown', e => { if (e.key === ' ' && walker.state === 'ashore'){ e.preventDefault(); throwSpear(); } });
+elThrow.addEventListener('click', () => { audio(); if (walker.state === 'ashore') throwSpear(); else fireHarpoon(); });
+window.addEventListener('keydown', e => { if (e.key !== ' ') return;
+  if (walker.state === 'ashore'){ e.preventDefault(); throwSpear(); } else if (harpoonTarget()){ e.preventDefault(); fireHarpoon(); } });
 // A tap, not a drag: ashore, a tap on the dog pats it, if the figure is near enough to reach.
 let tapFrom = null;
 cv.addEventListener('pointerdown', e => { tapFrom = {x: e.clientX, y: e.clientY, t: performance.now()}; });
@@ -849,7 +887,11 @@ function update(dt){
   { const fighting = [monkeys, ...floors].some(c => c.list.some(m => m.state === 'chase')) || boss.up; heartT += dt;
     if (hearts < HEARTS && (!walker.shown || (!fighting && heartT > 6))){ hearts = walker.shown ? hearts + 1 : HEARTS; heartT = 0; }
     hudHearts(); }
-  { const show = !!spearTarget(); if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; } }
+  { const show = spearTarget() ? 'spear' : harpoonTarget() ? 'harpoon' : null;
+    if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', show === 'harpoon');
+      if (show) elThrow.setAttribute('aria-label', show === 'harpoon' ? 'Fire the harpoon' : 'Throw the spear'); }
+    const wait = !!show && T < (show === 'harpoon' ? harpoonAt : reloadAt);
+    if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); } }
   { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a === 'door' ? 'Climb the tower' : floor + 1 === ROOF ? 'Up to the roof' : 'Climb the stairs'; } }
   { const l = floor >= 0 && walker.state === 'ashore' ? (towerWon ? 'jump' : 'leave') : null;
     if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : 'Leave the tower'; } }
@@ -1052,6 +1094,12 @@ function drawShip(s,o){
     extrude([Lp(13,-cw),Lp(13,cw),Lp(-6,cw),Lp(-6,-cw)], z1, z1+14*k, o.cabin, tr >= 2 ? o.cabin : o.roof);
     if (tr >= 2) extrude([Lp(10,-5.5),Lp(10,5.5),Lp(-2,5.5),Lp(-2,-5.5)], z1+14*k, z1+23*k, o.cabin, o.roof);
   }});
+  if (o.harpoon){ const g = Lp(25,0); parts.push({d: g[0]+g[1], f: () => {
+    // A harpoon gun on the bow: a post, and the harpoon on it while it is loaded.
+    ctx.strokeStyle = '#3B2A1A'; ctx.lineWidth = 3*Z; ctx.beginPath(); ctx.moveTo(px(g[0],g[1]), py(g[0],g[1],z1)); ctx.lineTo(px(g[0],g[1]), py(g[0],g[1],z1+6*k)); ctx.stroke();
+    if (o.harpoon < 2) return; const a = Lp(16,0), b = Lp(40,0);
+    ctx.strokeStyle = '#5E3D1C'; ctx.lineWidth = 2.6*Z; ctx.beginPath(); ctx.moveTo(px(a[0],a[1]), py(a[0],a[1],z1+7*k)); ctx.lineTo(px(b[0],b[1]), py(b[0],b[1],z1+8*k)); ctx.stroke();
+    ctx.fillStyle = '#D8DEE2'; ctx.beginPath(); ctx.arc(px(b[0],b[1]), py(b[0],b[1],z1+8*k), 2.8*Z, 0, Math.PI*2); ctx.fill(); }}); }
   if (tr >= 4){ const a = Lp(-20,0), b = Lp(-31,0);
     ctx.strokeStyle = o.mast; ctx.lineWidth = 2*Z;
     ctx.beginPath(); ctx.moveTo(px(a[0],a[1]),py(a[0],a[1],z1)); ctx.lineTo(px(a[0],a[1]),py(a[0],a[1],z1+24*k)); ctx.lineTo(px(b[0],b[1]),py(b[0],b[1],z1+15*k)); ctx.stroke(); }
@@ -1258,7 +1306,7 @@ function drawWorldObjects(){
       let tint = '#DCEBEE'; for (let i=SPECIES.length-1;i>0;i--) if (hold[i]){ tint = SPECIES[i].c; break; }
       const P = PAINTS[paint];
       drawShip(boat, {scale:bk(), tier:tier(), hull:P.hull, trim:P.trim, deck:C.deck, cabin:C.cabin, roof:P.roof, mast:C.wood, flag:P.flag, design:flag,
-        heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
+        heap: holdTotal/HOLD[lv.hold], heapTint: tint, harpoon: hasHarpoon() ? (T >= harpoonAt ? 2 : 1) : 0}); }},
     {d: pierD, f: drawPier},
     {d: BEACH.x+BEACH.y, f: drawBeachThings}
   ];
@@ -1380,6 +1428,7 @@ function draw(){
     if (want && !wantVis) indicator(want.cx, want.cy, C.coin, SPECIES[want.sp].c, false);
     else if (!anyVis && best) indicator(best.cx, best.cy, '#1F6B7A', SPECIES[best.sp].c, false);
   }
+  drawHarpoonMarks();
   scene.draw(drawView, 'overlay');
   drawTension();
 
@@ -1447,5 +1496,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, cthulu, angler, gulper, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, leviathan, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

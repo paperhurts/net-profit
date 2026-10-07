@@ -8,11 +8,13 @@
  * over them. Turn away and they shut on nothing. Caught, the boat is swallowed whole and the game
  * spits it out in the home shallows without its catch; never coins. Either way it sinks back into the dark and
  * comes up somewhere else a while later. By day it is not there at all, and it
- * keeps clear of island 2.
+ * keeps clear of island 2. A harpoon in the light shuts its jaws if they are
+ * open; three and it is driven off, its light out for a good while.
  */
 
 import { rgba } from '../core/color';
 import { clamp } from '../core/math';
+import { AWAY, RESOLVE } from '../data/harpoon';
 import { SPECIES } from '../data/tuning';
 import { DEEP, pastBuoys, WS } from '../world/island';
 import { nearIsle2 } from '../world/isle2';
@@ -99,6 +101,9 @@ export class Anglerfish implements Entity {
   glow = 0;
   /** How far off the boat was when the jaws opened. */
   openD = 0;
+  /** Harpoon hits left before it is driven off, and seconds it stays away once it is. */
+  resolve = RESOLVE.angler;
+  away = 0;
   /** The jaws have begun to open under a boat making for the light. */
   onOpen: (() => void) | null = null;
   /** The jaws closed on the boat. The game tears the net and takes fish. */
@@ -118,13 +123,15 @@ export class Anglerfish implements Entity {
         [this.tx, this.ty] = lurkAt(w.rng);
         this.state = 'lurking';
         this.t = 0;
+        this.resolve = RESOLVE.angler;
       }
       return;
     }
     if (this.state === 'diving') {
       if (this.t > DIVE) {
         this.state = 'gone';
-        this.cool = COOL;
+        this.cool = Math.max(COOL, this.away);
+        this.away = 0;
         this.t = 0;
       }
       return;
@@ -179,6 +186,30 @@ export class Anglerfish implements Entity {
     this.t = 0;
     this.openD = d;
     this.onOpen?.();
+  }
+
+  /** Where a harpoon would strike: its light, while it shows. */
+  mark(): { x: number; y: number } | null {
+    return (this.state === 'lurking' || this.state === 'opening') && this.glow > 0.5 ? this : null;
+  }
+
+  /** A harpoon struck its light: open jaws shut on nothing, and at no resolve left it is driven off. */
+  harpoon(power: number): boolean {
+    if (this.state !== 'lurking' && this.state !== 'opening') return false;
+    this.resolve = Math.max(0, this.resolve - power);
+    const open = this.state === 'opening';
+    if (this.resolve <= 0) {
+      this.state = 'diving';
+      this.t = 0;
+      this.away = AWAY;
+      return true;
+    }
+    if (open) {
+      this.state = 'diving';
+      this.t = 0;
+      this.onMiss?.();
+    }
+    return false;
   }
 
   draw(v: DrawView, layer: Layer): void {

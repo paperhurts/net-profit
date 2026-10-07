@@ -5,6 +5,7 @@
  * holds one. A versioned format with migration is Phase 2.
  */
 import { type Flag, parseFlag } from '../data/flag';
+import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
 
 export const SAVE_KEY = 'netprofit.v1';
@@ -66,6 +67,8 @@ export type SaveData = {
   masks: number;
   /** The sorcerer on island 2's tower has been beaten: the tower flies the player's flag. */
   towerTaken: boolean;
+  /** How many times the harpoon has driven off each leviathan. */
+  driven: Driven;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -125,6 +128,7 @@ export function defaultSave(b: Bounds): SaveData {
     spear: 0,
     masks: 0,
     towerTaken: false,
+    driven: noDriven(),
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -201,6 +205,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.masks = Math.max(0, int(o.masks));
   d.towerTaken = !!o.towerTaken;
+  d.driven = parseDriven(o.driven);
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -264,6 +269,7 @@ export function serializeSave(d: SaveData): string {
     spear: d.spear,
     masks: d.masks,
     towerTaken: d.towerTaken,
+    driven: d.driven,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,
