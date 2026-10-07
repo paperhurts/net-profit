@@ -336,3 +336,22 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
   expect(Math.hypot((at[0] ?? 0) + 600, (at[1] ?? 0) - 5400), 'not on island 2').toBeLessThan(230);
   expect(errors).toEqual([]);
 });
+
+test('flag: design one in the shop and the boat flies it', async ({ context, page }) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#flagBtn')).toBeVisible();
+  await page.click('#flagBtn');
+  await expect(page.locator('#flagger')).toBeVisible();
+  await page.click('#fEmblem button:nth-child(4)');
+  await page.click('#fField button:nth-child(9)');
+  await page.click('#flagDone');
+  await expect(page.locator('#flagger')).toBeHidden();
+  const flag = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').flag,
+  );
+  expect(flag).toEqual({ field: 8, accent: 1, pattern: 0, emblem: 3 });
+  expect(errors).toEqual([]);
+});

@@ -289,3 +289,15 @@ describe('the fishing log', () => {
     expect(s.snook).toEqual({ casts: 0, landed: 0, kept: 0, giant: 0, best: 29, firstDay: 0 });
   });
 });
+
+describe('the flag', () => {
+  it('is the old pennant in a save from before flags, survives a round trip, and drops nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.flag).toBeNull();
+    s.flag = { field: 8, accent: 2, pattern: 3, emblem: 3 };
+    expect(parseSave(serializeSave(s), bounds).flag).toEqual(s.flag);
+    const bad = JSON.parse(serializeSave(s));
+    bad.flag = { field: 99, accent: 2, pattern: 3, emblem: 3 };
+    expect(parseSave(JSON.stringify(bad), bounds).flag).toBeNull();
+  });
+});

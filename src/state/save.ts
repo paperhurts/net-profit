@@ -4,6 +4,7 @@
  * in localStorage. Existing saves must keep loading; tests/unit/save.test.ts
  * holds one. A versioned format with migration is Phase 2.
  */
+import { type Flag, parseFlag } from '../data/flag';
 
 export const SAVE_KEY = 'netprofit.v1';
 
@@ -54,6 +55,8 @@ export type SaveData = {
   petted: boolean;
   /** Island 2 has been sighted, out in the far corner of the deep. */
   isle2Seen: boolean;
+  /** The flag designed in the shop, or null for the pennant in the hull's paint. */
+  flag: Flag | null;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -108,6 +111,7 @@ export function defaultSave(b: Bounds): SaveData {
     anglerSeen: false,
     petted: false,
     isle2Seen: false,
+    flag: null,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -179,6 +183,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.anglerSeen = !!o.anglerSeen;
   d.petted = !!o.petted;
   d.isle2Seen = !!o.isle2Seen;
+  d.flag = parseFlag(o.flag);
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -237,6 +242,7 @@ export function serializeSave(d: SaveData): string {
     anglerSeen: d.anglerSeen,
     petted: d.petted,
     isle2Seen: d.isle2Seen,
+    flag: d.flag,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,
