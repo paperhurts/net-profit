@@ -301,3 +301,15 @@ describe('the flag', () => {
     expect(parseSave(JSON.stringify(bad), bounds).flag).toBeNull();
   });
 });
+
+describe('the spear', () => {
+  it('is none in a save from before it, survives a round trip, and is kept to the levels there are', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.spear).toBe(0);
+    s.spear = 2;
+    expect(parseSave(serializeSave(s), bounds).spear).toBe(2);
+    const bad = JSON.parse(serializeSave(s));
+    bad.spear = 99;
+    expect(parseSave(JSON.stringify(bad), bounds).spear).toBe(3);
+  });
+});

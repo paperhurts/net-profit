@@ -43,7 +43,7 @@ export const BLURBS: readonly string[] = [
   'Once a dawn, somewhere inside your range, sparkling. Eighty seconds, then gone.',
   'Once a dusk, the same, and worth even more. The prettiest thing you will land.',
   'Green and gold with a blue back, and only in the deep. Look for the floating weed; they school under it.',
-  'Sea-green with pink lips, and a beak for biting coral. Only round island 2, which is a long way to go for a fish. Worth it.',
+  'Sea-green with pink lips, and a beak for biting coral. Only round island 2, which is a long way to go for a fish. Worth it. With a spear you can take them from its sand.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */

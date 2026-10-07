@@ -162,6 +162,11 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 #aboard{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #aboard:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+/* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
+#throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;
+  background:var(--buoy);display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#throw[hidden]{display:none}
+#throw:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 /* A tab standing up off the plank sign's right corner, so it is there whenever the shop is. */
 #shop .planks{position:relative}
 #ashore{position:absolute;right:10px;top:-52px;background:var(--buoy);color:var(--buoy-fg);font-size:16px;height:42px;padding:3px 18px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -231,6 +236,7 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 <div id="toast" role="status"></div>
 <button class="pill" id="cast" hidden>Cast · 10</button>
 <button class="pill" id="aboard" hidden>Back aboard</button>
+<button id="throw" hidden aria-label="Throw the spear"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M5 29 L25 9" stroke="#FFF6E5" stroke-width="3.2" stroke-linecap="round"/><path d="M22 6 L30 4 L28 12 Z" fill="#FFF6E5"/></svg></button>
 
 <section id="shop" aria-hidden="true" aria-label="Upgrades">
   <div class="planks">
