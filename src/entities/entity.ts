@@ -65,6 +65,8 @@ export type World = {
   dark: number;
   /** The figure walking the island, or null while aboard. The dog follows it. */
   ashore: { x: number; y: number } | null;
+  /** The figure on foot anywhere, with its velocity, or null while aboard. The monkeys go for it. */
+  figure: { x: number; y: number; vx: number; vy: number } | null;
 };
 
 /** What entities may draw with. Screen space comes from the game's projection. */

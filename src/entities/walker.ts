@@ -44,7 +44,18 @@ import {
   TY,
   UMBRELLA,
 } from '../world/island';
-import { berth2, DOCK2, ISLE2, LANDING2, PALMS2, POST, TOWER } from '../world/isle2';
+import {
+  berth2,
+  CHEST,
+  DOCK2,
+  HUTS,
+  ISLE2,
+  LANDING2,
+  PALMS2,
+  POST,
+  TOTEM,
+  TOWER,
+} from '../world/isle2';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
@@ -232,6 +243,10 @@ export const PROPS: readonly Prop[] = [
     TOWER.x + TOWER.y,
   ),
   ...PALMS2.map((p) => post(p, 4, p[0] + p[1])),
+  // The monkey camp: three huts, the totem and the chest.
+  ...HUTS.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),
+  post([TOTEM.x, TOTEM.y], 2.5, TOTEM.x + TOTEM.y),
+  prop(CHEST.x - 7, CHEST.y - 5, CHEST.x + 7, CHEST.y + 5, CHEST.x + CHEST.y + 5, 0, 1.5),
 ];
 
 /** Whether something built at this palace stage stands in the way of a point. */
@@ -373,6 +388,8 @@ export class Walker implements Entity {
   throwT = 0;
   /** Whether it carries a spear, which shows over its shoulder while it walks. */
   armed = false;
+  /** Just bonked: it blinks while it cannot be bonked again. */
+  blink = false;
   readonly prints: Print[] = [];
   /** The shirt, which the game keeps in the boat's paint. */
   shirt = '#E4572E';
@@ -439,6 +456,16 @@ export class Walker implements Entity {
     this.t = 0;
     this.onHop?.();
     return true;
+  }
+
+  /** Bonked out: back aboard at once, the boat still tied up. */
+  knockOut(): void {
+    if (this.state !== 'ashore') return;
+    this.state = 'aboard';
+    this.t = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.onBoard?.();
   }
 
   /** Face a point and throw at it. */
@@ -623,6 +650,7 @@ export class Walker implements Entity {
   }
 
   private drawFigure(v: DrawView): void {
+    if (this.blink && Math.floor(this.now * 12) % 2) return;
     const { ctx, px, py } = v;
     const Z = v.zoom;
     const { x, y, z } = this;

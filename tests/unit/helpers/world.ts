@@ -29,5 +29,6 @@ export const baseWorld = (over: Partial<World> = {}): World => ({
   stealShare: 0.5,
   dark: 0,
   ashore: null,
+  figure: null,
   ...over,
 });

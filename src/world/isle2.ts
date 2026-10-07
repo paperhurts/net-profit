@@ -53,10 +53,23 @@ export const PALMS2: readonly [number, number][] = [
   at2(-150, -40),
   at2(30, 165),
   at2(-100, -150),
-  at2(-170, 80),
+  at2(-185, 10),
 ];
 
 /** Further out than this from island 2, nothing from home needs to know it is there. */
 export function nearIsle2(x: number, y: number, pad: number): boolean {
   return Math.hypot(x - ISLE2.x, y - ISLE2.y) < ISLE2.r + pad;
 }
+
+/** The monkey camp's centre, on the far side of island 2 from its landing. */
+export const CAMP = { x: ISLE2.x - 115, y: ISLE2.y + 105 } as const;
+/** Its three huts, round the fire. */
+export const HUTS: readonly [number, number][] = [
+  [CAMP.x - 46, CAMP.y - 20],
+  [CAMP.x + 12, CAMP.y + 48],
+  [CAMP.x - 34, CAMP.y + 40],
+];
+/** The fire in the middle, the totem (a skull on a pole) and the chest that opens when the camp is beaten. */
+export const FIRE = { x: CAMP.x, y: CAMP.y } as const;
+export const TOTEM = { x: CAMP.x + 28, y: CAMP.y - 18 } as const;
+export const CHEST = { x: CAMP.x - 14, y: CAMP.y + 10 } as const;
