@@ -17,11 +17,13 @@
  * boat that runs into it is shoved back to its own side and the game knocks
  * fish overboard, once; never the boat, never coins. Ramming it gets nothing
  * but the loss, because it stays up while the boat keeps pushing. The tests
- * play the dodge with a person's reaction.
+ * play the dodge with a person's reaction. Three harpoons while it is up and
+ * it is driven off: it sinks at once and leaves the buoys alone a good while.
  */
 
 import { rgba } from '../core/color';
 import { clamp } from '../core/math';
+import { AWAY, RESOLVE } from '../data/harpoon';
 import { TIER_NAME } from '../data/tuning';
 import { IX, IY, type Point, pastBuoys } from '../world/island';
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -156,6 +158,9 @@ export function createLev(rng: () => number = Math.random): Lev {
 
 export class Leviathan implements Entity {
   readonly lev: Lev;
+  /** Harpoon hits left this rise before it is driven off, and whether it has been. */
+  resolve = RESOLVE.guard;
+  private driven = false;
   /** It has just passed within RUMBLE_RADIUS of the boat. The game shakes, sounds the note, toasts and remembers the sighting. */
   onPass: (() => void) | null = null;
   /** It has begun to rise across the boat's way. The game shakes, growls and warns. */
@@ -214,6 +219,8 @@ export class Leviathan implements Entity {
     )
       return;
     lev.rise = { ...across(b.x, b.y, b.h, guardAt(b.v)), t: 0, up: UP, s: 0, hit: false };
+    this.resolve = RESOLVE.guard;
+    this.driven = false;
     this.onRise?.(lev.rise);
   }
 
@@ -249,8 +256,28 @@ export class Leviathan implements Entity {
     r.s += dt;
     if (r.s < SINK) return;
     lev.rise = null;
-    lev.cool = GUARD_COOL;
-    if (!r.hit) this.onMiss?.();
+    lev.cool = this.driven ? AWAY : GUARD_COOL;
+    if (!r.hit && !this.driven) this.onMiss?.();
+  }
+
+  /** Where a harpoon would strike: the nearest of its risen body to the boat, while it stands. */
+  mark(b: { x: number; y: number }): { x: number; y: number } | null {
+    const r = this.lev.rise;
+    if (!r || r.up <= 0 || this.driven || risen(r) < 0.5) return null;
+    const a = clamp((b.x - r.x) * r.ux + (b.y - r.y) * r.uy, -BODY_HALF, BODY_HALF);
+    return { x: r.x + r.ux * a, y: r.y + r.uy * a };
+  }
+
+  /** A harpoon struck it: at no resolve left it is driven off and sinks at once. */
+  harpoon(power: number): boolean {
+    const r = this.lev.rise;
+    if (!r || r.up <= 0 || this.driven) return false;
+    this.resolve = Math.max(0, this.resolve - power);
+    if (this.resolve > 0) return false;
+    this.driven = true;
+    r.up = 0;
+    if (r.t < RISE) r.t = RISE;
+    return true;
   }
 
   draw(v: DrawView, layer: Layer): void {

@@ -36,6 +36,9 @@ type Np = {
     hit(m: unknown, power: number, fx: number, fy: number): void;
   }[];
   boss: { up: boolean; hit(power: number): void };
+  driven: Record<string, number>;
+  harpoonTarget: string | null;
+  gulper: { resolve: number };
 };
 
 declare global {
@@ -390,6 +393,39 @@ test('health: the gulper eats a boat that sits still, and spits it out at home w
   expect(after.hold, 'the catch came back with the boat').toBe(0);
   expect(Math.hypot(after.x - 2400, after.y - 2400), 'not spat out at home').toBeLessThan(700);
   expect(after.hp).toBe(100);
+  expect(errors).toEqual([]);
+});
+
+test('harpoon: the gulper comes up, the button fires the harpoon, and driven off it pays and leaves a tooth', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    lv: { net: 5, hold: 5, engine: 5 },
+    spear: 4,
+    trip: { x: 4800 + 900, y: 2700, h: Math.PI, clock: 0.3, hold: new Array(14).fill(0) },
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'gulper', null, {
+    timeout: 20000,
+  });
+  const fire = page.locator('#throw');
+  await expect(fire).toBeVisible();
+  await expect(fire).toHaveClass(/harpoon/);
+  await expect(fire).toHaveAttribute('aria-label', 'Fire the harpoon');
+  await fire.click();
+  await page.waitForFunction(() => window.__np.gulper.resolve < 4, null, { timeout: 3000 });
+  // One more hit drives it off: the unit tests play the whole fight.
+  await page.evaluate(() => {
+    window.__np.gulper.resolve = 1;
+  });
+  await page.waitForTimeout(1300);
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'gulper', null, { timeout: 3000 });
+  await fire.click();
+  await page.waitForFunction(() => window.__np.driven.gulper === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
+  await expect(page.locator('#log')).toContainText('Gulper tooth');
   expect(errors).toEqual([]);
 });
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SPEAR_MAX } from '../../src/data/spear';
 import {
   type Bounds,
   DEFAULT_ORDER,
@@ -302,6 +303,31 @@ describe('the flag', () => {
   });
 });
 
+describe('the leviathans driven off', () => {
+  it('are none in a save from before the harpoon, survive a round trip, and shrug off junk', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.driven).toEqual({ guard: 0, cthulu: 0, angler: 0, gulper: 0 });
+    s.driven.gulper = 2;
+    s.driven.angler = 1;
+    expect(parseSave(serializeSave(s), bounds).driven).toEqual({
+      guard: 0,
+      cthulu: 0,
+      angler: 1,
+      gulper: 2,
+    });
+    const bad = JSON.parse(serializeSave(s));
+    bad.driven = { gulper: 'lots', cthulu: -3, guard: 2.7, kraken: 9 };
+    expect(parseSave(JSON.stringify(bad), bounds).driven).toEqual({
+      guard: 2,
+      cthulu: 0,
+      angler: 0,
+      gulper: 0,
+    });
+    bad.driven = 'nope';
+    expect(parseSave(JSON.stringify(bad), bounds).driven.gulper).toBe(0);
+  });
+});
+
 describe('the spear', () => {
   it('is none in a save from before it, survives a round trip, and is kept to the levels there are', () => {
     const s = parseSave(legacy, bounds);
@@ -310,6 +336,6 @@ describe('the spear', () => {
     expect(parseSave(serializeSave(s), bounds).spear).toBe(2);
     const bad = JSON.parse(serializeSave(s));
     bad.spear = 99;
-    expect(parseSave(JSON.stringify(bad), bounds).spear).toBe(3);
+    expect(parseSave(JSON.stringify(bad), bounds).spear).toBe(SPEAR_MAX);
   });
 });

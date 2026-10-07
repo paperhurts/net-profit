@@ -2,7 +2,9 @@
  * The spear: a fishing tool first, bought from the shipwright in levels. Ashore
  * on island 2, the parrotfish nose along the shore within a throw of the sand,
  * and a spear takes them straight into the hold. Later levels reach further,
- * throw faster and hit harder, which matters once the monkeys arrive.
+ * throw faster and hit harder, which matters once the monkeys arrive. The last
+ * is the harpoon, fired from the boat at the leviathans (data/harpoon.ts);
+ * ashore it throws a touch further and faster than the barbed spear.
  */
 
 export type SpearLevel = {
@@ -44,6 +46,16 @@ export const SPEARS: readonly SpearLevel[] = [
     cost: 3500,
     range: 150,
     reload: 0.55,
+    power: 2,
+  },
+  {
+    name: 'Harpoon',
+    blurb: 'Mounted on the bow: drive off a leviathan.',
+    bought:
+      'A harpoon on the bow. Past the buoys, when a leviathan comes up near you, fire it: hit one enough and it is driven off.',
+    cost: 6000,
+    range: 160,
+    reload: 0.5,
     power: 2,
   },
 ];
