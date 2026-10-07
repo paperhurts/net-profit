@@ -46,7 +46,7 @@ export const POST = {
   y1: ISLE2.y + 34,
 } as const;
 /** The tower in the middle of the island: its centre, radius and height. */
-export const TOWER = { x: ISLE2.x - 10, y: ISLE2.y + 20, r: 26, h: 150 } as const;
+export const TOWER = { x: ISLE2.x + 10, y: ISLE2.y + 10, r: 26, h: 150 } as const;
 /** Palms, as offsets would read: placed clear of the post, the tower and the landing. */
 export const PALMS2: readonly [number, number][] = [
   at2(130, 40),

@@ -33,6 +33,8 @@ import { Anglerfish } from './entities/anglerfish';
 import { Gulper } from './entities/gulper';
 import { Shallows } from './entities/shallows';
 import { Monkeys } from './entities/monkeys';
+import { Sorcerer } from './entities/sorcerer';
+import { DOOR, entry, ROOF, ROOMS, STEP, stairs } from './world/tower';
 import { Spears } from './entities/spears';
 import { nextSpear, spearAt } from './data/spear';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
@@ -60,7 +62,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, flag = null, gulperSeen = false, spear = 0, masks = 0, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, flag = null, gulperSeen = false, spear = 0, masks = 0, towerTaken = false, keyMode = 'drive';
 let hp = HP_MAX, swallowT = 0, irisT = 0, hpShown = -1; // the boat's health in the deep, and being swallowed
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
 const lv = {net:0, hold:0, engine:0};
@@ -76,9 +78,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; gulperSeen = s.gulperSeen; spear = s.spear; masks = s.masks; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; gulperSeen = s.gulperSeen; spear = s.spear; masks = s.masks; towerTaken = s.towerTaken; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gulperSeen, spear, masks, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gulperSeen, spear, masks, towerTaken, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -265,11 +267,14 @@ function spitOut(){ const lost = holdTotal; hold.fill(0); holdTotal = 0;
 const shallows = new Shallows(Math.random), spears = new Spears();
 let reloadAt = 0;
 function spearTarget(){ const sp = spearAt(spear); if (walker.state !== 'ashore' || !sp) return null;
+  if (floor === ROOF) return boss.up && Math.hypot(boss.x - walker.x, boss.y - walker.y) <= sp.range ? boss : null;
+  if (floor >= 0) return floors[floor].nearest(walker.x, walker.y, sp.range);
   return monkeys.nearest(walker.x, walker.y, sp.range) || shallows.nearest(walker.x, walker.y, sp.range); }
 function throwSpear(target){ const sp = spearAt(spear); if (walker.state !== 'ashore' || !sp || T < reloadAt) return;
   const f = target || spearTarget(); if (!f) return;
   reloadAt = T + sp.reload; walker.throwAt(f.x, f.y); sfx.spearThrow();
-  if (monkeys.list.includes(f)){ spears.launch(walker.x, walker.y, walker.z + 20, f, 10, () => monkeys.hit(f, sp.power, walker.x, walker.y)); return; }
+  if (f === boss){ spears.launch(walker.x, walker.y, walker.z + 20, f, 34, () => boss.hit(sp.power)); return; }
+  for (const camp of [monkeys, ...floors]) if (camp.list.includes(f)){ spears.launch(walker.x, walker.y, walker.z + 20, f, 10, () => camp.hit(f, sp.power, walker.x, walker.y)); return; }
   spears.launch(walker.x, walker.y, walker.z + 20, f, 0, () => { if (!f.alive) return; shallows.take(f); sellSpeared(PARROT, f.x, f.y); }); }
 // The monkey camp. Three hearts ashore; bonked out, the figure wakes up aboard, nothing lost.
 const HEARTS = 3, CAMP_PRIZE = 400;
@@ -277,16 +282,41 @@ let hearts = HEARTS, invulnT = 0, heartT = 0, spotToldT = 0;
 const monkeys = new Monkeys();
 monkeys.onSpot = () => { if (spotToldT <= 0){ spotToldT = 90; toast(spear ? 'Monkeys in skull masks! Keep moving and throw your spear.' : 'Monkeys in skull masks! You have no spear: run back to the boat.', 3000, 2); } };
 monkeys.onThrow = () => sfx.spearThrow();
-monkeys.onBonk = (by) => { if (invulnT > 0 || walker.state !== 'ashore') return;
+monkeys.onBonk = (by) => bonked(by);
+function bonked(by){ if (invulnT > 0 || walker.state !== 'ashore') return;
   hearts--; invulnT = 1.2; heartT = 0; shake = Math.max(shake, .4); sfx.whump(); hudHearts();
-  addText(walker.x, walker.y, 30, by === 'coconut' ? 'Coconut!' : 'Bonk!', '#FF9A8A', 18, 1.1);
+  addText(walker.x, walker.y, 30, {coconut: 'Coconut!', bolt: 'Zap!', peck: 'Peck!'}[by] || 'Bonk!', '#FF9A8A', 18, 1.1);
   const m = monkeys.nearest(walker.x, walker.y, 60); if (m){ const d = Math.hypot(walker.x - m.x, walker.y - m.y) || 1; walkStep(walker, (walker.x - m.x)/d*22, (walker.y - m.y)/d*22, build); }
-  if (hearts <= 0){ walker.knockOut(); hearts = HEARTS; hudHearts(); toasts.clear(); toast('Bonked out! You woke up aboard the boat. Nothing lost.', 3600, 2); } };
+  if (hearts <= 0){ leaveTower(false); walker.knockOut(); hearts = HEARTS; hudHearts(); toasts.clear(); toast('Bonked out! You woke up aboard the boat. Nothing lost.', 3600, 2); } }
 monkeys.onBeat = (m) => { masks++; sfx.spearHit(); addText(m.x, m.y, 26, 'Mask!', '#F4F1E6', 18, 1.3);
   flies.push({x0:m.x, y0:m.y, z0:16, to:'figure', t:0, dur:.5, c:'#F4F1E6', s:5}); refreshShop(); save(); };
 monkeys.onClear = () => { coins += CAMP_PRIZE; earned += CAMP_PRIZE; sfx.orderFilled(); shake = Math.max(shake, .3);
   addText(CHEST.x, CHEST.y, 30, '+' + CAMP_PRIZE, C.coin, 24, 2.2); toasts.clear();
   toast(`You beat the monkey camp! Its chest held ${CAMP_PRIZE} coins. They will be back.`, 4200, 2); hud(); save(); };
+// The tower: two floors of monkeys and the roof, where the sorcerer waits. floor is -1 outside.
+const TOWER_PRIZE = 2000, TOWER_AGAIN = 500;
+let floor = -1, towerWon = false;
+const floors = [new Monkeys(ROOMS[0], 3, 0), new Monkeys(ROOMS[1], 4, 2)];
+for (const [i, fl] of floors.entries()){ fl.onBonk = (by) => bonked(by); fl.onThrow = () => sfx.spearThrow(); fl.onBeat = monkeys.onBeat;
+  fl.onClear = () => { sfx.orderFilled(); toast(i + 1 === ROOF ? 'The stairs to the roof are open. Something is waiting up there.' : 'The stairs up are open. Climb!', 3000, 1); }; }
+const boss = new Sorcerer(ROOMS[ROOF]);
+boss.onWake = () => { sfx.cthuluWake(); shake = Math.max(shake, .4); toasts.clear(); toast('The leviathan sorcerer! Dodge its purple bolts, and spear it when it swoops.', 3800, 2); };
+boss.onCast = () => sfx.tentacle();
+boss.onHit = (by) => bonked(by);
+boss.onBeaten = () => { const prize = towerTaken ? TOWER_AGAIN : TOWER_PRIZE; coins += prize; earned += prize; towerTaken = true; towerWon = true;
+  shake = 1; sfx.tierUp(); for (let i=0;i<24;i++) sparks.push({x:boss.x, y:boss.y, vx:(Math.random()-.5)*200, vy:(Math.random()-.5)*200, z:30, vz:60+Math.random()*80, age:0, life:1.2+Math.random()*.8});
+  addText(boss.x, boss.y, 50, '+' + prize, C.coin, 26, 2.6); toasts.clear();
+  toast(`You beat the leviathan sorcerer! The tower is yours: your flag flies from the top. +${prize} coins.`, 5200, 2); hud(); refreshShop(); save(); };
+function toRoom(i){ floor = i; const e = entry(i); walker.x = e.x; walker.y = e.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); }
+function enterTower(){ for (const fl of floors) fl.reset(); boss.reset(); towerWon = false; toRoom(0);
+  toast(spear ? 'Inside the tower. Beat the monkeys to open the stairs.' : 'Inside the tower, and you have no spear! Leave, and buy one from the shipwright.', 3200, 1); }
+function leaveTower(out = true){ if (floor < 0) return; floor = -1; for (const fl of floors) fl.reset(); boss.reset();
+  if (out && walker.state === 'ashore'){ walker.x = DOOR.x; walker.y = DOOR.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; } }
+// What the climb button would do now: in at the door, up the open stairs, or nothing.
+function climbAction(){ if (walker.state !== 'ashore' || walker.dock !== ISLE2_DOCK) return null;
+  if (floor < 0) return Math.hypot(walker.x - DOOR.x, walker.y - DOOR.y) < STEP ? 'door' : null;
+  if (floor < ROOF && floors[floor].cleared){ const st = stairs(floor); if (Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6) return 'stairs'; }
+  return null; }
 function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && walker.dock === ISLE2_DOCK || hearts < HEARTS; el.hidden = !show;
   if (show) el.innerHTML = Array.from({length: HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join(''); }
 // The boat is tied up at the trading post while the figure is ashore, so a speared fish is sold on the spot.
@@ -300,7 +330,7 @@ walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
 walker.onLand = () => { if (!ashoreTold.has(walker.dock)){ ashoreTold.add(walker.dock);
     toast(walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
-for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
+for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, ...floors, boss, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -370,6 +400,7 @@ function refreshShop(){
     + `<span class="chip${mantaSeen?' gold':' unk'}">${mantaSeen?'Mantas sighted':'Wings in the water?'}</span>`
     + `<span class="chip${cthuluSeen?' gold':' unk'}">${cthuluSeen?'Cthuluviathan sighted':'Something asleep?'}</span>`
     + `<span class="chip${anglerSeen?' gold':' unk'}">${anglerSeen?'Anglerfish sighted':'A light in the deep?'}</span>`
+    + `<span class="chip${towerTaken?' gold':' unk'}">${towerTaken ? 'Tower taken' : 'Who is in the tower?'}</span>`
     + `<span class="chip${masks?' gold':' unk'}">${masks ? 'Skull masks ' + masks : 'Masks on island 2?'}</span>`
     + `<span class="chip${gulperSeen?' gold':' unk'}">${gulperSeen?'Gulper escaped':'An open mouth?'}</span>`
     + `<span class="chip${isle2Seen?' gold':' unk'}">${isle2Seen?'Island 2 found':'Land past the deep?'}</span>`
@@ -477,6 +508,9 @@ function renderGuide(){
   pages.push(`<article class="page${anglerSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${anglerSeen ? 'Anglerfish' : '?'}</b><small>${anglerSeen
     ? 'A light in the deep at night, with what look like glowing fish around it. There are no glowing fish in the deep. Make for the light and its jaws open under you: turn away. Caught, it swallows the boat whole and spits it out in the home shallows, without your catch.'
     : 'Not seen yet. Something out in the deep fishes for boats at night.'}</small><div class="facts"><span>The deep</span><span>Night only</span><span>Not for catching</span></div></article>`);
+  pages.push(`<article class="page${towerTaken ? ' gold' : ' unk'}">${LEV_SVG}<b>${towerTaken ? 'Leviathan sorcerer' : '?'}</b><small>${towerTaken
+    ? 'It lived at the top of island 2\'s tower: a serpent\'s finned tail, wings and a bird\'s head. It flies round the roof throwing purple bolts at where you stand, and swoops in to peck, which is when your spear can reach it. Hurt, it gets angry and throws three at a time. The tower is yours now, and flies your flag.'
+    : 'Not met yet. Something at the top of island 2\'s tower shows a purple light at night. Two floors of monkeys stand in the way.'}</small><div class="facts"><span>Island 2's tower</span><span>Eight spear hits</span><span>${towerTaken ? 'Taken' : 'Not taken'}</span></div></article>`);
   pages.push(`<article class="page${masks ? ' gold' : ' unk'}">${LEV_SVG}<b>${masks ? 'Skull-mask monkeys' : '?'}</b><small>${masks
     ? 'A camp of monkeys in little skull masks on the far side of island 2. They run at you to bonk you, and two of them throw coconuts: keep moving, step out from under the shadow, and throw your spear. Beaten, a monkey drops its mask and runs off. Beat the whole camp and its chest opens.'
     : 'Not met yet. Something lives in the huts on the far side of island 2. Take a spear.'}</small><div class="facts"><span>Island 2</span><span>Three hearts ashore</span><span>${masks} masks</span></div></article>`);
@@ -523,7 +557,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; gulperSeen = false; spear = 0; masks = 0; monkeys.reset(); hearts = HEARTS; shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; gulperSeen = false; spear = 0; masks = 0; towerTaken = false; leaveTower(false); monkeys.reset(); hearts = HEARTS; shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -664,6 +698,11 @@ function saleSpot(){ return dockHere === ISLE2_DOCK ? POST_MID : CRATE; }
 elAshore.addEventListener('click', () => { audio(); if (walker.stepAshore(dockHere)) toasts.clear(); });
 elAboard.addEventListener('click', () => { audio(); walker.goAboard(); });
 const elThrow = $('throw'); let throwShown = false;
+const elClimb = $('climb'), elLeave = $('leave'); let climbShown = null, leaveShown = null;
+elClimb.addEventListener('click', () => { audio(); const a = climbAction(); if (a === 'door') enterTower();
+  else if (a === 'stairs'){ toRoom(floor + 1); if (hearts < HEARTS){ hearts = HEARTS; hudHearts(); toast('You catch your breath on the stairs. Hearts full.', 2000); } } });
+elLeave.addEventListener('click', () => { audio(); if (floor < 0) return;
+  if (towerWon){ leaveTower(false); walker.knockOut(); toast('Back aboard. The tower is yours.', 2400, 1); } else { leaveTower(); toast('Out of the tower. Come back with more spears.', 2200); } });
 elThrow.addEventListener('click', () => { audio(); throwSpear(); });
 window.addEventListener('keydown', e => { if (e.key === ' ' && walker.state === 'ashore'){ e.preventDefault(); throwSpear(); } });
 // A tap, not a drag: ashore, a tap on the dog pats it, if the figure is near enough to reach.
@@ -807,10 +846,13 @@ function update(dt){
   if (walker.nearBoat !== aboardShown){ aboardShown = walker.nearBoat; elAboard.hidden = !aboardShown; }
   walker.armed = spear > 0;
   invulnT = Math.max(0, invulnT - dt); walker.blink = invulnT > 0; spotToldT -= dt;
-  { const fighting = monkeys.list.some(m => m.state === 'chase'); heartT += dt;
+  { const fighting = [monkeys, ...floors].some(c => c.list.some(m => m.state === 'chase')) || boss.up; heartT += dt;
     if (hearts < HEARTS && (!walker.shown || (!fighting && heartT > 6))){ hearts = walker.shown ? hearts + 1 : HEARTS; heartT = 0; }
     hudHearts(); }
   { const show = !!spearTarget(); if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; } }
+  { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a === 'door' ? 'Climb the tower' : floor + 1 === ROOF ? 'Up to the roof' : 'Climb the stairs'; } }
+  { const l = floor >= 0 && walker.state === 'ashore' ? (towerWon ? 'jump' : 'leave') : null;
+    if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : 'Leave the tower'; } }
   updateFishing(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView) - Z)*Math.min(1, dt*4);
@@ -935,7 +977,7 @@ function drawGlow(){
         if (x<-10||x>W+10||y<-10||y>H+10) continue; ctx.beginPath(); ctx.arc(x,y,2.4*Z,0,Math.PI*2); ctx.fill(); } }
     ctx.globalCompositeOperation = 'source-over';
   }
-  if (dark > .05 && onScreen(TOWER.x, TOWER.y, 300)){ ctx.globalCompositeOperation = 'screen';
+  if (dark > .05 && !towerTaken && onScreen(TOWER.x, TOWER.y, 300)){ ctx.globalCompositeOperation = 'screen';
     glow(TOWER.x, TOWER.y, TOWER.h-30, 70, rgba('#B98AFF', .45*dark*(.8+.2*Math.sin(T*2)))); ctx.globalCompositeOperation = 'source-over'; }
   scene.draw(drawView, 'glow');
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = Math.random() < .5 ? '#FFFFFF' : '#FFE58A'; star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
@@ -1179,10 +1221,11 @@ function drawTower2(){
     ctx.moveTo(px(fx-tx*w,fy-ty*w),py(fx-tx*w,fy-ty*w,z0)); ctx.lineTo(px(fx+tx*w,fy+ty*w),py(fx+tx*w,fy+ty*w,z0));
     ctx.lineTo(px(fx+tx*w,fy+ty*w),py(fx+tx*w,fy+ty*w,z1)); ctx.lineTo(px(fx-tx*w,fy-ty*w),py(fx-tx*w,fy-ty*w,z1)); ctx.closePath(); ctx.fill(); };
   quad(7, 0, 24, '#3A2E28');
-  for (const z of [62, 104]) quad(2, z, z+11, dark > .3 ? '#B98AFF' : '#2B2F31');
+  for (const z of [62, 104]) quad(2, z, z+11, dark > .3 && !towerTaken ? '#B98AFF' : '#2B2F31');
   const top = pts.map(p => p).sort((a,b) => (a[0]+a[1])-(b[0]+b[1]));
   for (const p of top) box(p[0]-4, p[1]-4, 8, 8, h, h+9, '#8F9893', '#C3CAC5');
   ctx.strokeStyle = C.wood; ctx.lineWidth = 2*Z; ctx.beginPath(); ctx.moveTo(px(x,y),py(x,y,h)); ctx.lineTo(px(x,y),py(x,y,h+40)); ctx.stroke();
+  if (towerTaken) drawFlagAt(px(x,y), py(x,y,h+40), 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1);
 }
 // The monkey camp: thatched huts round a fire, a skull on a pole, and a chest that opens when they are beaten.
 function drawHut(x, y){ box(x-9, y-9, 18, 18, 0, 11, '#8A6A43', '#8A6A43');
@@ -1315,6 +1358,7 @@ function draw(){
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
+  if (floor >= 0 && walker.shown){ drawRoom(); return; }
   drawSea(); scene.draw(drawView, 'underwater'); drawFish(); drawSnookShadow(); scene.draw(drawView, 'surface'); drawWakes(); drawNet(); drawBuoys(); scene.draw(drawView, 'afloat'); drawWorldObjects(); drawFishing(); scene.draw(drawView, 'air'); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
@@ -1351,6 +1395,47 @@ function draw(){
   }
 }
 
+/* ---------- the tower's rooms ---------- */
+// A stone room lit by torches, or the roof under the sky: the floor, the back wall, the stairs once open,
+// then whoever is in it in depth order, the spears, coconuts and bolts, and the floating text.
+function drawRoom(){
+  const R = ROOMS[floor], roof = floor === ROOF;
+  if (roof){ const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1A1440'); g.addColorStop(1, '#4B2E83'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,.7)'; for (let i=0;i<40;i++){ const hx = Math.sin(i*12.9898)*43758.5453, x = (hx - Math.floor(hx))*W, hy = Math.sin(i*78.233)*12345.678, y = (hy - Math.floor(hy))*H*.6;
+      ctx.globalAlpha = .4 + .4*Math.sin(T*2 + i); ctx.fillRect(x, y, 2, 2); } ctx.globalAlpha = 1; }
+  else { ctx.fillStyle = '#15181D'; ctx.fillRect(0, 0, W, H); }
+  // The back wall, its inside facing us, with torches.
+  if (!roof){ for (let i=0;i<24;i++){ const a0 = Math.PI*.75 + i*Math.PI/24, a1 = a0 + Math.PI/24, h = 70;
+      const x0 = R.x + Math.cos(a0)*R.r, y0 = R.y + Math.sin(a0)*R.r, x1 = R.x + Math.cos(a1)*R.r, y1 = R.y + Math.sin(a1)*R.r;
+      ctx.fillStyle = i%2 ? '#3A3F46' : '#40464E'; ctx.beginPath(); ctx.moveTo(px(x0,y0),py(x0,y0,0)); ctx.lineTo(px(x1,y1),py(x1,y1,0)); ctx.lineTo(px(x1,y1),py(x1,y1,h)); ctx.lineTo(px(x0,y0),py(x0,y0,h)); ctx.closePath(); ctx.fill(); }
+    for (const a of [Math.PI*.95, Math.PI*1.25, Math.PI*1.55]){ const x = R.x + Math.cos(a)*(R.r-2), y = R.y + Math.sin(a)*(R.r-2), fl = Math.sin(T*11 + a*3)*1.5;
+      ctx.globalCompositeOperation = 'lighter'; glow(x, y, 44, 60, 'rgba(255,170,80,.35)'); ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#5E3D1C'; ctx.fillRect(px(x,y)-1.5*Z, py(x,y,36), 3*Z, 8*Z);
+      ctx.fillStyle = '#FFB347'; ctx.beginPath(); ctx.arc(px(x,y), py(x,y,46+fl), 3.4*Z, 0, Math.PI*2); ctx.fill(); } }
+  // The floor.
+  isoEllipse(R.x, R.y, R.r); ctx.fillStyle = roof ? '#7C848C' : '#59616B'; ctx.fill();
+  for (const k of [.75, .5, .25]){ isoEllipse(R.x, R.y, R.r*k); ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 2*Z; ctx.stroke(); }
+  if (roof){ for (let i=0;i<16;i++){ const a = i/16*Math.PI*2, x = R.x + Math.cos(a)*(R.r+4), y = R.y + Math.sin(a)*(R.r+4); if (Math.sin(a) + Math.cos(a) > .3) continue; box(x-6, y-6, 12, 12, 0, 12, '#8F9893', '#B9C1BC'); }
+    ctx.strokeStyle = C.wood; ctx.lineWidth = 2.4*Z; ctx.beginPath(); ctx.moveTo(px(R.x,R.y),py(R.x,R.y,0)); ctx.lineTo(px(R.x,R.y),py(R.x,R.y,60)); ctx.stroke();
+    if (towerWon) drawFlagAt(px(R.x,R.y), py(R.x,R.y,60), 22*Z, 15*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1); }
+  // The stairs up, once the room is beaten: glowing steps at the back.
+  if (floor < ROOF && floors[floor].cleared){ const st = stairs(floor);
+    for (let k=0;k<4;k++) box(st.x-16+k*5, st.y-16+k*5, 26-k*5, 26-k*5, 0, 6+k*6, '#8F9893', '#C3CAC5');
+    isoEllipse(st.x, st.y, 24 + Math.sin(T*4)*2); ctx.strokeStyle = 'rgba(156,240,192,.7)'; ctx.lineWidth = 2.5*Z; ctx.stroke(); }
+  // Who is in the room, back to front.
+  const actors = [{d: walker.x + walker.y, f: () => walker.draw(drawView, 'solids')}];
+  if (!roof) for (const m of floors[floor].list) if (m.state !== 'gone') actors.push({d: m.x + m.y, f: () => floors[floor].drawMonkey(drawView, m, 0)});
+  actors.sort((a,b) => a.d-b.d); for (const o of actors) o.f();
+  // The front rim, so the room reads as a room.
+  if (!roof){ isoEllipse(R.x, R.y, R.r+4); ctx.strokeStyle = '#2A2E34'; ctx.lineWidth = 6*Z; ctx.stroke(); }
+  scene.draw(drawView, 'air'); drawFlies();
+  for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = Math.random() < .5 ? '#FFFFFF' : '#E8D9FF'; star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
+  drawTexts();
+  if (joy.on && started){
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(joy.x,joy.y,20,0,Math.PI*2); ctx.fill(); }
+}
+
 /* ---------- loop ---------- */
 let last = performance.now(), saveT = 0;
 function frame(now){
@@ -1362,5 +1447,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, cthulu, angler, gulper, shallows, monkeys, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, cthulu, angler, gulper, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

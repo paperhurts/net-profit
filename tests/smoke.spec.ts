@@ -29,6 +29,13 @@ type Np = {
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
   masks: number;
+  floor: number;
+  towerTaken: boolean;
+  floors: {
+    list: { x: number; y: number }[];
+    hit(m: unknown, power: number, fx: number, fy: number): void;
+  }[];
+  boss: { up: boolean; hit(power: number): void };
 };
 
 declare global {
@@ -446,5 +453,53 @@ test('monkeys: a barbed spear beats a skull-mask monkey and its mask is kept', a
   await expect(page.locator('#throw')).toBeVisible();
   await page.click('#throw');
   await page.waitForFunction(() => window.__np.masks > 0, null, { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('tower: in at the door, up both floors, beat the sorcerer, and the tower is taken', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // To the tower's door.
+  await page.evaluate(() => {
+    window.__np.walker.x = -590 + 46 * Math.SQRT1_2;
+    window.__np.walker.y = 5410 + 46 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 0);
+  for (const f of [0, 1]) {
+    // Beat the floor, step onto its stairs, climb.
+    await page.evaluate((i) => {
+      const fl = window.__np.floors[i];
+      if (!fl) return;
+      for (const m of fl.list) fl.hit(m, 9, m.x + 50, m.y);
+      window.__np.walker.x = -6000 - 130 * 0.6 * Math.SQRT1_2;
+      window.__np.walker.y = (i ? -6900 : -6000) - 130 * 0.6 * Math.SQRT1_2;
+    }, f);
+    await expect(page.locator('#climb')).toBeVisible();
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, f + 1);
+  }
+  await page.waitForFunction(() => window.__np.boss.up, null, { timeout: 3000 });
+  await page.evaluate(() => window.__np.boss.hit(99));
+  await page.waitForFunction(() => window.__np.towerTaken, null, { timeout: 4000 });
+  await expect(page.locator('#leave')).toHaveText('Back to the boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.walker.state === 'aboard');
   expect(errors).toEqual([]);
 });
