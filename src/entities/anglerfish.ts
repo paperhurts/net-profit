@@ -5,8 +5,8 @@
  * single bright bulb on its stalk, and something very large and dark beneath.
  * Make for the light at speed and its jaws open ahead of you, a ring of teeth
  * with the light flickering red, and they snap shut the moment the boat is
- * over them. Turn away and they shut on nothing. Caught, the net is torn and a quarter of the hold is gone;
- * never the boat, never coins. Either way it sinks back into the dark and
+ * over them. Turn away and they shut on nothing. Caught, the boat is swallowed whole and the game
+ * spits it out in the home shallows without its catch; never coins. Either way it sinks back into the dark and
  * comes up somewhere else a while later. By day it is not there at all, and it
  * keeps clear of island 2.
  */

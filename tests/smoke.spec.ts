@@ -25,6 +25,8 @@ type Np = {
   walker: { state: string; x: number; y: number; nearBoat: boolean };
   dogAt: [number, number] | null;
   petted: boolean;
+  swallowing: boolean;
+  hp: number;
 };
 
 declare global {
@@ -353,5 +355,31 @@ test('flag: design one in the shop and the boat flies it', async ({ context, pag
     () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').flag,
   );
   expect(flag).toEqual({ field: 8, accent: 1, pattern: 0, emblem: 3 });
+  expect(errors).toEqual([]);
+});
+
+test('health: the gulper eats a boat that sits still, and spits it out at home without its catch', async ({
+  context,
+  page,
+}) => {
+  const hold = new Array(14).fill(0);
+  hold[12] = 20;
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 4800 + 900, y: 2700, h: Math.PI, clock: 0.3, hold },
+  });
+  await expect(page.locator('#hull')).toBeVisible();
+  await page.waitForFunction(() => window.__np.swallowing, null, { timeout: 20000 });
+  await page.waitForFunction(() => !window.__np.swallowing, null, { timeout: 4000 });
+  const after = await page.evaluate(() => ({
+    hold: window.__np.hold,
+    x: window.__np.boat.x,
+    y: window.__np.boat.y,
+    hp: window.__np.hp,
+  }));
+  expect(after.hold, 'the catch came back with the boat').toBe(0);
+  expect(Math.hypot(after.x - 2400, after.y - 2400), 'not spat out at home').toBeLessThan(700);
+  expect(after.hp).toBe(100);
   expect(errors).toEqual([]);
 });
