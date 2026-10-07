@@ -23,6 +23,8 @@ type Np = {
   clock: number;
   phase: string;
   walker: { state: string; x: number; y: number; nearBoat: boolean };
+  dogAt: [number, number] | null;
+  petted: boolean;
 };
 
 declare global {
@@ -259,13 +261,14 @@ test('trip: hold, position and clock survive the tab being discarded', async ({
   expect(errors).toEqual([]);
 });
 
-test('ashore: step off at the dock, walk up the pier onto the island, and back aboard', async ({
+test('ashore: step off at the dock, pet the dog, walk up the pier onto the island, and back aboard', async ({
   context,
   page,
 }) => {
   // Tied up in the dock ring, as a trip saved there comes back.
   const errors = await boot(context, page, {
     muted: true,
+    build: 1,
     trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible();
@@ -274,6 +277,13 @@ test('ashore: step off at the dock, walk up the pier onto the island, and back a
   expect(await page.locator('#shop').getAttribute('class')).not.toContain('open');
   // The way back is not offered under the thumb that lands to start walking.
   await expect(page.locator('#aboard')).toBeHidden();
+
+  // The dog comes to say hello; a tap on it pets it.
+  await page.waitForTimeout(3000);
+  const dog = await page.evaluate(() => window.__np.dogAt);
+  if (!dog) throw new Error('no dog');
+  await page.mouse.click(dog[0], dog[1]);
+  expect(await page.evaluate(() => window.__np.petted), 'the tap did not pet the dog').toBe(true);
 
   /** Hold the stick in a world direction. */
   const stick = async (wx: number, wy: number) => {

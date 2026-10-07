@@ -102,6 +102,11 @@ export function bridgeFrame(x: number, y: number): [number, number] {
   return [dx * UX + dy * UY, dx * BRIDGE_SOUTH[0] + dy * BRIDGE_SOUTH[1]];
 }
 
+/** On the pier's planks, as drawn. */
+export function onPier(x: number, y: number): boolean {
+  return inBox(x, y, PIER_BOX);
+}
+
 function inBox(
   x: number,
   y: number,
@@ -255,8 +260,17 @@ export function walkerDepth(
   riding = false,
 ): number {
   // On the planks, or hopping to or from them: over the pier and the boat, and before or after the dog.
-  if (riding || inBox(x, y, PIER_BOX))
-    return dog ? dog.d + (x + y > dog.x + dog.y ? 0.25 : -0.25) : pierD + 2.5;
+  if (riding || inBox(x, y, PIER_BOX)) {
+    if (dog && inBox(dog.x, dog.y, PIER_BOX)) return dog.d + (x + y > dog.x + dog.y ? 0.25 : -0.25);
+    // A dog on the sand in front of the pier stands before it, and so before whoever is on it.
+    if (
+      dog &&
+      (dog.y > PIER_BOX.y1 || dog.x > PIER_BOX.x1) &&
+      Math.hypot(dog.x - x, dog.y - y) < 40
+    )
+      return Math.max(pierD + 0.1, dog.d - 0.25);
+    return pierD + 2.5;
+  }
   const [t, o] = bridgeFrame(x, y);
   const seg = SPAN / BRIDGE_PARTS;
   const deck = t >= 0 && t <= SPAN && Math.abs(o) <= HALF;

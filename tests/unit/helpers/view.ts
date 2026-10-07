@@ -33,6 +33,7 @@ export function fakeView(): FakeView {
     moveTo: count('moveTo'),
     lineTo: count('lineTo'),
     quadraticCurveTo: count('quadraticCurveTo'),
+    bezierCurveTo: count('bezierCurveTo'),
     closePath: count('closePath'),
     fillText: count('fillText'),
   } as unknown as CanvasRenderingContext2D;

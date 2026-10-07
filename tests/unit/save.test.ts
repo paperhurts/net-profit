@@ -255,6 +255,15 @@ describe('the anglerfish sighting', () => {
   });
 });
 
+describe('the dog', () => {
+  it('is unpatted in a save from before you could pat it, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.petted).toBe(false);
+    s.petted = true;
+    expect(parseSave(serializeSave(s), bounds).petted).toBe(true);
+  });
+});
+
 describe('the fishing log', () => {
   it('is empty in a save from before the snook, and survives a round trip', () => {
     const s = parseSave(legacy, bounds);
