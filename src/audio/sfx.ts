@@ -277,6 +277,22 @@ export const cues = {
     tone(220, 0.2, 'triangle', 0.05, 0.5);
     tone(70, 0.4, 'triangle', 0.07, 0.6, 0.03);
   },
+  /** The gulper starts hunting: a low rising groan with a whine over it. */
+  gulperHunt(): void {
+    tone(70, 1, 'sawtooth', 0.05, 1.5);
+    tone(140, 0.9, 'triangle', 0.05, 1.5, 0.05);
+    tone(660, 0.5, 'sine', 0.025, 1.4, 0.3);
+  },
+  /** Swallowed: a deep falling gulp. */
+  gulp(): void {
+    tone(220, 0.5, 'sine', 0.12, 0.3);
+    tone(110, 0.6, 'triangle', 0.08, 0.4, 0.05);
+  },
+  /** Spat out: a wet pop and a splash. */
+  spit(): void {
+    tone(180, 0.12, 'square', 0.05, 2.2);
+    tone(900, 0.25, 'triangle', 0.04, 0.5, 0.08);
+  },
   /** A hop between the boat and the pier: a knock on wood. */
   hop(): void {
     tone(240, 0.07, 'triangle', 0.07, 0.7);

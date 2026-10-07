@@ -30,6 +30,8 @@ import { PET_REACH, Pets } from './entities/pets';
 import { Leviathan } from './entities/leviathan';
 import { Cthuluviathan } from './entities/cthuluviathan';
 import { Anglerfish } from './entities/anglerfish';
+import { Gulper } from './entities/gulper';
+import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
 import { dockAt, HOME_DOCK, ISLE2_DOCK, WALK_ZOOM, Walker } from './entities/walker';
 import { DOCK2, ISLE2, PALMS2, POST, TOWER } from './world/isle2';
 import { Mantas } from './entities/mantas';
@@ -54,7 +56,8 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, flag = null, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, flag = null, gulperSeen = false, keyMode = 'drive';
+let hp = HP_MAX, swallowT = 0, irisT = 0, hpShown = -1; // the boat's health in the deep, and being swallowed
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
@@ -69,9 +72,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; gulperSeen = s.gulperSeen; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gulperSeen, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -194,7 +197,7 @@ leviathan.onHit = () => { let n = Math.ceil(holdTotal/3); const lost = n;
   shake = 1; sfx.whump(); resetNet();
   addText(boat.x, boat.y, 44, lost ? `${lost} fish overboard` : 'Shoved back', '#FF9A8A', 19, 2);
   toasts.clear(); toast(lost ? `The leviathan knocked ${lost} fish overboard. Turn away when the spines rise.` : 'The leviathan shoved you back. Turn away when the spines rise.', 3400, 2);
-  hud(); save(); };
+  hud(); save(); damage(HURT.leviathan, 'leviathan'); };
 leviathan.onMiss = () => toast('It sank. Cross now, while it is down.', 2600, 1);
 const whales = new Whales(Math.random);
 whales.onSight = () => { if (!whaleSeen){ whaleSeen = true; save(); toast('A whale and her calf. Ease off and listen.', 3800, 1); } };
@@ -225,27 +228,41 @@ cthulu.onGrab = () => { let n = Math.ceil(holdTotal/5); const lost = n;
   shake = Math.max(shake,.6); sfx.whump();
   addText(boat.x, boat.y, 44, lost ? `A tentacle took ${lost}` : 'Grabbed', '#FF9A8A', 19, 1.8);
   toasts.clear(); toast(lost ? `A tentacle took ${lost} fish. Steer off the bubbles.` : 'A tentacle grabbed the boat. Steer off the bubbles.', 2600, 2);
-  hud(); save(); };
+  hud(); save(); damage(HURT.tentacle, 'tentacle'); };
 cthulu.onSleep = () => toast('The Cthuluviathan has gone back to sleep.', 2400, 1);
 // The anglerfish fishes for boats in the deep at night: its light looks like glowing fish, and there are none out there.
 const angler = new Anglerfish();
 angler.onOpen = () => { sfx.anglerOpen(); shake = Math.max(shake,.25);
   toast(anglerSeen ? 'Turn away from the light.' : 'That light is no fish. Turn away.', 2400, 2);
   if (!anglerSeen){ anglerSeen = true; save(); } };
-angler.onBite = () => { let n = Math.ceil(holdTotal/4); const lost = n;
-  for (let sp=SPECIES.length-1; sp>=0 && n>0; sp--){ const k = Math.min(hold[sp], n); hold[sp] -= k; n -= k; holdTotal -= k; }
-  net.torn = Math.max(net.torn, 10); sfx.anglerSnap(); sfx.netTorn(); shake = Math.max(shake,.7);
-  addText(boat.x, boat.y, 44, lost ? `Bitten: ${lost} fish` : 'Net bitten', '#FF9A8A', 19, 1.8);
-  toasts.clear(); toast(`The anglerfish bit your net${lost ? ` and took ${lost} fish` : ''}. It is torn: dock to mend it.`, 3400, 2);
-  hud(); save(); };
+angler.onBite = () => { sfx.anglerSnap(); swallow('angler'); };
 angler.onMiss = () => { sfx.anglerSnap(); toast('Its jaws shut on nothing. It sank back into the dark.', 2600, 1); };
+// The gulper hunts the east side of the deep, and eats boats. Run, and turn hard when it closes.
+const gulper = new Gulper();
+gulper.onHunt = () => { sfx.gulperHunt(); shake = Math.max(shake,.3);
+  toast(gulperSeen ? 'The gulper is hunting you. Run!' : 'Something with an enormous mouth is coming up behind you. Run, and turn hard when it closes.', 3200, 2);
+  if (!gulperSeen){ gulperSeen = true; save(); refreshShop(); } };
+gulper.onBite = () => { sfx.anglerSnap(); damage(HURT.gulper, 'gulper'); };
+gulper.onGiveUp = () => { if (swallowT <= 0) toast('The gulper gave up and sank.', 2200, 1); };
+// Health only goes down past the buoys. At none, whatever did it swallows the boat, and spits it out at home.
+function damage(n, by){ if (swallowT > 0) return; hp = hurt(hp, n); shake = Math.max(shake,.6);
+  addText(boat.x, boat.y, 60, '-' + n, '#FF6F6F', 20, 1.4); hudHull();
+  if (hp <= 0) swallow(by); }
+const SWALLOWED = {angler: 'Swallowed whole by the anglerfish!', gulper: 'The gulper ate your boat!', leviathan: 'The leviathan swallowed your boat!', tentacle: 'The Cthuluviathan dragged your boat under!'};
+function swallow(by){ if (swallowT > 0) return; swallowT = SWALLOW; hp = 0; boat.v = 0; shake = 1; sfx.gulp();
+  toasts.clear(); toast(SWALLOWED[by], 1800, 2); hudHull(); }
+function spitOut(){ const lost = holdTotal; hold.fill(0); holdTotal = 0;
+  boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet(); net.torn = 0; wasDeep = false;
+  cam.x = boat.x; cam.y = boat.y; hp = HP_MAX; irisT = SPIT; gulper.reset(); sfx.spit();
+  toasts.clear(); toast(`Spat out in the shallows by home. ${lost ? `Your ${lost} fish are gone, but the` : 'The'} boat is fine.`, 3800, 2);
+  hud(); hudHull(); save(); }
 // Off the boat: tie up at the pier and walk the island. The stick walks the figure while it is ashore.
 const walker = new Walker();
 walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
 walker.onLand = () => { if (!ashoreTold.has(walker.dock)){ ashoreTold.add(walker.dock);
     toast(walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : 'Ashore on island 2. Nobody has climbed that tower yet. The boat waits on the beach.', 3800, 1); } save(); };
-for (const e of [rareEntity, leviathan, cthulu, angler, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
+for (const e of [rareEntity, leviathan, cthulu, angler, gulper, whales, mantas, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -276,6 +293,11 @@ const toasts = new ToastQueue(); let toastShown = null;
 function toast(msg, ms=2600, pri=0){ toasts.push(msg, ms, pri, performance.now()/1000); }
 function renderToast(){ const m = toasts.tick(performance.now()/1000); if (m === toastShown) return; toastShown = m;
   if (m){ elToast.textContent = m; elToast.classList.add('show'); } else elToast.classList.remove('show'); }
+// The boat's health, shown past the buoys and whenever it is not whole.
+const HEART_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13C3 9 1 7 1 4.5A3.5 3.5 0 0 1 8 3a3.5 3.5 0 0 1 7 1.5C15 7 13 9 8 13z" fill="#E4572E"/></svg>';
+function hudHull(){ const show = pastBuoys(boat.x, boat.y) || hp < HP_MAX || swallowT > 0, v = Math.ceil(hp), key = show ? v : -2;
+  if (key === hpShown) return; hpShown = key; const el = $('hull'); el.hidden = !show; if (!show) return;
+  el.innerHTML = HEART_SVG + `<span class="hbar"><i style="width:${v}%;background:${v <= 34 ? '#E4572E' : '#5BBF6A'}"></i></span><span>${v}</span>`; }
 function hud(){
   elCoins.textContent = coins;
   const cap = HOLD[lv.hold];
@@ -310,6 +332,7 @@ function refreshShop(){
     + `<span class="chip${mantaSeen?' gold':' unk'}">${mantaSeen?'Mantas sighted':'Wings in the water?'}</span>`
     + `<span class="chip${cthuluSeen?' gold':' unk'}">${cthuluSeen?'Cthuluviathan sighted':'Something asleep?'}</span>`
     + `<span class="chip${anglerSeen?' gold':' unk'}">${anglerSeen?'Anglerfish sighted':'A light in the deep?'}</span>`
+    + `<span class="chip${gulperSeen?' gold':' unk'}">${gulperSeen?'Gulper escaped':'An open mouth?'}</span>`
     + `<span class="chip${isle2Seen?' gold':' unk'}">${isle2Seen?'Island 2 found':'Land past the deep?'}</span>`
     + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
@@ -407,8 +430,11 @@ function renderGuide(){
     ? 'An octopus for a head, a fistful of tentacles for a face, and two small wings. It sleeps in a sunken city in a far corner of the deep and snores. Sail by fast or close and it wakes, and a tentacle comes up wherever the water boils. Go slowly and it dreams on.'
     : 'Not seen yet. Something sleeps in a sunken city, far out in the deep. Go quietly.'}</small><div class="facts"><span>A corner of the deep</span><span>Asleep, mostly</span><span>Not for catching</span></div></article>`);
   pages.push(`<article class="page${anglerSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${anglerSeen ? 'Anglerfish' : '?'}</b><small>${anglerSeen
-    ? 'A light in the deep at night, with what look like glowing fish around it. There are no glowing fish in the deep. Make for the light and its jaws open under you: turn away. Caught, the net tears and a quarter of the hold is gone.'
+    ? 'A light in the deep at night, with what look like glowing fish around it. There are no glowing fish in the deep. Make for the light and its jaws open under you: turn away. Caught, it swallows the boat whole and spits it out in the home shallows, without your catch.'
     : 'Not seen yet. Something out in the deep fishes for boats at night.'}</small><div class="facts"><span>The deep</span><span>Night only</span><span>Not for catching</span></div></article>`);
+  pages.push(`<article class="page${gulperSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${gulperSeen ? 'Gulper' : '?'}</b><small>${gulperSeen
+    ? 'A giant gulper eel, black as the deep, with a mouth like a pelican\'s and a pink light at the tip of its tail. It hunts the east side of the deep. Each bite takes a third of the boat\'s health; three and it eats the boat, which it spits out at home without the catch. It is slower than a flagship flat out: run, and turn hard when it closes.'
+    : 'Not seen yet. Something with an enormous mouth hunts the east side of the deep. Watch for a pink light.'}</small><div class="facts"><span>East side of the deep</span><span>Day and night</span><span>Not for catching</span></div></article>`);
   pages.push(`<article class="page${snook.landed ? ' gold' : ' unk'}">${FISH_SVG(snook.landed ? '#C9D3D6' : 'currentColor')}<b>${snook.landed ? 'Snook' : '?'}</b><small>${snook.landed
     ? 'Silver, with a black line down its side and yellow fins. It holds in the shadow of the far abutment and runs for the piling the moment it feels the hook. Most of them get there.'
     : 'Not landed yet. Something big holds in the shadow of the bridge when the light goes. A net will not take it.'}</small><div class="facts"><span>By line only: tie up south of the bridge and cast, ${TOLL} coins</span><span>Dusk, night and dawn</span>`
@@ -449,7 +475,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; gulperSeen = false; hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -660,7 +686,7 @@ function update(dt){
   T += dt; updateClock(dt);
   world.T = T; world.started = started; world.docked = docked;
   /* input and boat: the stick points; the keys drive or point, by setting */
-  if (fight){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
+  if (fight || swallowT > 0){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
   else if (!walker.aboard){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt);
     // Ashore the stick walks, and the keys always point: driving a person by turning them reads as a tank.
     let ix = 0, iy = 0;
@@ -714,6 +740,9 @@ function update(dt){
   // The shop is the dock while aboard; ashore it folds away so the stick has the screen.
   { const open = docked && walker.aboard; if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
       elShop.classList.toggle('open', open); elShop.setAttribute('aria-hidden', String(!open)); elAshore.hidden = !open; } }
+  if (swallowT > 0){ swallowT -= dt; boat.v = 0; if (swallowT <= 0) spitOut(); }
+  irisT = Math.max(0, irisT - dt);
+  if (swallowT <= 0){ hp = mend(hp, dt, !pastBuoys(boat.x, boat.y), docked); hudHull(); }
   if (docked && holdTotal > 0){
     sellT -= dt;
     while (sellT <= 0 && holdTotal > 0){ sellOne(); sellT += .045; }
@@ -1228,6 +1257,12 @@ function draw(){
   scene.draw(drawView, 'overlay');
   drawTension();
 
+  // Swallowed: the view closes on the boat, stays dark inside, and opens again where it was spat out.
+  if (swallowT > 0 || irisT > 0){ const big = Math.hypot(W, H);
+    const r = swallowT > 0 ? big*clamp((swallowT - (SWALLOW - .5))/.5, 0, 1) : big*(1 - irisT/SPIT);
+    ctx.fillStyle = '#05080C'; ctx.beginPath(); ctx.rect(0, 0, W, H);
+    if (r > 1){ ctx.moveTo(px(boat.x,boat.y) + r, py(boat.x,boat.y)); ctx.arc(px(boat.x,boat.y), py(boat.x,boat.y), r, 0, Math.PI*2, true); }
+    ctx.fill('evenodd'); }
   if (joy.on && started){
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(joy.x,joy.y,20,0,Math.PI*2); ctx.fill();
@@ -1245,5 +1280,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {rare, lev, cthulu, angler, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {rare, lev, cthulu, angler, gulper, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

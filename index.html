@@ -137,7 +137,11 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 #order span{line-height:1.15}
 #rchips{position:fixed;right:calc(12px + env(safe-area-inset-right));top:calc(58px + env(safe-area-inset-top));pointer-events:none;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:176px}
 #phase i{width:10px;height:10px;border-radius:50%;margin-top:-3px}
-#wood,#phase,#market{
+#hull{display:flex}
+#hull[hidden]{display:none}
+.hbar{width:48px;height:9px;border-radius:9px;background:var(--track);overflow:hidden;margin-top:-2px}
+.hbar i{display:block;height:100%;border-radius:9px}
+#wood,#phase,#market,#hull{
   background:var(--pill-bg);color:var(--pill-fg);border-radius:12px;padding:7px 11px 4px;font-size:13.5px;font-weight:800;line-height:1;
   display:flex;gap:6px;align-items:center;box-shadow:0 2px 0 var(--pill-shadow)}
 #wood svg,#market svg{margin-top:-3px}
@@ -223,7 +227,7 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 </div>
 
 <div id="order" aria-live="polite"></div>
-<div id="rchips"><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
+<div id="rchips"><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
 <div id="toast" role="status"></div>
 <button class="pill" id="cast" hidden>Cast · 10</button>
 <button class="pill" id="aboard" hidden>Back aboard</button>

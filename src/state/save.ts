@@ -57,6 +57,8 @@ export type SaveData = {
   isle2Seen: boolean;
   /** The flag designed in the shop, or null for the pennant in the hull's paint. */
   flag: Flag | null;
+  /** The gulper has hunted the boat. */
+  gulperSeen: boolean;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -112,6 +114,7 @@ export function defaultSave(b: Bounds): SaveData {
     petted: false,
     isle2Seen: false,
     flag: null,
+    gulperSeen: false,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -184,6 +187,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.petted = !!o.petted;
   d.isle2Seen = !!o.isle2Seen;
   d.flag = parseFlag(o.flag);
+  d.gulperSeen = !!o.gulperSeen;
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -243,6 +247,7 @@ export function serializeSave(d: SaveData): string {
     petted: d.petted,
     isle2Seen: d.isle2Seen,
     flag: d.flag,
+    gulperSeen: d.gulperSeen,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,
