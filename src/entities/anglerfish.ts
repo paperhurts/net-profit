@@ -7,13 +7,15 @@
  * with the light flickering red, and they snap shut the moment the boat is
  * over them. Turn away and they shut on nothing. Caught, the net is torn and a quarter of the hold is gone;
  * never the boat, never coins. Either way it sinks back into the dark and
- * comes up somewhere else a while later. By day it is not there at all.
+ * comes up somewhere else a while later. By day it is not there at all, and it
+ * keeps clear of island 2.
  */
 
 import { rgba } from '../core/color';
 import { clamp } from '../core/math';
 import { SPECIES } from '../data/tuning';
 import { DEEP, pastBuoys, WS } from '../world/island';
+import { nearIsle2 } from '../world/isle2';
 import { LAIR } from './cthuluviathan';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -43,6 +45,8 @@ export const DIVE = 1.2;
 export const COOL = 35;
 /** It never lurks this close to the Cthuluviathan's city, nor this close to the buoys or the deep's end. */
 export const LAIR_CLEAR = 1100;
+/** Nor this close to island 2's shore: the water round an island you can sell at is safe. */
+export const ISLE2_CLEAR = 450;
 export const EDGE = 220;
 
 export type AnglerState = 'gone' | 'lurking' | 'opening' | 'diving';
@@ -74,6 +78,7 @@ export function lurkAt(
     const x = side === 0 ? -depth : side === 1 ? WS + depth : along;
     const y = side === 2 ? -depth : side === 3 ? WS + depth : along;
     if (!inDeep(x, y) || Math.hypot(x - LAIR.x, y - LAIR.y) < LAIR_CLEAR) continue;
+    if (nearIsle2(x, y, ISLE2_CLEAR)) continue;
     if (away && Math.hypot(x - away.x, y - away.y) < far) continue;
     return [x, y];
   }
@@ -156,7 +161,11 @@ export class Anglerfish implements Entity {
       const step = Math.min(dl, DRIFT * dt);
       const nx = this.x + (dx / dl) * step;
       const ny = this.y + (dy / dl) * step;
-      if (inDeep(nx, ny) && Math.hypot(nx - LAIR.x, ny - LAIR.y) >= LAIR_CLEAR) {
+      if (
+        inDeep(nx, ny) &&
+        Math.hypot(nx - LAIR.x, ny - LAIR.y) >= LAIR_CLEAR &&
+        !nearIsle2(nx, ny, ISLE2_CLEAR)
+      ) {
         this.x = nx;
         this.y = ny;
       } else {

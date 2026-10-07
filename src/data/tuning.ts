@@ -141,6 +141,16 @@ export const SPECIES: readonly Species[] = [
     mark: '#2B9BD8',
     dot: true,
   },
+  {
+    name: 'parrotfish',
+    pl: 'parrotfish',
+    v: 36,
+    c: '#3FC7B0',
+    s: 11,
+    fat: 0.5,
+    tail: 0.8,
+    mark: '#F07AA8',
+  },
 ];
 
 /** Index of the shark in SPECIES. */
@@ -167,6 +177,8 @@ export type Ring = {
   night?: boolean;
   /** Past the buoys, where only the flagship goes. */
   deep?: boolean;
+  /** Round island 2 rather than home: its radii are from island 2's centre. */
+  isle2?: boolean;
 };
 
 /** Where the fish are, in the order the world is built; the order matters, because the builder draws from one seeded stream. */
@@ -191,6 +203,24 @@ export const MAHI = 12;
  */
 export const DEEP_RINGS: readonly Ring[] = [
   { n: 4, r0: 2750, r1: 3100, sp: MAHI, count: 24, rad: 100, base: 0, deep: true },
+];
+
+/** Index of the parrotfish in SPECIES, island 2's fish. */
+export const PARROT = 13;
+
+/** Island 2's schools, in a ring round it clear of its dock, from their own seed. */
+export const ISLE2_RINGS: readonly Ring[] = [
+  {
+    n: 3,
+    r0: 400,
+    r1: 460,
+    sp: PARROT,
+    count: 22,
+    rad: 80,
+    base: Math.PI / 12,
+    deep: true,
+    isle2: true,
+  },
 ];
 
 /** Sailing range from the island per boat tier; the flagship is unlimited. */

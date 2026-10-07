@@ -30,6 +30,7 @@ import {
   BRIDGE_PARTS,
   BRIDGE_SOUTH,
   bridgePartDepth,
+  DOCK,
   IR,
   IX,
   IY,
@@ -43,6 +44,7 @@ import {
   TY,
   UMBRELLA,
 } from '../world/island';
+import { berth2, DOCK2, ISLE2, LANDING2, PALMS2, POST, TOWER } from '../world/isle2';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
@@ -70,6 +72,31 @@ const MAX_PRINTS = 80;
 /** The boat's berth for a hull of this scale: bow in at the end of the pier, a hand's width off the planks. */
 export function berth(k: number): { x: number; y: number; h: number } {
   return { x: PX0 + 161 + 34 * k, y: IY, h: Math.PI };
+}
+
+/** A place to step ashore: the dock ring, where the boat ties up for a hull scale, and where the figure lands. */
+export type Dock = {
+  x: number;
+  y: number;
+  r: number;
+  berth(k: number): { x: number; y: number; h: number };
+  landing: { x: number; y: number };
+};
+/** The pier at home, and island 2's beach, where the boat runs up onto the sand. */
+export const HOME_DOCK: Dock = { x: DOCK.x, y: DOCK.y, r: DOCK.r, berth, landing: LANDING };
+export const ISLE2_DOCK: Dock = {
+  x: DOCK2.x,
+  y: DOCK2.y,
+  r: DOCK2.r,
+  berth: berth2,
+  landing: LANDING2,
+};
+export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK];
+
+/** The dock whose ring a point is in, if any. */
+export function dockAt(x: number, y: number): Dock | null {
+  for (const d of DOCKS) if (Math.hypot(x - d.x, y - d.y) < d.r) return d;
+  return null;
 }
 
 /**
@@ -118,6 +145,7 @@ function inBox(
 /** Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the beach. */
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
+  if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (inBox(x, y, PIER_WALK)) return true;
   const [t, o] = bridgeFrame(x, y);
   if (t >= -APPROACH && t <= SPAN && Math.abs(o) <= DECK_HALF) return true;
@@ -194,6 +222,16 @@ export const PROPS: readonly Prop[] = [
   // The umbrella's pole, sorted with the beach things; the toll sign's post, with the bridge's last part.
   post(UMBRELLA, 3, BEACH.x + BEACH.y),
   post(TOLL_SIGN, 2.5, bridgePartDepth(BRIDGE_PARTS - 1)),
+  // Island 2: the trading post, the tower and the palms.
+  prop(POST.x0, POST.y0, POST.x1, POST.y1, POST.x1 + POST.y1),
+  prop(
+    TOWER.x - TOWER.r,
+    TOWER.y - TOWER.r,
+    TOWER.x + TOWER.r,
+    TOWER.y + TOWER.r,
+    TOWER.x + TOWER.y,
+  ),
+  ...PALMS2.map((p) => post(p, 4, p[0] + p[1])),
 ];
 
 /** Whether something built at this palace stage stands in the way of a point. */
@@ -319,6 +357,8 @@ export class Walker implements Entity {
   state: WalkState = 'aboard';
   x: number = LANDING.x;
   y: number = LANDING.y;
+  /** Where the boat is tied up while the figure is ashore. */
+  dock: Dock = HOME_DOCK;
   z = 0;
   /** Facing, in world radians. */
   h = Math.PI;
@@ -366,13 +406,14 @@ export class Walker implements Entity {
     return (
       this.state === 'ashore' &&
       this.wandered &&
-      Math.hypot(this.x - LANDING.x, this.y - LANDING.y) < BOARD_REACH
+      Math.hypot(this.x - this.dock.landing.x, this.y - this.dock.landing.y) < BOARD_REACH
     );
   }
 
   /** Tie up and go ashore. The game asks only while docked. */
-  stepAshore(): boolean {
+  stepAshore(dock: Dock = HOME_DOCK): boolean {
     if (this.state !== 'aboard') return false;
+    this.dock = dock;
     this.state = 'mooring';
     this.t = 0;
     return true;
@@ -432,7 +473,7 @@ export class Walker implements Entity {
     const first = this.prints[0];
     if (first && this.now - first.t > PRINT_LIFE) this.prints.shift();
     if (this.state === 'mooring') {
-      const to = berth(k);
+      const to = this.dock.berth(k);
       const e = Math.min(1, dt * MOOR_EASE);
       const turn = MOOR_TURN * dt;
       b.x += (to.x - b.x) * e;
@@ -449,9 +490,9 @@ export class Walker implements Entity {
           fx: this.bow.x,
           fy: this.bow.y,
           fz: this.bow.z,
-          tx: LANDING.x,
-          ty: LANDING.y,
-          tz: groundZ(LANDING.x, LANDING.y),
+          tx: this.dock.landing.x,
+          ty: this.dock.landing.y,
+          tz: groundZ(this.dock.landing.x, this.dock.landing.y),
         };
         this.h = Math.PI;
         this.state = 'off';
@@ -503,7 +544,8 @@ export class Walker implements Entity {
     this.gait += (Math.min(1, speed / (WALK_SPEED * 0.6)) - this.gait) * Math.min(1, dt * 10);
     this.ph += moved * 0.42;
     this.z = groundZ(this.x, this.y);
-    if (Math.hypot(this.x - LANDING.x, this.y - LANDING.y) > BOARD_REACH + 10) this.wandered = true;
+    const home = this.dock.landing;
+    if (Math.hypot(this.x - home.x, this.y - home.y) > BOARD_REACH + 10) this.wandered = true;
     this.stride += moved;
     if (this.stride >= STRIDE) {
       this.stride -= STRIDE;
