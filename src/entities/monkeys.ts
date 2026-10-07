@@ -76,21 +76,29 @@ export class Monkeys implements Entity {
   /** A monkey has noticed the figure. */
   onSpot: (() => void) | null = null;
 
-  constructor() {
-    for (let i = 0; i < MONKEYS; i++) this.list.push(this.spawn(i));
+  /**
+   * A camp of n monkeys round home, the last throwers of them throwing coconuts. The tower's floors
+   * are camps too, with their own homes and counts.
+   */
+  constructor(
+    readonly home: { x: number; y: number } = CAMP,
+    readonly n = MONKEYS,
+    readonly throwers = THROWERS,
+  ) {
+    for (let i = 0; i < n; i++) this.list.push(this.spawn(i));
   }
 
   private spawn(i: number): Monkey {
-    const a = (i / MONKEYS) * Math.PI * 2;
-    const x = CAMP.x + Math.cos(a) * 30;
-    const y = CAMP.y + Math.sin(a) * 30;
+    const a = (i / this.n) * Math.PI * 2;
+    const x = this.home.x + Math.cos(a) * 30;
+    const y = this.home.y + Math.sin(a) * 30;
     return {
       x,
       y,
       h: a,
       hp: MONKEY_HP,
       state: 'idle',
-      thrower: i >= MONKEYS - THROWERS,
+      thrower: i >= this.n - this.throwers,
       cd: 0,
       flash: 0,
       back: 0,
@@ -104,7 +112,7 @@ export class Monkeys implements Entity {
   /** Everyone home and masked, as when the game starts over. */
   reset(): void {
     this.list.length = 0;
-    for (let i = 0; i < MONKEYS; i++) this.list.push(this.spawn(i));
+    for (let i = 0; i < this.n; i++) this.list.push(this.spawn(i));
     this.nuts.length = 0;
     this.cleared = false;
   }
@@ -176,20 +184,20 @@ export class Monkeys implements Entity {
         continue;
       }
       const d = f ? Math.hypot(f.x - m.x, f.y - m.y) : Infinity;
-      const near = f !== null && Math.hypot(f.x - CAMP.x, f.y - CAMP.y) < AGGRO;
+      const near = f !== null && Math.hypot(f.x - this.home.x, f.y - this.home.y) < AGGRO;
       if (m.state === 'idle' && f && (near || d < AGGRO * 0.7)) {
         m.state = 'chase';
         this.onSpot?.();
       }
-      if (m.state === 'chase' && (!f || Math.hypot(f.x - CAMP.x, f.y - CAMP.y) > LEASH))
+      if (m.state === 'chase' && (!f || Math.hypot(f.x - this.home.x, f.y - this.home.y) > LEASH))
         m.state = 'idle';
       if (m.state === 'idle') {
         m.rest -= dt;
         if (m.rest <= 0) {
           const a = w.rng() * Math.PI * 2;
           const r = 20 + w.rng() * 40;
-          m.tx = CAMP.x + Math.cos(a) * r;
-          m.ty = CAMP.y + Math.sin(a) * r;
+          m.tx = this.home.x + Math.cos(a) * r;
+          m.ty = this.home.y + Math.sin(a) * r;
           m.rest = 1.5 + w.rng() * 3;
         }
         this.toward(m, m.tx, m.ty, MONKEY_SPEED * 0.5, dt);

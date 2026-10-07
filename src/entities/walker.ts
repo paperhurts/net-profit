@@ -56,6 +56,7 @@ import {
   TOTEM,
   TOWER,
 } from '../world/isle2';
+import { onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
@@ -157,6 +158,7 @@ function inBox(
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
+  if (onFloor(x, y)) return true;
   if (inBox(x, y, PIER_WALK)) return true;
   const [t, o] = bridgeFrame(x, y);
   if (t >= -APPROACH && t <= SPAN && Math.abs(o) <= DECK_HALF) return true;
