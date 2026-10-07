@@ -62,6 +62,8 @@ export type SaveData = {
   gulperSeen: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
+  /** Skull masks dropped by beaten monkeys. */
+  masks: number;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -119,6 +121,7 @@ export function defaultSave(b: Bounds): SaveData {
     flag: null,
     gulperSeen: false,
     spear: 0,
+    masks: 0,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -193,6 +196,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
+  d.masks = Math.max(0, int(o.masks));
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -254,6 +258,7 @@ export function serializeSave(d: SaveData): string {
     flag: d.flag,
     gulperSeen: d.gulperSeen,
     spear: d.spear,
+    masks: d.masks,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,

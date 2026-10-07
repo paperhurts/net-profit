@@ -28,6 +28,7 @@ type Np = {
   swallowing: boolean;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
+  masks: number;
 };
 
 declare global {
@@ -416,5 +417,34 @@ test('spear: ashore on island 2, a parrotfish in range brings the throw button, 
   const before = await page.evaluate(() => window.__np.coins);
   await page.click('#throw');
   await page.waitForFunction((c) => window.__np.coins > c, before, { timeout: 2000 });
+  expect(errors).toEqual([]);
+});
+
+test('monkeys: a barbed spear beats a skull-mask monkey and its mask is kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = -600 - 115 + 70;
+    window.__np.walker.y = 5400 + 105 - 30;
+  });
+  await expect(page.locator('#hearts')).toBeVisible();
+  await expect(page.locator('#throw')).toBeVisible();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.masks > 0, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });

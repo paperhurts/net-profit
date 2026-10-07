@@ -33,6 +33,7 @@ export function fakeView(): FakeView {
     moveTo: count('moveTo'),
     lineTo: count('lineTo'),
     quadraticCurveTo: count('quadraticCurveTo'),
+    fillRect: count('fillRect'),
     bezierCurveTo: count('bezierCurveTo'),
     closePath: count('closePath'),
     fillText: count('fillText'),
