@@ -165,6 +165,24 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
+#flagger{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
+#flagger[hidden]{display:none}
+#flagger .planks{max-width:420px;margin:0 auto;padding:10px}
+#flagger h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#flagger h2 .pill{height:32px;padding:0 10px}
+#flagBig{display:flex;justify-content:center;margin:4px 0 6px}
+#flagBig svg{border-radius:4px;box-shadow:0 3px 0 rgba(0,0,0,.25);width:150px;height:100px}
+.frow{margin-top:8px}
+.frow b{font-size:13px;font-weight:800;margin:0 4px}
+.frow .swatches{margin-top:5px}
+.fchips{display:flex;gap:6px;flex-wrap:wrap;margin:5px 2px 0}
+.fchip{width:48px;height:34px;border-radius:7px;background:var(--card);display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.22)}
+.fchip.sel{outline:3px solid var(--coin);outline-offset:1px}
+#flagger .go{display:block;margin:14px auto 4px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;padding:11px 26px 8px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pair .build small{display:none}
+.fmini{display:grid;place-items:center;flex:none}
+.fmini svg{border-radius:2px;box-shadow:0 2px 0 rgba(0,0,0,.2)}
 #guide .planks{max-width:560px;margin:0 auto;padding:10px}
 #guide h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
 #guide h2 .pill{height:32px;padding:0 10px}
@@ -223,7 +241,22 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
     <button class="build" id="build"></button>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>
     <div class="log" id="log" aria-label="Catch log"></div>
-    <button class="build" id="guideBtn"><span><b>Field guide</b><small>Every fish you have met, and where to look for the rest.</small></span><span class="buy">Open</span></button>
+    <div class="pair">
+      <button class="build" id="guideBtn"><span><b>Field guide</b><small>Every fish you have met.</small></span><span class="buy">Open</span></button>
+      <button class="build" id="flagBtn"><span><b>Your flag</b><small>Design the flag you fly.</small></span><span class="fmini" id="flagMini"></span></button>
+    </div>
+  </div>
+</section>
+
+<section id="flagger" hidden aria-label="Your flag">
+  <div class="planks">
+    <h2>Your flag <button class="pill icon" id="flagClose" aria-label="Close the flag designer">✕</button></h2>
+    <div id="flagBig"></div>
+    <div class="frow"><b>Colour</b><div class="swatches" id="fField" role="group" aria-label="Flag colour"></div></div>
+    <div class="frow"><b>Pattern</b><div class="fchips" id="fPattern" role="group" aria-label="Pattern"></div></div>
+    <div class="frow"><b>Second colour</b><div class="swatches" id="fAccent" role="group" aria-label="Second colour"></div></div>
+    <div class="frow"><b>Emblem</b><div class="fchips" id="fEmblem" role="group" aria-label="Emblem"></div></div>
+    <button class="go" id="flagDone">Fly it</button>
   </div>
 </section>
 

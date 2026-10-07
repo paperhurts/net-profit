@@ -8,6 +8,7 @@ import { clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
+import { EMBLEMS, FLAG_COLOR_NAMES, FLAG_COLORS, flagShapes, flagSvg, PATTERNS, START_FLAG } from './data/flag';
 import { CAST_RANGE, CAST_SPEED, Fight, MAX_DISTANCE, MISS_LINE, smoothPull, snookHome, TOLL } from './fishing/snook';
 import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
@@ -53,7 +54,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, flag = null, keyMode = 'drive';
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
@@ -68,9 +69,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; flag = s.flag; Object.assign(gear, s.gear); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, flag, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -302,7 +303,7 @@ function refreshShop(){
   $('paints').innerHTML = PAINTS.map((p,i) => `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${i>=open?' (locked)':''}" aria-disabled="${i>=open}" style="background:${p.hull};border-color:${p.trim}"></button>`).join('');
   // A fully grown boat has nothing left to buy here, so the three maxed cards fold away and the panel stays short.
   elShop.querySelector('.row').hidden = lv.net >= MAXLV && lv.hold >= MAXLV && lv.engine >= MAXLV;
-  refreshBuild(); refreshMarket(); refreshGear();
+  refreshBuild(); refreshMarket(); refreshGear(); $('flagMini').innerHTML = flagSvg(flag || START_FLAG, 30, 20);
   $('log').innerHTML = SPECIES.map((S,i) => `<span class="chip${log[i]?'':' unk'}${S.rare&&log[i]?' gold':''}" title="${log[i]?S.name:'Not caught yet'}">${FISH_SVG(log[i]?S.c:'currentColor')}${log[i]||'?'}</span>`).join('')
     + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`
     + `<span class="chip${whaleSeen?' gold':' unk'}">${whaleSeen?'Whales sighted':'A song, far out?'}</span>`
@@ -418,9 +419,25 @@ function renderGuide(){
 function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
 function closeGuide(){ elGuide.hidden = true; sfx.click(); }
 $('guideBtn').addEventListener('click', openGuide);
+// The flag designer: a colour, a pattern, a second colour and an emblem. Every tap flies it at once.
+const elFlagger = $('flagger');
+function swatchRow(sel){ return FLAG_COLORS.map((c,i) => `<button class="sw${i===sel?' sel':''}" data-i="${i}" aria-label="${FLAG_COLOR_NAMES[i]}" style="background:${c};border-color:${i===2?'#C9B98F':'#FFF6E5'}"></button>`).join(''); }
+function renderFlagger(){ const f = flag || START_FLAG;
+  $('flagBig').innerHTML = flagSvg(f, 150, 100);
+  $('fField').innerHTML = swatchRow(f.field); $('fAccent').innerHTML = swatchRow(f.accent);
+  $('fPattern').innerHTML = PATTERNS.map((p,i) => `<button class="fchip${i===f.pattern?' sel':''}" data-i="${i}" aria-label="${p}">${flagSvg({...f, pattern:i, emblem:0}, 42, 28)}</button>`).join('');
+  $('fEmblem').innerHTML = EMBLEMS.map((e,i) => `<button class="fchip${i===f.emblem?' sel':''}" data-i="${i}" aria-label="${e}">${flagSvg({...f, emblem:i}, 42, 28)}</button>`).join(''); }
+function setFlag(k, i){ flag = {...(flag || START_FLAG), [k]: i}; audio(); sfx.click(); renderFlagger(); refreshShop(); save(); }
+for (const [id, k] of [['fField','field'], ['fAccent','accent'], ['fPattern','pattern'], ['fEmblem','emblem']])
+  $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (b) setFlag(k, +b.dataset.i); });
+function openFlagger(){ audio(); sfx.click(); if (!flag){ flag = {...START_FLAG}; save(); refreshShop(); } renderFlagger(); elFlagger.hidden = false; }
+function closeFlagger(){ elFlagger.hidden = true; sfx.click(); }
+$('flagBtn').addEventListener('click', openFlagger);
+$('flagDone').addEventListener('click', closeFlagger);
+$('flagClose').addEventListener('click', closeFlagger);
 $('log').addEventListener('click', openGuide);
 $('guideClose').addEventListener('click', closeGuide);
-window.addEventListener('keydown', e => { if (e.key === 'Escape' && !elGuide.hidden) closeGuide(); });
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !elGuide.hidden) closeGuide(); if (e.key === 'Escape' && !elFlagger.hidden) closeFlagger(); });
 let rstTimer = 0;
 elRst.addEventListener('click', () => {
   if (!elRst.classList.contains('sure')){
@@ -432,7 +449,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; flag = null; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -915,8 +932,18 @@ function drawShip(s,o){
     ctx.fillStyle = o.sail; ctx.fill(); }
   ctx.strokeStyle = o.mast; ctx.lineWidth = 2.2*Z; ctx.beginPath(); ctx.moveTo(mx,myB); ctx.lineTo(mx,myT); ctx.stroke();
   const fw = Math.sin(T*5 + s.x*.02)*3*Z;
+  if (o.design){ drawFlagAt(mx, myT, 17*Z*k, 11*Z*k, o.design, fw, -1); return; }
   ctx.beginPath(); ctx.moveTo(mx,myT); ctx.lineTo(mx-15*Z*k, myT+5*Z*k+fw); ctx.lineTo(mx, myT+10*Z*k); ctx.closePath();
   ctx.fillStyle = o.flag; ctx.fill();
+}
+// A designed flag at a screen point on its pole, w by h, flying left (dir -1) or right, rippled by wave.
+function drawFlagAt(sx, sy, w, h, f, wave, dir){
+  ctx.save(); ctx.translate(sx, sy); ctx.scale(dir < 0 ? -1 : 1, 1); ctx.transform(1, wave/w, 0, 1, 0, 0);
+  for (const q of flagShapes(f, w, h)){ ctx.fillStyle = q.c;
+    if (q.t === 'rect') ctx.fillRect(q.x, q.y, q.w, q.h);
+    else if (q.t === 'circle'){ ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, Math.PI*2); ctx.fill(); }
+    else { ctx.beginPath(); ctx.moveTo(q.p[0], q.p[1]); for (let i=2;i<q.p.length;i+=2) ctx.lineTo(q.p[i], q.p[i+1]); ctx.closePath(); ctx.fill(); } }
+  ctx.restore();
 }
 function drawPalm(x,y,lean){
   const bx = px(x,y), by = py(x,y), sway = Math.sin(T*.9+x)*3*Z, tx = px(x+lean,y) + sway, ty = py(x+lean,y,58);
@@ -927,8 +954,9 @@ function drawPalm(x,y,lean){
     ctx.beginPath(); ctx.ellipse(tx + Math.cos(a)*13*Z, ty + Math.sin(a)*6*Z + 2*Z, 15*Z, 5.5*Z, Math.atan2(Math.sin(a)*.5+.25, Math.cos(a)), 0, Math.PI*2); ctx.fill(); }
 }
 function blob(x,y,z,r,c){ ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px(x,y), py(x,y,z), r*Z, 0, Math.PI*2); ctx.fill(); }
-function flagAt(x,y,z,c){ const sx = px(x,y), sy = py(x,y,z), w = Math.sin(T*5+x)*2*Z;
+function flagAt(x,y,z,c,design){ const sx = px(x,y), sy = py(x,y,z), w = Math.sin(T*5+x)*2*Z;
   ctx.strokeStyle = C.wood; ctx.lineWidth = 1.8*Z; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx,sy-16*Z); ctx.stroke();
+  if (design){ drawFlagAt(sx, sy-16*Z, 14*Z, 9*Z, design, w, 1); return; }
   ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(sx,sy-16*Z); ctx.lineTo(sx+12*Z,sy-12*Z+w); ctx.lineTo(sx,sy-8*Z); ctx.closePath(); ctx.fill(); }
 function perched(x,y,z){ const sx = px(x,y), sy = py(x,y,z);
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(sx,sy-4*Z,4.2*Z,3*Z,0,0,Math.PI*2); ctx.fill();
@@ -955,12 +983,12 @@ function drawBigTree(){
   if (build >= 3){ box(TX-25,TY-25,50,50,73,76,C.wood,C.woodTop); box(TX-14,TY-14,28,28,76,98,'#F3E2B8','#F3E2B8');
     ctx.fillStyle = '#FFD98A'; ctx.beginPath();
     ctx.moveTo(px(TX-5,TY+14),py(TX-5,TY+14,82)); ctx.lineTo(px(TX+5,TY+14),py(TX+5,TY+14,82)); ctx.lineTo(px(TX+5,TY+14),py(TX+5,TY+14,92)); ctx.lineTo(px(TX-5,TY+14),py(TX-5,TY+14,92)); ctx.closePath(); ctx.fill();
-    box(TX-19,TY-19,38,38,98,102,'#C9483B','#DB5B4C'); if (build < 5) flagAt(TX,TY,102,PAINTS[paint].hull); }
+    box(TX-19,TY-19,38,38,98,102,'#C9483B','#DB5B4C'); if (build < 5) flagAt(TX,TY,102,PAINTS[paint].hull,flag); }
   if (build >= 5){ const dx = px(TX,TY), dy = py(TX,TY,102);
     ctx.fillStyle = '#C9982A'; ctx.beginPath(); ctx.ellipse(dx,dy,16*Z,8*Z,0,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#F0C544'; ctx.beginPath(); ctx.ellipse(dx,dy,16*Z,19*Z,0,Math.PI,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#FFE58A'; ctx.beginPath(); ctx.ellipse(dx-5*Z,dy-9*Z,3.5*Z,7*Z,.4,0,Math.PI*2); ctx.fill();
-    flagAt(TX,TY,121,PAINTS[paint].hull);
+    flagAt(TX,TY,121,PAINTS[paint].hull,flag);
     flagAt(TX-19,TY+19,102,C.coin); flagAt(TX+19,TY-19,102,C.coin); }
   blob(TX-34,TY+6,86,20,'#56AD63');
 }
@@ -974,8 +1002,8 @@ function drawTower(){
     ctx.moveTo(px(TWX-4,TWY+22),py(TWX-4,TWY+22,125)); ctx.lineTo(px(TWX+22,TWY+22),py(TWX+22,TWY+22,125)); ctx.lineTo(px(TWX+22,TWY-4),py(TWX+22,TWY-4,125)); ctx.lineTo(px(TWX+9,TWY+9),py(TWX+9,TWY+9,162)); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#C9982A'; ctx.beginPath();
     ctx.moveTo(px(TWX+22,TWY+22),py(TWX+22,TWY+22,125)); ctx.lineTo(px(TWX+22,TWY-4),py(TWX+22,TWY-4,125)); ctx.lineTo(px(TWX+9,TWY+9),py(TWX+9,TWY+9,162)); ctx.closePath(); ctx.fill();
-    flagAt(TWX+9,TWY+9,162,PAINTS[paint].hull);
-  } else flagAt(TWX+9,TWY+9,125,PAINTS[paint].hull);
+    flagAt(TWX+9,TWY+9,162,PAINTS[paint].hull,flag);
+  } else flagAt(TWX+9,TWY+9,125,PAINTS[paint].hull,flag);
 }
 function drawBird(x,y,z,flap,k,alpha){
   ctx.globalAlpha = .13*alpha; ctx.fillStyle = '#0A2A33'; isoEllipse(x,y,6*k); ctx.fill();
@@ -1079,7 +1107,7 @@ function drawWorldObjects(){
     {d: boat.x+boat.y, f: () => {
       let tint = '#DCEBEE'; for (let i=SPECIES.length-1;i>0;i--) if (hold[i]){ tint = SPECIES[i].c; break; }
       const P = PAINTS[paint];
-      drawShip(boat, {scale:bk(), tier:tier(), hull:P.hull, trim:P.trim, deck:C.deck, cabin:C.cabin, roof:P.roof, mast:C.wood, flag:P.flag,
+      drawShip(boat, {scale:bk(), tier:tier(), hull:P.hull, trim:P.trim, deck:C.deck, cabin:C.cabin, roof:P.roof, mast:C.wood, flag:P.flag, design:flag,
         heap: holdTotal/HOLD[lv.hold], heapTint: tint}); }},
     {d: pierD, f: drawPier},
     {d: BEACH.x+BEACH.y, f: drawBeachThings}
