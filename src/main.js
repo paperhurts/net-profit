@@ -45,6 +45,8 @@ import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
 import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, WALK_ZOOM, Walker, walkerDepth, walkStep } from './entities/walker';
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
 import { DIVE3, DOCK3, DOOR3, ISLE3, MAT, onPlanks, pushOffTown, TRADER_MID } from './world/isle3';
+import { ISLE4, MONSTER, TAR_R } from './world/isle4';
+import { drawIsle4Flat, drawIsle4Sea, isle4Solids } from './render/isle4';
 import { drawIsle3Flat, drawIsle3Sea, isle3Glow, isle3Lights, isle3Solids } from './render/isle3';
 import { drawCage, drawDemonBack, drawHallBack, drawPortal } from './render/depths';
 import { Mantas } from './entities/mantas';
@@ -439,6 +441,39 @@ wboat.findFish = (x, y, reach) => { if (holdTotal >= HOLD[lv.hold]) return null;
   return best; };
 wboat.onFish = (c) => { sfx.zap(); catchFish(c.f, c.sc); };
 wboat.onArrive = () => toast('The warlock sails his own boat beside yours. He will catch fish for you.', 3600, 1);
+// The kid's cutscene, once the warlock is free and the figure is back aboard: far off in the south corner of the deep,
+// an evil monkey summons a tar monster out of the sea, the water goes black, and island 4 turns to tar. A tap skips it.
+const CINE = 12, CINE_IN = 2.5, CINE_OUT = 9.5;
+const CAPTIONS = [[0, 'Far away, in the south corner of the deep...'], [2.6, 'An evil monkey is summoning something out of the sea.'],
+  [4.8, 'A tar monster! The water is turning black.'], [7.6, 'Island 4 is a tar island now. To go there, you will need a chemistry suit.']];
+let cine = null, cineWait = 0, tarToastT = 0;
+const ease = (t) => t*t*(3 - 2*t);
+function cineK(){ if (!cine) return 0; const t = cine.t; return t < CINE_IN ? ease(t/CINE_IN) : t < CINE_OUT ? 1 : ease(clamp(1 - (t - CINE_OUT)/(CINE - CINE_OUT), 0, 1)); }
+function isle4Look(){ if (isle3Stage >= 4) return {tar: 1, spread: 1, rise: 1, summon: 1};
+  if (!cine) return {tar: 0, spread: 0, rise: 0, summon: 0};
+  const t = cine.t, r = (a, b) => clamp((t - a)/(b - a), 0, 1);
+  return {summon: r(2.5, 4.6), rise: r(4.4, 6.8), spread: r(5, 8.2), tar: r(6.2, 8.8)}; }
+function startCine(){ cine = {t: 0, cue: 0}; toasts.clear(); boat.v = 0; document.body.classList.add('cine'); }
+function endCine(){ cine = null; document.body.classList.remove('cine'); isle3Stage = Math.max(isle3Stage, 4); save(); refreshShop();
+  toast('Island 4 has turned to tar. A dark marker shows the way there. You will need a chemistry suit.', 4400, 1); }
+function updateCine(dt){
+  if (!cine){ if (isle3Stage === 3 && walker.aboard && started && swallowT <= 0){ cineWait += dt; if (cineWait > 1.5){ cineWait = 0; startCine(); } } else cineWait = 0; return; }
+  cine.t += dt;
+  if (cine.cue === 0 && cine.t >= 2.5){ cine.cue = 1; sfx.portal(); }
+  if (cine.cue === 1 && cine.t >= 4.4){ cine.cue = 2; sfx.cthuluWake(); shake = Math.max(shake, .6); }
+  if (cine.t >= CINE) endCine(); }
+cv.addEventListener('pointerdown', () => { if (cine) cine.t = Math.max(cine.t, CINE - .01); });
+function drawCine(){ if (!cine) return; const k = Math.min(1, cine.t/.5, (CINE - cine.t)/.5), bar = H*.11*k;
+  ctx.fillStyle = '#05080C'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
+  let cap = ''; for (const [t, c] of CAPTIONS) if (cine.t >= t) cap = c;
+  ctx.globalAlpha = k; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFF1D6';
+  ctx.font = `800 ${Math.round(Math.min(18, W/22))}px Grandstander, ui-rounded, system-ui, sans-serif`;
+  const words = cap.split(' '), lines = []; let line = '';
+  for (const w of words){ const tryLine = line ? line + ' ' + w : w; if (ctx.measureText(tryLine).width > W - 40){ lines.push(line); line = w; } else line = tryLine; }
+  if (line) lines.push(line);
+  lines.forEach((l, i) => ctx.fillText(l, W/2, H - bar/2 + (i - (lines.length - 1)/2)*22));
+  ctx.font = `600 12px Grandstander, ui-rounded, system-ui, sans-serif`; ctx.fillStyle = 'rgba(255,241,214,.6)'; ctx.fillText('Tap to skip', W/2, bar*.75);
+  ctx.globalAlpha = 1; }
 function inFight(){ return [monkeys, ...camps, demonMonkeys].some(c => c.list.some(m => m.state === 'chase')) || boss.up || boss3.up || swordsman.up || demons.some(d => d.up) || pullT > 0; }
 warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
@@ -559,6 +594,7 @@ function refreshShop(){
     + (hasHarpoon() && !Object.keys(TROPHY).some(k => driven[k]) ? '<span class="chip unk">Harpoon a leviathan?</span>' : '')
     + `<span class="chip${isle2Seen?' gold':' unk'}">${isle2Seen?'Island 2 found':'Land past the deep?'}</span>`
     + (isle3Seen || isle2Seen ? `<span class="chip${isle3Seen?' gold':' unk'}">${isle3Seen?'Sunken island found':'Another island?'}</span>` : '')
+    + (isle3Stage >= 4 ? '<span class="chip gold">Tar island seen</span>' : '')
     + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
@@ -679,6 +715,9 @@ function renderGuide(){
   pages.push(`<article class="page${isle3Stage >= 3 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle3Stage >= 3 ? 'The three demons' : '?'}</b><small>${isle3Stage >= 3
     ? 'What the swordsman became, in the demon dimension: three little demons. The red one slashes like he did and blocks once; the blue one keeps away and calls up two skull-mask monkeys at a time; the green one does both. They kept the warlock in a cage, and the swordsman\'s key opened it.'
     : 'Not met yet.'}</small><div class="facts"><span>The demon dimension</span><span>Red, blue, green</span><span>${isle3Stage >= 3 ? 'Warlock freed' : 'Not beaten'}</span></div></article>`);
+  pages.push(`<article class="page${isle3Stage >= 4 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle3Stage >= 4 ? 'Tar monster' : '?'}</b><small>${isle3Stage >= 4
+    ? 'An evil monkey called it up out of the sea round island 4: a great dome of tar with glowing yellow eyes and dripping arms. The water round it went black and the island turned to tar. No boat can go into the black water; you will need a chemistry suit.'
+    : 'Not seen yet.'}</small><div class="facts"><span>Island 4</span><span>Black water</span><span>Chemistry suit needed</span></div></article>`);
   pages.push(`<article class="page${masks ? ' gold' : ' unk'}">${LEV_SVG}<b>${masks ? 'Skull-mask monkeys' : '?'}</b><small>${masks
     ? 'A camp of monkeys in little skull masks on the far side of island 2. They run at you to bonk you, and two of them throw coconuts: keep moving, step out from under the shadow, and throw your spear. Beaten, a monkey drops its mask and runs off. Beat the whole camp and its chest opens.'
     : 'Not met yet. Something lives in the huts on the far side of island 2. Take a spear.'}</small><div class="facts"><span>Island 2</span><span>Three hearts ashore</span><span>${masks} masks</span></div></article>`);
@@ -951,7 +990,8 @@ function update(dt){
   T += dt; updateClock(dt);
   world.T = T; world.started = started; world.docked = docked;
   /* input and boat: the stick points; the keys drive or point, by setting */
-  if (fight || swallowT > 0){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
+  updateCine(dt);
+  if (fight || swallowT > 0 || cine){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
   else if (!walker.aboard){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt);
     // Ashore the stick walks, and the keys always point: driving a person by turning them reads as a tank.
     let ix = 0, iy = 0;
@@ -975,6 +1015,9 @@ function update(dt){
   pushOut(boat, BEACH.x, BEACH.y, BEACH.r+24*k);
   pushOut(boat, ISLE2.x, ISLE2.y, ISLE2.r+24*k);
   pushOffTown(boat, 4+20*k);
+  { const look = isle4Look(), r = Math.max(ISLE4.r, TAR_R*look.spread) + 24*k, d = Math.hypot(boat.x - ISLE4.x, boat.y - ISLE4.y); tarToastT -= dt;
+    if (d < r){ pushOut(boat, ISLE4.x, ISLE4.y, r);
+      if (look.spread >= 1 && tarToastT <= 0){ tarToastT = 9; toast('Tar! The water round island 4 is black and sticky. You will need a chemistry suit.', 3200, 1); } } }
   // The buoys hold every boat but the flagship, which goes on into the deep as far as the deep runs.
   { const m = tier() === TIER_NAME.length-1 ? DEEP : 0, x0 = boat.x, y0 = boat.y;
     boat.x = clamp(boat.x, 40-m, WS-40+m); boat.y = clamp(boat.y, 40-m, WS-40+m);
@@ -1006,7 +1049,7 @@ function update(dt){
   if (inDock !== docked){ docked = inDock; if (docked){ refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
     if (jellies.inNet){ const n = jellies.shakeOut(); toast(n === 1 ? 'Shook a jellyfish out of the net.' : `Shook ${n} jellyfish out of the net.`, 2400); sfx.jelliesOut(); } } }
   // The shop is the dock while aboard; ashore it folds away so the stick has the screen.
-  { const open = docked && walker.aboard; if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
+  { const open = docked && walker.aboard && !cine; if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
       elShop.classList.toggle('open', open); elShop.setAttribute('aria-hidden', String(!open)); elAshore.hidden = !open; } }
   if (swallowT > 0){ swallowT -= dt; boat.v = 0; if (swallowT <= 0) spitOut(); }
   irisT = Math.max(0, irisT - dt);
@@ -1035,7 +1078,7 @@ function update(dt){
   warlock.free = isle3Stage >= 3; hurtWarlock(dt); wboat.free = warlock.free; wboat.crewed = !warlock.shown;
   if (wboat.free){ const wk = .85; pushOut(wboat, IX, IY, IR+24*wk); for (const b of PIER_BUMPS) pushOut(wboat, b[0], b[1], 20+20*wk);
     for (const b of BRIDGE_BUMPS) pushOut(wboat, b[0], b[1], 18+20*wk); pushOut(wboat, BEACH.x, BEACH.y, BEACH.r+24*wk);
-    pushOut(wboat, ISLE2.x, ISLE2.y, ISLE2.r+24*wk); pushOffTown(wboat, 4+20*wk); pushOut(wboat, boat.x, boat.y, 36*k);
+    pushOut(wboat, ISLE2.x, ISLE2.y, ISLE2.r+24*wk); pushOffTown(wboat, 4+20*wk); pushOut(wboat, ISLE4.x, ISLE4.y, Math.max(ISLE4.r, TAR_R*isle4Look().spread) + 24*wk); pushOut(wboat, boat.x, boat.y, 36*k);
     wboat.x = clamp(wboat.x, 40-DEEP, WS-40+DEEP); wboat.y = clamp(wboat.y, 40-DEEP, WS-40+DEEP); }
   if (pullT > 0){ pullT -= dt; if (pullT <= 0 && floor === HALL) intoDemons(); }
   redFlash = Math.max(0, redFlash - dt*1.2); if (cageOpen > 0 && cageOpen < 1) cageOpen = Math.min(1, cageOpen + dt/1.2);
@@ -1062,7 +1105,8 @@ function update(dt){
   // Ashore the camera comes in close and follows the figure, leading it a little.
   walkView += ((walker.shown ? 1 : 0) - walkView)*Math.min(1, dt*2.2);
   lx += (walker.x + walker.vx*.3 - lx)*walkView; ly += (walker.y + walker.vy*.3 - ly)*walkView;
-  viewDY = -Math.min(150, H*.17)*dockView;
+  if (cine){ const c = cineK(); lx = lx*(1-c) + (ISLE4.x - 70)*c; ly = ly*(1-c) + (ISLE4.y - 70)*c; }
+  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK());
   cam.x += (lx-cam.x)*Math.min(1, dt*3.5); cam.y += (ly-cam.y)*Math.min(1, dt*3.5);
 }
 
@@ -1087,6 +1131,7 @@ function drawSea(){
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+180); ctx.fillStyle = C.shallow; ctx.fill();
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+70); ctx.fillStyle = C.shore; ctx.fill(); }
   drawIsle3Sea(drawView);
+  drawIsle4Sea(drawView, isle4Look());
   drawUnderwaterPlants(drawView);
 
   /* wave glints across the visible patch of world */
@@ -1100,7 +1145,7 @@ function drawSea(){
     for (let gy = Math.max(-DEEP,Math.floor(y0/G)*G); gy <= Math.min(WS+DEEP,y1); gy += G){
       const hsh = Math.sin(gx*12.9898+gy*78.233)*43758.5453, r = hsh - Math.floor(hsh);
       const wx = gx + r*90, wy = gy + ((r*7)%1)*90;
-      if (Math.hypot(wx-IX, wy-IY) < IR+30 || Math.hypot(wx-ISLE2.x, wy-ISLE2.y) < ISLE2.r+30 || Math.hypot(wx-MAT.x, wy-MAT.y) < MAT.r+20 || onPlanks(wx, wy)) continue;
+      if (Math.hypot(wx-IX, wy-IY) < IR+30 || Math.hypot(wx-ISLE2.x, wy-ISLE2.y) < ISLE2.r+30 || Math.hypot(wx-MAT.x, wy-MAT.y) < MAT.r+20 || onPlanks(wx, wy) || Math.hypot(wx-ISLE4.x, wy-ISLE4.y) < ISLE4.r+30) continue;
       const sx = px(wx,wy), sy = py(wx,wy); if (sx<-40||sx>W+40||sy<-40||sy>H+40) continue;
       if (pastBuoys(wx, wy)){ // the deep's swell: bigger, slower, and every other one
         if (r > .5) continue;
@@ -1129,6 +1174,7 @@ function drawSea(){
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r); ctx.fillStyle = C.sand; ctx.fill();
     isoEllipse(ISLE2.x-30,ISLE2.y+20,165); ctx.fillStyle = '#6FB062'; ctx.fill(); }
   drawIsle3Flat(drawView);
+  drawIsle4Flat(drawView, isle4Look());
   drawGroundPlants(drawView);
 
   /* dock zone */
@@ -1474,6 +1520,7 @@ function drawWorldObjects(){
     list.push({d: FIRE.x+FIRE.y, f: drawFire}, {d: TOTEM.x+TOTEM.y, f: drawTotem}, {d: CHEST.x+CHEST.y+5, f: drawChest});
     for (const m of monkeys.list) if (m.state !== 'gone') list.push({d: walkerDepth(m.x, m.y, build, pierD, null), f: () => monkeys.drawMonkey(drawView, m, 0)}); }
   if (warlock.shown && floor < 0) list.push({d: walkerDepth(warlock.x, warlock.y, build, pierD, null), f: () => warlock.drawBody(drawView)});
+  list.push(...isle4Solids(drawView, isle4Look()));
   list.push(...isle3Solids(drawView, isle3Stage >= 1 ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null));
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
@@ -1575,9 +1622,11 @@ function draw(){
   drawTexts();
 
   const full = holdTotal >= HOLD[lv.hold];
+  if (!cine){
   if (!docked) indicator(DOCK.x, DOCK.y, full ? C.coin : C.trim, 'dock', full);
   if (walker.aboard && pastBuoys(boat.x, boat.y) && !(docked && dockHere === ISLE2_DOCK)) indicator(DOCK2.x, DOCK2.y, '#9CF0C0', 'dock', !isle2Seen); // the way to island 2
   if (walker.aboard && pastBuoys(boat.x, boat.y) && (towerTaken || isle3Seen) && !(docked && dockHere === ISLE3_DOCK)) indicator(DOCK3.x, DOCK3.y, '#9CD8F0', 'dock', !isle3Seen); // and to island 3
+  if (walker.aboard && pastBuoys(boat.x, boat.y) && isle3Stage >= 4) indicator(ISLE4.x, ISLE4.y, '#3B2A44', 'dock', false); // the tar island
   if (walker.shown) indicator(boat.x, boat.y, C.trim, 'dock', false); // the way back to the boat
   else if (!full && started){
     let best = null, bd = 1e9, anyVis = false, want = null, wd = 1e9, wantVis = false;
@@ -1591,7 +1640,9 @@ function draw(){
   }
   drawHarpoonMarks();
   scene.draw(drawView, 'overlay');
+  }
   drawTension();
+  drawCine();
 
   // Swallowed: the view closes on the boat, stays dark inside, and opens again where it was spat out.
   if (swallowT > 0 || irisT > 0){ const big = Math.hypot(W, H);
@@ -1671,5 +1722,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, isle4Look, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
