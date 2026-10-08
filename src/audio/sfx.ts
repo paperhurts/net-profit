@@ -317,6 +317,16 @@ export const cues = {
     tone(392, 0.16, 'sine', 0.05, 1.15);
     tone(523, 0.22, 'sine', 0.05, 1.1, 0.14);
   },
+  /** A sword meets a spear and turns it: a high metal clang that rings. */
+  clang(): void {
+    tone(1320, 0.08, 'square', 0.05, 0.9);
+    tone(1760, 0.3, 'triangle', 0.04, 0.98, 0.02);
+  },
+  /** Pulled through a portal: a falling, then rising, whoosh. */
+  portal(): void {
+    tone(600, 0.35, 'sawtooth', 0.04, 0.3);
+    tone(180, 0.5, 'sine', 0.06, 3, 0.3);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

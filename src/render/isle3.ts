@@ -14,6 +14,7 @@ import type { DrawView } from '../entities/entity';
 import type { Point } from '../world/island';
 import {
   type Box,
+  DIVE3,
   ISLE3,
   JETTY,
   LAMPS,
@@ -367,6 +368,14 @@ export function drawIsle3Flat(v: DrawView): void {
     v.isoEllipse(MAT.x + Math.cos(a) * d, MAT.y + Math.sin(a) * d, 1.8 + r() * 1.2, MAT_Z);
     ctx.fill();
   }
+  // The gap round the side, deep water showing through, rippling.
+  v.isoEllipse(DIVE3.x, DIVE3.y, 13, MAT_Z);
+  ctx.fillStyle = '#1D5B66';
+  ctx.fill();
+  v.isoEllipse(DIVE3.x, DIVE3.y, 9 + Math.sin(T * 2) * 2, MAT_Z);
+  ctx.strokeStyle = 'rgba(200,240,240,.35)';
+  ctx.lineWidth = 1.5 * Z;
+  ctx.stroke();
   // The planks: walks and the jetty first, so the rafts they lap onto cover their ends.
   for (const b of [...WALKS, JETTY]) deck(v, b);
   // The jetty's posts, standing a little proud of its deck.

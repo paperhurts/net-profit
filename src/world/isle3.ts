@@ -81,6 +81,9 @@ const D = Math.SQRT1_2;
 /** The doorstep outside the tower's door, on its face toward the viewer, on the seaweed. */
 export const DOOR3 = { x: TOWER3.x + 52 * D, y: TOWER3.y + 52 * D } as const;
 
+/** A gap in the seaweed round the tower from its door, where deep water shows: with scuba gear, the way down. */
+export const DIVE3 = { x: TOWER3.x - 56 * D, y: TOWER3.y + 56 * D } as const;
+
 /** Planks and seaweed are walked this far in from their edges. */
 const EDGE = 3;
 /** How far in from the seaweed's ragged rim it holds the figure. */

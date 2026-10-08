@@ -78,12 +78,14 @@ export class Monkeys implements Entity {
 
   /**
    * A camp of n monkeys round home, the last throwers of them throwing coconuts. The tower's floors
-   * are camps too, with their own homes and counts.
+   * are camps too, with their own homes and counts. A camp that does not respawn starts empty of
+   * anyone but its n, and its monkeys, once beaten, are gone for good: the demons call theirs up.
    */
   constructor(
     readonly home: { x: number; y: number } = CAMP,
     readonly n = MONKEYS,
     readonly throwers = THROWERS,
+    readonly respawn = true,
   ) {
     for (let i = 0; i < n; i++) this.list.push(this.spawn(i));
   }
@@ -107,6 +109,27 @@ export class Monkeys implements Entity {
       ty: y,
       ph: i,
     };
+  }
+
+  /** A monkey called up at a point, already chasing. */
+  summon(x: number, y: number, thrower = false): Monkey {
+    const m: Monkey = {
+      x,
+      y,
+      h: 0,
+      hp: MONKEY_HP,
+      state: 'chase',
+      thrower,
+      cd: 0.8,
+      flash: 0,
+      back: 0,
+      rest: 0,
+      tx: x,
+      ty: y,
+      ph: this.list.length,
+    };
+    this.list.push(m);
+    return m;
   }
 
   /** Everyone home and masked, as when the game starts over. */
@@ -147,7 +170,11 @@ export class Monkeys implements Entity {
     m.cd = 1.4;
     m.h = Math.atan2(m.y - fy, m.x - fx);
     this.onBeat?.(m);
-    if (!this.cleared && this.list.every((q) => q.state === 'flee' || q.state === 'gone')) {
+    if (
+      this.n > 0 &&
+      !this.cleared &&
+      this.list.every((q) => q.state === 'flee' || q.state === 'gone')
+    ) {
       this.cleared = true;
       this.refill = CLEAR_RETURN;
       this.onClear?.();
@@ -166,7 +193,8 @@ export class Monkeys implements Entity {
       m.ph += dt * 10;
       if (m.state === 'gone') {
         m.back -= dt;
-        if (m.back <= 0 && !this.cleared) Object.assign(m, this.spawn(this.list.indexOf(m)));
+        if (this.respawn && m.back <= 0 && !this.cleared)
+          Object.assign(m, this.spawn(this.list.indexOf(m)));
         continue;
       }
       if (m.state === 'flee') {

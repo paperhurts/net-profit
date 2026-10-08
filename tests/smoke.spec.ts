@@ -34,6 +34,8 @@ type Np = {
   isle3Seen: boolean;
   isle3Stage: number;
   boss3: { up: boolean; hit(power: number): void };
+  swordsman: { up: boolean; state: string; hit(power: number): boolean };
+  demons: { up: boolean; state: string; hit(power: number): boolean }[];
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -666,6 +668,53 @@ test('island 3 tower: up the sunken tower, beat the sorcerer again, and find the
   await page.evaluate(() => window.__np.boss3.hit(99));
   await page.waitForFunction(() => window.__np.isle3Stage === 1, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('scuba gear');
+  await expect(page.locator('#leave')).toHaveText('Back to the boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.walker.state === 'aboard');
+  expect(errors).toEqual([]);
+});
+
+test('the dive: down to the swordsman, into the demon dimension, and the warlock freed', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -600 + 322, y: -600 + 154, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // To the gap in the seaweed, round from the door.
+  await page.evaluate(() => {
+    window.__np.walker.x = -600 - 56 * Math.SQRT1_2;
+    window.__np.walker.y = -600 + 56 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Dive');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 6);
+  await expect(page.locator('#leave')).toHaveText('Swim up');
+  await page.waitForFunction(() => window.__np.swordsman.up, null, { timeout: 3000 });
+  // His one block, then the rest.
+  expect(await page.evaluate(() => window.__np.swordsman.hit(2))).toBe(true);
+  await page.evaluate(() => window.__np.swordsman.hit(99));
+  await page.waitForFunction(() => window.__np.isle3Stage === 2, null, { timeout: 4000 });
+  // He heals you, and the floor opens into the demon dimension.
+  await page.waitForFunction(() => window.__np.floor === 7, null, { timeout: 6000 });
+  await page.waitForFunction(() => window.__np.demons.every((d) => d.up), null, { timeout: 3000 });
+  await page.evaluate(() => {
+    for (const d of window.__np.demons) {
+      d.hit(9);
+      d.hit(9);
+    }
+  });
+  await page.waitForFunction(() => window.__np.isle3Stage === 3, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('warlock is free');
   await expect(page.locator('#leave')).toHaveText('Back to the boat');
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.walker.state === 'aboard');

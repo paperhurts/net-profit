@@ -32,7 +32,7 @@ describe('the tower', () => {
       const r = ROOMS[i] as { x: number; y: number; r: number };
       expect(r.x).toBeLessThan(-4000);
       expect(walkable(entry(i).x, entry(i).y, 0)).toBe(true);
-      if (!TOWERS.some((t) => t.roof === i))
+      if (TOWERS.some((t) => i >= t.first && i < t.roof))
         expect(walkable(stairs(i).x, stairs(i).y, 0)).toBe(true);
       expect(roomAt(r.x, r.y)).toBe(i);
       expect(walkable(r.x + r.r, r.y, 0)).toBe(false);
