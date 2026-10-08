@@ -4,7 +4,7 @@
 // behavioural reference.
 import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from './core/iso';
 import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PARROT, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
-import { clamp } from './core/math';
+import { angDiff, clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
@@ -32,9 +32,10 @@ import { Cthuluviathan } from './entities/cthuluviathan';
 import { Anglerfish } from './entities/anglerfish';
 import { Gulper } from './entities/gulper';
 import { Shallows } from './entities/shallows';
-import { BLUE, Fighter, GREEN, RED, SWORDSMAN } from './entities/fighter';
-import { Monkeys } from './entities/monkeys';
-import { Sorcerer } from './entities/sorcerer';
+import { BLUE, Fighter, GREEN, RED, SLASH_ARC, SLASH_SLACK, SWORDSMAN } from './entities/fighter';
+import { BONK_EVERY, BONK_R, Monkeys } from './entities/monkeys';
+import { BOLT_HIT, Sorcerer } from './entities/sorcerer';
+import { Warlock, WARLOCK_HEARTS } from './entities/warlock';
 import { CAGE, DEMON, DOOR, entry, HALL, ROOF, ROOF3, ROOMS, STEP, stairs, TOWERS } from './world/tower';
 import { Spears } from './entities/spears';
 import { nextSpear, spearAt } from './data/spear';
@@ -45,7 +46,6 @@ import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, PALMS2, POST, TOTEM, TOWER } fro
 import { DIVE3, DOCK3, DOOR3, ISLE3, MAT, onPlanks, pushOffTown, TRADER_MID } from './world/isle3';
 import { drawIsle3Flat, drawIsle3Sea, isle3Glow, isle3Lights, isle3Solids } from './render/isle3';
 import { drawCage, drawDemonBack, drawHallBack, drawPortal } from './render/depths';
-import { drawWarlock } from './render/warlock';
 import { Mantas } from './entities/mantas';
 import { Turtles } from './entities/turtles';
 import { bushSolids, drawGroundPlants, drawUnderwaterPlants } from './render/plants';
@@ -400,10 +400,38 @@ swordsman.onBeaten = () => { const first = isle3Stage < 2; isle3Stage = Math.max
   flies.push({x0:swordsman.x, y0:swordsman.y, z0:10, to:'figure', t:0, dur:.6, c:'#F0C544', s:6}); addText(swordsman.x, swordsman.y, 40, 'Key!', '#F0C544', 22, 2);
   toasts.clear(); toast('He healed you, and dropped a key! Then the floor splits open, red underneath...', 3800, 2); hud(); save(); pullT = 2.6; };
 function freeWarlock(){ const first = isle3Stage < 3; isle3Stage = Math.max(isle3Stage, 3); towerWon = true; cageOpen = Math.max(cageOpen, .001); burst({x: CAGE.x, y: CAGE.y}); demonMonkeys.reset();
+  warlock.come(CAGE.x + 24, CAGE.y + 24); warlockTold = true;
   if (first){ coins += DEMON_PRIZE; earned += DEMON_PRIZE; addText(CAGE.x, CAGE.y, 70, '+' + DEMON_PRIZE, C.coin, 24, 2.4); }
   toasts.clear(); toast('The key opens the cage. The warlock is free! Part man, part bird, and he is coming with you.', 5200, 2); hud(); refreshShop(); save(); }
 // What is already done stays done.
 function applyStage(){ if (isle3Stage >= 2) swordsman.state = 'gone'; if (isle3Stage >= 3){ for (const d of demons) d.state = 'gone'; cageOpen = 1; } }
+// The warlock, freed: ashore he follows the figure everywhere, every island and every room, casting green bolts at
+// whatever it is fighting; and things that would hurt the figure hurt him if he is in the way.
+const warlock = new Warlock();
+let warlockTold = false;
+function campTarget(camp, m){ return {get x(){ return m.x; }, get y(){ return m.y; }, hit: (p) => camp.hit(m, p, warlock.x, warlock.y)}; }
+function fighterTarget(f){ return {get x(){ return f.x; }, get y(){ return f.y; }, hit: (p) => f.hit(p)}; }
+warlock.findTarget = (x, y, range) => { let best = null, bd = range;
+  const consider = (t, d) => { if (d <= bd){ bd = d; best = t; } };
+  for (const camp of [monkeys, ...camps, demonMonkeys]) for (const m of camp.list) if (m.state === 'chase') consider(campTarget(camp, m), Math.hypot(m.x - x, m.y - y));
+  for (const f of [swordsman, ...demons]) if (f.up) consider(fighterTarget(f), Math.hypot(f.x - x, f.y - y));
+  for (const b of [boss, boss3]) if (b.up) consider(fighterTarget(b), Math.hypot(b.x - x, b.y - y));
+  return best; };
+warlock.onCast = () => sfx.zap();
+warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 16, 1.1); hudHearts();
+  if (out){ toasts.clear(); toast('The warlock is worn out. He flies back to his boat to rest.', 3200, 1); } };
+warlock.onArrive = () => { if (!warlockTold){ warlockTold = true; toast('The warlock comes ashore with you. He casts at whatever you fight.', 3000, 1); } };
+// What would hurt the figure hurts the warlock if he is in the way: a monkey's bonk, a bolt, a slash.
+function hurtWarlock(dt){ if (!warlock.shown) return;
+  for (const camp of [monkeys, ...camps, demonMonkeys]) for (const m of camp.list)
+    if (m.state === 'chase' && !m.thrower && m.cd <= 0 && Math.hypot(m.x - warlock.x, m.y - warlock.y) < BONK_R){ m.cd = BONK_EVERY; warlock.hurt(); }
+  for (const b of [boss, boss3]) for (let i = b.bolts.length - 1; i >= 0; i--){ const q = b.bolts[i];
+    if (Math.hypot(q.x - warlock.x, q.y - warlock.y) < BOLT_HIT){ b.bolts.splice(i, 1); warlock.hurt(); } }
+  for (const f of [swordsman, ...demons]) if (f.state === 'swing' && f.t <= dt * 1.01){
+    const d = Math.hypot(warlock.x - f.x, warlock.y - f.y);
+    if (d < f.spec.reach + SLASH_SLACK && Math.abs(angDiff(f.h, Math.atan2(warlock.y - f.y, warlock.x - f.x))) < SLASH_ARC) warlock.hurt(); } }
+function inFight(){ return [monkeys, ...camps, demonMonkeys].some(c => c.list.some(m => m.state === 'chase')) || boss.up || boss3.up || swordsman.up || demons.some(d => d.up) || pullT > 0; }
+warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
   toast(isle3Stage >= 2 ? 'Down at the tower\'s foot again. The portal is still turning.' : 'Down to the foot of the tower, under the sea.', 3000, 1); }
 function intoDemons(){ sfx.portal(); redFlash = 1; shake = Math.max(shake, .6); toRoom(DEMON); walker.diving = false; demonMonkeys.reset(); for (const d of demons) d.reset(); applyStage(); }
@@ -422,8 +450,10 @@ function climbAction(){ if (walker.state !== 'ashore') return null;
   if (floor === HALL && isle3Stage >= 2 && pullT <= 0 && Math.hypot(walker.x - PORTAL.x, walker.y - PORTAL.y) < STEP + 6) return 'portal';
   if (tower && floor < tower.roof && floors[floor] && floors[floor].cleared){ const st = stairs(floor); if (Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6) return 'stairs'; }
   return null; }
-function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK) || hearts < HEARTS; el.hidden = !show;
-  if (show) el.innerHTML = Array.from({length: HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join(''); }
+function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || warlock.shown) || hearts < HEARTS; el.hidden = !show;
+  if (show) el.innerHTML = Array.from({length: HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
+    // The warlock's, in green, after a gap.
+    + (warlock.shown ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: WARLOCK_HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < warlock.hearts ? '#3FB37A' : 'rgba(128,128,128,.35)')).join('') : ''); }
 // The boat is tied up at the trading post while the figure is ashore, so a speared fish is sold on the spot.
 function sellSpeared(sp, x, y){ log[sp]++; noteFirst(sp); carry += salePrice(SPECIES[sp].v, build, sp, market); const v = Math.floor(carry); carry -= v;
   coins += v; earned += v; sfx.spearHit();
@@ -435,7 +465,7 @@ walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
 walker.onLand = () => { gapTold = false; if (!ashoreTold.has(walker.dock)){ ashoreTold.add(walker.dock);
     toast(walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
-for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, ...camps, boss, boss3, swordsman, ...demons, demonMonkeys, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
+for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, ...camps, boss, boss3, swordsman, ...demons, demonMonkeys, warlock, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -982,7 +1012,7 @@ function update(dt){
   if (walker.nearBoat !== aboardShown){ aboardShown = walker.nearBoat; elAboard.hidden = !aboardShown; }
   walker.armed = spear > 0;
   invulnT = Math.max(0, invulnT - dt); walker.blink = invulnT > 0; spotToldT -= dt;
-  { const fighting = [monkeys, ...camps, demonMonkeys].some(c => c.list.some(m => m.state === 'chase')) || boss.up || boss3.up || swordsman.up || demons.some(d => d.up) || pullT > 0; heartT += dt;
+  { const fighting = inFight(); heartT += dt;
     if (hearts < HEARTS && (!walker.shown || (!fighting && heartT > 6))){ hearts = walker.shown ? hearts + 1 : HEARTS; heartT = 0; }
     hudHearts(); }
   { const show = spearTarget() ? 'spear' : harpoonTarget() ? 'harpoon' : null;
@@ -993,6 +1023,7 @@ function update(dt){
   { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a === 'door' ? 'Climb the tower' : a === 'dive' ? 'Dive' : a === 'portal' ? 'Into the portal' : tower && floor + 1 === tower.roof ? 'Up to the roof' : 'Climb the stairs'; } }
   { const l = floor >= 0 && walker.state === 'ashore' ? (towerWon ? 'jump' : tower === DEPTHS ? 'swim' : 'leave') : null;
     if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : l === 'swim' ? 'Swim up' : 'Leave the tower'; } }
+  warlock.free = isle3Stage >= 3; hurtWarlock(dt);
   if (pullT > 0){ pullT -= dt; if (pullT <= 0 && floor === HALL) intoDemons(); }
   redFlash = Math.max(0, redFlash - dt*1.2); if (cageOpen > 0 && cageOpen < 1) cageOpen = Math.min(1, cageOpen + dt/1.2);
   { const near = walker.state === 'ashore' && walker.dock === ISLE3_DOCK && floor < 0 && isle3Stage < 1 && Math.hypot(walker.x - DIVE3.x, walker.y - DIVE3.y) < STEP;
@@ -1429,6 +1460,7 @@ function drawWorldObjects(){
     HUTS.forEach(h => list.push({d: h[0]+h[1]+11, f: () => drawHut(h[0], h[1])}));
     list.push({d: FIRE.x+FIRE.y, f: drawFire}, {d: TOTEM.x+TOTEM.y, f: drawTotem}, {d: CHEST.x+CHEST.y+5, f: drawChest});
     for (const m of monkeys.list) if (m.state !== 'gone') list.push({d: walkerDepth(m.x, m.y, build, pierD, null), f: () => monkeys.drawMonkey(drawView, m, 0)}); }
+  if (warlock.shown && floor < 0) list.push({d: walkerDepth(warlock.x, warlock.y, build, pierD, null), f: () => warlock.drawBody(drawView)});
   list.push(...isle3Solids(drawView, isle3Stage >= 1 ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null));
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
@@ -1601,8 +1633,8 @@ function drawRoom(){
   if (floor === DEMON){
     for (const d of demons) if (d.state !== 'gone') actors.push({d: d.x + d.y, f: () => d.drawBody(drawView)});
     for (const m of demonMonkeys.list) if (m.state !== 'gone') actors.push({d: m.x + m.y, f: () => demonMonkeys.drawMonkey(drawView, m, 0)});
-    actors.push({d: CAGE.x + CAGE.y + CAGE.r, f: () => drawCage(drawView, cageOpen, cageOpen < 1)});
-    if (cageOpen >= 1){ const wx = CAGE.x + 26, wy = CAGE.y + 26; actors.push({d: wx + wy, f: () => drawWarlock(drawView, wx, wy, 0, {h: Math.atan2(walker.y - wy, walker.x - wx), ph: 0, gait: 0, cast: (T*.5) % 3, hurt: false})}); } }
+    actors.push({d: CAGE.x + CAGE.y + CAGE.r, f: () => drawCage(drawView, cageOpen, !warlock.free)}); }
+  if (warlock.shown) actors.push({d: warlock.x + warlock.y, f: () => warlock.drawBody(drawView)});
   actors.sort((a,b) => a.d-b.d); for (const o of actors) o.f();
   // The front rim, so the room reads as a room.
   if (!roof && R.kind !== 'demon'){ isoEllipse(R.x, R.y, R.r+4); ctx.strokeStyle = R.kind === 'hall' ? '#24413F' : '#2A2E34'; ctx.lineWidth = 6*Z; ctx.stroke(); }
@@ -1626,5 +1658,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

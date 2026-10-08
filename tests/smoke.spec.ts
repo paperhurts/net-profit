@@ -36,6 +36,7 @@ type Np = {
   boss3: { up: boolean; hit(power: number): void };
   swordsman: { up: boolean; state: string; hit(power: number): boolean };
   demons: { up: boolean; state: string; hit(power: number): boolean }[];
+  warlock: { shown: boolean; x: number; y: number; hearts: number; bolts: unknown[] };
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -718,5 +719,44 @@ test('the dive: down to the swordsman, into the demon dimension, and the warlock
   await expect(page.locator('#leave')).toHaveText('Back to the boat');
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.walker.state === 'aboard');
+  expect(errors).toEqual([]);
+});
+
+test('the warlock: freed, he comes ashore with the figure and casts at the monkeys', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.warlock.shown, null, { timeout: 2000 });
+  const d = await page.evaluate(() => {
+    const { walker, warlock } = window.__np;
+    return Math.hypot(walker.x - warlock.x, walker.y - warlock.y);
+  });
+  expect(d, 'the warlock is not beside the figure').toBeLessThan(40);
+  // His three hearts show beside the figure's.
+  await expect(page.locator('#hearts svg')).toHaveCount(6);
+  // Into the monkey camp: he casts at them.
+  await page.evaluate(() => {
+    window.__np.walker.x = -600 - 115 + 60;
+    window.__np.walker.y = 5400 + 105 - 30;
+  });
+  await page.waitForFunction(() => window.__np.warlock.bolts.length > 0, null, { timeout: 6000 });
   expect(errors).toEqual([]);
 });

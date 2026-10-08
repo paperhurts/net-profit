@@ -327,6 +327,11 @@ export const cues = {
     tone(600, 0.35, 'sawtooth', 0.04, 0.3);
     tone(180, 0.5, 'sine', 0.06, 3, 0.3);
   },
+  /** The warlock's staff: a soft bright shimmer, rising. */
+  zap(): void {
+    tone(880, 0.1, 'sine', 0.03, 1.5);
+    tone(1320, 0.12, 'triangle', 0.02, 1.3, 0.05);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);
