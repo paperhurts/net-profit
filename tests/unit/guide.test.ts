@@ -10,6 +10,7 @@ import {
 } from '../../src/data/guide';
 import {
   DEEP_RINGS,
+  GROUPER,
   ISLE2_RINGS,
   MAHI,
   PARROT,
@@ -27,9 +28,11 @@ describe('the field guide', () => {
 
   it('places every school where the tuning rings it', () => {
     expect(Object.keys(HABITAT)).toHaveLength(
-      RINGS.length + DEEP_RINGS.length + ISLE2_RINGS.length,
+      // Island 3's two rings are both grouper, so one page.
+      RINGS.length + DEEP_RINGS.length + ISLE2_RINGS.length + 1,
     );
     expect(HABITAT[PARROT]).toEqual({ r0: 400, r1: 460, deep: true, isle2: true });
+    expect(HABITAT[GROUPER]).toEqual({ r0: 360, r1: 430, deep: true, isle3: true });
     expect(HABITAT[0]).toEqual({ r0: 560, r1: 700 });
     expect(HABITAT[MAHI]).toEqual({ r0: 2750, r1: 3100, deep: true });
     expect(HABITAT[8]).toEqual({ r0: 950, r1: 1450, night: true });
@@ -54,6 +57,9 @@ describe('the field guide', () => {
     expect(whereText(MAHI)).toBe('Past the buoys, 2750 to 3100 out. Flagship only.');
     expect(whenText(MAHI)).toBe('By day.');
     expect(whereText(PARROT)).toBe('Round island 2, in the far corner of the deep. Flagship only.');
+    expect(whereText(GROUPER)).toBe(
+      'Over the drowned shore of island 3, in the north corner of the deep. Flagship only.',
+    );
   });
 
   it('keeps an uncaught species to itself but still points the way', () => {

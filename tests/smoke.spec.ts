@@ -31,6 +31,7 @@ type Np = {
   masks: number;
   floor: number;
   towerTaken: boolean;
+  isle3Seen: boolean;
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -374,6 +375,41 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
     (document.getElementById('rchips') as HTMLElement).getBoundingClientRect().bottom,
   ]);
   expect(toastTop, 'the message covers the bubbles').toBeGreaterThanOrEqual(chipsBottom);
+  expect(errors).toEqual([]);
+});
+
+test('island 3: sell at the floating town, step onto the jetty, find the tower barred', async ({
+  context,
+  page,
+}) => {
+  // A flagship already at the floating town's jetty, with grouper in the hold.
+  const hold = new Array(15).fill(0);
+  hold[14] = 5;
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    isle2Seen: true,
+    trip: { x: -600 + 322, y: -600 + 154, h: Math.PI, clock: 0.3, hold },
+  });
+  await page.waitForFunction(() => window.__np.hold === 0, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.coins), 'the trader paid nothing').toBeGreaterThan(
+    200,
+  );
+  expect(await page.evaluate(() => window.__np.isle3Seen)).toBe(true);
+  await expect(page.locator('#log')).toContainText('Sunken island found');
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const at = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
+  // On the jetty, near its end.
+  expect(Math.hypot((at[0] ?? 0) + 334, (at[1] ?? 0) + 456), 'not on the jetty').toBeLessThan(12);
+  // Once the landing's own message has gone, the tower's door, on the seaweed, says it is barred.
+  await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 12000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    w.x = -600 + 37;
+    w.y = -600 + 40;
+  });
+  await expect(page.locator('#toast')).toContainText('barred', { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

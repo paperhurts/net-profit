@@ -5,11 +5,14 @@
  * are placed once, from a seed, on both islands, kept off the buildings, the
  * landings, the tower's door and the camp, and out of each other's way. None
  * of them stops the figure: the bushes are knee high and it walks through.
+ * Island 3 sank, so it has only the water's plants: sea grass in the streets
+ * of its drowned town and kelp round its old shore.
  */
 import { rng } from '../core/math';
 import { blocked, LANDING, PIER_WALK } from '../entities/walker';
 import { BEACH, IR, IX, IY } from './island';
 import { CAMP, ISLE2, LANDING2 } from './isle2';
+import { ISLE3, MAT } from './isle3';
 import { DOOR } from './tower';
 
 export type PlantKind = 'flowers' | 'bush' | 'tuft' | 'seagrass' | 'kelp';
@@ -190,7 +193,32 @@ function plantIsle(isle: Isle, seed: number, beach?: { x: number; y: number; r: 
   return out;
 }
 
-export const PLANTS: readonly Plant[] = [...plantIsle(HOME, 61, BEACH), ...plantIsle(TWO, 62)];
+/** Island 3, under the water: sea grass over the drowned town, kelp round its old shore. */
+function plantSunken(seed: number): Plant[] {
+  const r = rng(seed);
+  const out: Plant[] = [];
+  const plant =
+    (kind: PlantKind, size: number, spread: number) =>
+    (x: number, y: number): Plant => ({
+      kind,
+      x,
+      y,
+      r: size + r() * spread,
+      tint: Math.floor(r() * 3),
+      ph: r() * Math.PI * 2,
+    });
+  const open = (x: number, y: number) => Math.hypot(x - MAT.x, y - MAT.y) > MAT.r + 20;
+  const { x, y, r: R } = ISLE3;
+  scatter(r, 26, x, y, MAT.r + 30, R - 20, 30, open, plant('seagrass', 10, 6), out);
+  scatter(r, 14, x, y, R + 40, R + 260, 70, open, plant('kelp', 22, 10), out);
+  return out;
+}
+
+export const PLANTS: readonly Plant[] = [
+  ...plantIsle(HOME, 61, BEACH),
+  ...plantIsle(TWO, 62),
+  ...plantSunken(63),
+];
 
 /** The plants of one kind. */
 export function plantsOf(kind: PlantKind): Plant[] {

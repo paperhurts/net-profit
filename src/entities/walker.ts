@@ -56,6 +56,7 @@ import {
   TOTEM,
   TOWER,
 } from '../world/isle2';
+import { berth3, DOCK3, groundZ3, LAMPS, LANDING3, onIsle3, SHACKS, TOWER3 } from '../world/isle3';
 import { onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -106,7 +107,7 @@ export type Dock = {
   berth(k: number): { x: number; y: number; h: number };
   landing: { x: number; y: number };
 };
-/** The pier at home, and island 2's beach, where the boat runs up onto the sand. */
+/** The pier at home, island 2's beach, where the boat runs up onto the sand, and island 3's jetty. */
 export const HOME_DOCK: Dock = { x: DOCK.x, y: DOCK.y, r: DOCK.r, berth, landing: LANDING };
 export const ISLE2_DOCK: Dock = {
   x: DOCK2.x,
@@ -115,7 +116,14 @@ export const ISLE2_DOCK: Dock = {
   berth: berth2,
   landing: LANDING2,
 };
-export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK];
+export const ISLE3_DOCK: Dock = {
+  x: DOCK3.x,
+  y: DOCK3.y,
+  r: DOCK3.r,
+  berth: berth3,
+  landing: LANDING3,
+};
+export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK];
 
 /** The dock whose ring a point is in, if any. */
 export function dockAt(x: number, y: number): Dock | null {
@@ -166,10 +174,14 @@ function inBox(
   return x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
 }
 
-/** Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the beach. */
+/**
+ * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
+ * beach, island 2, and island 3's planks and seaweed.
+ */
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
+  if (onIsle3(x, y)) return true;
   if (onFloor(x, y)) return true;
   if (inBox(x, y, PIER_WALK)) return true;
   const [t, o] = bridgeFrame(x, y);
@@ -177,8 +189,9 @@ export function onLand(x: number, y: number): boolean {
   return Math.hypot(x - BEACH.x, y - BEACH.y) <= BEACH_IN;
 }
 
-/** The height of what is underfoot: the pier's planks, the bridge's deck, or the sand. */
+/** The height of what is underfoot: the pier's planks, the bridge's deck, island 3's rafts and seaweed, or the sand. */
 export function groundZ(x: number, y: number): number {
+  if (onIsle3(x, y)) return groundZ3(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -261,6 +274,16 @@ export const PROPS: readonly Prop[] = [
   ...HUTS.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),
   post([TOTEM.x, TOTEM.y], 2.5, TOTEM.x + TOTEM.y),
   prop(CHEST.x - 7, CHEST.y - 5, CHEST.x + 7, CHEST.y + 5, CHEST.x + CHEST.y + 5, 0, 1.5),
+  // Island 3: the tower in its seaweed, the three shacks and the lamps.
+  prop(
+    TOWER3.x - TOWER3.r,
+    TOWER3.y - TOWER3.r,
+    TOWER3.x + TOWER3.r,
+    TOWER3.y + TOWER3.r,
+    TOWER3.x + TOWER3.y,
+  ),
+  ...SHACKS.map((s) => prop(s.x0, s.y0, s.x1, s.y1, s.x1 + s.y1)),
+  ...LAMPS.map((p) => post(p, 2, p[0] + p[1])),
 ];
 
 /** Whether something built at this palace stage stands in the way of a point. */

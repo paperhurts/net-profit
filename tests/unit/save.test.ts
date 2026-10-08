@@ -274,6 +274,15 @@ describe('island 2', () => {
   });
 });
 
+describe('island 3', () => {
+  it('is unseen in a save from before it, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle3Seen).toBe(false);
+    s.isle3Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle3Seen).toBe(true);
+  });
+});
+
 describe('the fishing log', () => {
   it('is empty in a save from before the snook, and survives a round trip', () => {
     const s = parseSave(legacy, bounds);
