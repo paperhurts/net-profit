@@ -6,6 +6,7 @@ import {
   defaultSave,
   ISLE3_STAGES,
   ISLE4_STAGES,
+  ISLE5_STAGES,
   parseSave,
   SAVE_KEY,
   serializeSave,
@@ -311,6 +312,16 @@ describe('island 5', () => {
     expect(s.isle5Seen).toBe(false);
     s.isle5Seen = true;
     expect(parseSave(serializeSave(s), bounds).isle5Seen).toBe(true);
+  });
+
+  it('has the King alive in an old save, keeps him dead, and clamps nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle5Stage).toBe(0);
+    s.isle5Stage = 1;
+    expect(parseSave(serializeSave(s), bounds).isle5Stage).toBe(1);
+    const o = JSON.parse(serializeSave(s));
+    o.isle5Stage = 5;
+    expect(parseSave(JSON.stringify(o), bounds).isle5Stage).toBe(ISLE5_STAGES);
   });
 });
 
