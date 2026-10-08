@@ -39,13 +39,16 @@ function backWall(v: DrawView, R: Room, h: number, colour: (i: number) => string
   }
 }
 
-/** The hall under the tower, behind whoever is in it. W and H are the screen's size. */
-export function drawHallBack(v: DrawView, R: Room, W: number, H: number): void {
+/**
+ * The hall under the tower, behind whoever is in it. W and H are the screen's size. As the drowned
+ * temple under island 6 it is greener, its stones are the temple's, and tentacles are carved in them.
+ */
+export function drawHallBack(v: DrawView, R: Room, W: number, H: number, temple = false): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#0E4E66');
-  g.addColorStop(1, '#06202E');
+  g.addColorStop(0, temple ? '#0E5A4A' : '#0E4E66');
+  g.addColorStop(1, temple ? '#05241C' : '#06202E');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
   // Light coming down in slow shafts.
@@ -82,7 +85,39 @@ export function drawHallBack(v: DrawView, R: Room, W: number, H: number): void {
     ctx.fill();
   }
   // The tower's foundation stones behind, crusted and weedy, and an arch where the stairs go up.
-  backWall(v, R, 90, (i) => ((i + Math.floor(i / 3)) % 2 ? '#3C5A5C' : '#456668'));
+  backWall(v, R, 90, (i) =>
+    temple
+      ? (i + Math.floor(i / 3)) % 2
+        ? '#3F6B57'
+        : '#4B7A64'
+      : (i + Math.floor(i / 3)) % 2
+        ? '#3C5A5C'
+        : '#456668',
+  );
+  if (temple) {
+    // Tentacles carved in the stones, curling up the wall.
+    ctx.strokeStyle = 'rgba(160,220,180,.35)';
+    ctx.lineWidth = 3 * Z;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI * 0.9 + (i / 4) * Math.PI * 0.7;
+      const x = R.x + Math.cos(a) * (R.r - 1);
+      const y = R.y + Math.sin(a) * (R.r - 1);
+      const sx = px(x, y);
+      const sy = py(x, y, 10);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.bezierCurveTo(
+        sx + 14 * Z,
+        sy - 20 * Z,
+        sx - 14 * Z,
+        sy - 40 * Z,
+        sx + 6 * Z,
+        sy - 64 * Z,
+      );
+      ctx.stroke();
+    }
+  }
   ctx.fillStyle = 'rgba(230,236,226,.55)';
   for (let i = 0; i < 40; i++) {
     const a = Math.PI * 0.8 + hash(i, 7) * Math.PI * 0.9;

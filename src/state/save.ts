@@ -33,6 +33,8 @@ export const ISLE3_STAGES = 4;
 export const ISLE4_STAGES = 1;
 /** Island 5's story so far: 1, the Skeleton Shark King dead. */
 export const ISLE5_STAGES = 1;
+/** Island 6's story so far: 1, the Deep One beaten at the surface and its temple open below; 2, Cthulhu beaten. */
+export const ISLE6_STAGES = 2;
 
 export type SaveData = {
   coins: number;
@@ -70,6 +72,8 @@ export type SaveData = {
   isle5Seen: boolean;
   /** Island 6, the big island, has been sighted, and which of its treasure chests are opened, one bit each. */
   isle6Seen: boolean;
+  /** How far through island 6's story: 0 not begun; 1 the Deep One dragged the boat under; 2 Cthulhu beaten. */
+  isle6Stage: number;
   chests6: number;
   /** How far through island 5's story: 0 not begun; 1 the Skeleton Shark King dead. */
   isle5Stage: number;
@@ -153,6 +157,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle3Seen: false,
     isle5Seen: false,
     isle6Seen: false,
+    isle6Stage: 0,
     chests6: 0,
     isle5Stage: 0,
     flag: null,
@@ -239,6 +244,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle3Seen = !!o.isle3Seen;
   d.isle5Seen = !!o.isle5Seen;
   d.isle6Seen = !!o.isle6Seen;
+  d.isle6Stage = Math.max(0, Math.min(ISLE6_STAGES, int(o.isle6Stage)));
   d.chests6 = Math.max(0, Math.min(255, int(o.chests6)));
   d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
@@ -312,6 +318,7 @@ export function serializeSave(d: SaveData): string {
     isle3Seen: d.isle3Seen,
     isle5Seen: d.isle5Seen,
     isle6Seen: d.isle6Seen,
+    isle6Stage: d.isle6Stage,
     chests6: d.chests6,
     isle5Stage: d.isle5Stage,
     flag: d.flag,

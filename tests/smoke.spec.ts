@@ -65,6 +65,9 @@ type Np = {
   isle6Seen: boolean;
   chests6: number;
   CHESTS6: [number, number][];
+  isle6Stage: number;
+  deep: { fighting: boolean; state: string; resolve: number };
+  cth: { state: string; hit(power: number): void };
   king: { fighting: boolean; state: string; resolve: number };
   fireHarpoon(): void;
 };
@@ -1063,5 +1066,45 @@ test('island 6: dock at the big island, step ashore, and find a treasure chest',
   });
   await page.waitForFunction(() => window.__np.chests6 > 0, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(400);
+  expect(errors).toEqual([]);
+});
+
+test('the Deep One: harpooned down, it drags the boat under to its temple, where Cthulhu waits', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3700, y: -1600, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.deep.fighting, null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.deep.resolve = 1;
+  });
+  await page.waitForFunction(
+    () => {
+      window.__np.fireHarpoon();
+      return window.__np.deep.state === 'drag';
+    },
+    null,
+    { timeout: 30000, polling: 100 },
+  );
+  // Under, in the temple.
+  await page.waitForFunction(() => window.__np.floor === 8 && window.__np.isle6Stage === 1, null, {
+    timeout: 5000,
+  });
+  await page.waitForFunction(() => window.__np.cth.state === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => window.__np.cth.hit(99));
+  await page.waitForFunction(() => window.__np.isle6Stage === 2, null, { timeout: 5000 });
+  await expect(page.locator('#toast')).toContainText('rare fish', { timeout: 6000 });
   expect(errors).toEqual([]);
 });

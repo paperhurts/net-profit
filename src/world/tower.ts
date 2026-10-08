@@ -11,7 +11,7 @@
 import { TOWER } from './isle2';
 
 /** A stone floor, a roof under the sky, the hall under island 3's tower, or the demon dimension. */
-export type RoomKind = 'floor' | 'roof' | 'hall' | 'demon';
+export type RoomKind = 'floor' | 'roof' | 'hall' | 'demon' | 'temple';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -27,6 +27,8 @@ export const ROOMS: readonly Room[] = [
   // Under island 3's tower, dived to: the swordsman's hall; and where he takes you, the demon dimension.
   { x: -9000, y: -6000, r: ROOM_R + 30, roof: false, kind: 'hall' },
   { x: -9000, y: -7000, r: ROOM_R + 40, roof: false, kind: 'demon' },
+  // Under island 6, where the Deep One drags the boat: its drowned temple.
+  { x: -10500, y: -6000, r: ROOM_R + 50, roof: false, kind: 'temple' },
 ];
 /** Island 2's roof, and island 3's, in ROOMS. */
 export const ROOF = 2;
@@ -34,6 +36,8 @@ export const ROOF3 = 5;
 /** The hall under island 3's tower, and the demon dimension. */
 export const HALL = 6;
 export const DEMON = 7;
+/** The drowned temple under island 6. */
+export const TEMPLE6 = 8;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },
