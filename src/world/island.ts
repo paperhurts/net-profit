@@ -12,9 +12,28 @@ export const IY = 2400;
 /** How far the deep runs past the buoys on every side. Only the flagship crosses them. */
 export const DEEP = 1200;
 
+/**
+ * Past the deep's end, a second line of buoys, and past them the far deep, this far again on every
+ * side: where the kid's islands 5 to 7 are. Until island 4's Tar Anchorer is beaten an anchor chain
+ * runs between the far buoys, and nothing crosses it.
+ */
+export const FAR = 1800;
+/** The far buoys stand this often along the deep's end. */
+export const FAR_BUOY_GAP = 300;
+
 /** Past the buoys, out in the deep. */
 export function pastBuoys(x: number, y: number): boolean {
   return x < 0 || x > WS || y < 0 || y > WS;
+}
+
+/** Past the far buoys too, out in the far deep. */
+export function pastFar(x: number, y: number): boolean {
+  return x < -DEEP || x > WS + DEEP || y < -DEEP || y > WS + DEEP;
+}
+
+/** How far past the buoys a hull may go: none, the deep, or the far deep too. */
+export function seaEdge(flagship: boolean, farOpen: boolean): number {
+  return flagship ? DEEP + (farOpen ? FAR : 0) : 0;
 }
 /** Island radius. */
 export const IR = 210;

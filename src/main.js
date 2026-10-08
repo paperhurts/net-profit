@@ -14,7 +14,7 @@ import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STA
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
 import { advanceClock, dayState, PHASE_COLOR as PHASE_C } from './world/daycycle';
 import { parseSave, SAVE_KEY, serializeSave } from './state/save';
-import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_PARTS, BRIDGE_SOUTH, bridgeAt, bridgePartDepth, CRATE, DEEP, DOCK, IR, IX, IY, pastBuoys, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, TOLL_SIGN, TWX, TWY, TX, TY, UMBRELLA, WS } from './world/island';
+import { ABUTMENTS, around, BEACH, BRIDGE, BRIDGE_BUMPS, BRIDGE_PARTS, BRIDGE_SOUTH, bridgeAt, bridgePartDepth, CRATE, DEEP, DOCK, FAR, FAR_BUOY_GAP, IR, IX, IY, pastBuoys, pastFar, PIER, PIER_BUMPS, pushOut, PX0, SMOKEHOUSE, SNOOK_SPOT, STALL, seaEdge, TOLL_SIGN, TWX, TWY, TX, TY, UMBRELLA, WS } from './world/island';
 import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
@@ -59,7 +59,7 @@ import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
 import { Whales } from './entities/whales';
 import { Scene } from './render/layers';
-import { createDeepSchools, createIsle2Schools, createIsle3Schools, createSchools, resetSchools, updateSchools } from './world/schools';
+import { createDeepSchools, createFarSchools, createIsle2Schools, createIsle3Schools, createSchools, resetSchools, updateSchools } from './world/schools';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
@@ -77,7 +77,7 @@ const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 /* ---------- state ---------- */
 let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, flag = null, gulperSeen = false, spear = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
 let hp = HP_MAX, swallowT = 0, irisT = 0, hpShown = -1; // the boat's health in the deep, and being swallowed
-let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false;
+let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false, farToastT = 0, wasFar = false;
 const lv = {net:0, hold:0, engine:0};
 const log = SPECIES.map(() => 0);
 let order = {sp:0, n:8, have:0, pay:15}, market = NO_PICK, day = 1;
@@ -87,7 +87,7 @@ const driven = noDriven(); // how many times the harpoon has driven off each lev
 const snook = {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}; // the fishing log
 let fight = null, pullSmooth = 0, slipT = 0, slipShow = 9, castShown = false; // the line: a Fight while one is out
 function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
-const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, deep: DEEP, holdCaps: HOLD};
+const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, deep: DEEP + FAR, holdCaps: HOLD};
 let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
@@ -112,7 +112,7 @@ if (savedTrip){ // resume an interrupted trip before the camera and net are plac
   if (savedTrip.clock !== undefined) clock = savedTrip.clock;
   if (savedTrip.hold){ savedTrip.hold.forEach((n,i) => { hold[i] = n; }); holdTotal = hold.reduce((a,b) => a+b, 0); }
 }
-wasDeep = pastBuoys(boat.x, boat.y); // a trip restored out in the deep has not just crossed the buoys
+wasDeep = pastBuoys(boat.x, boat.y); wasFar = pastFar(boat.x, boat.y); // a trip restored out in the deep has not just crossed the buoys
 const cam = {x: boat.x, y: boat.y};
 
 /* ---------- view ---------- */
@@ -161,9 +161,17 @@ function isoEllipse(x,y,r,z=0){ ctx.beginPath(); ctx.ellipse(px(x,y),py(x,y,z),M
 
 /* ---------- world ---------- */
 const deepSchools = createDeepSchools(); // past the buoys, under the weed
-const schools = [...createSchools(), ...deepSchools, ...createIsle2Schools(), ...createIsle3Schools()];
+const schools = [...createSchools(), ...deepSchools, ...createIsle2Schools(), ...createIsle3Schools(), ...createFarSchools()];
 const buoys = [];
 for (let i=0;i<=WS;i+=260){ buoys.push([i,0],[i,WS]); if (i && i<WS) buoys.push([0,i],[WS,i]); }
+// The far buoys at the deep's end, in order round it so each can be chained to the next.
+const farBuoys = [], FE = WS + DEEP;
+for (let i = -DEEP; i < FE; i += FAR_BUOY_GAP) farBuoys.push([i, -DEEP]);
+for (let i = -DEEP; i < FE; i += FAR_BUOY_GAP) farBuoys.push([FE, i]);
+for (let i = FE; i > -DEEP; i -= FAR_BUOY_GAP) farBuoys.push([i, FE]);
+for (let i = FE; i > -DEEP; i -= FAR_BUOY_GAP) farBuoys.push([-DEEP, i]);
+// The far deep opens when the Tar Anchorer is beaten: its anchor chain held the far buoys together.
+function farOpen(){ return isle4Stage >= 1; }
 
 function resetNet(){ placeNetBehind(net, boat, bk(), towLen()); }
 const sharksEntity = new Sharks(schools); const sharks = sharksEntity.sharks;
@@ -463,6 +471,7 @@ anchorer.onBeaten = () => { const first = isle4Stage < 1; isle4Stage = 1; burst(
   // What is left of it climbs out onto the sand beside the figure.
   tarbaby.come(walker.x + 14, walker.y + 10); sfx.yip();
   toasts.clear(); toast(`You beat the Tar Anchorer! A tarbaby climbed out of the tar, and it is coming with you. +${TAR_PRIZE} coins.`, 5000, 2);
+  if (first) toast('Far out at the deep\'s end, its anchor chain sinks between the far buoys. The far deep is open.', 4600, 1);
   hud(); refreshShop(); save(); };
 tarbaby.findTarget = (x, y, range) => warlock.findTarget(x, y, range);
 tarbaby.onSpit = () => sfx.spit();
@@ -1054,11 +1063,17 @@ function update(dt){
     if (d < r){ pushOut(boat, ISLE4.x, ISLE4.y, r);
       if (look.spread >= 1 && tarToastT <= 0){ tarToastT = 9;
         toast(gear.suit ? 'Tar. No hull goes in, but you can: stop here and tap Into the tar.' : 'Tar! The water round island 4 is black and sticky. You need a chemistry suit: the shipwright sells one.', 3200, 1); } } }
-  // The buoys hold every boat but the flagship, which goes on into the deep as far as the deep runs.
-  { const m = tier() === TIER_NAME.length-1 ? DEEP : 0, x0 = boat.x, y0 = boat.y;
+  // The buoys hold every boat but the flagship, which goes on into the deep as far as the deep runs, and on into the far
+  // deep once the anchor chain between the far buoys is gone.
+  { const flag = tier() === TIER_NAME.length-1, m = seaEdge(flag, farOpen()), x0 = boat.x, y0 = boat.y;
     boat.x = clamp(boat.x, 40-m, WS-40+m); boat.y = clamp(boat.y, 40-m, WS-40+m);
     if ((boat.x !== x0 || boat.y !== y0) && rangeToastT <= 0){ rangeToastT = 9;
-      toast(m ? 'Nothing out here but water. For now.' : 'Only a flagship can cross the buoys.', 2800, 1); sfx.rangeEdge(); } }
+      toast(!m ? 'Only a flagship can cross the buoys.' : m > DEEP ? 'Nothing out here but water. For now.'
+        : isle3Stage >= 4 ? 'An anchor chain runs between the far buoys, and nothing gets past it. Whatever holds the anchor is on the tar island.'
+        : 'An anchor chain runs between the far buoys, and nothing gets past it. For now.', 3400, 1); sfx.rangeEdge(); } }
+  { const far = pastFar(boat.x, boat.y); farToastT -= dt;
+    if (far && !wasFar && farToastT <= 0){ farToastT = 60; toast('Past the far buoys, into the far deep. Nobody has fished out here. Marlin school at its corners.', 3600, 1); }
+    wasFar = far; }
   { const deep = pastBuoys(boat.x, boat.y); deepToastT -= dt;
     if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast(!isle2Seen ? 'Past the buoys, into the deep. There is land out here: follow the green marker.' : !isle3Seen ? 'Past the buoys, into the deep. Another island is out here: follow the blue marker, up to the top of the map.' : 'Past the buoys, into the deep. Mahi-mahi school under the floating weed.', 3400, 1); }
     wasDeep = deep; }
@@ -1119,7 +1134,7 @@ function update(dt){
   if (wboat.free){ const wk = .85; pushOut(wboat, IX, IY, IR+24*wk); for (const b of PIER_BUMPS) pushOut(wboat, b[0], b[1], 20+20*wk);
     for (const b of BRIDGE_BUMPS) pushOut(wboat, b[0], b[1], 18+20*wk); pushOut(wboat, BEACH.x, BEACH.y, BEACH.r+24*wk);
     pushOut(wboat, ISLE2.x, ISLE2.y, ISLE2.r+24*wk); pushOffTown(wboat, 4+20*wk); pushOut(wboat, ISLE4.x, ISLE4.y, Math.max(ISLE4.r, TAR_R*isle4Look().spread) + 24*wk); pushOut(wboat, boat.x, boat.y, 36*k);
-    wboat.x = clamp(wboat.x, 40-DEEP, WS-40+DEEP); wboat.y = clamp(wboat.y, 40-DEEP, WS-40+DEEP); }
+    wboat.x = clamp(wboat.x, 40-DEEP-FAR, WS-40+DEEP+FAR); wboat.y = clamp(wboat.y, 40-DEEP-FAR, WS-40+DEEP+FAR); }
   if (pullT > 0){ pullT -= dt; if (pullT <= 0 && floor === HALL) intoDemons(); }
   redFlash = Math.max(0, redFlash - dt*1.2); if (cageOpen > 0 && cageOpen < 1) cageOpen = Math.min(1, cageOpen + dt/1.2);
   { const near = walker.state === 'ashore' && walker.dock === ISLE3_DOCK && floor < 0 && isle3Stage < 1 && Math.hypot(walker.x - DIVE3.x, walker.y - DIVE3.y) < STEP;
@@ -1152,10 +1167,10 @@ function update(dt){
 
 /* ---------- drawing ---------- */
 // Past the buoys the water darkens in bands, like the depth rings inside them; past the last band the deep ends.
-const DEEP_BANDS = [[DEEP, '#155565'], [DEEP*.62, '#185D6C'], [DEEP*.28, C.abyss]];
+const DEEP_BANDS = [[DEEP + FAR, '#0F4150'], [DEEP + FAR*.5, '#114A58'], [DEEP, '#155565'], [DEEP*.62, '#185D6C'], [DEEP*.28, C.abyss]];
 function square(m){ return [[-m,-m],[WS+m,-m],[WS+m,WS+m],[-m,WS+m]]; }
 function drawSea(){
-  ctx.fillStyle = '#114A58'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#0B3540'; ctx.fillRect(0,0,W,H);
   for (const [m, c] of DEEP_BANDS){ polyPath(square(m),0); ctx.fillStyle = c; ctx.fill(); }
   polyPath(square(0),0); ctx.fillStyle = C.lagoon; ctx.fill();
   ctx.save(); ctx.clip();
@@ -1181,8 +1196,8 @@ function drawSea(){
     x0 = Math.min(x0,wx); x1 = Math.max(x1,wx); y0 = Math.min(y0,wy); y1 = Math.max(y1,wy);
   }
   const G = 130; ctx.strokeStyle = C.foam; ctx.lineWidth = 2*Z; ctx.lineCap = 'round';
-  for (let gx = Math.max(-DEEP,Math.floor(x0/G)*G); gx <= Math.min(WS+DEEP,x1); gx += G){
-    for (let gy = Math.max(-DEEP,Math.floor(y0/G)*G); gy <= Math.min(WS+DEEP,y1); gy += G){
+  for (let gx = Math.max(-DEEP-FAR,Math.floor(x0/G)*G); gx <= Math.min(WS+DEEP+FAR,x1); gx += G){
+    for (let gy = Math.max(-DEEP-FAR,Math.floor(y0/G)*G); gy <= Math.min(WS+DEEP+FAR,y1); gy += G){
       const hsh = Math.sin(gx*12.9898+gy*78.233)*43758.5453, r = hsh - Math.floor(hsh);
       const wx = gx + r*90, wy = gy + ((r*7)%1)*90;
       if (Math.hypot(wx-IX, wy-IY) < IR+30 || Math.hypot(wx-ISLE2.x, wy-ISLE2.y) < ISLE2.r+30 || Math.hypot(wx-MAT.x, wy-MAT.y) < MAT.r+20 || onPlanks(wx, wy) || Math.hypot(wx-ISLE4.x, wy-ISLE4.y) < ISLE4.r+30) continue;
@@ -1578,6 +1593,17 @@ function drawBuoys(){
     const x = px(b[0],b[1]), y = py(b[0],b[1],4+z);
     ctx.fillStyle = C.hull; ctx.beginPath(); ctx.arc(x,y,5.5*Z,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = C.trim; ctx.beginPath(); ctx.arc(x,y-2.5*Z,2.6*Z,0,Math.PI*2); ctx.fill(); }
+  // The far buoys, dark red and black, and the anchor chain sagging between them while it holds.
+  const chained = !farOpen();
+  for (let i=0;i<farBuoys.length;i++){ const b = farBuoys[i]; if (!onScreen(b[0],b[1],FAR_BUOY_GAP*Z)) continue;
+    const z = Math.sin(T*1.6+i)*1.8, x = px(b[0],b[1]), y = py(b[0],b[1],5+z);
+    if (chained){ const n = farBuoys[(i+1) % farBuoys.length], nx = px(n[0],n[1]), ny = py(n[0],n[1],5+Math.sin(T*1.6+i+1)*1.8);
+      ctx.strokeStyle = '#3A3F44'; ctx.lineWidth = 2.4*Z; ctx.setLineDash([3*Z, 2*Z]);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo((x+nx)/2, (y+ny)/2 + 10*Z, nx, ny); ctx.stroke(); ctx.setLineDash([]); }
+    isoEllipse(b[0],b[1],9,0); ctx.fillStyle = 'rgba(4,24,32,.3)'; ctx.fill();
+    ctx.fillStyle = '#8E2B2B'; ctx.beginPath(); ctx.arc(x,y,7*Z,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1E2227'; ctx.fillRect(x-7*Z, y-1.6*Z, 14*Z, 3.2*Z);
+    ctx.fillStyle = '#8E2B2B'; ctx.beginPath(); ctx.arc(x,y-4*Z,3*Z,0,Math.PI*2); ctx.fill(); }
 }
 function drawFlies(){
   for (const f of flies){ if (f.t < 0) continue;

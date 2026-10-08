@@ -10,9 +10,11 @@ import {
 } from '../../src/data/guide';
 import {
   DEEP_RINGS,
+  FAR_RINGS,
   GROUPER,
   ISLE2_RINGS,
   MAHI,
+  MARLIN,
   PARROT,
   RINGS,
   SHARK,
@@ -28,9 +30,11 @@ describe('the field guide', () => {
 
   it('places every school where the tuning rings it', () => {
     expect(Object.keys(HABITAT)).toHaveLength(
-      // Island 3's two rings are both grouper, so one page.
-      RINGS.length + DEEP_RINGS.length + ISLE2_RINGS.length + 1,
+      // Island 3's two rings are both grouper, so one page; the far deep's one ring is the marlin.
+      RINGS.length + DEEP_RINGS.length + ISLE2_RINGS.length + 1 + FAR_RINGS.length,
     );
+    expect(HABITAT[MARLIN]).toEqual({ r0: 5600, r1: 5900, deep: true, far: true });
+    expect(whereText(MARLIN)).toContain('far deep');
     expect(HABITAT[PARROT]).toEqual({ r0: 400, r1: 460, deep: true, isle2: true });
     expect(HABITAT[GROUPER]).toEqual({ r0: 360, r1: 430, deep: true, isle3: true });
     expect(HABITAT[0]).toEqual({ r0: 560, r1: 700 });

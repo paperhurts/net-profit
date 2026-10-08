@@ -162,6 +162,17 @@ export const SPECIES: readonly Species[] = [
     tail: 0.75,
     mark: '#C9A57A',
   },
+  // Only in the far deep, past the far buoys: long and blue, quick and worth the trip.
+  {
+    name: 'marlin',
+    pl: 'marlin',
+    v: 60,
+    c: '#2E4F8F',
+    s: 18,
+    fat: 0.3,
+    tail: 1.15,
+    mark: '#6FC3E8',
+  },
 ];
 
 /** Index of the shark in SPECIES. */
@@ -192,6 +203,8 @@ export type Ring = {
   isle2?: boolean;
   /** Round island 3, likewise. */
   isle3?: boolean;
+  /** Past the far buoys, in the far deep. */
+  far?: boolean;
 };
 
 /** Where the fish are, in the order the world is built; the order matters, because the builder draws from one seeded stream. */
@@ -265,6 +278,27 @@ export const ISLE3_RINGS: readonly Ring[] = [
     base: (240 * Math.PI) / 180,
     deep: true,
     isle3: true,
+  },
+];
+
+/** Index of the marlin in SPECIES, the far deep's fish. */
+export const MARLIN = 15;
+
+/**
+ * The far deep's schools, out at its four corners past the far buoys, clear of islands 2 to 4 and
+ * the Cthuluviathan's city, from their own seed.
+ */
+export const FAR_RINGS: readonly Ring[] = [
+  {
+    n: 4,
+    r0: 5600,
+    r1: 5900,
+    sp: MARLIN,
+    count: 20,
+    rad: 100,
+    base: Math.PI / 4,
+    deep: true,
+    far: true,
   },
 ];
 

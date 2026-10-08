@@ -923,3 +923,33 @@ test('the Tar Anchorer: it rises when the figure reaches the sand, and beaten, l
   expect(await page.evaluate(() => window.__np.tarbaby.free)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('the far deep: an anchor chain holds the far buoys until the Tar Anchorer is beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -1000, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    window.__np.boat.x = -1500;
+  });
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.__np.boat.x)).toBeGreaterThan(-1200);
+  await expect(page.locator('#toast')).toContainText('anchor chain', { timeout: 9000 });
+  // Beaten, the chain sinks and the far deep opens.
+  await page.evaluate(() => {
+    window.__np.isle4Stage = 1;
+    window.__np.boat.x = -1500;
+  });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__np.boat.x)).toBeLessThan(-1400);
+  await expect(page.locator('#toast')).toContainText('far deep', { timeout: 9000 });
+  expect(errors).toEqual([]);
+});
