@@ -22,7 +22,7 @@ type Np = {
   coins: number;
   clock: number;
   phase: string;
-  walker: { state: string; x: number; y: number; nearBoat: boolean };
+  walker: { state: string; x: number; y: number; nearBoat: boolean; sink: number };
   dogAt: [number, number] | null;
   petted: boolean;
   swallowing: boolean;
@@ -49,6 +49,7 @@ type Np = {
   turtleSwims: number;
   harpoonTarget: string | null;
   gulper: { resolve: number };
+  gear: { mesh: boolean; strongbox: boolean; suit: boolean };
 };
 
 declare global {
