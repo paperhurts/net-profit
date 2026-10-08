@@ -1024,7 +1024,7 @@ function update(dt){
     if ((boat.x !== x0 || boat.y !== y0) && rangeToastT <= 0){ rangeToastT = 9;
       toast(m ? 'Nothing out here but water. For now.' : 'Only a flagship can cross the buoys.', 2800, 1); sfx.rangeEdge(); } }
   { const deep = pastBuoys(boat.x, boat.y); deepToastT -= dt;
-    if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast(isle2Seen ? 'Past the buoys, into the deep. Mahi-mahi school under the floating weed.' : 'Past the buoys, into the deep. There is land out here: follow the green marker.', 3400, 1); }
+    if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast(!isle2Seen ? 'Past the buoys, into the deep. There is land out here: follow the green marker.' : !isle3Seen ? 'Past the buoys, into the deep. Another island is out here: follow the blue marker, up to the top of the map.' : 'Past the buoys, into the deep. Mahi-mahi school under the floating weed.', 3400, 1); }
     wasDeep = deep; }
   if (!isle2Seen && Math.hypot(boat.x-ISLE2.x, boat.y-ISLE2.y) < ISLE2.r + 700){ isle2Seen = true; save(); refreshShop();
     toast('Land ho: island 2. Parrotfish school round it, and the trading post buys your catch.' + (spear ? '' : ' The shipwright has a spear for its shallows now.'), 4600, 1); sfx.tierUp(); }
@@ -1625,7 +1625,7 @@ function draw(){
   if (!cine){
   if (!docked) indicator(DOCK.x, DOCK.y, full ? C.coin : C.trim, 'dock', full);
   if (walker.aboard && pastBuoys(boat.x, boat.y) && !(docked && dockHere === ISLE2_DOCK)) indicator(DOCK2.x, DOCK2.y, '#9CF0C0', 'dock', !isle2Seen); // the way to island 2
-  if (walker.aboard && pastBuoys(boat.x, boat.y) && (towerTaken || isle3Seen) && !(docked && dockHere === ISLE3_DOCK)) indicator(DOCK3.x, DOCK3.y, '#9CD8F0', 'dock', !isle3Seen); // and to island 3
+  if (walker.aboard && pastBuoys(boat.x, boat.y) && (isle2Seen || towerTaken || isle3Seen) && !(docked && dockHere === ISLE3_DOCK)) indicator(DOCK3.x, DOCK3.y, '#9CD8F0', 'dock', !isle3Seen); // and to island 3, once island 2 is found
   if (walker.aboard && pastBuoys(boat.x, boat.y) && isle3Stage >= 4) indicator(ISLE4.x, ISLE4.y, '#3B2A44', 'dock', false); // the tar island
   if (walker.shown) indicator(boat.x, boat.y, C.trim, 'dock', false); // the way back to the boat
   else if (!full && started){
