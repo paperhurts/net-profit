@@ -305,6 +305,15 @@ describe('island 3', () => {
   });
 });
 
+describe('island 5', () => {
+  it('is unseen in a save from before it, and survives a round trip', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle5Seen).toBe(false);
+    s.isle5Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle5Seen).toBe(true);
+  });
+});
+
 describe('island 4', () => {
   it('has its story not begun in an old save, keeps the Anchorer beaten, and clamps nonsense', () => {
     const s = parseSave(legacy, bounds);

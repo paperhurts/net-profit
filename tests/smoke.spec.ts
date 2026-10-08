@@ -60,6 +60,7 @@ type Np = {
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarbaby: { with: boolean; free: boolean };
   isle4Stage: number;
+  isle5Seen: boolean;
 };
 
 declare global {
@@ -934,7 +935,8 @@ test('the far deep: an anchor chain holds the far buoys until the Tar Anchorer i
     isle3Seen: true,
     isle3Stage: 4,
     lv: { net: 5, hold: 5, engine: 5 },
-    trip: { x: -1000, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
+    // Along the deep's end well away from island 5, whose sighting would clear the toasts.
+    trip: { x: -1000, y: 700, h: Math.PI, clock: 0.3, hold: [] },
   });
   await page.waitForTimeout(500);
   await page.evaluate(() => {
@@ -951,5 +953,33 @@ test('the far deep: an anchor chain holds the far buoys until the Tar Anchorer i
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => window.__np.boat.x)).toBeLessThan(-1400);
   await expect(page.locator('#toast')).toContainText('far deep', { timeout: 9000 });
+  expect(errors).toEqual([]);
+});
+
+test('island 5: out in the far deep, a reef of bones is found and logged', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -1500, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.isle5Seen, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('bones', { timeout: 9000 });
+  // No hull runs onto it.
+  await page.evaluate(() => {
+    window.__np.boat.x = -2100 + 60;
+    window.__np.boat.y = 2400;
+  });
+  await page.waitForTimeout(200);
+  const d = await page.evaluate(() =>
+    Math.hypot(window.__np.boat.x + 2100, window.__np.boat.y - 2400),
+  );
+  expect(d).toBeGreaterThan(185);
   expect(errors).toEqual([]);
 });

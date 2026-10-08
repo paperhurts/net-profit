@@ -64,6 +64,8 @@ export type SaveData = {
   isle2Seen: boolean;
   /** Island 3, the sunken island, has been sighted, out in the north corner of the deep. */
   isle3Seen: boolean;
+  /** Island 5, the Skeleton Shark King's reef, has been sighted, out in the far deep. */
+  isle5Seen: boolean;
   /** The flag designed in the shop, or null for the pennant in the hull's paint. */
   flag: Flag | null;
   /** The gulper has hunted the boat. */
@@ -142,6 +144,7 @@ export function defaultSave(b: Bounds): SaveData {
     petted: false,
     isle2Seen: false,
     isle3Seen: false,
+    isle5Seen: false,
     flag: null,
     gulperSeen: false,
     spear: 0,
@@ -224,6 +227,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.petted = !!o.petted;
   d.isle2Seen = !!o.isle2Seen;
   d.isle3Seen = !!o.isle3Seen;
+  d.isle5Seen = !!o.isle5Seen;
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
@@ -293,6 +297,7 @@ export function serializeSave(d: SaveData): string {
     petted: d.petted,
     isle2Seen: d.isle2Seen,
     isle3Seen: d.isle3Seen,
+    isle5Seen: d.isle5Seen,
     flag: d.flag,
     gulperSeen: d.gulperSeen,
     spear: d.spear,
