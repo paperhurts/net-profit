@@ -26,8 +26,15 @@ export function fakeView(): FakeView {
     lineWidth: 1,
     globalCompositeOperation: 'source-over',
     beginPath: count('beginPath'),
-    ellipse: count('ellipse'),
-    arc: count('arc'),
+    // A real canvas throws on a negative radius, which has broken a frame in the game before.
+    ellipse: (_x: number, _y: number, rx: number, ry: number) => {
+      if (rx < 0 || ry < 0) throw new Error(`ellipse with a negative radius: ${rx}, ${ry}`);
+      count('ellipse')();
+    },
+    arc: (_x: number, _y: number, r: number) => {
+      if (r < 0) throw new Error(`arc with a negative radius: ${r}`);
+      count('arc')();
+    },
     fill: count('fill'),
     stroke: count('stroke'),
     moveTo: count('moveTo'),

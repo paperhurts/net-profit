@@ -38,6 +38,7 @@ type Np = {
   demons: { up: boolean; state: string; hit(power: number): boolean }[];
   warlock: { shown: boolean; x: number; y: number; hearts: number; bolts: unknown[] };
   wboat: { free: boolean; x: number; y: number; catches: number };
+  cine: { t: number } | null;
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -787,5 +788,37 @@ test("the warlock's boat: it sails beside yours and catches fish for you", async
   await page.waitForFunction(() => window.__np.wboat.free, null, { timeout: 3000 });
   await page.waitForFunction(() => window.__np.wboat.catches > 0, null, { timeout: 8000 });
   expect(await page.evaluate(() => window.__np.hold)).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test('the cutscene: back aboard with the warlock free, island 4 turns to tar, and a tap skips it', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400 + 900, y: 2400 + 900, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.cine !== null, null, { timeout: 5000 });
+  // A tap skips to the end.
+  await page.waitForTimeout(600);
+  await page.mouse.click(200, 400);
+  await page.waitForFunction(() => window.__np.isle3Stage === 4, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('turned to tar');
+  // No boat goes into the black water.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 5400 - 200;
+    b.y = 5400 - 200;
+  });
+  await page.waitForTimeout(200);
+  const d = await page.evaluate(() =>
+    Math.hypot(window.__np.boat.x - 5400, window.__np.boat.y - 5400),
+  );
+  expect(d).toBeGreaterThan(200 + 240);
   expect(errors).toEqual([]);
 });

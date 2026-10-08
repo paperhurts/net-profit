@@ -8,7 +8,7 @@
  * over them. Turn away and they shut on nothing. Caught, the boat is swallowed whole and the game
  * spits it out in the home shallows without its catch; never coins. Either way it sinks back into the dark and
  * comes up somewhere else a while later. By day it is not there at all, and it
- * keeps clear of islands 2 and 3. A harpoon in the light shuts its jaws if they are
+ * keeps clear of islands 2, 3 and 4. A harpoon in the light shuts its jaws if they are
  * open; three and it is driven off, its light out for a good while.
  */
 
@@ -19,6 +19,7 @@ import { SPECIES } from '../data/tuning';
 import { DEEP, pastBuoys, WS } from '../world/island';
 import { nearIsle2 } from '../world/isle2';
 import { nearIsle3 } from '../world/isle3';
+import { nearIsle4 } from '../world/isle4';
 import { LAIR } from './cthuluviathan';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -81,7 +82,12 @@ export function lurkAt(
     const x = side === 0 ? -depth : side === 1 ? WS + depth : along;
     const y = side === 2 ? -depth : side === 3 ? WS + depth : along;
     if (!inDeep(x, y) || Math.hypot(x - LAIR.x, y - LAIR.y) < LAIR_CLEAR) continue;
-    if (nearIsle2(x, y, ISLE2_CLEAR) || nearIsle3(x, y, ISLE2_CLEAR)) continue;
+    if (
+      nearIsle2(x, y, ISLE2_CLEAR) ||
+      nearIsle3(x, y, ISLE2_CLEAR) ||
+      nearIsle4(x, y, ISLE2_CLEAR)
+    )
+      continue;
     if (away && Math.hypot(x - away.x, y - away.y) < far) continue;
     return [x, y];
   }
@@ -173,7 +179,8 @@ export class Anglerfish implements Entity {
         inDeep(nx, ny) &&
         Math.hypot(nx - LAIR.x, ny - LAIR.y) >= LAIR_CLEAR &&
         !nearIsle2(nx, ny, ISLE2_CLEAR) &&
-        !nearIsle3(nx, ny, ISLE2_CLEAR)
+        !nearIsle3(nx, ny, ISLE2_CLEAR) &&
+        !nearIsle4(nx, ny, ISLE2_CLEAR)
       ) {
         this.x = nx;
         this.y = ny;
