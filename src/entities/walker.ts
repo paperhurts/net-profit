@@ -550,6 +550,20 @@ export class Walker implements Entity {
     return true;
   }
 
+  /** Off the boat at once and standing at a point, as when the Deep One drags the boat under: ashore from a dock. */
+  landIn(dock: Dock, x: number, y: number): void {
+    this.dock = dock;
+    this.state = 'ashore';
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.t = 0;
+    this.sink = 0;
+    this.wandered = false;
+    this.onLand?.();
+  }
+
   /** Hop back aboard, from the end of the pier. */
   goAboard(): boolean {
     if (!this.nearBoat) return false;

@@ -7,6 +7,7 @@ import {
   ISLE3_STAGES,
   ISLE4_STAGES,
   ISLE5_STAGES,
+  ISLE6_STAGES,
   parseSave,
   SAVE_KEY,
   serializeSave,
@@ -337,6 +338,14 @@ describe('island 6', () => {
     expect(back.chests6).toBe(0b101101);
     expect(parseSave(JSON.stringify({ chests6: -4 }), bounds).chests6).toBe(0);
     expect(parseSave(JSON.stringify({ chests6: 'all' }), bounds).chests6).toBe(0);
+  });
+
+  it('has the Deep One at the surface in an old save, keeps each stage, and clamps nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle6Stage).toBe(0);
+    s.isle6Stage = 1;
+    expect(parseSave(serializeSave(s), bounds).isle6Stage).toBe(1);
+    expect(parseSave(JSON.stringify({ isle6Stage: 9 }), bounds).isle6Stage).toBe(ISLE6_STAGES);
   });
 });
 
