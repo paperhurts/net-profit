@@ -7,9 +7,10 @@
  * until render/fish.ts.
  */
 import { clamp, rng } from '../core/math';
-import { DEEP_RINGS, ISLE2_RINGS, RINGS, type Ring } from '../data/tuning';
+import { DEEP_RINGS, ISLE2_RINGS, ISLE3_RINGS, RINGS, type Ring } from '../data/tuning';
 import { DEEP, IX, IY, WS } from './island';
 import { ISLE2 } from './isle2';
+import { ISLE3 } from './isle3';
 
 export type Fish = {
   /** Offset from the school's centre before the school's slow spin. */
@@ -59,6 +60,8 @@ export const SCHOOL_SEED = 11;
 export const DEEP_SEED = 23;
 /** Island 2's own seed, likewise. */
 export const ISLE2_SEED = 37;
+/** And island 3's. */
+export const ISLE3_SEED = 41;
 
 /** Anchors keep this far inside the edge of the water their rings are in. */
 const MARGIN = 220;
@@ -126,6 +129,11 @@ export function createDeepSchools(R: () => number = rng(DEEP_SEED)): School[] {
 /** The schools round island 2, out in the far corner of the deep. */
 export function createIsle2Schools(R: () => number = rng(ISLE2_SEED)): School[] {
   return createSchools(R, ISLE2_RINGS, MARGIN - DEEP, WS - MARGIN + DEEP, ISLE2.x, ISLE2.y);
+}
+
+/** The schools round island 3, over its drowned shore in the north corner of the deep. */
+export function createIsle3Schools(R: () => number = rng(ISLE3_SEED)): School[] {
+  return createSchools(R, ISLE3_RINGS, MARGIN - DEEP, WS - MARGIN + DEEP, ISLE3.x, ISLE3.y);
 }
 
 /** What one frame of the sweep needs to know. */

@@ -3,6 +3,7 @@ import { blocked, LANDING } from '../../src/entities/walker';
 import { bushSolids, drawGroundPlants, drawUnderwaterPlants } from '../../src/render/plants';
 import { BEACH, IR, IX, IY } from '../../src/world/island';
 import { CAMP, ISLE2, LANDING2 } from '../../src/world/isle2';
+import { ISLE3, MAT } from '../../src/world/isle3';
 import { CLEAR, KEEP_OFF, PLANTS, type Plant, plantsOf } from '../../src/world/plants';
 import { DOOR } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
@@ -43,6 +44,13 @@ describe('the plants', () => {
 
   it('keep the sea grass and kelp in the water round each island, and out of each other', () => {
     for (const p of [...plantsOf('seagrass'), ...plantsOf('kelp')]) {
+      const d3 = Math.hypot(p.x - ISLE3.x, p.y - ISLE3.y);
+      if (d3 < 1000) {
+        // The sunken island: anywhere in its water, but clear of the seaweed round the tower.
+        expect(d3).toBeGreaterThan(MAT.r + 20);
+        expect(d3).toBeLessThan(ISLE3.r + 300);
+        continue;
+      }
       const dHome = Math.hypot(p.x - IX, p.y - IY);
       const d2 = Math.hypot(p.x - ISLE2.x, p.y - ISLE2.y);
       const r = dHome < d2 ? IR : ISLE2.r;
@@ -51,6 +59,10 @@ describe('the plants', () => {
       expect(d).toBeLessThan(r + 560);
       expect(onBeach(p)).toBe(false);
     }
+    const sunk = PLANTS.filter((p) => Math.hypot(p.x - ISLE3.x, p.y - ISLE3.y) < 1000);
+    expect(sunk.filter((p) => p.kind === 'seagrass').length).toBeGreaterThanOrEqual(15);
+    expect(sunk.filter((p) => p.kind === 'kelp').length).toBeGreaterThanOrEqual(8);
+    expect(sunk.every((p) => p.kind === 'seagrass' || p.kind === 'kelp')).toBe(true);
     const kelp = plantsOf('kelp');
     for (const a of kelp)
       for (const b of kelp)

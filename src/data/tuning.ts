@@ -151,6 +151,17 @@ export const SPECIES: readonly Species[] = [
     tail: 0.8,
     mark: '#F07AA8',
   },
+  // Only round island 3, over the drowned town: groupers keep to wrecks and ruins.
+  {
+    name: 'grouper',
+    pl: 'grouper',
+    v: 44,
+    c: '#8C6A4F',
+    s: 15,
+    fat: 0.5,
+    tail: 0.75,
+    mark: '#C9A57A',
+  },
 ];
 
 /** Index of the shark in SPECIES. */
@@ -179,6 +190,8 @@ export type Ring = {
   deep?: boolean;
   /** Round island 2 rather than home: its radii are from island 2's centre. */
   isle2?: boolean;
+  /** Round island 3, likewise. */
+  isle3?: boolean;
 };
 
 /** Where the fish are, in the order the world is built; the order matters, because the builder draws from one seeded stream. */
@@ -220,6 +233,38 @@ export const ISLE2_RINGS: readonly Ring[] = [
     base: Math.PI / 12,
     deep: true,
     isle2: true,
+  },
+];
+
+/** Index of the grouper in SPECIES, island 3's fish. */
+export const GROUPER = 14;
+
+/**
+ * Island 3's schools, over the old shore of the drowned island and just past it, on its far side
+ * from the town and its jetty: two across from each other and one between, from their own seed.
+ */
+export const ISLE3_RINGS: readonly Ring[] = [
+  {
+    n: 2,
+    r0: 360,
+    r1: 430,
+    sp: GROUPER,
+    count: 18,
+    rad: 80,
+    base: (150 * Math.PI) / 180,
+    deep: true,
+    isle3: true,
+  },
+  {
+    n: 1,
+    r0: 360,
+    r1: 430,
+    sp: GROUPER,
+    count: 18,
+    rad: 80,
+    base: (240 * Math.PI) / 180,
+    deep: true,
+    isle3: true,
   },
 ];
 
