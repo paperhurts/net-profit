@@ -37,6 +37,7 @@ type Np = {
   swordsman: { up: boolean; state: string; hit(power: number): boolean };
   demons: { up: boolean; state: string; hit(power: number): boolean }[];
   warlock: { shown: boolean; x: number; y: number; hearts: number; bolts: unknown[] };
+  wboat: { free: boolean; x: number; y: number; catches: number };
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -758,5 +759,33 @@ test('the warlock: freed, he comes ashore with the figure and casts at the monke
     window.__np.walker.y = 5400 + 105 - 30;
   });
   await page.waitForFunction(() => window.__np.warlock.bolts.length > 0, null, { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test("the warlock's boat: it sails beside yours and catches fish for you", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400 + 900, y: 2400 + 900, h: 0, clock: 0.3, hold: [] },
+  });
+  // Lie still with his station right on a school of sardines: your net catches nothing standing still.
+  await page.evaluate(() => {
+    const np = window.__np;
+    const sc = np.schools[0];
+    if (!sc) throw new Error('no schools');
+    np.boat.x = sc.cx + 70 * 1.6;
+    np.boat.y = sc.cy - 62 * 1.6;
+    np.boat.h = 0;
+    np.boat.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.wboat.free, null, { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.wboat.catches > 0, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.hold)).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
