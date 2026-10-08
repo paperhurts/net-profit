@@ -57,7 +57,7 @@ import {
   TOWER,
 } from '../world/isle2';
 import { berth3, DOCK3, groundZ3, LAMPS, LANDING3, onIsle3, SHACKS, TOWER3 } from '../world/isle3';
-import { inTar, MONSTER, onIsle4, PALMS4, ROCKS4, SUMMONER, tarWay } from '../world/isle4';
+import { inTar, onIsle4, PALMS4, ROCKS4, tarWay } from '../world/isle4';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -298,11 +298,9 @@ export const PROPS: readonly Prop[] = [
   ),
   ...SHACKS.map((s) => prop(s.x0, s.y0, s.x1, s.y1, s.x1 + s.y1)),
   ...LAMPS.map((p) => post(p, 2, p[0] + p[1])),
-  // Island 4: its palms and rocks, the evil monkey on its beach and the tar monster standing in the tar.
+  // Island 4: its palms and rocks. The tar monster moves, so the game keeps the figure out of it.
   ...PALMS4.map((p) => post(p, 4, p[0] + p[1])),
   ...ROCKS4.map((p) => prop(p[0] - 8, p[1] - 6, p[0] + 8, p[1] + 6, p[0] + p[1])),
-  post([SUMMONER.x, SUMMONER.y], 5, SUMMONER.x + SUMMONER.y),
-  post([MONSTER.x, MONSTER.y], 46, MONSTER.x + MONSTER.y),
   // The demon dimension's cage.
   prop(
     CAGE.x - CAGE.r,

@@ -22,7 +22,14 @@ type Np = {
   coins: number;
   clock: number;
   phase: string;
-  walker: { state: string; x: number; y: number; nearBoat: boolean; sink: number };
+  walker: {
+    state: string;
+    x: number;
+    y: number;
+    nearBoat: boolean;
+    sink: number;
+    dock: { landing: { x: number; y: number } };
+  };
   dogAt: [number, number] | null;
   petted: boolean;
   swallowing: boolean;
@@ -50,6 +57,9 @@ type Np = {
   harpoonTarget: string | null;
   gulper: { resolve: number };
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
+  anchorer: { state: string; up: boolean; hit(power: number): void };
+  tarbaby: { with: boolean; free: boolean };
+  isle4Stage: number;
 };
 
 declare global {
@@ -861,5 +871,55 @@ test('the chemistry suit: from the shipwright, then into the tar off the bow, sw
     Math.hypot(window.__np.boat.x - 5400, window.__np.boat.y - 5400),
   );
   expect(d).toBeGreaterThan(440);
+  expect(errors).toEqual([]);
+});
+
+test('the Tar Anchorer: it rises when the figure reaches the sand, and beaten, leaves a tarbaby', async ({
+  context,
+  page,
+}) => {
+  const a = (-3 * Math.PI) / 4 + 0.55;
+  const r = 440 + 24 * 1.6 + 25;
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 9000,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    spear: 3,
+    gear: { mesh: false, strongbox: false, suit: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: 5400 + Math.cos(a) * r,
+      y: 5400 + Math.sin(a) * r,
+      h: a + Math.PI,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the tar');
+  await page.locator('#climb').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.anchorer.state)).toBe('lurk');
+  // Onto the sand: it wakes.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    w.x = 5400 - 95;
+    w.y = 5400 - 75;
+  });
+  await page.waitForFunction(() => window.__np.anchorer.up, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('Tar Anchorer');
+  // The spear reaches it.
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 4000 });
+  await page.evaluate(() => window.__np.anchorer.hit(200));
+  await page.waitForFunction(() => window.__np.isle4Stage === 1, null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.tarbaby.with, null, { timeout: 2000 });
+  // Back aboard, it rides along.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    w.x = w.dock.landing.x;
+    w.y = w.dock.landing.y;
+  });
+  expect(await page.evaluate(() => window.__np.tarbaby.free)).toBe(true);
   expect(errors).toEqual([]);
 });
