@@ -822,3 +822,43 @@ test('the cutscene: back aboard with the warlock free, island 4 turns to tar, an
   expect(d).toBeGreaterThan(200 + 240);
   expect(errors).toEqual([]);
 });
+
+test('the chemistry suit: from the shipwright, then into the tar off the bow, swimming', async ({
+  context,
+  page,
+}) => {
+  const a = (-3 * Math.PI) / 4 + 0.55;
+  const r = 440 + 24 * 1.6 + 25;
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 9000,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: 5400 + Math.cos(a) * r,
+      y: 5400 + Math.sin(a) * r,
+      h: a + Math.PI,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  // Without the suit, no way in.
+  await page.waitForTimeout(800);
+  await expect(page.locator('#climb')).toBeHidden();
+  // The shipwright has it now the tar has been seen; buy it as if from the shop.
+  await page.evaluate(() => {
+    window.__np.gear.suit = true;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the tar');
+  await page.locator('#climb').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.walker.sink > 10, null, { timeout: 3000 });
+  // The boat waits outside the black water.
+  const d = await page.evaluate(() =>
+    Math.hypot(window.__np.boat.x - 5400, window.__np.boat.y - 5400),
+  );
+  expect(d).toBeGreaterThan(440);
+  expect(errors).toEqual([]);
+});

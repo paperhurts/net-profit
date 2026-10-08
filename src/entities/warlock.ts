@@ -12,6 +12,7 @@
  */
 
 import { drawWarlock } from '../render/warlock';
+import { inTar } from '../world/isle4';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkable, walkStep } from './walker';
 
@@ -239,7 +240,16 @@ export class Warlock implements Entity {
   drawBody(v: DrawView): void {
     if (!this.shown) return;
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2) return;
-    drawWarlock(v, this.x, this.y, 0, {
+    // Over island 4's tar he does not swim: he floats a hand above it on a green shimmer.
+    let z = 0;
+    if (inTar(this.x, this.y)) {
+      z = 7 + Math.sin(v.T * 2.2) * 1.5;
+      v.isoEllipse(this.x, this.y, 9 + Math.sin(v.T * 3) * 1.5);
+      v.ctx.strokeStyle = 'rgba(120,255,150,.45)';
+      v.ctx.lineWidth = 1.5 * v.zoom;
+      v.ctx.stroke();
+    }
+    drawWarlock(v, this.x, this.y, z, {
       h: this.h,
       ph: this.ph,
       gait: this.gait,
