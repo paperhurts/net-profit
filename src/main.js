@@ -402,7 +402,14 @@ const toasts = new ToastQueue(); let toastShown = null;
 // pri 0 is routine, 1 an event, 2 danger; danger interrupts, the rest wait their turn.
 function toast(msg, ms=2600, pri=0){ toasts.push(msg, ms, pri, performance.now()/1000); }
 function renderToast(){ const m = toasts.tick(performance.now()/1000); if (m === toastShown) return; toastShown = m;
-  if (m){ elToast.textContent = m; elToast.classList.add('show'); } else elToast.classList.remove('show'); }
+  if (m){ elToast.textContent = m; elToast.style.top = toastTop(); elToast.classList.add('show'); } else elToast.classList.remove('show'); }
+// A message sits below the bubbles at the top, which grow a row for each of hearts, the hull and the market.
+const TOAST_TOP = 140;
+function toastTop(){ let b = 0;
+  for (const el of [$('order'), $('rchips')]){ const r = el.getBoundingClientRect(); if (r.height) b = Math.max(b, r.bottom); }
+  return b + 10 > TOAST_TOP ? (b + 10) + 'px' : ''; }
+// The bubbles change as hearts, the hull and the market come and go; the message moves with them.
+if (typeof ResizeObserver !== 'undefined'){ const ro = new ResizeObserver(() => { elToast.style.top = toastTop(); }); ro.observe($('order')); ro.observe($('rchips')); }
 // The boat's health, shown past the buoys and whenever it is not whole.
 const HEART_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13C3 9 1 7 1 4.5A3.5 3.5 0 0 1 8 3a3.5 3.5 0 0 1 7 1.5C15 7 13 9 8 13z" fill="#E4572E"/></svg>';
 function hudHull(){ const show = pastBuoys(boat.x, boat.y) || hp < HP_MAX || swallowT > 0, v = Math.ceil(hp), key = show ? v : -2;

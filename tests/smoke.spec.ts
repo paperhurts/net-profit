@@ -367,6 +367,13 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   const at = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
   expect(Math.hypot((at[0] ?? 0) + 600, (at[1] ?? 0) - 5400), 'not on island 2').toBeLessThan(230);
+  // The ashore message clears the bubbles top right, which are tallest here: hearts, the hull, the time of day.
+  await expect(page.locator('#toast')).toHaveClass(/show/);
+  const [toastTop, chipsBottom] = await page.evaluate(() => [
+    (document.getElementById('toast') as HTMLElement).getBoundingClientRect().top,
+    (document.getElementById('rchips') as HTMLElement).getBoundingClientRect().bottom,
+  ]);
+  expect(toastTop, 'the message covers the bubbles').toBeGreaterThanOrEqual(chipsBottom);
   expect(errors).toEqual([]);
 });
 
