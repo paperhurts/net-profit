@@ -20,11 +20,15 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
-      # A hung browser download once held a run for six hours (2026-10-07): give it
-      # five minutes, and one more try, so a hang fails fast or recovers on its own.
+      # The browser alone, without --with-deps: the runner already has every library
+      # Chromium needs, and --with-deps only adds system fonts the tests do not use,
+      # fetched from an Ubuntu mirror that has crawled (4 min 50 s for 21 MB on
+      # 2026-10-08) and once hung a run for six hours (2026-10-07). The browser
+      # itself comes from Playwright's CDN in seconds; a time limit and one retry
+      # stay as a net in case that ever hangs too.
       - name: Install the test browser
-        run: timeout 300 npx playwright install --with-deps chromium || timeout 300 npx playwright install --with-deps chromium
-        timeout-minutes: 12
+        run: timeout 180 npx playwright install chromium || timeout 180 npx playwright install chromium
+        timeout-minutes: 8
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v7
         if: failure()
