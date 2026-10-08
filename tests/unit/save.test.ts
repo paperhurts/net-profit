@@ -5,6 +5,7 @@ import {
   DEFAULT_ORDER,
   defaultSave,
   ISLE3_STAGES,
+  ISLE4_STAGES,
   parseSave,
   SAVE_KEY,
   serializeSave,
@@ -301,6 +302,20 @@ describe('island 3', () => {
     expect(parseSave(JSON.stringify(o), bounds).isle3Stage).toBe(ISLE3_STAGES);
     o.isle3Stage = -3;
     expect(parseSave(JSON.stringify(o), bounds).isle3Stage).toBe(0);
+  });
+});
+
+describe('island 4', () => {
+  it('has its story not begun in an old save, keeps the Anchorer beaten, and clamps nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle4Stage).toBe(0);
+    s.isle4Stage = 1;
+    expect(parseSave(serializeSave(s), bounds).isle4Stage).toBe(1);
+    const o = JSON.parse(serializeSave(s));
+    o.isle4Stage = 7;
+    expect(parseSave(JSON.stringify(o), bounds).isle4Stage).toBe(ISLE4_STAGES);
+    o.isle4Stage = 'yes';
+    expect(parseSave(JSON.stringify(o), bounds).isle4Stage).toBe(0);
   });
 });
 

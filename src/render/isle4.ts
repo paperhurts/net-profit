@@ -4,14 +4,24 @@
  * it finished: tar (the island's colours going black, its palms dying),
  * spread (the black water reaching out over the sea), rise (the tar monster
  * coming up out of it) and summon (the evil monkey's spell, a purple swirl on
- * the water). The monster is the kid's: a great black dome of tar with glowing
- * yellow eyes and dripping arms. Stand-in shapes until he draws it.
+ * the water), and whether the evil monkey still stands on the beach. The
+ * monster is the kid's: a great black dome of tar with glowing yellow eyes and
+ * dripping arms. Once the tar has spread the game hands the monster to its
+ * entity, the Tar Anchorer, which draws it with drawMonster. Stand-in shapes
+ * until he draws it.
  */
 import type { DrawView } from '../entities/entity';
 import { ISLE4, MONSTER, PALMS4, ROCKS4, SUMMONER, TAR_R } from '../world/isle4';
 import type { Solid } from './layers';
 
-export type Isle4Look = { tar: number; spread: number; rise: number; summon: number };
+export type Isle4Look = {
+  tar: number;
+  spread: number;
+  rise: number;
+  summon: number;
+  /** The evil monkey on the beach: there, or gone for now. */
+  monkey: boolean;
+};
 
 const channels = (hex: string): [number, number, number] => [
   Number.parseInt(hex.slice(1, 3), 16),
@@ -186,30 +196,46 @@ function drawSummoner(v: DrawView, summon: number): void {
   }
 }
 
-/** The tar monster, rise of the way up out of the black water. */
-function drawMonster(v: DrawView, rise: number): void {
+/** How it stands: where its eyes look and its right hand reaches, and a hit's flash. */
+export type MonsterPose = {
+  /** A world direction its eyes look, toward the figure; ahead without one. */
+  look?: { x: number; y: number };
+  /** A screen point its right hand reaches for: the anchor's chain. */
+  hand?: { x: number; y: number };
+  /** Of a hit's flash, 0 to 1. */
+  flash?: number;
+  /** Angry: its eyes burn red. */
+  angry?: boolean;
+};
+
+/** The tar monster at a point, rise of the way up out of the black water. */
+export function drawMonster(
+  v: DrawView,
+  x: number,
+  y: number,
+  rise: number,
+  pose: MonsterPose = {},
+): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
-  const { x, y } = MONSTER;
   const sx = px(x, y);
   const sy = py(x, y);
   const w = 72 * Z;
   const h = 124 * Z * rise;
   const sway = Math.sin(T * 0.9) * 3 * Z;
-  // Arms first, reaching out and dripping.
-  ctx.strokeStyle = TAR;
+  const body = pose.flash ? mix(TAR, '#B9A4D8', pose.flash * 0.7) : TAR;
+  // Arms first, reaching out and dripping; the right one to the anchor's chain when it has one.
+  ctx.strokeStyle = body;
   ctx.lineWidth = 14 * Z;
   ctx.lineCap = 'round';
   for (const side of [-1, 1]) {
+    const hand =
+      side > 0 && pose.hand ? pose.hand : { x: sx + side * w * 1.6 + sway * side, y: sy - h * 0.2 };
     ctx.beginPath();
     ctx.moveTo(sx + side * w * 0.6, sy - h * 0.55);
-    ctx.quadraticCurveTo(
-      sx + side * w * 1.4 + sway,
-      sy - h * 0.9,
-      sx + side * w * 1.6 + sway * side,
-      sy - h * 0.2,
-    );
+    ctx.quadraticCurveTo(sx + side * w * 1.4 + sway, sy - h * 0.9, hand.x, hand.y);
     ctx.stroke();
+    if (side > 0 && pose.hand) continue;
     // Drips falling off the hand.
     const t = (T * 0.8 + (side > 0 ? 0.5 : 0)) % 1;
     ctx.fillStyle = TAR;
@@ -226,7 +252,7 @@ function drawMonster(v: DrawView, rise: number): void {
     ctx.fill();
   }
   // The body: a dome of tar standing out of the water.
-  ctx.fillStyle = TAR;
+  ctx.fillStyle = body;
   ctx.beginPath();
   ctx.moveTo(sx - w, sy);
   ctx.bezierCurveTo(sx - w, sy - h * 1.1, sx + w, sy - h * 1.1, sx + w, sy);
@@ -243,18 +269,30 @@ function drawMonster(v: DrawView, rise: number): void {
   ctx.moveTo(sx - w * 0.4, sy - h * 0.75);
   ctx.quadraticCurveTo(sx - w * 0.55, sy - h * 0.4, sx - w * 0.45, sy - h * 0.1);
   ctx.stroke();
-  // Glowing yellow eyes.
-  if (rise > 0.4) {
+  // Glowing yellow eyes, which follow the figure once there is one to follow.
+  if (rise > 0.15) {
     const glow = 0.7 + 0.3 * Math.sin(T * 3);
+    const lx = pose.look ? (pose.look.x - pose.look.y) * 2.4 * Z : 0;
+    const ly = pose.look ? (pose.look.x + pose.look.y) * 1.2 * Z : 0;
     for (const e of [-1, 1]) {
-      ctx.fillStyle = `rgba(255,220,60,${0.35 * glow})`;
+      const ex = sx + e * w * 0.32;
+      const ey = sy - h * 0.62 - (rise < 0.5 ? 8 * Z : 0);
+      ctx.fillStyle = pose.angry
+        ? `rgba(255,70,40,${0.4 * glow})`
+        : `rgba(255,220,60,${0.35 * glow})`;
       ctx.beginPath();
-      ctx.ellipse(sx + e * w * 0.32, sy - h * 0.62, 14 * Z, 9 * Z, 0, 0, Math.PI * 2);
+      ctx.ellipse(ex, ey, 14 * Z, 9 * Z, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = `rgba(255,236,120,${glow})`;
+      ctx.fillStyle = pose.angry ? `rgba(255,140,90,${glow})` : `rgba(255,236,120,${glow})`;
       ctx.beginPath();
-      ctx.ellipse(sx + e * w * 0.32, sy - h * 0.62, 7 * Z, 4.5 * Z, 0, 0, Math.PI * 2);
+      ctx.ellipse(ex, ey, 7 * Z, 4.5 * Z, 0, 0, Math.PI * 2);
       ctx.fill();
+      if (pose.look) {
+        ctx.fillStyle = '#2A1606';
+        ctx.beginPath();
+        ctx.ellipse(ex + lx, ey + ly, 2.2 * Z, 3 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
   // Where it meets the water, a ring of ripples.
@@ -310,10 +348,13 @@ export function isle4Solids(v: DrawView, look: Isle4Look): Solid[] {
           mix('#A9B2B7', '#353032', look.tar),
         ),
     });
-  if (look.summon > 0 || look.tar > 0)
-    out.push({ d: SUMMONER.x + SUMMONER.y, f: () => drawSummoner(v, look.summon) });
+  if (look.monkey) out.push({ d: SUMMONER.x + SUMMONER.y, f: () => drawSummoner(v, look.summon) });
   if (look.summon > 0 && look.rise < 1)
     out.push({ d: MONSTER.x + MONSTER.y - 1, f: () => drawSwirl(v, look.summon) });
-  if (look.rise > 0) out.push({ d: MONSTER.x + MONSTER.y, f: () => drawMonster(v, look.rise) });
+  if (look.rise > 0)
+    out.push({
+      d: MONSTER.x + MONSTER.y,
+      f: () => drawMonster(v, MONSTER.x, MONSTER.y, look.rise),
+    });
   return out;
 }

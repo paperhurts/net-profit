@@ -95,7 +95,7 @@ describe('island 4', () => {
       f.v.onScreen = () => true;
       for (let t = 0; t < 7; t += 0.37) {
         f.v.T = t;
-        const look = { tar: k, spread: k, rise: k, summon: k };
+        const look = { tar: k, spread: k, rise: k, summon: k, monkey: true };
         drawIsle4Sea(f.v, look);
         drawIsle4Flat(f.v, look);
         for (const s of isle4Solids(f.v, look)) s.f();
@@ -106,8 +106,8 @@ describe('island 4', () => {
   it('draws plain before the tar, and black water, a dead island and the monster after', () => {
     expect(mix('#000000', '#FFFFFF', 0.5)).toBe('#808080');
     expect(mix('#FF0000', '#0000FF', 1)).toBe('#0000ff');
-    const none = { tar: 0, spread: 0, rise: 0, summon: 0 };
-    const all = { tar: 1, spread: 1, rise: 1, summon: 1 };
+    const none = { tar: 0, spread: 0, rise: 0, summon: 0, monkey: false };
+    const all = { tar: 1, spread: 1, rise: 1, summon: 1, monkey: true };
     const view = () => {
       const f = fakeView();
       // Look at island 4 rather than wherever the helper looks.
@@ -159,9 +159,8 @@ describe('island 4', () => {
       expect(onLand(ISLE4.x + TAR_R + 5, ISLE4.y)).toBe(false);
       expect(inTar(ISLE4.x + SAND4 + 5, ISLE4.y)).toBe(true);
       expect(inTar(ISLE4.x + SAND4 - 5, ISLE4.y)).toBe(false);
-      // The tar monster stands in the way, and so does the monkey on the beach.
-      expect(walkable(MONSTER.x, MONSTER.y, 0)).toBe(false);
-      expect(walkable(SUMMONER.x, SUMMONER.y, 0)).toBe(false);
+      // The palms and rocks stand in the way; the game keeps the figure out of the tar monster.
+      for (const p of PALMS4) expect(walkable(p[0], p[1], 0)).toBe(false);
     });
 
     it('moors, hops in, sinks to swim, and swims slower than it walks', () => {
