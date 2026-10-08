@@ -57,6 +57,7 @@ import {
   TOWER,
 } from '../world/isle2';
 import { berth3, DOCK3, groundZ3, LAMPS, LANDING3, onIsle3, SHACKS, TOWER3 } from '../world/isle3';
+import { inTar, MONSTER, onIsle4, PALMS4, ROCKS4, SUMMONER, tarWay } from '../world/isle4';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -70,6 +71,9 @@ export const WALK_EASE = 12;
  * the pier. The boat keeps the whole push: its speed is the towed net's feel.
  */
 export const WALK_FULL = 0.5;
+/** Swimming in the tar goes at this share of walking pace, sunk to the chest. */
+export const SWIM_PACE = 0.6;
+export const SWIM_SINK = 11;
 
 /** The share of full walking speed for a push of the stick, 0..1. */
 export function walkPace(push: number): number {
@@ -106,6 +110,8 @@ export type Dock = {
   r: number;
   berth(k: number): { x: number; y: number; h: number };
   landing: { x: number; y: number };
+  /** Off the bow into island 4's tar, in the chemistry suit, rather than onto planks or sand. */
+  tar?: boolean;
 };
 /** The pier at home, island 2's beach, where the boat runs up onto the sand, and island 3's jetty. */
 export const HOME_DOCK: Dock = { x: DOCK.x, y: DOCK.y, r: DOCK.r, berth, landing: LANDING };
@@ -124,6 +130,12 @@ export const ISLE3_DOCK: Dock = {
   landing: LANDING3,
 };
 export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK];
+
+/** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
+export function tarDock(a: number): Dock {
+  const w = tarWay(a);
+  return { x: w.landing.x, y: w.landing.y, r: 0, berth: w.berth, landing: w.landing, tar: true };
+}
 
 /** The dock whose ring a point is in, if any. */
 export function dockAt(x: number, y: number): Dock | null {
@@ -176,10 +188,12 @@ function inBox(
 
 /**
  * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
- * beach, island 2, and island 3's planks and seaweed.
+ * beach, island 2, island 3's planks and seaweed, and island 4 and its tar, which only a suited figure
+ * gets into.
  */
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
+  if (onIsle4(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   if (onFloor(x, y)) return true;
@@ -284,6 +298,11 @@ export const PROPS: readonly Prop[] = [
   ),
   ...SHACKS.map((s) => prop(s.x0, s.y0, s.x1, s.y1, s.x1 + s.y1)),
   ...LAMPS.map((p) => post(p, 2, p[0] + p[1])),
+  // Island 4: its palms and rocks, the evil monkey on its beach and the tar monster standing in the tar.
+  ...PALMS4.map((p) => post(p, 4, p[0] + p[1])),
+  ...ROCKS4.map((p) => prop(p[0] - 8, p[1] - 6, p[0] + 8, p[1] + 6, p[0] + p[1])),
+  post([SUMMONER.x, SUMMONER.y], 5, SUMMONER.x + SUMMONER.y),
+  post([MONSTER.x, MONSTER.y], 46, MONSTER.x + MONSTER.y),
   // The demon dimension's cage.
   prop(
     CAGE.x - CAGE.r,
@@ -412,6 +431,9 @@ const TROUSERS = '#2E3A4A';
 const HAT = '#F5C531';
 const BRIM = '#D9A21C';
 const SKIN = '#E2AE84';
+/** The chemistry suit. */
+const SUIT = '#E9C02A';
+const SUIT_DARK = '#B8901A';
 
 export class Walker implements Entity {
   state: WalkState = 'aboard';
@@ -437,6 +459,8 @@ export class Walker implements Entity {
   blink = false;
   /** Under the water in scuba gear: a brass helmet for the sou'wester, a tank on its back, bubbles. */
   diving = false;
+  /** How far sunk in the tar, swimming: up to SWIM_SINK. */
+  sink = 0;
   readonly prints: Print[] = [];
   /** The shirt, which the game keeps in the boat's paint. */
   shirt = '#E4572E';
@@ -501,6 +525,7 @@ export class Walker implements Entity {
     this.h = Math.atan2(this.bow.y - this.y, this.bow.x - this.x);
     this.state = 'on';
     this.t = 0;
+    this.sink = 0;
     this.onHop?.();
     return true;
   }
@@ -512,6 +537,7 @@ export class Walker implements Entity {
     this.t = 0;
     this.vx = 0;
     this.vy = 0;
+    this.sink = 0;
     this.onBoard?.();
   }
 
@@ -534,6 +560,7 @@ export class Walker implements Entity {
     this.vx = 0;
     this.vy = 0;
     this.gait = 0;
+    this.sink = 0;
     this.prints.length = 0;
   }
 
@@ -614,12 +641,15 @@ export class Walker implements Entity {
     const mag = walkPace(Math.hypot(this.ix, this.iy));
     let tx = 0;
     let ty = 0;
+    const swim = inTar(this.x, this.y);
     if (mag > 0) {
       const d = dirToWorld(this.ix, this.iy);
       const n = Math.hypot(d[0], d[1]) || 1;
-      tx = (d[0] / n) * WALK_SPEED * mag;
-      ty = (d[1] / n) * WALK_SPEED * mag;
+      const pace = WALK_SPEED * mag * (swim ? SWIM_PACE : 1);
+      tx = (d[0] / n) * pace;
+      ty = (d[1] / n) * pace;
     }
+    this.sink += ((swim ? SWIM_SINK : 0) - this.sink) * Math.min(1, dt * 6);
     const e = Math.min(1, dt * WALK_EASE);
     this.vx += (tx - this.vx) * e;
     this.vy += (ty - this.vy) * e;
@@ -635,7 +665,7 @@ export class Walker implements Entity {
     if (this.stride >= STRIDE) {
       this.stride -= STRIDE;
       this.side = -this.side;
-      if (this.z === 0) {
+      if (this.z === 0 && !swim) {
         this.prints.push({ x: this.x, y: this.y, h: this.h, side: this.side, t: this.now });
         if (this.prints.length > MAX_PRINTS) this.prints.shift();
       }
@@ -700,17 +730,47 @@ export class Walker implements Entity {
     if (this.blink && Math.floor(this.now * 12) % 2) return;
     const { ctx, px, py } = v;
     const Z = v.zoom;
-    const { x, y, z } = this;
+    // Swimming in the tar: rings on the black round it, and nothing of it below the surface.
+    const sunk = this.sink > 0.5;
+    if (sunk) {
+      const { x, y } = this;
+      const a = this.sink / SWIM_SINK;
+      ctx.lineWidth = 1.2 * Z;
+      for (let k = 0; k < 2; k++) {
+        const t = (this.now * 0.8 + k * 0.5) % 1;
+        v.isoEllipse(x, y, 6 + t * 12);
+        ctx.strokeStyle = `rgba(160,120,200,${0.45 * (1 - t) * a})`;
+        ctx.stroke();
+      }
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(px(x, y) - 40 * Z, py(x, y, 0) - 90 * Z, 80 * Z, 90 * Z);
+      ctx.clip();
+    }
+    this.drawParts(v);
+    if (sunk) ctx.restore();
+  }
+
+  private drawParts(v: DrawView): void {
+    const { ctx, px, py } = v;
+    const Z = v.zoom;
+    const { x, y } = this;
+    const z = this.z - this.sink;
     const c = Math.cos(this.h);
     const s = Math.sin(this.h);
     const swing = Math.sin(this.ph) * this.gait;
+    // In island 4's tar, the chemistry suit: yellow from boots to hood.
+    const suit = this.dock.tar === true;
+    const shirt = suit ? SUIT : this.shirt;
     // A shadow on whatever is beneath, the water too while hopping.
-    ctx.fillStyle = 'rgba(0,0,0,.2)';
-    v.isoEllipse(x, y, 6, Math.min(z, groundZ(x, y)));
-    ctx.fill();
+    if (this.sink <= 0.5) {
+      ctx.fillStyle = 'rgba(0,0,0,.2)';
+      v.isoEllipse(x, y, 6, Math.min(z, groundZ(x, y)));
+      ctx.fill();
+    }
     ctx.lineCap = 'round';
     // Legs: the forward foot lifts a little.
-    ctx.strokeStyle = TROUSERS;
+    ctx.strokeStyle = suit ? SUIT_DARK : TROUSERS;
     ctx.lineWidth = 2.6 * Z;
     for (const side of [-1, 1]) {
       const f = swing * side * 3.5;
@@ -735,16 +795,24 @@ export class Walker implements Entity {
     // The body, in the boat's colour.
     const bx = px(x, y);
     const by = py(x, y, z + 13);
-    ctx.fillStyle = this.shirt;
+    ctx.fillStyle = shirt;
     ctx.beginPath();
     ctx.ellipse(bx, by, 4.6 * Z, 5.8 * Z, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Arms, swinging against the legs; at night one hand carries a lantern.
-    ctx.strokeStyle = this.shirt;
+    // Arms, swinging against the legs; at night one hand carries a lantern. Swimming, they reach over in turn.
+    ctx.strokeStyle = shirt;
     ctx.lineWidth = 2.2 * Z;
+    const crawl = this.sink / SWIM_SINK;
     for (const side of [-1, 1]) {
       let [hx, hy] = this.hand(side);
       let hz = z + 9;
+      if (crawl > 0.5) {
+        const p = this.now * 4 + (side > 0 ? Math.PI : 0);
+        const reach = Math.cos(p) * 7 * Math.max(0.3, this.gait);
+        hx = x + c * reach - s * 5 * side;
+        hy = y + s * reach + c * 5 * side;
+        hz = z + 12 + Math.sin(p) * 6 * Math.max(0.3, this.gait);
+      }
       // Throwing, the near arm goes up and forward.
       if (side === 1 && this.throwT > 0) {
         hx = x + c * 7 - s * 3;
@@ -768,10 +836,10 @@ export class Walker implements Entity {
       ctx.moveTo(px(sx, sy), py(sx, sy, z + 4));
       ctx.lineTo(px(sx + c * 14, sy + s * 14), py(sx + c * 14, sy + s * 14, z + 30));
       ctx.stroke();
-      ctx.strokeStyle = this.shirt;
+      ctx.strokeStyle = shirt;
       ctx.lineWidth = 2.2 * Z;
     }
-    if (v.dark > 0.2 && !this.diving) {
+    if (v.dark > 0.2 && !this.diving && crawl <= 0.5) {
       const [hx, hy] = this.hand(-1);
       ctx.fillStyle = '#FFE9A8';
       ctx.fillRect(px(hx, hy) - 1.8 * Z, py(hx, hy, z + 8) - 1.5 * Z, 3.6 * Z, 4 * Z);
@@ -779,12 +847,34 @@ export class Walker implements Entity {
     // The head, a face when it looks toward the viewer, and the sou'wester.
     const hx = bx;
     const hy = py(x, y, z + 21);
+    const fx = c - s;
+    const fy = (c + s) / 2;
+    if (suit) {
+      // The suit's hood, a dark visor toward where it looks and a filter under it.
+      ctx.fillStyle = SUIT;
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.4 * Z, 5 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      if (fy > -0.4) {
+        ctx.fillStyle = '#26343A';
+        ctx.beginPath();
+        ctx.ellipse(hx + fx * 2 * Z, hy - 0.8 * Z, 3.2 * Z, 2 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(160,220,230,.5)';
+        ctx.beginPath();
+        ctx.ellipse(hx + fx * 2 * Z - 1 * Z, hy - 1.4 * Z, 1.2 * Z, 0.6 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#3C3C3C';
+        ctx.beginPath();
+        ctx.arc(hx + fx * 2.6 * Z, hy + 2.4 * Z, 1.5 * Z, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
     ctx.fillStyle = SKIN;
     ctx.beginPath();
     ctx.arc(hx, hy, 3.8 * Z, 0, Math.PI * 2);
     ctx.fill();
-    const fx = c - s;
-    const fy = (c + s) / 2;
     if (fy > -0.1) {
       ctx.fillStyle = '#2A1A08';
       for (const e of [-1, 1]) {

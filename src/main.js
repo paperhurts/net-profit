@@ -42,10 +42,10 @@ import { Spears } from './entities/spears';
 import { nextSpear, spearAt } from './data/spear';
 import { drivePrize, HARPOON_LEVEL, HARPOON_POWER, HARPOON_RANGE, HARPOON_RELOAD, noDriven, RESOLVE, TROPHY } from './data/harpoon';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
-import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, WALK_ZOOM, Walker, walkerDepth, walkStep } from './entities/walker';
+import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, tarDock, WALK_ZOOM, Walker, walkerDepth, walkStep } from './entities/walker';
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
 import { DIVE3, DOCK3, DOOR3, ISLE3, MAT, onPlanks, pushOffTown, TRADER_MID } from './world/isle3';
-import { ISLE4, MONSTER, TAR_R } from './world/isle4';
+import { atTar, ISLE4, MONSTER, TAR_R, TAR_STOP } from './world/isle4';
 import { drawIsle4Flat, drawIsle4Sea, isle4Solids } from './render/isle4';
 import { drawIsle3Flat, drawIsle3Sea, isle3Glow, isle3Lights, isle3Solids } from './render/isle3';
 import { drawCage, drawDemonBack, drawHallBack, drawPortal } from './render/depths';
@@ -488,13 +488,16 @@ function leaveTower(out = true){ if (floor < 0) return; floor = -1; resetTowers(
   if (out && walker.state === 'ashore' && tower){ walker.x = tower.door.x; walker.y = tower.door.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; }
   tower = null; }
 // What the climb button would do now: in at a door, up the open stairs, or nothing.
-function climbAction(){ if (walker.state !== 'ashore') return null;
+function climbAction(){
+  // Up against island 4's tar in the chemistry suit, all but stopped: into it.
+  if (walker.aboard) return !cine && gear.suit && isle3Stage >= 4 && Math.abs(boat.v) < TAR_STOP && atTar(boat.x, boat.y, bk()) ? 'tar' : null;
+  if (walker.state !== 'ashore') return null;
   if (floor < 0){ if (walker.dock === ISLE3_DOCK && isle3Stage >= 1 && Math.hypot(walker.x - DIVE3.x, walker.y - DIVE3.y) < STEP) return 'dive';
     const t = TOWER_AT.find(t => t.dock === walker.dock); return t && Math.hypot(walker.x - t.door.x, walker.y - t.door.y) < STEP ? 'door' : null; }
   if (floor === HALL && isle3Stage >= 2 && pullT <= 0 && Math.hypot(walker.x - PORTAL.x, walker.y - PORTAL.y) < STEP + 6) return 'portal';
   if (tower && floor < tower.roof && floors[floor] && floors[floor].cleared){ const st = stairs(floor); if (Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6) return 'stairs'; }
   return null; }
-function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || warlock.shown) || hearts < HEARTS; el.hidden = !show;
+function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || walker.dock.tar || warlock.shown) || hearts < HEARTS; el.hidden = !show;
   if (show) el.innerHTML = Array.from({length: HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
     // The warlock's, in green, after a gap.
     + (warlock.shown ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: WARLOCK_HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < warlock.hearts ? '#3FB37A' : 'rgba(128,128,128,.35)')).join('') : ''); }
@@ -507,8 +510,8 @@ function sellSpeared(sp, x, y){ log[sp]++; noteFirst(sp); carry += salePrice(SPE
 const walker = new Walker();
 walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
-walker.onLand = () => { gapTold = false; if (!ashoreTold.has(walker.dock)){ ashoreTold.add(walker.dock);
-    toast(walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
+walker.onLand = () => { gapTold = false; const told = walker.dock.tar ? 'tar' : walker.dock; if (!ashoreTold.has(told)){ ashoreTold.add(told);
+    toast(walker.dock.tar ? 'Into the tar in your chemistry suit. Swim to the island; the boat waits at the edge.' : walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
 for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, ...camps, boss, boss3, swordsman, ...demons, demonMonkeys, warlock, wboat, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
@@ -602,7 +605,8 @@ const LOG_SVG = '<svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="tr
 function hudPhase(){ $('phase').innerHTML = `<i style="background:${PHASE_C[phase]}"></i><span>${phase}</span>`; }
 function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>'; }
 function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier());
-  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
+  // The chemistry suit is kept back until the tar island has been seen.
+  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => id !== 'suit' || isle3Stage >= 4 || gear.suit).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
     return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join('')
     // The spear is for island 2's shallows, so the shipwright keeps it back until island 2 has been found.
     + (() => { const n = nextSpear(spear), have = spearAt(spear); if (!isle2Seen && !spear) return '';
@@ -906,7 +910,9 @@ elAshore.addEventListener('click', () => { audio(); if (walker.stepAshore(dockHe
 elAboard.addEventListener('click', () => { audio(); walker.goAboard(); });
 const elThrow = $('throw'); let throwShown = null, throwWait = false;
 const elClimb = $('climb'), elLeave = $('leave'); let climbShown = null, leaveShown = null;
-elClimb.addEventListener('click', () => { audio(); const a = climbAction(); if (a === 'door') enterTower(TOWER_AT.find(t => t.dock === walker.dock));
+elClimb.addEventListener('click', () => { audio(); const a = climbAction();
+  if (a === 'tar'){ if (walker.stepAshore(tarDock(Math.atan2(boat.y - ISLE4.y, boat.x - ISLE4.x)))) toasts.clear(); return; }
+  if (a === 'door') enterTower(TOWER_AT.find(t => t.dock === walker.dock));
   else if (a === 'dive') dive(); else if (a === 'portal') intoDemons();
   else if (a === 'stairs'){ toRoom(floor + 1); if (hearts < HEARTS){ hearts = HEARTS; hudHearts(); toast('You catch your breath on the stairs. Hearts full.', 2000); } } });
 elLeave.addEventListener('click', () => { audio(); if (floor < 0) return;
@@ -988,7 +994,7 @@ function drawTrophies(){
 }
 function update(dt){
   T += dt; updateClock(dt);
-  world.T = T; world.started = started; world.docked = docked;
+  world.T = T; world.started = started; world.docked = docked || !walker.aboard; // tied up at the tar's edge too, with nobody aboard
   /* input and boat: the stick points; the keys drive or point, by setting */
   updateCine(dt);
   if (fight || swallowT > 0 || cine){ steerBoat(boat, 0, 0, SPEED[lv.engine], dt); }
@@ -1017,7 +1023,8 @@ function update(dt){
   pushOffTown(boat, 4+20*k);
   { const look = isle4Look(), r = Math.max(ISLE4.r, TAR_R*look.spread) + 24*k, d = Math.hypot(boat.x - ISLE4.x, boat.y - ISLE4.y); tarToastT -= dt;
     if (d < r){ pushOut(boat, ISLE4.x, ISLE4.y, r);
-      if (look.spread >= 1 && tarToastT <= 0){ tarToastT = 9; toast('Tar! The water round island 4 is black and sticky. You will need a chemistry suit.', 3200, 1); } } }
+      if (look.spread >= 1 && tarToastT <= 0){ tarToastT = 9;
+        toast(gear.suit ? 'Tar. No hull goes in, but you can: stop here and tap Into the tar.' : 'Tar! The water round island 4 is black and sticky. You need a chemistry suit: the shipwright sells one.', 3200, 1); } } }
   // The buoys hold every boat but the flagship, which goes on into the deep as far as the deep runs.
   { const m = tier() === TIER_NAME.length-1 ? DEEP : 0, x0 = boat.x, y0 = boat.y;
     boat.x = clamp(boat.x, 40-m, WS-40+m); boat.y = clamp(boat.y, 40-m, WS-40+m);
@@ -1072,7 +1079,7 @@ function update(dt){
       if (show) elThrow.setAttribute('aria-label', show === 'harpoon' ? 'Fire the harpoon' : 'Throw the spear'); }
     const wait = !!show && T < (show === 'harpoon' ? harpoonAt : reloadAt);
     if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); } }
-  { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a === 'door' ? 'Climb the tower' : a === 'dive' ? 'Dive' : a === 'portal' ? 'Into the portal' : tower && floor + 1 === tower.roof ? 'Up to the roof' : 'Climb the stairs'; } }
+  { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a === 'tar' ? 'Into the tar' : a === 'door' ? 'Climb the tower' : a === 'dive' ? 'Dive' : a === 'portal' ? 'Into the portal' : tower && floor + 1 === tower.roof ? 'Up to the roof' : 'Climb the stairs'; } }
   { const l = floor >= 0 && walker.state === 'ashore' ? (towerWon ? 'jump' : tower === DEPTHS ? 'swim' : 'leave') : null;
     if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : l === 'swim' ? 'Swim up' : 'Leave the tower'; } }
   warlock.free = isle3Stage >= 3; hurtWarlock(dt); wboat.free = warlock.free; wboat.crewed = !warlock.shown;

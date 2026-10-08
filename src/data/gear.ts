@@ -4,10 +4,12 @@
  * teeth, which is the only kind of teeth the game allows itself: the fine
  * mesh lets jellyfish slip through the net, and the strongbox keeps half of
  * what the pirate would have taken. It is also where late coins go; before
- * it, a finished palace and a flagship left nothing to spend on.
+ * it, a finished palace and a flagship left nothing to spend on. The chemistry
+ * suit is the one piece for the figure, not the boat: the kid's way into the
+ * tar round island 4, kept back until the tar has been seen.
  */
 
-export type GearId = 'mesh' | 'strongbox';
+export type GearId = 'mesh' | 'strongbox' | 'suit';
 
 export type Gear = {
   name: string;
@@ -31,10 +33,17 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
     fitted: 'Strongbox fitted. Pirates will only get a quarter of the hold.',
     cost: 6000,
   },
+  suit: {
+    name: 'Chemistry suit',
+    blurb: 'Walk and swim in tar.',
+    fitted:
+      'A chemistry suit. Sail up to the tar round island 4, stop at its edge, and tap Into the tar.',
+    cost: 5000,
+  },
 };
 
 /** The shelf, in the order it is shown. */
-export const GEAR_IDS: readonly GearId[] = ['mesh', 'strongbox'];
+export const GEAR_IDS: readonly GearId[] = ['mesh', 'strongbox', 'suit'];
 
 /** The shipwright takes an interest once the boat is this tier: a cutter. */
 export const SHIPWRIGHT_TIER = 2;
@@ -46,7 +55,7 @@ export const STRONGBOX_SHARE = 0.25;
 export type Owned = Record<GearId, boolean>;
 
 export function noGear(): Owned {
-  return { mesh: false, strongbox: false };
+  return { mesh: false, strongbox: false, suit: false };
 }
 
 export function shipwrightOpen(tier: number): boolean {

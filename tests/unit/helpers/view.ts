@@ -44,6 +44,10 @@ export function fakeView(): FakeView {
     bezierCurveTo: count('bezierCurveTo'),
     closePath: count('closePath'),
     fillText: count('fillText'),
+    save: count('save'),
+    restore: count('restore'),
+    rect: count('rect'),
+    clip: count('clip'),
   } as unknown as CanvasRenderingContext2D;
   const fake: FakeView = {
     calls,
