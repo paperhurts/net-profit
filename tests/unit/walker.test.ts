@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { World } from '../../src/entities/entity';
+import { MONKEY_SPEED } from '../../src/entities/monkeys';
 import {
   BOARD_REACH,
   berth,
@@ -14,11 +15,14 @@ import {
   PRINT_LIFE,
   PROPS,
   STRIDE,
+  WALK_FULL,
   WALK_SPEED,
   Walker,
   walkable,
   walkerDepth,
+  walkPace,
 } from '../../src/entities/walker';
+import { DEAD_ZONE, JR } from '../../src/input/joystick';
 import {
   BEACH,
   BRIDGE,
@@ -247,6 +251,37 @@ describe('walking', () => {
     expect(pace(0, -1)).toBeCloseTo(WALK_SPEED, 0);
     expect(pace(-1, 1)).toBeCloseTo(WALK_SPEED, 0);
     expect(p.h).toBeCloseTo((3 * Math.PI) / 4, 1);
+  });
+
+  it('walks at full speed with half a push, so a resting thumb keeps its pace, and slower with less', () => {
+    expect(walkPace(1)).toBe(1);
+    expect(walkPace(WALK_FULL)).toBe(1);
+    expect(walkPace(WALK_FULL / 2)).toBeCloseTo(0.5, 6);
+    expect(walkPace(0)).toBe(0);
+    // The joystick's smallest push past its dead zone still walks, slowly.
+    expect(walkPace(DEAD_ZONE / JR)).toBeGreaterThan(0.2);
+    const w = docked();
+    const p = ashore(w);
+    walk(p, w, -1, 0, 1);
+    walk(p, w, -1, 0, 1);
+    // North across the island, the stick pushed only so far.
+    const [ix, iy] = stick(0, -1);
+    const step = (push: number, secs: number) => {
+      for (let i = 0; i < secs / DT; i++) {
+        p.intent(ix * push, iy * push);
+        p.update(DT, w);
+      }
+    };
+    const pace = (push: number) => {
+      step(push, 0.3);
+      const a = { x: p.x, y: p.y };
+      step(push, 0.3);
+      return Math.hypot(p.x - a.x, p.y - a.y) / 0.3;
+    };
+    expect(pace(0.5)).toBeCloseTo(WALK_SPEED, 0);
+    // Half a push outruns a chasing monkey; a quarter push does not.
+    expect(pace(0.5)).toBeGreaterThan(MONKEY_SPEED * 1.3);
+    expect(pace(0.25)).toBeLessThan(MONKEY_SPEED);
   });
 
   it('cannot walk off the end of the pier, off the shore or through the hut', () => {
