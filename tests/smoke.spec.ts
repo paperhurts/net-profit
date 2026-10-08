@@ -37,6 +37,8 @@ type Np = {
   }[];
   boss: { up: boolean; hit(power: number): void };
   driven: Record<string, number>;
+  turtles: { turtles: { x: number; y: number; up: number }[]; companion: unknown };
+  turtleSwims: number;
   harpoonTarget: string | null;
   gulper: { resolve: number };
 };
@@ -365,6 +367,30 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   const at = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
   expect(Math.hypot((at[0] ?? 0) + 600, (at[1] ?? 0) - 5400), 'not on island 2').toBeLessThan(230);
+  expect(errors).toEqual([]);
+});
+
+test('turtles: one swims alongside a boat that comes up slowly, and the log counts it', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 3, hold: 3, engine: 3 },
+    trip: { x: 2400 + 700, y: 2400, h: Math.PI / 2, clock: 0.3, hold: new Array(14).fill(0) },
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const np = window.__np;
+    const t = np.turtles.turtles[0];
+    if (!t) throw new Error('no turtles');
+    t.x = np.boat.x + 40;
+    t.y = np.boat.y + 90;
+    t.up = 1;
+  });
+  await page.waitForFunction(() => window.__np.turtleSwims === 1, null, { timeout: 4000 });
+  expect(await page.evaluate(() => !!window.__np.turtles.companion)).toBe(true);
+  await expect(page.locator('#log')).toContainText('Turtle swims 1');
   expect(errors).toEqual([]);
 });
 
