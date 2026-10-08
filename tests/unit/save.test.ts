@@ -325,6 +325,21 @@ describe('island 5', () => {
   });
 });
 
+describe('island 6', () => {
+  it('is unseen with no chests opened in an old save, keeps both, and clamps nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle6Seen).toBe(false);
+    expect(s.chests6).toBe(0);
+    s.isle6Seen = true;
+    s.chests6 = 0b101101;
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.isle6Seen).toBe(true);
+    expect(back.chests6).toBe(0b101101);
+    expect(parseSave(JSON.stringify({ chests6: -4 }), bounds).chests6).toBe(0);
+    expect(parseSave(JSON.stringify({ chests6: 'all' }), bounds).chests6).toBe(0);
+  });
+});
+
 describe('island 4', () => {
   it('has its story not begun in an old save, keeps the Anchorer beaten, and clamps nonsense', () => {
     const s = parseSave(legacy, bounds);
