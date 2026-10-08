@@ -31,6 +31,8 @@ export type Trip = {
 export const ISLE3_STAGES = 4;
 /** Island 4's story so far: 1, the Tar Anchorer beaten and the tarbaby yours. */
 export const ISLE4_STAGES = 1;
+/** Island 5's story so far: 1, the Skeleton Shark King dead. */
+export const ISLE5_STAGES = 1;
 
 export type SaveData = {
   coins: number;
@@ -66,6 +68,8 @@ export type SaveData = {
   isle3Seen: boolean;
   /** Island 5, the Skeleton Shark King's reef, has been sighted, out in the far deep. */
   isle5Seen: boolean;
+  /** How far through island 5's story: 0 not begun; 1 the Skeleton Shark King dead. */
+  isle5Stage: number;
   /** The flag designed in the shop, or null for the pennant in the hull's paint. */
   flag: Flag | null;
   /** The gulper has hunted the boat. */
@@ -145,6 +149,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle2Seen: false,
     isle3Seen: false,
     isle5Seen: false,
+    isle5Stage: 0,
     flag: null,
     gulperSeen: false,
     spear: 0,
@@ -228,6 +233,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle2Seen = !!o.isle2Seen;
   d.isle3Seen = !!o.isle3Seen;
   d.isle5Seen = !!o.isle5Seen;
+  d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
@@ -298,6 +304,7 @@ export function serializeSave(d: SaveData): string {
     isle2Seen: d.isle2Seen,
     isle3Seen: d.isle3Seen,
     isle5Seen: d.isle5Seen,
+    isle5Stage: d.isle5Stage,
     flag: d.flag,
     gulperSeen: d.gulperSeen,
     spear: d.spear,

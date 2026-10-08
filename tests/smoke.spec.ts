@@ -61,6 +61,9 @@ type Np = {
   tarbaby: { with: boolean; free: boolean };
   isle4Stage: number;
   isle5Seen: boolean;
+  isle5Stage: number;
+  king: { fighting: boolean; state: string; resolve: number };
+  fireHarpoon(): void;
 };
 
 declare global {
@@ -967,7 +970,8 @@ test('island 5: out in the far deep, a reef of bones is found and logged', async
     isle3Stage: 4,
     isle4Stage: 1,
     lv: { net: 5, hold: 5, engine: 5 },
-    trip: { x: -1500, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
+    // Inside sighting distance but short of where the King wakes.
+    trip: { x: -1260, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
   });
   await page.waitForFunction(() => window.__np.isle5Seen, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('bones', { timeout: 9000 });
@@ -981,5 +985,42 @@ test('island 5: out in the far deep, a reef of bones is found and logged', async
     Math.hypot(window.__np.boat.x + 2100, window.__np.boat.y - 2400),
   );
   expect(d).toBeGreaterThan(185);
+  expect(errors).toEqual([]);
+});
+
+test('the Skeleton Shark King: he rises at the reef, and harpooned down, dies with his secret', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -1500, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.king.fighting, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Skeleton Shark King');
+  // Nearly beaten; then the harpoon, whenever he is up and in reach.
+  await page.evaluate(() => {
+    window.__np.king.resolve = 1;
+  });
+  await page.waitForFunction(
+    () => {
+      window.__np.fireHarpoon();
+      return window.__np.king.state === 'dying';
+    },
+    null,
+    { timeout: 30000, polling: 100 },
+  );
+  // A tap skips his speech.
+  await page.waitForTimeout(800);
+  await page.mouse.click(200, 400);
+  await page.waitForFunction(() => window.__np.isle5Stage === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
   expect(errors).toEqual([]);
 });
