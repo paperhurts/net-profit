@@ -487,7 +487,7 @@ function drawLamp(v: DrawView, p: Point): void {
  * barnacles where the sea has been, with weed hanging off it, a door onto the
  * seaweed, slit windows, a ring of windows near the top and battlements.
  */
-function drawTower3(v: DrawView): void {
+function drawTower3(v: DrawView, flagAt: FlagAt | null): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
   const { x, y, r, h } = TOWER3;
@@ -517,7 +517,8 @@ function drawTower3(v: DrawView): void {
   quad(10, MAT_Z, 32, '#8E8670');
   quad(7, MAT_Z, 28, '#2A2420');
   for (const z of [76, 122]) quad(2, z, z + 12, '#2B2F31');
-  const lit = v.dark > 0.3;
+  // Lit purple at night until it is taken.
+  const lit = v.dark > 0.3 && !flagAt;
   for (const off of [-12, 0, 12]) quad(2.5, h - 32, h - 18, lit ? '#B98AFF' : '#2B2F31', off);
   // Barnacles and hanging weed along the stained band, on the faces the viewer sees.
   const r2 = rng(83);
@@ -554,14 +555,18 @@ function drawTower3(v: DrawView): void {
   // Battlements on every other side, the far ones first.
   const tops = pts.filter((_, i) => i % 2 === 0).sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
   for (const p of tops) v.box(p[0] - 4, p[1] - 4, 8, 8, h, h + 10, '#B9AF95', '#D8D0BA');
-  // An empty pole, waiting for a flag.
+  // A pole, waiting for a flag until the tower is taken.
   ctx.strokeStyle = '#7A5A33';
   ctx.lineWidth = 2 * Z;
   ctx.beginPath();
   ctx.moveTo(px(x, y), py(x, y, h));
   ctx.lineTo(px(x, y), py(x, y, h + 40));
   ctx.stroke();
+  flagAt?.(px(x, y), py(x, y, h + 40));
 }
+
+/** Draws your flag with its top at the pole's top, at these screen coordinates. */
+export type FlagAt = (sx: number, sy: number) => void;
 
 /** The washing line between the net loft and the trader's, with the town's washing on it. */
 function drawWashing(v: DrawView): void {
@@ -606,10 +611,10 @@ function drawWashing(v: DrawView): void {
   }
 }
 
-/** What stands up on island 3, for the game's depth-sorted solids. */
-export function isle3Solids(v: DrawView): Solid[] {
+/** What stands up on island 3, for the game's depth-sorted solids; flagAt once its tower is taken. */
+export function isle3Solids(v: DrawView, flagAt: FlagAt | null = null): Solid[] {
   if (!v.onScreen(ISLE3.x + 120, ISLE3.y + 120, (ISLE3.r + 260) * v.zoom)) return [];
-  const out: Solid[] = [{ d: TOWER3.x + TOWER3.y, f: () => drawTower3(v) }];
+  const out: Solid[] = [{ d: TOWER3.x + TOWER3.y, f: () => drawTower3(v, flagAt) }];
   SHACKS.forEach((s, i) => {
     out.push({ d: s.x1 + s.y1, f: () => drawShack(v, s, i) });
   });

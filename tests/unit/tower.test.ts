@@ -2,11 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { rng } from '../../src/core/math';
 import { spearAt } from '../../src/data/spear';
 import type { World } from '../../src/entities/entity';
-import { BOSS_HP, FALL, Sorcerer } from '../../src/entities/sorcerer';
+import { BOSS_HP, FALL, NOVA_BOLTS, NOVA_EVERY, Sorcerer } from '../../src/entities/sorcerer';
 import { Spears } from '../../src/entities/spears';
 import { WALK_SPEED, walkable } from '../../src/entities/walker';
 import { ISLE2, TOWER } from '../../src/world/isle2';
-import { DOOR, entry, ROOF, ROOMS, roomAt, stairs } from '../../src/world/tower';
+import {
+  DOOR,
+  entry,
+  ROOF,
+  ROOF3,
+  ROOMS,
+  type Room,
+  roomAt,
+  stairs,
+  TOWERS,
+} from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
@@ -22,7 +32,8 @@ describe('the tower', () => {
       const r = ROOMS[i] as { x: number; y: number; r: number };
       expect(r.x).toBeLessThan(-4000);
       expect(walkable(entry(i).x, entry(i).y, 0)).toBe(true);
-      if (i < ROOF) expect(walkable(stairs(i).x, stairs(i).y, 0)).toBe(true);
+      if (!TOWERS.some((t) => t.roof === i))
+        expect(walkable(stairs(i).x, stairs(i).y, 0)).toBe(true);
       expect(roomAt(r.x, r.y)).toBe(i);
       expect(walkable(r.x + r.r, r.y, 0)).toBe(false);
     }
@@ -71,13 +82,13 @@ describe('the leviathan sorcerer', () => {
   });
 
   /** A person who strafes across its line of fire, turning back every second or two and away from the roof's edge, and throws when it is in reach a third of a second late. Wins out of 30. */
-  function fights(level: number): number {
+  function fights(level: number, nova = false): number {
     const sp = spearAt(level);
     if (!sp) throw new Error('spear');
     const r = rng(level * 7);
     let wins = 0;
     for (let run = 0; run < 30; run++) {
-      const b = new Sorcerer(roof);
+      const b = new Sorcerer(roof, nova);
       const spears = new Spears();
       const f = { x: roof.x + 20, y: roof.y + 40, vx: 0, vy: 0 };
       const w: World = baseWorld({ figure: f });
@@ -133,6 +144,50 @@ describe('the leviathan sorcerer', () => {
     expect(fights(1)).toBeLessThanOrEqual(24);
     expect(fights(2)).toBeGreaterThanOrEqual(20);
     expect(fights(3)).toBe(30);
+  });
+
+  it('comes back to island 3 with a ring of bolts, every third cast once angry', () => {
+    const b = new Sorcerer(ROOMS[ROOF3] as Room, true);
+    const w: World = baseWorld({ figure: { x: b.home.x, y: b.home.y + 40, vx: 0, vy: 0 } });
+    b.update(DT, w);
+    const sizes: number[] = [];
+    for (let i = 0; i < NOVA_EVERY * 2; i++) {
+      b.cast = 0;
+      b.bolts.length = 0;
+      if (i === 1) b.hit(BOSS_HP / 2);
+      b.update(DT, w);
+      sizes.push(b.bolts.length);
+    }
+    // One while calm, then angry: three, three, a ring, three, three.
+    expect(sizes).toEqual([1, 3, 3, NOVA_BOLTS, 3, 3]);
+    // The first bolt of a ring is aimed at the figure.
+    for (let i = 0; i < NOVA_EVERY && b.bolts.length !== NOVA_BOLTS; i++) {
+      b.cast = 0;
+      b.bolts.length = 0;
+      b.update(DT, w);
+    }
+    expect(b.bolts).toHaveLength(NOVA_BOLTS);
+    const bolt = b.bolts[0] as { vx: number; vy: number };
+    const f = w.figure as { x: number; y: number };
+    expect(Math.abs(Math.atan2(bolt.vy, bolt.vx) - Math.atan2(f.y - b.y, f.x - b.x))).toBeLessThan(
+      0.1,
+    );
+    // Island 2's never learns it.
+    const plain = new Sorcerer(roof);
+    const w2: World = baseWorld({ figure: { x: roof.x, y: roof.y + 40, vx: 0, vy: 0 } });
+    plain.update(DT, w2);
+    plain.hit(BOSS_HP / 2);
+    for (let i = 0; i < NOVA_EVERY * 2; i++) {
+      plain.cast = 0;
+      plain.bolts.length = 0;
+      plain.update(DT, w2);
+      expect(plain.bolts.length).toBe(3);
+    }
+  });
+
+  it('is still a fair fight with the ring, with the long spear, and a sure one with the barbed', () => {
+    expect(fights(2, true)).toBeGreaterThanOrEqual(15);
+    expect(fights(3, true)).toBeGreaterThanOrEqual(26);
   });
 
   it('draws its bolts and its body in the air, and nothing once it is gone', () => {

@@ -4,6 +4,7 @@ import {
   type Bounds,
   DEFAULT_ORDER,
   defaultSave,
+  ISLE3_STAGES,
   parseSave,
   SAVE_KEY,
   serializeSave,
@@ -280,6 +281,18 @@ describe('island 3', () => {
     expect(s.isle3Seen).toBe(false);
     s.isle3Seen = true;
     expect(parseSave(serializeSave(s), bounds).isle3Seen).toBe(true);
+  });
+
+  it('has its story not begun in an old save, keeps each stage, and clamps nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle3Stage).toBe(0);
+    s.isle3Stage = 2;
+    expect(parseSave(serializeSave(s), bounds).isle3Stage).toBe(2);
+    const o = JSON.parse(serializeSave(s));
+    o.isle3Stage = 99;
+    expect(parseSave(JSON.stringify(o), bounds).isle3Stage).toBe(ISLE3_STAGES);
+    o.isle3Stage = -3;
+    expect(parseSave(JSON.stringify(o), bounds).isle3Stage).toBe(0);
   });
 });
 

@@ -27,6 +27,9 @@ export type Trip = {
   hold?: number[];
 };
 
+/** The last of island 3's stages. */
+export const ISLE3_STAGES = 4;
+
 export type SaveData = {
   coins: number;
   earned: number;
@@ -69,6 +72,12 @@ export type SaveData = {
   masks: number;
   /** The sorcerer on island 2's tower has been beaten: the tower flies the player's flag. */
   towerTaken: boolean;
+  /**
+   * How far through island 3's story: 0 not begun; 1 its tower taken and the scuba gear found; 2 the
+   * swordsman under it beaten; 3 the demons beaten and the warlock free; 4 the tar island seen. Each
+   * stage stays done.
+   */
+  isle3Stage: number;
   /** How many times the harpoon has driven off each leviathan. */
   driven: Driven;
   /** A sea turtle has been sighted, and how many times one has swum with the boat. */
@@ -134,6 +143,7 @@ export function defaultSave(b: Bounds): SaveData {
     spear: 0,
     masks: 0,
     towerTaken: false,
+    isle3Stage: 0,
     driven: noDriven(),
     turtleSeen: false,
     turtleSwims: 0,
@@ -214,6 +224,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.masks = Math.max(0, int(o.masks));
   d.towerTaken = !!o.towerTaken;
+  d.isle3Stage = Math.max(0, Math.min(ISLE3_STAGES, int(o.isle3Stage)));
   d.driven = parseDriven(o.driven);
   d.turtleSeen = !!o.turtleSeen;
   d.turtleSwims = Math.max(0, int(o.turtleSwims));
@@ -281,6 +292,7 @@ export function serializeSave(d: SaveData): string {
     spear: d.spear,
     masks: d.masks,
     towerTaken: d.towerTaken,
+    isle3Stage: d.isle3Stage,
     driven: d.driven,
     turtleSeen: d.turtleSeen,
     turtleSwims: d.turtleSwims,

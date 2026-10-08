@@ -8,6 +8,9 @@
  * comes within a spear's throw. Hurt to half, it gets angry: faster, and its
  * bolts come three at a time. Beaten, it falls in a burst of feathers. The game
  * does the hearts, the prize, the flag and the way home as callbacks.
+ *
+ * It comes back on island 3's tower having learned a trick: angry, every third
+ * cast is a ring of bolts thrown out all round it, with gaps to stand in.
  */
 
 import { rgba } from '../core/color';
@@ -28,6 +31,9 @@ export const BOLT_HIT = 10;
 export const SWOOP_EVERY = 5;
 export const SWOOP_SPEED = 190;
 export const PECK = 16;
+/** The trick it learns for island 3: angry, every this many casts is a ring of this many bolts. */
+export const NOVA_EVERY = 3;
+export const NOVA_BOLTS = 8;
 /** Seconds it falls once beaten, before the game is told. */
 export const FALL = 1.6;
 
@@ -55,7 +61,14 @@ export class Sorcerer implements Entity {
   /** It cast a bolt. */
   onCast: (() => void) | null = null;
 
-  constructor(readonly home: { x: number; y: number }) {
+  /** Casts since it got angry, for the ring. */
+  private casts = 0;
+
+  /** At home on this roof; nova is the ring of bolts it learns for its return. */
+  constructor(
+    readonly home: { x: number; y: number },
+    readonly nova = false,
+  ) {
     this.x = home.x;
     this.y = home.y - RING;
   }
@@ -78,6 +91,7 @@ export class Sorcerer implements Entity {
     this.y = this.home.y - RING;
     this.cast = 1.5;
     this.swoop = SWOOP_EVERY;
+    this.casts = 0;
     this.bolts.length = 0;
   }
 
@@ -132,7 +146,14 @@ export class Sorcerer implements Entity {
       if (this.cast <= 0) {
         this.cast = this.angry ? ANGRY_CAST : CAST_EVERY;
         const base = Math.atan2(f.y - this.y, f.x - this.x);
-        for (const k of this.angry ? [-0.3, 0, 0.3] : [0]) {
+        if (this.angry) this.casts++;
+        const ring = this.nova && this.angry && this.casts % NOVA_EVERY === 0;
+        const spread = ring
+          ? Array.from({ length: NOVA_BOLTS }, (_, i) => (i * Math.PI * 2) / NOVA_BOLTS)
+          : this.angry
+            ? [-0.3, 0, 0.3]
+            : [0];
+        for (const k of spread) {
           const ang = base + k;
           this.bolts.push({
             x: this.x,

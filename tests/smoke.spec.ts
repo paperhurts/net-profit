@@ -32,6 +32,8 @@ type Np = {
   floor: number;
   towerTaken: boolean;
   isle3Seen: boolean;
+  isle3Stage: number;
+  boss3: { up: boolean; hit(power: number): void };
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -378,7 +380,7 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
   expect(errors).toEqual([]);
 });
 
-test('island 3: sell at the floating town, step onto the jetty, find the tower barred', async ({
+test('island 3: sell at the floating town, step onto the jetty, walk to the tower door', async ({
   context,
   page,
 }) => {
@@ -402,14 +404,13 @@ test('island 3: sell at the floating town, step onto the jetty, find the tower b
   const at = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
   // On the jetty, near its end.
   expect(Math.hypot((at[0] ?? 0) + 334, (at[1] ?? 0) + 456), 'not on the jetty').toBeLessThan(12);
-  // Once the landing's own message has gone, the tower's door, on the seaweed, says it is barred.
-  await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 12000 });
+  // Over the planks and the seaweed to the tower's door, where it can be climbed.
   await page.evaluate(() => {
     const w = window.__np.walker;
     w.x = -600 + 37;
     w.y = -600 + 40;
   });
-  await expect(page.locator('#toast')).toContainText('barred', { timeout: 3000 });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower');
   expect(errors).toEqual([]);
 });
 
@@ -620,6 +621,51 @@ test('tower: in at the door, up both floors, beat the sorcerer, and the tower is
   await page.waitForFunction(() => window.__np.boss.up, null, { timeout: 3000 });
   await page.evaluate(() => window.__np.boss.hit(99));
   await page.waitForFunction(() => window.__np.towerTaken, null, { timeout: 4000 });
+  await expect(page.locator('#leave')).toHaveText('Back to the boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.walker.state === 'aboard');
+  expect(errors).toEqual([]);
+});
+
+test('island 3 tower: up the sunken tower, beat the sorcerer again, and find the scuba gear', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -600 + 322, y: -600 + 154, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Across the planks and the seaweed to the door.
+  await page.evaluate(() => {
+    window.__np.walker.x = -600 + 52 * Math.SQRT1_2;
+    window.__np.walker.y = -600 + 52 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 3);
+  for (const f of [3, 4]) {
+    await page.evaluate((i) => {
+      const fl = window.__np.floors[i];
+      if (!fl) return;
+      for (const m of fl.list) fl.hit(m, 9, m.x + 50, m.y);
+      window.__np.walker.x = -7500 - 130 * 0.6 * Math.SQRT1_2;
+      window.__np.walker.y = (i === 4 ? -6900 : -6000) - 130 * 0.6 * Math.SQRT1_2;
+    }, f);
+    await expect(page.locator('#climb')).toBeVisible();
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, f + 1);
+  }
+  await page.waitForFunction(() => window.__np.boss3.up, null, { timeout: 3000 });
+  await page.evaluate(() => window.__np.boss3.hit(99));
+  await page.waitForFunction(() => window.__np.isle3Stage === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('scuba gear');
   await expect(page.locator('#leave')).toHaveText('Back to the boat');
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.walker.state === 'aboard');
