@@ -62,6 +62,18 @@ import type { DrawView, Entity, Layer, World } from './entity';
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
 export const WALK_SPEED = 85;
 export const WALK_EASE = 12;
+/**
+ * How far the stick must be pushed to walk at full speed. A thumb at rest on a
+ * phone pushes about half way, and at half pace the monkeys caught it, so half
+ * a push is a full walk; less than that walks slower, for picking a way along
+ * the pier. The boat keeps the whole push: its speed is the towed net's feel.
+ */
+export const WALK_FULL = 0.5;
+
+/** The share of full walking speed for a push of the stick, 0..1. */
+export function walkPace(push: number): number {
+  return Math.min(1, Math.max(0, push) / WALK_FULL);
+}
 /** How much closer the camera comes while ashore: a figure this size wants it. */
 export const WALK_ZOOM = 0.6;
 /** The boat comes round to its berth in at most this many seconds, easing there and turning this fast. */
@@ -565,8 +577,8 @@ export class Walker implements Entity {
       return;
     }
     if (this.state !== 'ashore') return;
-    // The stick points where to walk; how far it is pushed is how fast, the same in every direction.
-    const mag = Math.min(1, Math.hypot(this.ix, this.iy));
+    // The stick points where to walk; how far it is pushed is how fast, up to full at half a push, the same in every direction.
+    const mag = walkPace(Math.hypot(this.ix, this.iy));
     let tx = 0;
     let ty = 0;
     if (mag > 0) {
