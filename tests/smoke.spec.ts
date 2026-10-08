@@ -64,6 +64,7 @@ type Np = {
   isle5Stage: number;
   isle6Seen: boolean;
   chests6: number;
+  CHESTS6: [number, number][];
   king: { fighting: boolean; state: string; resolve: number };
   fireHarpoon(): void;
 };
@@ -1056,8 +1057,9 @@ test('island 6: dock at the big island, step ashore, and find a treasure chest',
   // Straight to the first chest.
   await page.evaluate(() => {
     const w = window.__np.walker;
-    w.x = 2165 + 10;
-    w.y = -2203 + 10;
+    const [x, y] = window.__np.CHESTS6[0] as [number, number];
+    w.x = x + 10;
+    w.y = y + 10;
   });
   await page.waitForFunction(() => window.__np.chests6 > 0, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(400);

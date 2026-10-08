@@ -4,7 +4,8 @@
  * makes it it is about eighteen (the whole island is ISLE6.r across from the
  * middle, one number to change), several screens of walking and three times
  * island 3. It is the leviathan's island: an old temple of green stone stands
- * half in the sea on its far side, where the leviathan sleeps. On the side
+ * half in the sea on its east side, where there is open water for a fight, and
+ * the leviathan sleeps off it. On the side
  * toward home a long pier runs out from the beach with a trading post at its
  * root; a rocky hill rises in the middle, and palms and boulders cover the rest.
  * Treasure chests lie hidden round it for whoever walks it all.
@@ -84,10 +85,10 @@ export const POST6_MID = { x: (POST6.x0 + POST6.x1) / 2, y: (POST6.y0 + POST6.y1
 /** The hill in the middle: rock, too steep to climb. */
 export const HILL = { x: ISLE6.x - 30, y: ISLE6.y - 40, r: 120 } as const;
 
-/** The leviathan's temple on the far side (-y), half in the sea: its middle and half its width. */
+/** The leviathan's temple on the east side (+x), half in the sea: its middle and half its width. */
 export const TEMPLE = {
-  x: ISLE6.x + 30,
-  y: ISLE6.y - shoreR(-Math.PI / 2) + 50,
+  x: ISLE6.x + shoreR(0) - 50,
+  y: ISLE6.y + 20,
   w: 70,
 } as const;
 

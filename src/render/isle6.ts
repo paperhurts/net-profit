@@ -2,7 +2,7 @@
  * Drawing island 6, the big island: its shallows following its bays and points,
  * the sand and the grass, the pier and the trading post toward home, the rocky
  * hill in the middle, palms and boulders, the leviathan's temple of green stone
- * half in the sea on the far side, and the treasure chests, shut or open.
+ * half in the sea on the east side, and the treasure chests, shut or open.
  * Stand-in shapes until the kid draws it.
  */
 import type { DrawView } from '../entities/entity';
