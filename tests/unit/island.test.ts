@@ -4,6 +4,8 @@ import {
   CRATE,
   DEEP,
   DOCK,
+  FAR,
+  FAR_BUOY_GAP,
   IR,
   IX,
   IY,
@@ -11,7 +13,9 @@ import {
   PIER_BUMPS,
   PX0,
   pastBuoys,
+  pastFar,
   pushOut,
+  seaEdge,
   WS,
 } from '../../src/world/island';
 
@@ -38,6 +42,20 @@ describe('the buoys', () => {
     expect(pastBuoys(-1, IY)).toBe(true);
     expect(pastBuoys(IX, WS + 1)).toBe(true);
     expect(DEEP).toBeGreaterThan(1000);
+  });
+
+  it('end at a second, far line, and past it the far deep runs on: only for the flagship, once it is open', () => {
+    expect(pastFar(-DEEP, IY)).toBe(false);
+    expect(pastFar(-DEEP - 1, IY)).toBe(true);
+    expect(pastFar(IX, WS + DEEP + 1)).toBe(true);
+    expect(pastFar(WS + DEEP, WS + DEEP)).toBe(false);
+    expect(seaEdge(false, true)).toBe(0);
+    expect(seaEdge(true, false)).toBe(DEEP);
+    expect(seaEdge(true, true)).toBe(DEEP + FAR);
+    // Room for an island far bigger than any so far, with sea round it.
+    expect(FAR).toBeGreaterThanOrEqual(1600);
+    expect(FAR % FAR_BUOY_GAP).toBe(0);
+    expect((WS + DEEP * 2) % FAR_BUOY_GAP).toBe(0);
   });
 });
 

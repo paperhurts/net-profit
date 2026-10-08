@@ -6,10 +6,15 @@
 import { describe, expect, it } from 'vitest';
 import legacy from '../../legacy/net-profit.html?raw';
 import { clamp, rng } from '../../src/core/math';
-import { DEEP_RINGS, MAHI, RINGS } from '../../src/data/tuning';
-import { DEEP, IX, IY, pastBuoys, WS } from '../../src/world/island';
+import { DEEP_RINGS, FAR_RINGS, MAHI, MARLIN, RINGS } from '../../src/data/tuning';
+import { LAIR } from '../../src/entities/cthuluviathan';
+import { DEEP, FAR, IX, IY, pastBuoys, pastFar, WS } from '../../src/world/island';
+import { ISLE2 } from '../../src/world/isle2';
+import { ISLE3 } from '../../src/world/isle3';
+import { ISLE4, TAR_R } from '../../src/world/isle4';
 import {
   createDeepSchools,
+  createFarSchools,
   createSchools,
   type Fish,
   resetSchools,
@@ -110,6 +115,24 @@ describe('createDeepSchools', () => {
       sides.add(sc.ax > WS ? 'e' : sc.ax < 0 ? 'w' : sc.ay > WS ? 's' : 'n');
     }
     expect(sides.size).toBe(4);
+  });
+
+  it('puts a school of marlin at each corner of the far deep, past the far buoys, clear of the islands', () => {
+    const far = createFarSchools();
+    expect(far).toHaveLength(FAR_RINGS.reduce((n, r) => n + r.n, 0));
+    for (const sc of far) {
+      expect(sc.sp).toBe(MARLIN);
+      const reach = sc.r + 60;
+      for (const f of sc.fish) expect(pastFar(sc.ax + f.ox, sc.ay + f.oy)).toBe(true);
+      // Short of the far deep's end.
+      const out = Math.max(-sc.ax, sc.ax - WS, -sc.ay, sc.ay - WS);
+      expect(out).toBeLessThan(DEEP + FAR - reach);
+      for (const o of [ISLE2, ISLE3])
+        expect(Math.hypot(sc.ax - o.x, sc.ay - o.y)).toBeGreaterThan(o.r + 900);
+      expect(Math.hypot(sc.ax - ISLE4.x, sc.ay - ISLE4.y)).toBeGreaterThan(TAR_R + 700);
+      // Out of the Cthuluviathan's reach.
+      expect(Math.hypot(sc.ax - LAIR.x, sc.ay - LAIR.y)).toBeGreaterThan(1000 + reach);
+    }
   });
 
   it('leaves the home water exactly as the prototype built it', () => {
