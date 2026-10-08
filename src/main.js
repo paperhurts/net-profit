@@ -49,6 +49,8 @@ import { atTar, ISLE4, MONSTER, SUMMONER, TAR_R, TAR_STOP } from './world/isle4'
 import { ANCHOR_HIT, Anchorer, BODY_R, SWEEP_R } from './entities/anchorer';
 import { Tarbaby } from './entities/tarbaby';
 import { drawIsle4Flat, drawIsle4Sea, isle4Solids } from './render/isle4';
+import { ISLE5, SIGHT5 } from './world/isle5';
+import { drawBoneFins, drawIsle5Flat, drawIsle5Sea, isle5Solids } from './render/isle5';
 import { drawIsle3Flat, drawIsle3Sea, isle3Glow, isle3Lights, isle3Solids } from './render/isle3';
 import { drawCage, drawDemonBack, drawHallBack, drawPortal } from './render/depths';
 import { Mantas } from './entities/mantas';
@@ -75,7 +77,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, flag = null, gulperSeen = false, spear = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, isle5Seen = false, flag = null, gulperSeen = false, spear = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
 let hp = HP_MAX, swallowT = 0, irisT = 0, hpShown = -1; // the boat's health in the deep, and being swallowed
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false, farToastT = 0, wasFar = false;
 const lv = {net:0, hold:0, engine:0};
@@ -92,9 +94,9 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; flag = s.flag; gulperSeen = s.gulperSeen; spear = s.spear; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; flag = s.flag; gulperSeen = s.gulperSeen; spear = s.spear; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; }
 setMuted(muted);
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, flag, gulperSeen, spear, masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, flag, gulperSeen, spear, masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -635,6 +637,7 @@ function refreshShop(){
     + (isle3Seen || isle2Seen ? `<span class="chip${isle3Seen?' gold':' unk'}">${isle3Seen?'Sunken island found':'Another island?'}</span>` : '')
     + (isle3Stage >= 4 ? '<span class="chip gold">Tar island seen</span>' : '')
     + (isle4Stage >= 1 ? '<span class="chip gold">Tar Anchorer beaten</span>' : '')
+    + (isle5Seen ? '<span class="chip gold">Island of bones found</span>' : '')
     + `<span class="chip${snook.landed?' gold':' unk'}">${snook.landed ? 'Snook landed ' + snook.landed : 'Under the bridge?'}</span>`;
 }
 const FISH_SVG = c => `<svg width="18" height="11" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7c3-5 9-7 14-3l5-3v12l-5-3C10 14 4 12 1 7z" fill="${c}" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/></svg>`;
@@ -806,7 +809,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; spear = 0; masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); hearts = HEARTS; shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; isle5Seen = false; anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; spear = 0; masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); hearts = HEARTS; shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -1059,6 +1062,7 @@ function update(dt){
   pushOut(boat, BEACH.x, BEACH.y, BEACH.r+24*k);
   pushOut(boat, ISLE2.x, ISLE2.y, ISLE2.r+24*k);
   pushOffTown(boat, 4+20*k);
+  pushOut(boat, ISLE5.x, ISLE5.y, ISLE5.r+24*k);
   { const look = isle4Look(), r = Math.max(ISLE4.r, TAR_R*look.spread) + 24*k, d = Math.hypot(boat.x - ISLE4.x, boat.y - ISLE4.y); tarToastT -= dt;
     if (d < r){ pushOut(boat, ISLE4.x, ISLE4.y, r);
       if (look.spread >= 1 && tarToastT <= 0){ tarToastT = 9;
@@ -1072,13 +1076,15 @@ function update(dt){
         : isle3Stage >= 4 ? 'An anchor chain runs between the far buoys, and nothing gets past it. Whatever holds the anchor is on the tar island.'
         : 'An anchor chain runs between the far buoys, and nothing gets past it. For now.', 3400, 1); sfx.rangeEdge(); } }
   { const far = pastFar(boat.x, boat.y); farToastT -= dt;
-    if (far && !wasFar && farToastT <= 0){ farToastT = 60; toast('Past the far buoys, into the far deep. Nobody has fished out here. Marlin school at its corners.', 3600, 1); }
+    if (far && !wasFar && farToastT <= 0){ farToastT = 60; toast(isle5Seen ? 'Past the far buoys, into the far deep. Marlin school at its corners.' : 'Past the far buoys, into the far deep. An island of bones is out here: follow the white marker. Marlin school at its corners.', 3600, 1); }
     wasFar = far; }
   { const deep = pastBuoys(boat.x, boat.y); deepToastT -= dt;
     if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast(!isle2Seen ? 'Past the buoys, into the deep. There is land out here: follow the green marker.' : !isle3Seen ? 'Past the buoys, into the deep. Another island is out here: follow the blue marker, up to the top of the map.' : 'Past the buoys, into the deep. Mahi-mahi school under the floating weed.', 3400, 1); }
     wasDeep = deep; }
   if (!isle2Seen && Math.hypot(boat.x-ISLE2.x, boat.y-ISLE2.y) < ISLE2.r + 700){ isle2Seen = true; save(); refreshShop();
     toast('Land ho: island 2. Parrotfish school round it, and the trading post buys your catch.' + (spear ? '' : ' The shipwright has a spear for its shallows now.'), 4600, 1); sfx.tierUp(); }
+  if (!isle5Seen && Math.hypot(boat.x-ISLE5.x, boat.y-ISLE5.y) < SIGHT5){ isle5Seen = true; save(); refreshShop(); sfx.cthuluWake(); toasts.clear();
+    toast('Island 5: a reef of bleached bones, with a throne under a giant shark\'s jaw. Bone sharks circle it. Something bigger is down there...', 5200, 2); }
   if (!isle3Seen && Math.hypot(boat.x-ISLE3.x, boat.y-ISLE3.y) < ISLE3.r + 700){ isle3Seen = true; save(); refreshShop();
     toast('Island 3 sank long ago: its old town lies under the water. Only its tower and a floating town are left up top. Grouper school over the ruins.', 5200, 1); sfx.tierUp(); }
   { const R = range(), dI = Math.hypot(boat.x-IX, boat.y-IY); rangeToastT -= dt;
@@ -1133,7 +1139,7 @@ function update(dt){
   warlock.free = isle3Stage >= 3; hurtWarlock(dt); wboat.free = warlock.free; wboat.crewed = !warlock.shown;
   if (wboat.free){ const wk = .85; pushOut(wboat, IX, IY, IR+24*wk); for (const b of PIER_BUMPS) pushOut(wboat, b[0], b[1], 20+20*wk);
     for (const b of BRIDGE_BUMPS) pushOut(wboat, b[0], b[1], 18+20*wk); pushOut(wboat, BEACH.x, BEACH.y, BEACH.r+24*wk);
-    pushOut(wboat, ISLE2.x, ISLE2.y, ISLE2.r+24*wk); pushOffTown(wboat, 4+20*wk); pushOut(wboat, ISLE4.x, ISLE4.y, Math.max(ISLE4.r, TAR_R*isle4Look().spread) + 24*wk); pushOut(wboat, boat.x, boat.y, 36*k);
+    pushOut(wboat, ISLE2.x, ISLE2.y, ISLE2.r+24*wk); pushOut(wboat, ISLE5.x, ISLE5.y, ISLE5.r+24*wk); pushOffTown(wboat, 4+20*wk); pushOut(wboat, ISLE4.x, ISLE4.y, Math.max(ISLE4.r, TAR_R*isle4Look().spread) + 24*wk); pushOut(wboat, boat.x, boat.y, 36*k);
     wboat.x = clamp(wboat.x, 40-DEEP-FAR, WS-40+DEEP+FAR); wboat.y = clamp(wboat.y, 40-DEEP-FAR, WS-40+DEEP+FAR); }
   if (pullT > 0){ pullT -= dt; if (pullT <= 0 && floor === HALL) intoDemons(); }
   redFlash = Math.max(0, redFlash - dt*1.2); if (cageOpen > 0 && cageOpen < 1) cageOpen = Math.min(1, cageOpen + dt/1.2);
@@ -1187,6 +1193,7 @@ function drawSea(){
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+70); ctx.fillStyle = C.shore; ctx.fill(); }
   drawIsle3Sea(drawView);
   drawIsle4Sea(drawView, isle4Look());
+  drawIsle5Sea(drawView);
   drawUnderwaterPlants(drawView);
 
   /* wave glints across the visible patch of world */
@@ -1200,7 +1207,7 @@ function drawSea(){
     for (let gy = Math.max(-DEEP-FAR,Math.floor(y0/G)*G); gy <= Math.min(WS+DEEP+FAR,y1); gy += G){
       const hsh = Math.sin(gx*12.9898+gy*78.233)*43758.5453, r = hsh - Math.floor(hsh);
       const wx = gx + r*90, wy = gy + ((r*7)%1)*90;
-      if (Math.hypot(wx-IX, wy-IY) < IR+30 || Math.hypot(wx-ISLE2.x, wy-ISLE2.y) < ISLE2.r+30 || Math.hypot(wx-MAT.x, wy-MAT.y) < MAT.r+20 || onPlanks(wx, wy) || Math.hypot(wx-ISLE4.x, wy-ISLE4.y) < ISLE4.r+30) continue;
+      if (Math.hypot(wx-IX, wy-IY) < IR+30 || Math.hypot(wx-ISLE2.x, wy-ISLE2.y) < ISLE2.r+30 || Math.hypot(wx-MAT.x, wy-MAT.y) < MAT.r+20 || onPlanks(wx, wy) || Math.hypot(wx-ISLE4.x, wy-ISLE4.y) < ISLE4.r+30 || Math.hypot(wx-ISLE5.x, wy-ISLE5.y) < ISLE5.r+30) continue;
       const sx = px(wx,wy), sy = py(wx,wy); if (sx<-40||sx>W+40||sy<-40||sy>H+40) continue;
       if (pastBuoys(wx, wy)){ // the deep's swell: bigger, slower, and every other one
         if (r > .5) continue;
@@ -1230,6 +1237,7 @@ function drawSea(){
     isoEllipse(ISLE2.x-30,ISLE2.y+20,165); ctx.fillStyle = '#6FB062'; ctx.fill(); }
   drawIsle3Flat(drawView);
   drawIsle4Flat(drawView, isle4Look());
+  drawIsle5Flat(drawView); drawBoneFins(drawView);
   drawGroundPlants(drawView);
 
   /* dock zone */
@@ -1579,6 +1587,7 @@ function drawWorldObjects(){
   if (tarbaby.free && !tarbaby.with) list.push({d: boat.x+boat.y+.5, f: () => tarbaby.drawAboard(drawView, boat, bk())});
   if (anchorer.state !== 'gone' && isle3Stage >= 4) list.push({d: anchorer.x + anchorer.y, f: () => anchorer.drawBody(drawView)});
   list.push(...isle4Solids(drawView, isle4Look()));
+  list.push(...isle5Solids(drawView, false));
   list.push(...isle3Solids(drawView, isle3Stage >= 1 ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null));
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
@@ -1696,6 +1705,7 @@ function draw(){
   if (walker.aboard && pastBuoys(boat.x, boat.y) && !(docked && dockHere === ISLE2_DOCK)) indicator(DOCK2.x, DOCK2.y, '#9CF0C0', 'dock', !isle2Seen); // the way to island 2
   if (walker.aboard && pastBuoys(boat.x, boat.y) && (isle2Seen || towerTaken || isle3Seen) && !(docked && dockHere === ISLE3_DOCK)) indicator(DOCK3.x, DOCK3.y, '#9CD8F0', 'dock', !isle3Seen); // and to island 3, once island 2 is found
   if (walker.aboard && pastBuoys(boat.x, boat.y) && isle3Stage >= 4) indicator(ISLE4.x, ISLE4.y, '#3B2A44', 'dock', false); // the tar island
+  if (walker.aboard && pastBuoys(boat.x, boat.y) && farOpen()) indicator(ISLE5.x, ISLE5.y, '#EDE6D3', 'dock', !isle5Seen); // island 5, once the far deep is open
   if (walker.shown) indicator(boat.x, boat.y, C.trim, 'dock', false); // the way back to the boat
   else if (!full && started){
     let best = null, bd = 1e9, anyVis = false, want = null, wd = 1e9, wantVis = false;
@@ -1792,5 +1802,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get cine(){ return cine; }, isle4Look, anchorer, tarbaby, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, get isle5Seen(){ return isle5Seen; }, isle4Look, anchorer, tarbaby, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
