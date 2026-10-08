@@ -43,6 +43,7 @@ import { dockAt, HOME_DOCK, ISLE2_DOCK, WALK_ZOOM, Walker, walkerDepth, walkStep
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
 import { Mantas } from './entities/mantas';
 import { Turtles } from './entities/turtles';
+import { bushSolids, drawGroundPlants, drawUnderwaterPlants } from './render/plants';
 import { Pirate } from './entities/pirate';
 import { Rare } from './entities/rare';
 import { Sharks } from './entities/sharks';
@@ -953,6 +954,7 @@ function drawSea(){
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+330); ctx.fillStyle = '#20808B'; ctx.fill();
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+180); ctx.fillStyle = C.shallow; ctx.fill();
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+70); ctx.fillStyle = C.shore; ctx.fill(); }
+  drawUnderwaterPlants(drawView);
 
   /* wave glints across the visible patch of world */
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -993,6 +995,7 @@ function drawSea(){
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r+9+Math.sin(T*1.3+4)*3); ctx.strokeStyle = C.foam; ctx.globalAlpha = .7; ctx.lineWidth = 4*Z; ctx.stroke(); ctx.globalAlpha = 1;
     isoEllipse(ISLE2.x,ISLE2.y,ISLE2.r); ctx.fillStyle = C.sand; ctx.fill();
     isoEllipse(ISLE2.x-30,ISLE2.y+20,165); ctx.fillStyle = '#6FB062'; ctx.fill(); }
+  drawGroundPlants(drawView);
 
   /* dock zone */
   if (isle2Seen || pastBuoys(boat.x, boat.y)){ isoEllipse(DOCK2.x,DOCK2.y,DOCK2.r);
@@ -1333,7 +1336,7 @@ function drawWorldObjects(){
     for (const m of monkeys.list) if (m.state !== 'gone') list.push({d: walkerDepth(m.x, m.y, build, pierD, null), f: () => monkeys.drawMonkey(drawView, m, 0)}); }
   if (build >= FISHMONGER_STAGE) list.push({d: STALL.x+STALL.y, f: drawStall});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
-  list.push(...scene.solids(drawView));
+  list.push(...scene.solids(drawView), ...bushSolids(drawView));
   if (walker.shown){ walker.shirt = PAINTS[paint].hull;
     list.push({d: walker.sortDepth(build, pierD, dog ? {x: dog.x, y: dog.y, d: pets.depth()} : null), f: () => walker.draw(drawView, 'solids')}); }
   list.sort((a,b) => a.d-b.d); for (const o of list) o.f();
