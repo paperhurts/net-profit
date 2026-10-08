@@ -57,7 +57,7 @@ import {
   TOWER,
 } from '../world/isle2';
 import { berth3, DOCK3, groundZ3, LAMPS, LANDING3, onIsle3, SHACKS, TOWER3 } from '../world/isle3';
-import { onFloor } from '../world/tower';
+import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
@@ -284,6 +284,14 @@ export const PROPS: readonly Prop[] = [
   ),
   ...SHACKS.map((s) => prop(s.x0, s.y0, s.x1, s.y1, s.x1 + s.y1)),
   ...LAMPS.map((p) => post(p, 2, p[0] + p[1])),
+  // The demon dimension's cage.
+  prop(
+    CAGE.x - CAGE.r,
+    CAGE.y - CAGE.r,
+    CAGE.x + CAGE.r,
+    CAGE.y + CAGE.r,
+    CAGE.x + CAGE.y + CAGE.r,
+  ),
 ];
 
 /** Whether something built at this palace stage stands in the way of a point. */
@@ -427,6 +435,8 @@ export class Walker implements Entity {
   armed = false;
   /** Just bonked: it blinks while it cannot be bonked again. */
   blink = false;
+  /** Under the water in scuba gear: a brass helmet for the sou'wester, a tank on its back, bubbles. */
+  diving = false;
   readonly prints: Print[] = [];
   /** The shirt, which the game keeps in the boat's paint. */
   shirt = '#E4572E';
@@ -713,6 +723,15 @@ export class Walker implements Entity {
       ctx.lineTo(px(fx, fy), py(fx, fy, z + Math.max(0, f) * 0.5));
       ctx.stroke();
     }
+    // Diving, the air tank on its back, drawn first so the body covers its near side.
+    if (this.diving) {
+      const tx = x - c * 3.5;
+      const ty = y - s * 3.5;
+      ctx.fillStyle = '#8E9AA0';
+      ctx.beginPath();
+      ctx.ellipse(px(tx, ty), py(tx, ty, z + 15), 2.8 * Z, 6 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // The body, in the boat's colour.
     const bx = px(x, y);
     const by = py(x, y, z + 13);
@@ -752,7 +771,7 @@ export class Walker implements Entity {
       ctx.strokeStyle = this.shirt;
       ctx.lineWidth = 2.2 * Z;
     }
-    if (v.dark > 0.2) {
+    if (v.dark > 0.2 && !this.diving) {
       const [hx, hy] = this.hand(-1);
       ctx.fillStyle = '#FFE9A8';
       ctx.fillRect(px(hx, hy) - 1.8 * Z, py(hx, hy, z + 8) - 1.5 * Z, 3.6 * Z, 4 * Z);
@@ -773,6 +792,38 @@ export class Walker implements Entity {
         ctx.arc(hx + (fx * 1.6 + e * 1.4) * Z, hy + 0.6 * Z, 0.65 * Z, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+    if (this.diving) {
+      // A brass diving helmet with a round glass port toward where it looks, and bubbles going up.
+      ctx.fillStyle = '#C9973A';
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.6 * Z, 5.6 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#A87A2A';
+      ctx.fillRect(hx - 5.4 * Z, hy + 3.6 * Z, 10.8 * Z, 1.8 * Z);
+      if (fy > -0.4) {
+        ctx.fillStyle = 'rgba(150,215,225,.85)';
+        ctx.beginPath();
+        ctx.arc(hx + fx * 2.2 * Z, hy - 0.4 * Z, 2.6 * Z, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#7A5A1E';
+        ctx.lineWidth = 0.9 * Z;
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(220,245,255,.7)';
+      for (let k = 0; k < 3; k++) {
+        const t = (this.now * 0.7 + k / 3) % 1;
+        ctx.beginPath();
+        ctx.arc(
+          hx + Math.sin(this.now * 3 + k * 2) * 2 * Z,
+          hy - (7 + t * 26) * Z,
+          (1 + t * 1.4) * Z,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      return;
     }
     ctx.fillStyle = BRIM;
     ctx.beginPath();
