@@ -312,6 +312,11 @@ export const cues = {
     tone(700, 0.06, 'triangle', 0.05, 1.25);
     tone(900, 0.09, 'triangle', 0.05, 1.2, 0.08);
   },
+  /** A sea turtle comes alongside: two soft bubbling notes, rising. */
+  turtle(): void {
+    tone(392, 0.16, 'sine', 0.05, 1.15);
+    tone(523, 0.22, 'sine', 0.05, 1.1, 0.14);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

@@ -69,6 +69,9 @@ export type SaveData = {
   towerTaken: boolean;
   /** How many times the harpoon has driven off each leviathan. */
   driven: Driven;
+  /** A sea turtle has been sighted, and how many times one has swum with the boat. */
+  turtleSeen: boolean;
+  turtleSwims: number;
   /** What the shipwright has fitted. */
   gear: { mesh: boolean; strongbox: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
@@ -129,6 +132,8 @@ export function defaultSave(b: Bounds): SaveData {
     masks: 0,
     towerTaken: false,
     driven: noDriven(),
+    turtleSeen: false,
+    turtleSwims: 0,
     gear: { mesh: false, strongbox: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -206,6 +211,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.masks = Math.max(0, int(o.masks));
   d.towerTaken = !!o.towerTaken;
   d.driven = parseDriven(o.driven);
+  d.turtleSeen = !!o.turtleSeen;
+  d.turtleSwims = Math.max(0, int(o.turtleSwims));
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
     d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox };
@@ -270,6 +277,8 @@ export function serializeSave(d: SaveData): string {
     masks: d.masks,
     towerTaken: d.towerTaken,
     driven: d.driven,
+    turtleSeen: d.turtleSeen,
+    turtleSwims: d.turtleSwims,
     gear: d.gear,
     snook: d.snook,
     trip: d.trip ?? undefined,

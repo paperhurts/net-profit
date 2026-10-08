@@ -303,6 +303,22 @@ describe('the flag', () => {
   });
 });
 
+describe('the turtles', () => {
+  it('are unseen in a save from before them, survive a round trip, and never count below none', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.turtleSeen).toBe(false);
+    expect(s.turtleSwims).toBe(0);
+    s.turtleSeen = true;
+    s.turtleSwims = 4;
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.turtleSeen).toBe(true);
+    expect(back.turtleSwims).toBe(4);
+    const bad = JSON.parse(serializeSave(s));
+    bad.turtleSwims = -7;
+    expect(parseSave(JSON.stringify(bad), bounds).turtleSwims).toBe(0);
+  });
+});
+
 describe('the leviathans driven off', () => {
   it('are none in a save from before the harpoon, survive a round trip, and shrug off junk', () => {
     const s = parseSave(legacy, bounds);
