@@ -58,6 +58,19 @@ import {
 } from '../world/isle2';
 import { berth3, DOCK3, groundZ3, LAMPS, LANDING3, onIsle3, SHACKS, TOWER3 } from '../world/isle3';
 import { inTar, onIsle4, PALMS4, ROCKS4, tarWay } from '../world/isle4';
+import {
+  berth6,
+  CHESTS6,
+  DOCK6,
+  groundZ6,
+  HILL,
+  LANDING6,
+  onIsle6,
+  PALMS6,
+  POST6,
+  ROCKS6,
+  TEMPLE,
+} from '../world/isle6';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -129,7 +142,14 @@ export const ISLE3_DOCK: Dock = {
   berth: berth3,
   landing: LANDING3,
 };
-export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK];
+export const ISLE6_DOCK: Dock = {
+  x: DOCK6.x,
+  y: DOCK6.y,
+  r: DOCK6.r,
+  berth: berth6,
+  landing: LANDING6,
+};
+export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
 export function tarDock(a: number): Dock {
@@ -194,6 +214,7 @@ function inBox(
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (onIsle4(x, y)) return true;
+  if (onIsle6(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   if (onFloor(x, y)) return true;
@@ -206,6 +227,7 @@ export function onLand(x: number, y: number): boolean {
 /** The height of what is underfoot: the pier's planks, the bridge's deck, island 3's rafts and seaweed, or the sand. */
 export function groundZ(x: number, y: number): number {
   if (onIsle3(x, y)) return groundZ3(x, y);
+  if (onIsle6(x, y)) return groundZ6(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -301,6 +323,25 @@ export const PROPS: readonly Prop[] = [
   // Island 4: its palms and rocks. The tar monster moves, so the game keeps the figure out of it.
   ...PALMS4.map((p) => post(p, 4, p[0] + p[1])),
   ...ROCKS4.map((p) => prop(p[0] - 8, p[1] - 6, p[0] + 8, p[1] + 6, p[0] + p[1])),
+  // Island 6: the hill, the trading post, the temple, palms, boulders and the chests.
+  prop(
+    HILL.x - HILL.r * 0.85,
+    HILL.y - HILL.r * 0.85,
+    HILL.x + HILL.r * 0.85,
+    HILL.y + HILL.r * 0.85,
+    HILL.x + HILL.y + HILL.r * 0.5,
+  ),
+  prop(POST6.x0, POST6.y0, POST6.x1, POST6.y1, POST6.x1 + POST6.y1),
+  prop(
+    TEMPLE.x - TEMPLE.w,
+    TEMPLE.y - TEMPLE.w * 0.8,
+    TEMPLE.x + TEMPLE.w,
+    TEMPLE.y + TEMPLE.w * 0.8,
+    TEMPLE.x + TEMPLE.y + TEMPLE.w * 0.8,
+  ),
+  ...PALMS6.map((p) => post(p, 4, p[0] + p[1])),
+  ...ROCKS6.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
+  ...CHESTS6.map((p) => prop(p[0] - 7, p[1] - 5, p[0] + 7, p[1] + 5, p[0] + p[1], 0, 1.5)),
   // The demon dimension's cage.
   prop(
     CAGE.x - CAGE.r,

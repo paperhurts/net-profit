@@ -68,6 +68,9 @@ export type SaveData = {
   isle3Seen: boolean;
   /** Island 5, the Skeleton Shark King's reef, has been sighted, out in the far deep. */
   isle5Seen: boolean;
+  /** Island 6, the big island, has been sighted, and which of its treasure chests are opened, one bit each. */
+  isle6Seen: boolean;
+  chests6: number;
   /** How far through island 5's story: 0 not begun; 1 the Skeleton Shark King dead. */
   isle5Stage: number;
   /** The flag designed in the shop, or null for the pennant in the hull's paint. */
@@ -149,6 +152,8 @@ export function defaultSave(b: Bounds): SaveData {
     isle2Seen: false,
     isle3Seen: false,
     isle5Seen: false,
+    isle6Seen: false,
+    chests6: 0,
     isle5Stage: 0,
     flag: null,
     gulperSeen: false,
@@ -233,6 +238,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle2Seen = !!o.isle2Seen;
   d.isle3Seen = !!o.isle3Seen;
   d.isle5Seen = !!o.isle5Seen;
+  d.isle6Seen = !!o.isle6Seen;
+  d.chests6 = Math.max(0, Math.min(255, int(o.chests6)));
   d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
@@ -304,6 +311,8 @@ export function serializeSave(d: SaveData): string {
     isle2Seen: d.isle2Seen,
     isle3Seen: d.isle3Seen,
     isle5Seen: d.isle5Seen,
+    isle6Seen: d.isle6Seen,
+    chests6: d.chests6,
     isle5Stage: d.isle5Stage,
     flag: d.flag,
     gulperSeen: d.gulperSeen,

@@ -62,6 +62,9 @@ type Np = {
   isle4Stage: number;
   isle5Seen: boolean;
   isle5Stage: number;
+  isle6Seen: boolean;
+  chests6: number;
+  CHESTS6: [number, number][];
   king: { fighting: boolean; state: string; resolve: number };
   fireHarpoon(): void;
 };
@@ -1022,5 +1025,43 @@ test('the Skeleton Shark King: he rises at the reef, and harpooned down, dies wi
   await page.mouse.click(200, 400);
   await page.waitForFunction(() => window.__np.isle5Stage === 1, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test('island 6: dock at the big island, step ashore, and find a treasure chest', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: -1150, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.isle6Seen, null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 2400;
+    b.y = -1320;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.locator('#ashore').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 5000 });
+  // Straight to the first chest.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const [x, y] = window.__np.CHESTS6[0] as [number, number];
+    w.x = x + 10;
+    w.y = y + 10;
+  });
+  await page.waitForFunction(() => window.__np.chests6 > 0, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(400);
   expect(errors).toEqual([]);
 });
