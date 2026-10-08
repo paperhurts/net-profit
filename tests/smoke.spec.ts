@@ -326,6 +326,21 @@ test('ashore: step off at the dock, pet the dog, walk up the pier onto the islan
   expect(errors).toEqual([]);
 });
 
+test('shop: the shipwright keeps the spear back until island 2 is found', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 900,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  await page.waitForTimeout(300);
+  await expect(page.locator('#gear [data-g]').first()).toBeAttached();
+  await expect(page.locator('#gear [data-s]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('island 2: sell at the trading post and step ashore on its sand', async ({
   context,
   page,
@@ -343,6 +358,8 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
     await page.evaluate(() => window.__np.coins),
     'the trading post paid nothing',
   ).toBeGreaterThan(100);
+  // Found, island 2 brings the spear into the shipwright's shop.
+  await expect(page.locator('#gear [data-s]')).toHaveCount(1);
   await expect(page.locator('#ashore')).toBeVisible();
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });

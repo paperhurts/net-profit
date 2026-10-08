@@ -447,7 +447,8 @@ function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>';
 function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier());
   el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
     return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join('')
-    + (() => { const n = nextSpear(spear), have = spearAt(spear);
+    // The spear is for island 2's shallows, so the shipwright keeps it back until island 2 has been found.
+    + (() => { const n = nextSpear(spear), have = spearAt(spear); if (!isle2Seen && !spear) return '';
       return n ? `<button class="gear" data-s="1" aria-disabled="${coins < n.cost ? 'true' : 'false'}"><b>${n.name}</b><span class="buy">${n.cost}</span><small>${n.blurb}</small></button>`
         : `<button class="gear" data-s="1" aria-disabled="true"><b>${have.name}</b><span class="buy">Owned</span><small>On the bow. Past the buoys, fire it at a leviathan.</small></button>`; })(); }
 function refreshBuild(){
@@ -849,7 +850,7 @@ function update(dt){
     if (deep && !wasDeep && deepToastT <= 0){ deepToastT = 60; toast(isle2Seen ? 'Past the buoys, into the deep. Mahi-mahi school under the floating weed.' : 'Past the buoys, into the deep. There is land out here: follow the green marker.', 3400, 1); }
     wasDeep = deep; }
   if (!isle2Seen && Math.hypot(boat.x-ISLE2.x, boat.y-ISLE2.y) < ISLE2.r + 700){ isle2Seen = true; save(); refreshShop();
-    toast('Land ho: island 2. Parrotfish school round it, and the trading post buys your catch.', 4200, 1); sfx.tierUp(); }
+    toast('Land ho: island 2. Parrotfish school round it, and the trading post buys your catch.' + (spear ? '' : ' The shipwright has a spear for its shallows now.'), 4600, 1); sfx.tierUp(); }
   { const R = range(), dI = Math.hypot(boat.x-IX, boat.y-IY); rangeToastT -= dt;
     if (dI > R){ boat.x = IX + (boat.x-IX)/dI*R; boat.y = IY + (boat.y-IY)/dI*R; boat.v *= .93;
       if (rangeToastT <= 0){ rangeToastT = 9; toast(`Too rough out there for a ${TIER_NAME[tier()]}. Grow your boat to sail further.`, 2800, 1); sfx.rangeEdge(); } } }
