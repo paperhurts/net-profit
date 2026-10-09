@@ -1,14 +1,16 @@
 /**
  * The Forgotten One, the kid's king of Gigantis, on his throne at the back of
- * its throne room behind three necromancers. A tall crowned skeleton in black
- * armour with a ragged cape, red eyes and a great sword. He comes on slowly and
- * has three ways to hurt, a heart each, as the kid wrote:
+ * its throne room behind three necromancers. Drawn as the kid drew him: long
+ * black hair, a pale face screaming, a black cloak over long thin legs, and a
+ * sword with a cross-guard. He comes on slowly and has three ways to hurt, a
+ * heart each, as the kid wrote:
  *
  * - his sword, close in: he raises it (the warning) and sweeps it round in front;
- * - skulls: five at a time, flung in a fan, the middle one aimed to meet the
- *   figure where it is going and the others either side of it, so a straight
- *   walk is hit and the counter is to find a gap between them as they fly;
- * - the death ray: a thin red line shows from him toward the figure for most
+ * - skulls, blue and trailing purple fire: five at a time, flung in a fan,
+ *   the middle one aimed to meet the figure where it is going and the others
+ *   either side of it, so a straight walk is hit and the counter is to find a
+ *   gap between them as they fly;
+ * - the death ray, orange: a thin line shows from him toward the figure for most
  *   of a second, then a beam burns along it. The line does not follow: step off.
  *
  * Further than a sword's reach he takes turns with the skulls and the ray. Hurt
@@ -278,7 +280,7 @@ export class Forgotten implements Entity {
       const burn = this.state === 'beam';
       ctx.lineCap = 'round';
       if (burn) {
-        ctx.strokeStyle = 'rgba(255,80,60,.45)';
+        ctx.strokeStyle = 'rgba(255,140,40,.45)';
         ctx.lineWidth = 16 * Z;
         ctx.beginPath();
         ctx.moveTo(px(this.ray.x, this.ray.y), py(this.ray.x, this.ray.y, 26));
@@ -286,8 +288,8 @@ export class Forgotten implements Entity {
         ctx.stroke();
       }
       ctx.strokeStyle = burn
-        ? '#FFE0D8'
-        : `rgba(255,70,60,${0.35 + 0.4 * clamp(this.t / AIM, 0, 1)})`;
+        ? '#FFEBC0'
+        : `rgba(255,140,40,${0.4 + 0.45 * clamp(this.t / AIM, 0, 1)})`;
       ctx.lineWidth = (burn ? 5 : 1.6 + Math.sin(T * 30) * 0.4) * Z;
       ctx.beginPath();
       ctx.moveTo(px(this.ray.x, this.ray.y), py(this.ray.x, this.ray.y, 26));
@@ -300,16 +302,35 @@ export class Forgotten implements Entity {
       ctx.fillStyle = 'rgba(0,0,0,.2)';
       v.isoEllipse(s.x, s.y, 5);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,90,70,.35)';
+      // A trail of purple fire behind it, rising as it goes.
+      for (let i = 4; i >= 1; i--) {
+        const bx = s.x - Math.cos(s.h) * i * 5;
+        const by = s.y - Math.sin(s.h) * i * 5;
+        ctx.fillStyle = `rgba(170,95,235,${0.55 - i * 0.11})`;
+        ctx.beginPath();
+        ctx.arc(px(bx, by), py(bx, by, 20) - i * 2.6 * Z, (5.6 - i * 0.7) * Z, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(195,130,255,.6)';
+      for (const e of [-1, 0, 1]) {
+        const lick = Math.sin(T * 18 + s.t * 7 + e * 2);
+        ctx.beginPath();
+        ctx.moveTo(sx + (e * 2.6 - 2) * Z, sy - 1.5 * Z);
+        ctx.lineTo(sx + (e * 2.6 + lick * 1.2) * Z, sy - (10 + lick * 2 - Math.abs(e) * 3) * Z);
+        ctx.lineTo(sx + (e * 2.6 + 2) * Z, sy - 1.5 * Z);
+        ctx.fill();
+      }
+      // The skull, blue.
+      ctx.fillStyle = 'rgba(110,165,255,.35)';
       ctx.beginPath();
       ctx.arc(sx, sy, 8 * Z, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#EDE8DA';
+      ctx.fillStyle = '#7FB6FF';
       ctx.beginPath();
       ctx.arc(sx, sy, 4.4 * Z, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillRect(sx - 2.4 * Z, sy + 2.6 * Z, 4.8 * Z, 2.2 * Z);
-      ctx.fillStyle = '#C8322B';
+      ctx.fillStyle = '#1A2350';
       for (const e of [-1, 1]) {
         ctx.beginPath();
         ctx.arc(sx + e * 1.6 * Z, sy - 0.3 * Z, 1.1 * Z, 0, Math.PI * 2);
@@ -333,59 +354,73 @@ export class Forgotten implements Entity {
     v.isoEllipse(this.x, this.y, 9 * SCALE);
     ctx.fill();
     const stride = this.state === 'walk' ? Math.sin(this.ph * 6) * 2.4 * k : 0;
-    // A ragged cape behind.
-    ctx.fillStyle = W('#2A1820');
-    ctx.beginPath();
-    ctx.moveTo(sx - 5 * k, base - 22 * k);
-    ctx.lineTo(sx + 5 * k, base - 22 * k);
-    ctx.lineTo(sx + 8 * k - face * 5 * k + Math.sin(T * 3) * 1.5 * k, base);
-    for (let i = 0; i < 4; i++)
-      ctx.lineTo(sx + (6 - i * 4.5) * k - face * 5 * k, base - (i % 2 ? 3 : 0) * k);
-    ctx.closePath();
-    ctx.fill();
-    // Legs in black armour.
-    ctx.strokeStyle = W('#22262C');
+    const sway = Math.sin(T * 3) * 1.5 * k;
+    // Long thin legs below the cloak, as the kid drew them.
+    ctx.strokeStyle = W('#1A161D');
     ctx.lineCap = 'round';
-    ctx.lineWidth = 2.6 * k;
+    ctx.lineWidth = 1.8 * k;
     for (const side of [-1, 1]) {
       ctx.beginPath();
       ctx.moveTo(sx + side * 2 * k, base - 10 * k);
       ctx.lineTo(sx + side * 2 * k + stride * side, base);
       ctx.stroke();
     }
-    // The breastplate, and ribs showing through a rent in it.
-    ctx.fillStyle = W('#30353D');
+    // A black cloak from the shoulders, ragged at the hem and blowing back a little.
+    ctx.fillStyle = W('#141117');
+    ctx.strokeStyle = W('#3A3340');
+    ctx.lineWidth = 0.8 * k;
     ctx.beginPath();
-    ctx.ellipse(sx, base - 16 * k, 5.4 * k, 7 * k, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = W('#EDE8DA');
-    ctx.lineWidth = 1 * k;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.ellipse(sx, base - 15 * k - i * 2.2 * k, 2.6 * k, 0.9 * k, 0, Math.PI, Math.PI * 2);
-      ctx.stroke();
+    ctx.moveTo(sx - 4 * k, base - 24 * k);
+    ctx.lineTo(sx + 4 * k, base - 24 * k);
+    for (let i = 0; i <= 6; i++) {
+      const ex = sx + (7.5 - i * 2.5) * k - face * 1.5 * k + sway * (1 - i / 6);
+      ctx.lineTo(ex, base - (i % 2 ? 10.5 : 8) * k);
     }
-    // The skull, its red eyes, and the crown.
-    const hy = base - 26.5 * k;
-    ctx.fillStyle = W('#EDE8DA');
-    ctx.beginPath();
-    ctx.arc(sx, hy, 4.4 * k, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(sx - 2.4 * k, hy + 2.8 * k, 4.8 * k, 2.4 * k);
-    const glow = this.state === 'aim' ? 1 : 0.7 + 0.3 * Math.sin(T * 4);
-    ctx.fillStyle = `rgba(255,70,60,${glow})`;
-    for (const e of [-1, 1]) {
-      ctx.beginPath();
-      ctx.arc(sx + face * 0.8 * k + e * 1.6 * k, hy - 0.2 * k, 1.2 * k, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.fillStyle = W('#C9A13A');
-    ctx.beginPath();
-    ctx.moveTo(sx - 4.6 * k, hy - 3 * k);
-    for (let i = 0; i <= 4; i++) ctx.lineTo(sx - 4.6 * k + i * 2.3 * k, hy - (i % 2 ? 5 : 8.5) * k);
-    ctx.lineTo(sx + 4.6 * k, hy - 3 * k);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
+    // His hair, long and black, down past his shoulders behind his face.
+    const hy = base - 26.5 * k;
+    const fx = sx + face * 0.8 * k;
+    ctx.fillStyle = W('#0E0C10');
+    ctx.beginPath();
+    ctx.arc(sx, hy - 0.5 * k, 5.4 * k, Math.PI, 0);
+    ctx.lineTo(sx + 6.4 * k + sway * 0.4, hy + 11 * k);
+    for (let i = 1; i <= 5; i++)
+      ctx.lineTo(sx + (6.4 - i * 2.56) * k + sway * 0.4, hy + (i % 2 ? 8.5 : 11.5) * k);
+    ctx.closePath();
+    ctx.fill();
+    // A pale face, screaming: dark eyes that burn orange as he aims, and a mouth wide open.
+    ctx.fillStyle = W('#E8E0D2');
+    ctx.beginPath();
+    ctx.ellipse(fx, hy + 0.4 * k, 3.3 * k, 4.4 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const aiming = this.state === 'aim' || this.state === 'beam';
+    ctx.fillStyle = aiming ? '#FF9A2A' : W('#1A1216');
+    for (const e of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(fx + e * 1.4 * k, hy - 0.9 * k, 0.95 * k, 0.6 * k, e * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const open = aiming || this.state === 'windup' ? 1 : 0.55 + 0.15 * Math.sin(T * 2.2);
+    ctx.fillStyle = W('#2A0E12');
+    ctx.beginPath();
+    ctx.ellipse(fx, hy + 2.1 * k, 1.5 * k, (1 + 1.3 * open) * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = W('#B8323A');
+    ctx.beginPath();
+    ctx.ellipse(fx, hy + (2.4 + open) * k, 0.9 * k, 0.6 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Its fringe hangs either side of the face.
+    ctx.fillStyle = W('#0E0C10');
+    for (const e of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(fx + e * 0.4 * k, hy - 4.5 * k);
+      ctx.quadraticCurveTo(fx + e * 4.4 * k, hy - 4.6 * k, fx + e * 3.8 * k, hy + 5.5 * k);
+      ctx.lineTo(fx + e * 2.6 * k, hy + 2 * k);
+      ctx.quadraticCurveTo(fx + e * 2.8 * k, hy - 2.8 * k, fx + e * 0.4 * k, hy - 4.5 * k);
+      ctx.fill();
+    }
     // The great sword: up for the warning, swept round in the swing.
     const hx = sx + face * 6 * k;
     const hyy = base - 15 * k;
@@ -393,6 +428,12 @@ export class Forgotten implements Entity {
     if (this.state === 'windup') a = -face * (1.3 + Math.sin(T * 30) * 0.05);
     else if (this.state === 'swing') a = face * (0.5 + (this.t / SWING) * 1.6);
     else if (this.state === 'aim' || this.state === 'beam') a = face * 1.4;
+    ctx.strokeStyle = W('#1A161D');
+    ctx.lineWidth = 1.6 * k;
+    ctx.beginPath();
+    ctx.moveTo(sx + face * 3.5 * k, base - 21.5 * k);
+    ctx.lineTo(hx, hyy);
+    ctx.stroke();
     const len = 20 * k;
     ctx.strokeStyle = W('#B9C2C8');
     ctx.lineWidth = 2.4 * k;
@@ -400,11 +441,12 @@ export class Forgotten implements Entity {
     ctx.moveTo(hx, hyy);
     ctx.lineTo(hx + Math.sin(a) * len * face, hyy - Math.cos(a) * len);
     ctx.stroke();
-    ctx.strokeStyle = W('#8A6A2A');
-    ctx.lineWidth = 2.6 * k;
+    // Its cross-guard, as he drew it.
+    ctx.strokeStyle = W('#5A5560');
+    ctx.lineWidth = 2.2 * k;
     ctx.beginPath();
-    ctx.moveTo(hx - 3 * k, hyy + 0.6 * k);
-    ctx.lineTo(hx + 3 * k, hyy - 0.6 * k);
+    ctx.moveTo(hx - 3.6 * k, hyy + 0.7 * k);
+    ctx.lineTo(hx + 3.6 * k, hyy - 0.7 * k);
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
