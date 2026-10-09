@@ -333,9 +333,11 @@ export function drawPortal7(v: DrawView, open: number): void {
     const [cx, cy, cz] = ringAt(0, 0);
     const sx = px(cx, cy);
     const sy = py(cx, cy, cz);
-    ctx.globalAlpha = open;
+    // A little see-through, so whoever walks behind it is not lost.
+    ctx.globalAlpha = open * 0.8;
     ctx.fillStyle = '#2A1446';
     ctx.fillRect(sx - 60 * Z, sy - 60 * Z, 120 * Z, 120 * Z);
+    ctx.globalAlpha = open;
     for (let k = 0; k < 5; k++) {
       const a = T * (1.4 + k * 0.3) + k * 1.3;
       ctx.strokeStyle = k % 2 ? 'rgba(124,255,176,.7)' : 'rgba(190,130,255,.7)';
