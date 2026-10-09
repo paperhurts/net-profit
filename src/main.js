@@ -60,7 +60,7 @@ import { drawIsle6Flat, drawIsle6Sea, isle6Solids } from './render/isle6';
 import { CAMP7, CHEST7, DOCK7, DOOR7, ISLE7, PORTAL7, POST7_MID, pushOffIsle7, SIGHT7 } from './world/isle7';
 import { drawIsle7Flat, drawIsle7Sea, drawPortal7, isle7Glow, isle7Solids } from './render/isle7';
 import { Horde } from './entities/undead';
-import { ARC as FG_ARC, Forgotten, REACH as FG_REACH, RAY_HIT, SKULL_HIT } from './entities/forgotten';
+import { ARC as FG_ARC, FORGOTTEN_HP, Forgotten, REACH as FG_REACH, RAY_HIT, SKULL_HIT } from './entities/forgotten';
 import { Merlocks } from './entities/merlocks';
 import { CASTLE_ROOMS, CASTLE_SPAWNS, FORGOTTEN_START, LOCKED, LOCKED_REACH, PORTAL_OUT, SEAT } from './world/gigantis';
 import { drawCastleBack, drawCastleDoor, drawCourtBack, drawLockedDoor, drawThrone } from './render/gigantis';
@@ -1020,7 +1020,7 @@ function renderGuide(){
     : 'Not met yet. Through the portal on island 7, once it is awake.'}</small><div class="facts"><span>Gigantis</span><span>A heart a hit</span><span>${isle7Stage >= 2 ? 'Beaten' : isle7Stage >= 1 ? 'Waiting' : 'Not met'}</span></div></article>`);
   pages.push(`<article class="page${isle7Stage >= 2 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle7Stage >= 2 ? 'The Forgotten One' : '?'}</b><small>${isle7Stage >= 2
     ? 'The king of Gigantis, a tall crowned skeleton in black armour, in his throne room behind three necromancers. He flings skulls in a fan, swings a great sword when you are close, and shows a thin red line before his death ray burns along it: step off the line. Beaten, he fell apart, and his bones got up and fought on, hitting for two and calling up a ghost and a skeleton. The warlock called merlocks out of a puddle of sea to help. Behind his throne is a locked door.'
-    : 'Not met yet. Something sits on a throne in Gigantis.'}</small><div class="facts"><span>Gigantis</span><span>24, then his bones</span><span>${isle7Stage >= 2 ? 'Beaten' : 'Not beaten'}</span></div></article>`);
+    : 'Not met yet. Something sits on a throne in Gigantis.'}</small><div class="facts"><span>Gigantis</span><span>${FORGOTTEN_HP}, then his bones</span><span>${isle7Stage >= 2 ? 'Beaten' : 'Not beaten'}</span></div></article>`);
   pages.push(`<article class="page${masks ? ' gold' : ' unk'}">${LEV_SVG}<b>${masks ? 'Skull-mask monkeys' : '?'}</b><small>${masks
     ? 'A camp of monkeys in little skull masks on the far side of island 2. They run at you to bonk you, and two of them throw coconuts: keep moving, step out from under the shadow, and throw your spear. Beaten, a monkey drops its mask and runs off. Beat the whole camp and its chest opens.'
     : 'Not met yet. Something lives in the huts on the far side of island 2. Take a spear.'}</small><div class="facts"><span>Island 2</span><span>Three hearts ashore</span><span>${masks} masks</span></div></article>`);
