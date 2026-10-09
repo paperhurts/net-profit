@@ -8,6 +8,7 @@
  */
 import { rgba } from '../core/color';
 import type { DrawView } from '../entities/entity';
+import { POOL } from '../world/gigantis';
 import type { Room } from '../world/tower';
 
 const hash = (i: number, k: number): number => {
@@ -254,12 +255,34 @@ export function drawCastleDoor(v: DrawView, x: number, y: number, open: boolean)
   }
 }
 
-/** The locked door behind the throne, for next time: shut, chained across, with a padlock as big as a head. */
-export function drawLockedDoor(v: DrawView, x: number, y: number): void {
+/**
+ * The door behind the throne: shut, chained across, with a padlock as big as a head; or, once the bones have
+ * given the key, thrown open, the chains and the padlock dropped at its foot.
+ */
+export function drawLockedDoor(v: DrawView, x: number, y: number, open = false): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
-  drawCastleDoor(v, x, y, false);
+  drawCastleDoor(v, x, y, open);
   const D = Math.SQRT1_2;
+  if (open) {
+    const fx = px(x + 14, y + 14);
+    const fy = py(x + 14, y + 14, 0);
+    ctx.strokeStyle = '#7C8287';
+    ctx.lineWidth = 2 * Z;
+    ctx.beginPath();
+    ctx.moveTo(fx - 16 * Z, fy - 1 * Z);
+    ctx.quadraticCurveTo(fx - 6 * Z, fy + 3 * Z, fx + 2 * Z, fy - 1 * Z);
+    ctx.moveTo(fx + 4 * Z, fy + 2 * Z);
+    ctx.quadraticCurveTo(fx + 10 * Z, fy + 5 * Z, fx + 18 * Z, fy + 1 * Z);
+    ctx.stroke();
+    ctx.fillStyle = '#C9A13A';
+    ctx.fillRect(fx - 4 * Z, fy - 5 * Z, 9 * Z, 7 * Z);
+    ctx.strokeStyle = '#B49A4A';
+    ctx.beginPath();
+    ctx.arc(fx + 5 * Z, fy - 6 * Z, 3 * Z, Math.PI * 0.9, Math.PI * 1.9);
+    ctx.stroke();
+    return;
+  }
   const l = px(x - 20 * D, y + 20 * D);
   const r = px(x + 20 * D, y - 20 * D);
   const base = py(x, y, 0);
@@ -309,4 +332,90 @@ export function drawThrone(v: DrawView, x: number, y: number, r: number): void {
     ctx.arc(sx + e * 1.8 * Z, sy - 0.4 * Z, 1.2 * Z, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+/**
+ * The ruins behind the throne, behind whoever is in them: open to the green sky where the roof fell in, the
+ * walls broken down to stumps in places, two green torches, a floor of cracked flagstones and rubble, and the
+ * black pool in the middle.
+ */
+export function drawRuinsBack(v: DrawView, R: Room, W: number, H: number): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  sky(v, W, H);
+  const n = 24;
+  for (let i = 0; i < n; i++) {
+    const a0 = Math.PI * 0.75 + (i * Math.PI) / n;
+    const a1 = a0 + Math.PI / n;
+    // Broken down: tall here, a stump there, gone in a couple of places.
+    const h = i === 7 || i === 15 ? 0 : 18 + hash(i, 7) * 76;
+    if (h <= 0) continue;
+    ctx.fillStyle = (i + Math.floor(i / 3)) % 2 ? '#2A322F' : '#313A36';
+    edgeQuad(v, R, a0, a1, 0, h);
+    ctx.fill();
+    ctx.fillStyle = '#3E4844';
+    edgeQuad(v, R, a0, a1, h - 3, h);
+    ctx.fill();
+  }
+  for (const a of [Math.PI * 1.05, Math.PI * 1.45]) torch(v, R, a);
+  floor(v, R, false);
+  // Rubble: fallen blocks lying about.
+  for (let i = 0; i < 14; i++) {
+    const a = hash(i, 9) * Math.PI * 2;
+    const d = (0.3 + hash(i, 10) * 0.6) * R.r;
+    const x = R.x + Math.cos(a) * d;
+    const y = R.y + Math.sin(a) * d;
+    if (Math.hypot(x - POOL.x, y - POOL.y) < POOL.r + 14) continue;
+    const s = 3 + hash(i, 11) * 5;
+    v.box(x - s, y - s, s * 2, s * 2, 0, s * 1.2, '#3E4642', '#565F5A');
+  }
+  // The black pool, still, with a green sheen and slow rings on it.
+  v.isoEllipse(POOL.x, POOL.y, POOL.r + 6);
+  ctx.fillStyle = '#2E3632';
+  ctx.fill();
+  v.isoEllipse(POOL.x, POOL.y, POOL.r);
+  ctx.fillStyle = '#05090A';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(110,200,150,.18)';
+  ctx.lineWidth = 1.4 * Z;
+  for (let i = 0; i < 3; i++) {
+    const k = (T * 0.15 + i / 3) % 1;
+    ctx.globalAlpha = 1 - k;
+    v.isoEllipse(POOL.x, POOL.y, POOL.r * (0.2 + 0.75 * k));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(140,255,170,.10)';
+  ctx.beginPath();
+  ctx.ellipse(
+    px(POOL.x - 14, POOL.y - 14),
+    py(POOL.x - 14, POOL.y - 14, 0),
+    18 * Z,
+    5 * Z,
+    -0.1,
+    0,
+    Math.PI * 2,
+  );
+  ctx.fill();
+}
+
+/** A broken column in the ruins, at its feet: a stump of stone this tall, its top snapped off at a slant. */
+export function drawColumn(v: DrawView, x: number, y: number, r: number, h: number): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  v.box(x - r - 3, y - r - 3, (r + 3) * 2, (r + 3) * 2, 0, 5, '#3A403D', '#4E5652');
+  v.box(x - r, y - r, r * 2, r * 2, 5, h, '#4C5550', '#68716C');
+  // The snapped top: a jagged lip on one side.
+  ctx.fillStyle = '#68716C';
+  ctx.beginPath();
+  ctx.moveTo(px(x - r, y + r), py(x - r, y + r, h));
+  ctx.lineTo(px(x - r * 0.3, y + r * 0.3), py(x - r * 0.3, y + r * 0.3, h + 9));
+  ctx.lineTo(px(x, y), py(x, y, h + 4));
+  ctx.lineTo(px(x + r * 0.4, y - r * 0.4), py(x + r * 0.4, y - r * 0.4, h + 12));
+  ctx.lineTo(px(x + r, y - r), py(x + r, y - r, h));
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.2)';
+  ctx.lineWidth = 1 * Z;
+  ctx.stroke();
 }

@@ -35,8 +35,11 @@ export const ISLE4_STAGES = 1;
 export const ISLE5_STAGES = 1;
 /** Island 6's story so far: 1, the Deep One beaten at the surface and its temple open below; 2, Cthulhu beaten. */
 export const ISLE6_STAGES = 2;
-/** Island 7's story so far: 1, the sorcerer beaten on its tower and the portal awake; 2, the Forgotten One beaten in Gigantis. */
-export const ISLE7_STAGES = 2;
+/**
+ * Island 7's story so far: 1, the sorcerer beaten on its tower and the portal awake; 2, the Forgotten One beaten
+ * in Gigantis; 3, his bones have given the key to the door behind his throne.
+ */
+export const ISLE7_STAGES = 3;
 
 export type SaveData = {
   coins: number;

@@ -24,7 +24,7 @@
 
 import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
-import { SEAT } from '../world/gigantis';
+import { COLUMNS, POOL, SEAT } from '../world/gigantis';
 import {
   BEACH,
   BRIDGE,
@@ -242,7 +242,8 @@ export function onLand(x: number, y: number): boolean {
   if (onIsle7(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
-  if (onFloor(x, y)) return true;
+  // Room floors, all but the black pool in the ruins behind the throne.
+  if (onFloor(x, y)) return Math.hypot(x - POOL.x, y - POOL.y) > POOL.r - 4;
   if (inBox(x, y, PIER_WALK)) return true;
   const [t, o] = bridgeFrame(x, y);
   if (t >= -APPROACH && t <= SPAN && Math.abs(o) <= DECK_HALF) return true;
@@ -389,6 +390,8 @@ export const PROPS: readonly Prop[] = [
     SEAT.y + SEAT.r,
     SEAT.x + SEAT.y + SEAT.r,
   ),
+  // The broken columns in the ruins behind it.
+  ...COLUMNS.map((c) => post([c.x, c.y], c.r * 0.8, c.x + c.y)),
   // The demon dimension's cage.
   prop(
     CAGE.x - CAGE.r,

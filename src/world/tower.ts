@@ -12,7 +12,7 @@ import { TOWER } from './isle2';
 
 /**
  * A stone floor, a roof under the sky, the hall under island 3's tower, the demon dimension, the drowned
- * temple, or Gigantis: its courtyard under the green sky, its halls and its throne room.
+ * temple, or Gigantis: its courtyard under the green sky, its halls, its throne room, and the ruins behind it.
  */
 export type RoomKind =
   | 'floor'
@@ -22,7 +22,8 @@ export type RoomKind =
   | 'temple'
   | 'court'
   | 'castle'
-  | 'throne';
+  | 'throne'
+  | 'ruins';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -50,6 +51,8 @@ export const ROOMS: readonly Room[] = [
   { x: -13500, y: -7800, r: ROOM_R + 30, roof: false, kind: 'castle' },
   // And its throne room, where the Forgotten One waits.
   { x: -13500, y: -8800, r: ROOM_R + 60, roof: false, kind: 'throne' },
+  // Behind the throne's locked door: the ruins.
+  { x: -13500, y: -10000, r: ROOM_R + 90, roof: false, kind: 'ruins' },
 ];
 /** Island 2's roof, island 3's and island 7's, in ROOMS. */
 export const ROOF = 2;
@@ -65,6 +68,8 @@ export const GATE = 12;
 export const HALL_A = 13;
 export const HALL_B = 14;
 export const THRONE = 15;
+/** The ruins behind the throne, through its door once the Forgotten One's bones have given the key. */
+export const RUINS = 16;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },

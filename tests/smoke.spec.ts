@@ -83,6 +83,7 @@ type Np = {
   forgotten: { up: boolean; state: string; hit(power: number): void };
   allies: { list: { kind: string }[] };
   bonesPal: { shown: boolean; free: boolean };
+  lancers: { list: { state: string }[] };
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1250,7 +1251,7 @@ test('Gigantis: through the portal, beat the courtyard, on through the door, and
   expect(errors).toEqual([]);
 });
 
-test('the Forgotten One: through the halls to his throne room, his bones join you, and the locked door', async ({
+test('the Forgotten One: through the halls to his throne room, his bones join you and give the key, into the ruins', async ({
   context,
   page,
 }) => {
@@ -1326,13 +1327,21 @@ test('the Forgotten One: through the halls to his throne room, his bones join yo
   await page.waitForFunction(() => window.__np.isle7Stage === 2, null, { timeout: 4000 });
   expect(await page.evaluate(() => window.__np.bonesPal.free)).toBe(true);
   await expect(page.locator('#toast')).toContainText('locked');
-  // The door behind the throne will not open.
+  // At the door behind the throne, his bones give the key.
   await page.waitForTimeout(500);
   await page.evaluate(() => {
     window.__np.walker.x = -13500 - 158 * Math.SQRT1_2;
     window.__np.walker.y = -8800 - 158 * Math.SQRT1_2;
   });
-  await expect(page.locator('#toast')).toContainText('next time', { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.isle7Stage === 3, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('key');
+  await expect(page.locator('#climb')).toHaveText('Through the door');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 16);
+  await expect(page.locator('#toast')).toContainText('Lancers');
+  expect(
+    await page.evaluate(() => window.__np.lancers.list.every((l) => l.state === 'guard')),
+  ).toBe(true);
   await expect(page.locator('#leave')).toHaveText('Back through the portal');
   expect(errors).toEqual([]);
 });
