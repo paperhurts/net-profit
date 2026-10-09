@@ -172,6 +172,8 @@ export type Undead = {
   raised: Undead[];
   /** Raised by a necromancer, not standing in the room when the figure came in. */
   summoned: boolean;
+  /** Seconds left stuck with tar on its face: it stands there, doing nothing. */
+  stun: number;
 };
 
 export type Shot = { kind: 'arrow' | 'wisp'; x: number; y: number; h: number; t: number };
@@ -242,6 +244,7 @@ export class Horde implements Entity {
       ph: this.list.length,
       raised: [],
       summoned,
+      stun: 0,
     };
   }
 
@@ -303,6 +306,16 @@ export class Horde implements Entity {
     this.list.push(u);
     this.cleared = false;
     return u;
+  }
+
+  /** Tar on its face: it stands there this many seconds, and a raised sword comes down unswung. */
+  stun(u: Undead, s: number): void {
+    if (!Horde.up(u)) return;
+    u.stun = Math.max(u.stun, s);
+    if (u.state === 'windup') {
+      u.state = 'walk';
+      u.t = 0;
+    }
   }
 
   /** A spear lands on one with this power, from (fx, fy). Returns whether its shield took it. */
@@ -371,6 +384,10 @@ export class Horde implements Entity {
         continue;
       }
       if (!inRoom || !f) continue;
+      if (u.stun > 0) {
+        u.stun -= dt;
+        continue;
+      }
       this.act(u, f, dt);
     }
     // Shots: arrows fly straight; wisps drift round after the figure.

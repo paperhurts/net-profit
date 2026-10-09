@@ -477,15 +477,18 @@ function applyStage(){ if (isle3Stage >= 2) swordsman.state = 'gone'; if (isle3S
 // whatever it is fighting; and things that would hurt the figure hurt him if he is in the way.
 const warlock = new Warlock();
 let warlockTold = false;
-function campTarget(camp, m){ return {get x(){ return m.x; }, get y(){ return m.y; }, hit: (p) => camp.hit(m, p, warlock.x, warlock.y)}; }
-function fighterTarget(f){ return {get x(){ return f.x; }, get y(){ return f.y; }, hit: (p) => f.hit(p)}; }
+// What the warlock, the cat, the warrior, the merlocks and the tarbaby fight: where it is, how it is hurt, and for the
+// tarbaby's tar, how it is stuck and how high its face is.
+function campTarget(camp, m){ return {get x(){ return m.x; }, get y(){ return m.y; }, hit: (p) => camp.hit(m, p, warlock.x, warlock.y), stun: (s) => camp.stun(m, s), head: 18}; }
+function fighterTarget(f, head = 24){ return {get x(){ return f.x; }, get y(){ return f.y; }, hit: (p) => f.hit(p), stun: (s) => f.stun(s), head}; }
+function bossHead(b){ return b === anchorer ? 70 : b === cth ? 80 : b === forgotten ? 50 : 52; }
 warlock.findTarget = (x, y, range) => { let best = null, bd = range;
   const consider = (t, d) => { if (d <= bd){ bd = d; best = t; } };
   for (const camp of [monkeys, monkeys7, ...camps, demonMonkeys, roofMonkeys]) for (const m of camp.list) if (m.state === 'chase') consider(campTarget(camp, m), Math.hypot(m.x - x, m.y - y));
-  for (const f of [swordsman, ...demons]) if (f.up) consider(fighterTarget(f), Math.hypot(f.x - x, f.y - y));
-  for (const h of HORDES) for (const u of h.list) if (Horde.up(u)) consider({get x(){ return u.x; }, get y(){ return u.y; }, hit: (p) => h.hit(u, p, warlock.x, warlock.y)}, Math.hypot(u.x - x, u.y - y));
-  for (const b of [boss, boss3, boss7, anchorer, cth, forgotten]) if (b.up) consider(fighterTarget(b), Math.hypot(b.x - x, b.y - y));
-  for (const k of cth.tents) if (k.state === 'chase') consider({get x(){ return k.x; }, get y(){ return k.y; }, hit: (p) => cth.hitTent(k, p)}, Math.hypot(k.x - x, k.y - y));
+  for (const f of [swordsman, ...demons]) if (f.up) consider(fighterTarget(f, 24*f.spec.scale), Math.hypot(f.x - x, f.y - y));
+  for (const h of HORDES) for (const u of h.list) if (Horde.up(u)) consider({get x(){ return u.x; }, get y(){ return u.y; }, hit: (p) => h.hit(u, p, warlock.x, warlock.y), stun: (s) => h.stun(u, s), head: (u.kind === 'ghost' ? 34 : 25)*u.spec.scale}, Math.hypot(u.x - x, u.y - y));
+  for (const b of [boss, boss3, boss7, anchorer, cth, forgotten]) if (b.up) consider(fighterTarget(b, bossHead(b)), Math.hypot(b.x - x, b.y - y));
+  for (const k of cth.tents) if (k.state === 'chase') consider({get x(){ return k.x; }, get y(){ return k.y; }, hit: (p) => cth.hitTent(k, p), stun: (s) => cth.stunTent(k, s), head: 22}, Math.hypot(k.x - x, k.y - y));
   return best; };
 warlock.onCast = () => sfx.zap();
 warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 16, 1.1); hudHearts();

@@ -43,6 +43,8 @@ export type Tent = {
   state: 'ripple' | 'chase' | 'sink';
   hp: number;
   h: number;
+  /** Seconds left stuck with tar: it stops where it is. */
+  stun?: number;
 };
 
 export type CthulhuState = 'wait' | 'fight' | 'fall' | 'gone';
@@ -111,6 +113,19 @@ export class Cthulhu implements Entity {
   }
 
   /** A spear lands on one of its tentacles. */
+  /** Seconds left stuck with tar on its face: no tentacles come up. */
+  stunT = 0;
+
+  /** Tar on its face: no tentacles come up for this many seconds. */
+  stun(s: number): void {
+    if (this.state === 'fight') this.stunT = Math.max(this.stunT, s);
+  }
+
+  /** Tar on a tentacle: it stops where it is for this many seconds. */
+  stunTent(k: Tent, s: number): void {
+    if (k.state === 'chase') k.stun = Math.max(k.stun ?? 0, s);
+  }
+
   hitTent(k: Tent, power: number): void {
     if (k.state !== 'chase') return;
     k.hp -= power;
@@ -164,8 +179,9 @@ export class Cthulhu implements Entity {
       this.onWake?.();
       return;
     }
-    // Send a tentacle up where the figure is going.
-    this.summonCd -= dt;
+    // Send a tentacle up where the figure is going, unless there is tar on its face.
+    if (this.stunT > 0) this.stunT -= dt;
+    else this.summonCd -= dt;
     const live = this.tents.filter((k) => k.state !== 'sink').length;
     if (this.summonCd <= 0 && live < MAX_TENTS) {
       this.summonCd = this.angry ? SUMMON_ANGRY : SUMMON_EVERY;
@@ -192,6 +208,10 @@ export class Cthulhu implements Entity {
         continue;
       }
       if (k.state !== 'chase') continue;
+      if ((k.stun ?? 0) > 0) {
+        k.stun = (k.stun ?? 0) - dt;
+        continue;
+      }
       const dx = f.x - k.x;
       const dy = f.y - k.y;
       const d = Math.hypot(dx, dy) || 1;

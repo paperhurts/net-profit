@@ -55,6 +55,8 @@ export type Monkey = {
   tx: number;
   ty: number;
   ph: number;
+  /** Seconds left stuck with tar on its face: it stands there and does nothing. */
+  stun: number;
 };
 
 export type Coconut = { x0: number; y0: number; tx: number; ty: number; t: number; dur: number };
@@ -103,6 +105,7 @@ export class Monkeys implements Entity {
       thrower: i >= this.n - this.throwers,
       cd: 0,
       flash: 0,
+      stun: 0,
       back: 0,
       rest: i * 0.4,
       tx: x,
@@ -122,6 +125,7 @@ export class Monkeys implements Entity {
       thrower,
       cd: 0.8,
       flash: 0,
+      stun: 0,
       back: 0,
       rest: 0,
       tx: x,
@@ -153,6 +157,11 @@ export class Monkeys implements Entity {
       }
     }
     return best;
+  }
+
+  /** Tar on its face: it stands there, doing nothing, this many seconds. */
+  stun(m: Monkey, s: number): void {
+    if (m.state === 'idle' || m.state === 'chase') m.stun = Math.max(m.stun, s);
   }
 
   /** A spear lands on a monkey with this power, from (fx, fy). */
@@ -190,6 +199,7 @@ export class Monkeys implements Entity {
     for (const m of this.list) {
       m.cd = Math.max(0, m.cd - dt);
       m.flash = Math.max(0, m.flash - dt);
+      m.stun = Math.max(0, m.stun - dt);
       m.ph += dt * 10;
       if (m.state === 'gone') {
         m.back -= dt;
@@ -211,6 +221,7 @@ export class Monkeys implements Entity {
         }
         continue;
       }
+      if (m.stun > 0) continue;
       const d = f ? Math.hypot(f.x - m.x, f.y - m.y) : Infinity;
       const near = f !== null && Math.hypot(f.x - this.home.x, f.y - this.home.y) < AGGRO;
       if (m.state === 'idle' && f && (near || d < AGGRO * 0.7)) {

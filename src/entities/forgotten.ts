@@ -76,6 +76,8 @@ export class Forgotten implements Entity {
   ray = { x: 0, y: 0, h: 0 };
   readonly skulls: Skull[] = [];
   ph = 0;
+  /** Seconds left stuck with tar on his face. */
+  stunT = 0;
   /** A sword, a skull or the ray hit the figure. */
   onHit: ((by: 'sword' | 'skull' | 'ray') => void) | null = null;
   /** He has seen the figure in his throne room. */
@@ -113,7 +115,21 @@ export class Forgotten implements Entity {
     this.flash = 0;
     this.cd = FIRST_ATTACK;
     this.rayNext = false;
+    this.stunT = 0;
     this.skulls.length = 0;
+  }
+
+  /**
+   * Tar on his face: he stands this many seconds, and a sword he was raising, or a ray he was aiming,
+   * comes to nothing. A sweep or a beam already going finishes.
+   */
+  stun(s: number): void {
+    if (!this.up || this.state === 'swing' || this.state === 'beam') return;
+    this.stunT = Math.max(this.stunT, s);
+    if (this.state === 'windup' || this.state === 'aim') {
+      this.state = 'walk';
+      this.t = 0;
+    }
   }
 
   /** Already beaten, on a later visit: nobody on the throne. */
@@ -166,10 +182,11 @@ export class Forgotten implements Entity {
       return;
     }
     if (this.state === 'gone' || !inRoom || !f) return;
+    if (this.stunT > 0) this.stunT -= dt;
     const dx = f.x - this.x;
     const dy = f.y - this.y;
     const d = Math.hypot(dx, dy) || 1;
-    switch (this.state) {
+    switch (this.stunT > 0 ? 'stunned' : this.state) {
       case 'walk': {
         this.h = Math.atan2(dy, dx);
         if (d < REACH * 0.85) {
