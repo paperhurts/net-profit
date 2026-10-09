@@ -1,5 +1,5 @@
 /**
- * The meteor serpent, the kid's leviathan (his drawing: a head like a meteor with a glowing crater and a
+ * Star, the meteor serpent: the kid's leviathan, named by him (his drawing: a head like a meteor with a glowing crater and a
  * mouthful of teeth, a long snake's body, two long wings, four legs with three claws each), which haunts
  * island 6. It flies in slow loops high over the island, its shadow sliding over the water. A flagship that
  * comes near is hunted: it circles over the boat, then its head lights up like a falling star and a ring

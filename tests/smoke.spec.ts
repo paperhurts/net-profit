@@ -566,7 +566,7 @@ test('harpoon: the gulper comes up, the button fires the harpoon, and driven off
   expect(errors).toEqual([]);
 });
 
-test('the meteor serpent: over island 6 it dives at the boat, and harpooned in the water it is driven off', async ({
+test('Star, the meteor serpent: over island 6 it dives at the boat, and harpooned in the water it is driven off', async ({
   context,
   page,
 }) => {

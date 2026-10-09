@@ -92,7 +92,7 @@ export type SaveData = {
   flag: Flag | null;
   /** The gulper has hunted the boat. */
   gulperSeen: boolean;
-  /** The meteor serpent has been sighted over island 6. */
+  /** Star, the meteor serpent, has been sighted over island 6. */
   meteorSeen: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;

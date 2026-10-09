@@ -299,7 +299,7 @@ gulper.onHunt = () => { sfx.gulperHunt(); shake = Math.max(shake,.3);
   if (!gulperSeen){ gulperSeen = true; save(); refreshShop(); } };
 gulper.onBite = () => { sfx.anglerSnap(); damage(HURT.gulper, 'gulper'); };
 gulper.onGiveUp = () => { if (swallowT <= 0) toast('The gulper gave up and sank.', 2200, 1); };
-// The kid's meteor serpent haunts island 6: it loops high over the island, hunts a flagship that comes near, and
+// The kid's meteor serpent, Star (he named it), haunts island 6: it loops high over the island, hunts a flagship that comes near, and
 // dives head-first into a ring on the water where the boat is going. Steer out of it; harpoon it while it thrashes.
 // It holds off while the Deep One is up, so the two never come at once.
 const serpent = new MeteorSerpent();
@@ -308,7 +308,7 @@ serpent.holdOff = () => deep.state === 'rise' || deep.state === 'fight' || deep.
 serpent.onSight = () => { if (meteorSeen) return; meteorSeen = true; save();
   toast('Something with wings is flying round island 6. Its head glows like a falling star.', 3200, 1); };
 serpent.onHunt = () => { sfx.gulperHunt(); shake = Math.max(shake, .3); const first = !meteorSeen; if (first){ meteorSeen = true; save(); }
-  toast(serpentTold ? 'The meteor serpent is hunting you!' : `${first ? 'A winged serpent with a meteor for a head' : 'The meteor serpent'} is hunting you! When its head lights up, steer out of the ring.`, serpentTold ? 1800 : 3200, 2);
+  toast(serpentTold ? 'Star is hunting you!' : `${first ? 'Star, a winged serpent with a meteor for a head,' : 'Star'} is hunting you! When its head lights up, steer out of the ring.`, serpentTold ? 1800 : 3200, 2);
   serpentTold = true; };
 serpent.onWarn = () => sfx.meteorDive();
 serpent.onHit = () => { sfx.whump(); damage(DIVE_HIT, 'meteor'); };
@@ -351,7 +351,7 @@ function drawHarpoonMarks(){ if (!hasHarpoon() || walker.state !== 'aboard') ret
 function damage(n, by){ if (swallowT > 0) return; hp = hurt(hp, n); shake = Math.max(shake,.6);
   addText(boat.x, boat.y, 60, '-' + n, '#FF6F6F', 20, 1.4); hudHull();
   if (hp <= 0) swallow(by); }
-const SWALLOWED = {angler: 'Swallowed whole by the anglerfish!', gulper: 'The gulper ate your boat!', leviathan: 'The leviathan swallowed your boat!', tentacle: 'The Cthuluviathan dragged your boat under!', king: 'The Skeleton Shark King ate your boat!', trident: 'The trident sank your boat!', log: 'The driftwood sank your boat!', squeeze: 'The Deep One crushed your boat!', meteor: 'The meteor serpent smashed your boat!'};
+const SWALLOWED = {angler: 'Swallowed whole by the anglerfish!', gulper: 'The gulper ate your boat!', leviathan: 'The leviathan swallowed your boat!', tentacle: 'The Cthuluviathan dragged your boat under!', king: 'The Skeleton Shark King ate your boat!', trident: 'The trident sank your boat!', log: 'The driftwood sank your boat!', squeeze: 'The Deep One crushed your boat!', meteor: 'Star smashed your boat!'};
 function swallow(by){ if (swallowT > 0) return; swallowT = SWALLOW; hp = 0; boat.v = 0; shake = 1; sfx.gulp();
   toasts.clear(); toast(SWALLOWED[by], 1800, 2); hudHull(); }
 function spitOut(){ const lost = holdTotal; hold.fill(0); holdTotal = 0;
@@ -981,7 +981,7 @@ function refreshShop(){
     + `<span class="chip${towerTaken?' gold':' unk'}">${towerTaken ? 'Tower taken' : 'Who is in the tower?'}</span>`
     + `<span class="chip${masks?' gold':' unk'}">${masks ? 'Skull masks ' + masks : 'Masks on island 2?'}</span>`
     + `<span class="chip${gulperSeen?' gold':' unk'}">${gulperSeen?'Gulper escaped':'An open mouth?'}</span>`
-    + (isle6Seen ? `<span class="chip${meteorSeen?' gold':' unk'}">${meteorSeen?'Meteor serpent sighted':'Wings over island 6?'}</span>` : '')
+    + (isle6Seen ? `<span class="chip${meteorSeen?' gold':' unk'}">${meteorSeen?'Star sighted':'Wings over island 6?'}</span>` : '')
     + Object.keys(TROPHY).filter(k => driven[k]).map(k => `<span class="chip gold">${TROPHY[k].name}${driven[k] > 1 ? ' \u00d7' + driven[k] : ''}</span>`).join('')
     + (hasHarpoon() && !Object.keys(TROPHY).some(k => driven[k]) ? '<span class="chip unk">Harpoon a leviathan?</span>' : '')
     + `<span class="chip${isle2Seen?' gold':' unk'}">${isle2Seen?'Island 2 found':'Land past the deep?'}</span>`
@@ -1146,7 +1146,7 @@ function renderGuide(){
   pages.push(`<article class="page${gulperSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${gulperSeen ? 'Gulper' : '?'}</b><small>${gulperSeen
     ? 'A giant gulper eel, black as the deep, with a mouth like a pelican\'s and a pink light at the tip of its tail. It hunts the east side of the deep. Each bite takes a third of the boat\'s health; three and it eats the boat, which it spits out at home without the catch. It is slower than a flagship flat out: run, and turn hard when it closes.'
     : 'Not seen yet. Something with an enormous mouth hunts the east side of the deep. Watch for a pink light.'}</small><div class="facts"><span>East side of the deep</span><span>Day and night</span><span>${beastFact('gulper')}</span></div></article>`);
-  pages.push(`<article class="page${meteorSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${meteorSeen ? 'Meteor serpent' : '?'}</b><small>${meteorSeen
+  pages.push(`<article class="page${meteorSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${meteorSeen ? 'Star, the meteor serpent' : '?'}</b><small>${meteorSeen
     ? 'A long snake with two great wings and four legs, three claws on each, and a head like a meteor: lumpy rock with a glowing crater and a mouth full of teeth. It haunts island 6, flying slow loops high over it. Sail near and it hunts you: it circles over the boat, its head lights up like a falling star, and a ring shows on the water where you are going. Then it dives head-first into the ring, its hardest hit: steer out of it. After a dive it thrashes in the water a moment, and that is when the harpoon reaches it.'
     : 'Not seen yet. Something with wings flies round island 6.'}</small><div class="facts"><span>Island 6</span><span>Day and night</span><span>${beastFact('meteor')}</span></div></article>`);
   pages.push(`<article class="page${snook.landed ? ' gold' : ' unk'}">${FISH_SVG(snook.landed ? '#C9D3D6' : 'currentColor')}<b>${snook.landed ? 'Snook' : '?'}</b><small>${snook.landed
