@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rng } from '../../src/core/math';
 import { spearAt } from '../../src/data/spear';
+import { ALLY, ALLY_IDLE, ALLY_RISE, Allies, WISP_T } from '../../src/entities/allies';
 import type { World } from '../../src/entities/entity';
 import {
   AIM,
@@ -15,9 +16,8 @@ import {
   SKULL_SPEED,
   WINDUP,
 } from '../../src/entities/forgotten';
-import { MERLOCK_HP, MERLOCK_RISE, Merlocks } from '../../src/entities/merlocks';
 import { Spears } from '../../src/entities/spears';
-import { Horde, RISE, type Spawn, UNDEAD, type Undead } from '../../src/entities/undead';
+import { Horde, type Spawn, type Undead } from '../../src/entities/undead';
 import { WALK_SPEED, walkable } from '../../src/entities/walker';
 import {
   CASTLE_SPAWNS,
@@ -145,32 +145,6 @@ describe('the Forgotten One', () => {
     expect(fell).not.toBeNull();
   });
 
-  it('leaves his bones, which hit for two and call up a ghost and a skeleton', () => {
-    const h = new Horde(room, []);
-    const w: World = baseWorld({ figure: at(60, 60) });
-    const bones = h.raise(room.x, room.y, 'bones');
-    expect(bones.spec.damage).toBe(2);
-    expect(bones.hp).toBe(4);
-    const raised: Undead[] = [];
-    h.onRaise = (u) => raised.push(u);
-    const hits: number[] = [];
-    h.onHit = (_by, n) => hits.push(n);
-    for (let i = 0; i < (RISE + UNDEAD.bones.windup + 2) / DT; i++) h.update(DT, w);
-    expect(raised.map((u) => u.kind).sort()).toEqual(['ghost', 'skeleton']);
-    // Beaten, what it called falls with it.
-    h.hit(bones, 99, room.x + 50, room.y);
-    expect(raised.every((u) => u.state === 'fall')).toBe(true);
-    // Its swing takes two hearts.
-    const h2 = new Horde(room, []);
-    const hits2: number[] = [];
-    h2.onHit = (_by, n) => hits2.push(n);
-    h2.raise(room.x, room.y, 'bones');
-    const w2: World = baseWorld({ figure: at(12, 12) });
-    for (let i = 0; i < 4 / DT; i++) h2.update(DT, w2);
-    expect(hits2).toContain(2);
-    void hits;
-  });
-
   it('draws in every state, with his skulls and his ray', () => {
     const f = fakeView();
     const b = new Forgotten(room, FORGOTTEN_START);
@@ -186,38 +160,75 @@ describe('the Forgotten One', () => {
   });
 });
 
-describe("the warlock's merlocks", () => {
-  it('climb out of the water, go for the nearest of the dead and jab it, and splash back when beaten', () => {
-    const m = new Merlocks();
+describe("allies: the warlock's merlocks, and the ghost and skeleton the bones raise", () => {
+  it('merlocks climb out of the water, go for the nearest of the dead and jab it, and splash back when beaten', () => {
+    const m = new Allies();
     const w: World = baseWorld({ figure: at(60, 60) });
     let dealt = 0;
     const foe = { x: room.x, y: room.y, hit: (n: number) => (dealt += n) };
-    m.findTarget = (x, y, r) => (Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null);
+    m.findTarget = (x: number, y: number, r: number) =>
+      Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null;
     const one = m.call(room.x + 60, room.y + 40);
+    expect(one.kind).toBe('merlock');
     expect(one.state).toBe('rise');
-    for (let i = 0; i < (MERLOCK_RISE + 4) / DT; i++) m.update(DT, w);
+    for (let i = 0; i < (ALLY_RISE + 4) / DT; i++) m.update(DT, w);
     expect(dealt).toBeGreaterThanOrEqual(2);
-    expect(m.standing).toBe(1);
-    for (let i = 0; i < MERLOCK_HP; i++) {
+    expect(m.count('merlock')).toBe(1);
+    for (let i = 0; i < ALLY.merlock.hp; i++) {
       one.invuln = 0;
       expect(m.hurt(one)).toBe(true);
     }
     expect(one.state).toBe('sink');
     for (let i = 0; i < 1 / DT; i++) m.update(DT, w);
     expect(m.list).toHaveLength(0);
-    const f = fakeView();
-    m.call(room.x, room.y);
-    for (const st of ['rise', 'fight', 'sink'] as const) {
-      const q = m.list[0];
-      if (q) q.state = st;
-      if (q) m.drawBody(f.v, q);
+  });
+
+  it('a ghost keeps off and sends wisps; a skeleton slashes close in; both crumble once there is nothing to fight', () => {
+    const m = new Allies();
+    const w: World = baseWorld({ figure: at(-60, -60) });
+    let dealt = 0;
+    let alive = true;
+    const foe = { x: room.x, y: room.y, hit: (n: number) => (dealt += n) };
+    m.findTarget = (x: number, y: number, r: number) =>
+      alive && Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null;
+    const ghost = m.call(room.x + 150, room.y, 'ghost');
+    const skel = m.call(room.x - 80, room.y, 'skeleton');
+    let wisp = false;
+    for (let i = 0; i < (ALLY_RISE + 5) / DT; i++) {
+      m.update(DT, w);
+      if (ghost.wisp) wisp = true;
     }
+    expect(wisp).toBe(true);
+    expect(dealt).toBeGreaterThanOrEqual(3);
+    // The ghost stayed off; the skeleton walked in.
+    expect(Math.hypot(ghost.x - foe.x, ghost.y - foe.y)).toBeGreaterThan(ALLY.ghost.keep - 10);
+    expect(Math.hypot(skel.x - foe.x, skel.y - foe.y)).toBeLessThan(ALLY.skeleton.reach + 2);
+    alive = false;
+    for (let i = 0; i < (ALLY_IDLE + 1) / DT; i++) m.update(DT, w);
+    expect(m.list).toHaveLength(0);
+    expect(WISP_T).toBeLessThan(ALLY.ghost.every);
+  });
+
+  it('draws each kind coming, fighting and going, and the wisps', () => {
+    const m = new Allies();
+    const f = fakeView();
+    for (const kind of ['merlock', 'ghost', 'skeleton'] as const) {
+      const q = m.call(room.x, room.y, kind);
+      q.wisp = { x: room.x, y: room.y, tx: room.x + 40, ty: room.y, t: 0.1 };
+      for (const st of ['rise', 'fight', 'sink'] as const) {
+        q.state = st;
+        m.drawBody(f.v, q);
+      }
+    }
+    m.draw(f.v, 'air');
     expect(f.calls.restore).toBe(f.calls.save);
+    expect(f.calls.arc ?? 0).toBeGreaterThan(10);
   });
 });
 
 /**
- * A person in the throne room against the three necromancers and the Forgotten One, then his bones: they
+ * A person in the throne room against the three necromancers and the Forgotten One (his bones are on their
+ * side once he falls, and not counted here): they
  * circle the nearest at a walk, walking in on one out of reach and keeping off the throne; they turn when
  * skulls or arrows fly, step back from a raised sword, and step aside off the red line, each react
  * seconds later (give or take a tenth); they throw at what the spear goes for, lag seconds late. heals is
@@ -233,7 +244,6 @@ function throne(level: number, heals: number, react = 0.25, lag = 1 / 3) {
   for (let run = 0; run < 30; run++) {
     const h = new Horde(room, CASTLE_SPAWNS[THRONE] as readonly Spawn[]);
     const b = new Forgotten(room, FORGOTTEN_START);
-    b.onBeaten = (x, y) => h.raise(x, y, 'bones');
     const spears = new Spears();
     const e = entry(THRONE);
     const f = { x: e.x, y: e.y, vx: 0, vy: 0 };
@@ -308,7 +318,7 @@ function throne(level: number, heals: number, react = 0.25, lag = 1 / 3) {
         t >= dodge &&
         b.offRay(f.x, f.y) < 40
       ) {
-        // Off the red line, sideways.
+        // Off the line, sideways.
         const s =
           -Math.sin(b.ray.h) * (f.x - b.ray.x) + Math.cos(b.ray.h) * (f.y - b.ray.y) >= 0 ? 1 : -1;
         vx = -Math.sin(b.ray.h) * s;

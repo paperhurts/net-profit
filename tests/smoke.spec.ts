@@ -81,7 +81,8 @@ type Np = {
     }
   >;
   forgotten: { up: boolean; state: string; hit(power: number): void };
-  merlocks: { list: unknown[] };
+  allies: { list: { kind: string }[] };
+  bonesPal: { shown: boolean; free: boolean };
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1249,7 +1250,7 @@ test('Gigantis: through the portal, beat the courtyard, on through the door, and
   expect(errors).toEqual([]);
 });
 
-test('the Forgotten One: through the halls to his throne room, his bones, and the locked door', async ({
+test('the Forgotten One: through the halls to his throne room, his bones join you, and the locked door', async ({
   context,
   page,
 }) => {
@@ -1308,29 +1309,22 @@ test('the Forgotten One: through the halls to his throne room, his bones, and th
   await page.waitForFunction(() => window.__np.forgotten.up, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('Forgotten One');
   // The warlock calls his merlocks.
-  await page.waitForFunction(() => window.__np.merlocks.list.length > 0, null, { timeout: 4000 });
+  await page.waitForFunction(
+    () => window.__np.allies.list.some((a) => a.kind === 'merlock'),
+    null,
+    { timeout: 4000 },
+  );
   // The necromancers down, then him.
   await page.evaluate(() => {
     const h = window.__np.hordes[15];
     if (h) for (const u of h.list) h.hit(u, 99, u.x + 40, u.y);
     window.__np.forgotten.hit(99);
   });
-  // He falls apart, and his bones get up.
-  await page.waitForFunction(
-    () =>
-      window.__np.hordes[15]?.list.some(
-        (u) => u.kind === 'bones' && u.state !== 'fall' && u.state !== 'gone',
-      ),
-    null,
-    { timeout: 5000 },
-  );
+  // He falls apart, and his bones get up on your side.
+  await page.waitForFunction(() => window.__np.bonesPal.shown, null, { timeout: 5000 });
   await expect(page.locator('#toast')).toContainText('bones');
-  await page.waitForFunction(() => window.__np.hordes[15]?.list.some((u) => u.state === 'walk'));
-  await page.evaluate(() => {
-    const h = window.__np.hordes[15];
-    if (h) for (const u of h.list) h.hit(u, 99, u.x + 40, u.y);
-  });
   await page.waitForFunction(() => window.__np.isle7Stage === 2, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.bonesPal.free)).toBe(true);
   await expect(page.locator('#toast')).toContainText('locked');
   // The door behind the throne will not open.
   await page.waitForTimeout(500);
