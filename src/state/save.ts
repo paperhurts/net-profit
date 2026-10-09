@@ -98,6 +98,8 @@ export type SaveData = {
   meteorSeen: boolean;
   /** Lionfish have been seen in the outer sea. */
   lionSeen: boolean;
+  /** Lionfish caught on the rod, for the bounty. */
+  lionCaught: number;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
@@ -122,7 +124,7 @@ export type SaveData = {
   turtleSeen: boolean;
   turtleSwims: number;
   /** What the shipwright has fitted. */
-  gear: { mesh: boolean; strongbox: boolean; suit: boolean; kit: boolean };
+  gear: { mesh: boolean; strongbox: boolean; suit: boolean; kit: boolean; rod: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -188,6 +190,7 @@ export function defaultSave(b: Bounds): SaveData {
     gulperSeen: false,
     meteorSeen: false,
     lionSeen: false,
+    lionCaught: 0,
     spear: 0,
     armour: 0,
     sailed: '',
@@ -198,7 +201,7 @@ export function defaultSave(b: Bounds): SaveData {
     driven: noDriven(),
     turtleSeen: false,
     turtleSwims: 0,
-    gear: { mesh: false, strongbox: false, suit: false, kit: false },
+    gear: { mesh: false, strongbox: false, suit: false, kit: false, rod: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -282,6 +285,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.gulperSeen = !!o.gulperSeen;
   d.meteorSeen = !!o.meteorSeen;
   d.lionSeen = !!o.lionSeen;
+  d.lionCaught = Math.max(0, int(o.lionCaught));
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
@@ -294,7 +298,13 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.turtleSwims = Math.max(0, int(o.turtleSwims));
   if (o.gear && typeof o.gear === 'object') {
     const g = o.gear as Record<string, unknown>;
-    d.gear = { mesh: !!g.mesh, strongbox: !!g.strongbox, suit: !!g.suit, kit: !!g.kit };
+    d.gear = {
+      mesh: !!g.mesh,
+      strongbox: !!g.strongbox,
+      suit: !!g.suit,
+      kit: !!g.kit,
+      rod: !!g.rod,
+    };
   }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
@@ -363,6 +373,7 @@ export function serializeSave(d: SaveData): string {
     gulperSeen: d.gulperSeen,
     meteorSeen: d.meteorSeen,
     lionSeen: d.lionSeen,
+    lionCaught: d.lionCaught,
     spear: d.spear,
     armour: d.armour,
     sailed: d.sailed,

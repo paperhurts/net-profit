@@ -64,6 +64,8 @@ type Np = {
   lionSeen: boolean;
   netCut: boolean;
   mending: boolean;
+  lionCaught: number;
+  rod: { state: string };
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarling: { with: boolean; free: boolean };
@@ -434,8 +436,9 @@ test('the sea map: sailing opens the fog, the map shows it, and the game waits w
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 4000, y: 2400, h: 0, clock: 0.3, hold: [] },
   });
+  // The boat opens the water round it on its first frame under way, which may come after Cast off returns.
+  await page.waitForFunction(() => window.__np.sailedShare > 0, null, { timeout: 3000 });
   const before = await page.evaluate(() => window.__np.sailedShare);
-  expect(before).toBeGreaterThan(0);
   // Sail east a while: more of the sea is open.
   await page.evaluate(() => {
     window.__np.boat.v = 300;
@@ -482,6 +485,32 @@ test('lionfish: towed through, their spines cut the net, and the mending kit men
   await page.waitForFunction(() => window.__np.mending, null, { timeout: 1000 });
   await page.waitForFunction(() => !window.__np.netCut, null, { timeout: 4000 });
   await expect(mend).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the fishing rod: stopped by some lionfish, cast, reel in when the float goes under, and the bounty pays', async ({
+  context,
+  page,
+}) => {
+  const gx = 2400 + Math.cos(0.8) * 1700;
+  const gy = 2400 + Math.sin(0.8) * 1700;
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    lionSeen: true,
+    lv: { net: 3, hold: 3, engine: 3 },
+    gear: { rod: true },
+    trip: { x: gx - 130, y: gy - 60, h: 0, clock: 0.3, hold: [] },
+  });
+  const rod = page.locator('#rodcast');
+  await expect(rod).toHaveText('Cast for lionfish', { timeout: 3000 });
+  await rod.click();
+  await expect(rod).toHaveText(/Wait/);
+  await page.waitForFunction(() => window.__np.rod.state === 'bite', null, { timeout: 4000 });
+  // The button pulses while the float is under; a finger does not wait for it to be still.
+  await rod.click({ force: true });
+  await page.waitForFunction(() => window.__np.lionCaught === 1, null, { timeout: 1000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(140);
   expect(errors).toEqual([]);
 });
 
