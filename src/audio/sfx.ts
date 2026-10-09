@@ -337,6 +337,12 @@ export const cues = {
     tone(82, 0.32, 'sawtooth', 0.06, 1);
     tone(87, 0.32, 'sawtooth', 0.06, 1, 0.36);
   },
+  /** The meteor serpent's head lights up over its ring: a whistle falling like a shooting star, with a rumble under it. */
+  meteorDive(): void {
+    tone(1400, 1.5, 'sine', 0.04, 0.25);
+    tone(700, 1.5, 'triangle', 0.035, 0.25, 0.05);
+    tone(60, 0.5, 'sawtooth', 0.07, 0.6, 1.5);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

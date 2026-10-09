@@ -56,6 +56,7 @@ type Np = {
   turtleSwims: number;
   harpoonTarget: string | null;
   gulper: { resolve: number };
+  serpent: { state: string; resolve: number };
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarbaby: { with: boolean; free: boolean };
@@ -562,6 +563,42 @@ test('harpoon: the gulper comes up, the button fires the harpoon, and driven off
   await page.waitForFunction(() => window.__np.driven.gulper === 1, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
   await expect(page.locator('#log')).toContainText('Gulper tooth');
+  expect(errors).toEqual([]);
+});
+
+test('the meteor serpent: over island 6 it dives at the boat, and harpooned in the water it is driven off', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: -1000, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  // It comes for the boat, circles, and dives into its ring.
+  await page.waitForFunction(() => window.__np.serpent.state === 'hunt', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('hunting you', { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.serpent.state === 'down', null, { timeout: 12000 });
+  // One hit from driven off: the unit tests play the whole fight.
+  await page.evaluate(() => {
+    window.__np.serpent.resolve = 1;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'meteor', null, { timeout: 2000 });
+  await page.locator('#throw').click();
+  await page.waitForFunction(() => window.__np.driven.meteor === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.serpent.state)).toBe('away');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
+  await expect(page.locator('#log')).toContainText('Meteor shard');
   expect(errors).toEqual([]);
 });
 

@@ -92,6 +92,8 @@ export type SaveData = {
   flag: Flag | null;
   /** The gulper has hunted the boat. */
   gulperSeen: boolean;
+  /** The meteor serpent has been sighted over island 6. */
+  meteorSeen: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** Skull masks dropped by beaten monkeys. */
@@ -176,6 +178,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle5Stage: 0,
     flag: null,
     gulperSeen: false,
+    meteorSeen: false,
     spear: 0,
     masks: 0,
     towerTaken: false,
@@ -266,6 +269,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
+  d.meteorSeen = !!o.meteorSeen;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.masks = Math.max(0, int(o.masks));
   d.towerTaken = !!o.towerTaken;
@@ -343,6 +347,7 @@ export function serializeSave(d: SaveData): string {
     isle5Stage: d.isle5Stage,
     flag: d.flag,
     gulperSeen: d.gulperSeen,
+    meteorSeen: d.meteorSeen,
     spear: d.spear,
     masks: d.masks,
     towerTaken: d.towerTaken,
