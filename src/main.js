@@ -61,7 +61,7 @@ import { CAMP7, CHEST7, DOCK7, DOOR7, ISLE7, PORTAL7, POST7_MID, pushOffIsle7, S
 import { drawIsle7Flat, drawIsle7Sea, drawPortal7, isle7Glow, isle7Solids } from './render/isle7';
 import { Horde } from './entities/undead';
 import { ARC as FG_ARC, FORGOTTEN_HP, Forgotten, REACH as FG_REACH, RAY_HIT, SKULL_HIT } from './entities/forgotten';
-import { Merlocks } from './entities/merlocks';
+import { Allies } from './entities/allies';
 import { CASTLE_ROOMS, CASTLE_SPAWNS, FORGOTTEN_START, LOCKED, LOCKED_REACH, PORTAL_OUT, SEAT } from './world/gigantis';
 import { drawCastleBack, drawCastleDoor, drawCourtBack, drawLockedDoor, drawThrone } from './render/gigantis';
 import { drawIsle3Flat, drawIsle3Sea, isle3Glow, isle3Lights, isle3Solids } from './render/isle3';
@@ -477,7 +477,7 @@ function applyStage(){ if (isle3Stage >= 2) swordsman.state = 'gone'; if (isle3S
 // whatever it is fighting; and things that would hurt the figure hurt him if he is in the way.
 const warlock = new Warlock();
 let warlockTold = false;
-// What the warlock, the cat, the warrior, the merlocks and the tarbaby fight: where it is, how it is hurt, and for the
+// What the warlock, the cat, the warrior, the bones, the allies and the tarbaby fight: where it is, how it is hurt, and for the
 // tarbaby's tar, how it is stuck and how high its face is.
 function campTarget(camp, m){ return {get x(){ return m.x; }, get y(){ return m.y; }, hit: (p) => camp.hit(m, p, warlock.x, warlock.y), stun: (s) => camp.stun(m, s), head: 18}; }
 function fighterTarget(f, head = 24){ return {get x(){ return f.x; }, get y(){ return f.y; }, hit: (p) => f.hit(p), stun: (s) => f.stun(s), head}; }
@@ -495,9 +495,9 @@ warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' 
   if (out){ toasts.clear(); toast('The warlock is worn out. He flies back to his boat to rest.', 3200, 1); } };
 warlock.onArrive = () => { if (!warlockTold){ warlockTold = true; toast('The warlock comes ashore with you. He casts at whatever you fight.', 3000, 1); } };
 // What would hurt the figure hurts the warlock if he is in the way: a monkey's bonk, a bolt, a slash.
-function hurtWarlock(dt){ for (const h of [warlock, cat, warrior]) hurtHelper(h, dt);
-  for (const m of merlocks.list) hurtHelper({shown: m.state === 'fight', x: m.x, y: m.y, hurt: () => merlocks.hurt(m)}, dt); }
-// What would hurt the figure hurts a helper in the way: the warlock, the cat or the warrior.
+function hurtWarlock(dt){ for (const h of [warlock, cat, warrior, bonesPal]) hurtHelper(h, dt);
+  for (const a of allies.list) hurtHelper({shown: a.state === 'fight', x: a.x, y: a.y, hurt: () => allies.hurt(a)}, dt); }
+// What would hurt the figure hurts a helper in the way: the warlock, the cat, the warrior or the bones.
 function hurtHelper(h, dt){ if (!h.shown) return;
   for (const camp of [monkeys, monkeys7, ...camps, demonMonkeys, roofMonkeys]) for (const m of camp.list)
     if (m.state === 'chase' && !m.thrower && m.cd <= 0 && Math.hypot(m.x - h.x, m.y - h.y) < BONK_R){ m.cd = BONK_EVERY; h.hurt(); }
@@ -622,10 +622,15 @@ cth.onBeaten = () => { const first = isle6Stage < 2; isle6Stage = 2; towerWon = 
   hud(); refreshShop(); save(); };
 // The two Cthulhu leaves behind, the kid's: a healer cat and a little Cthulhu warrior. They follow the figure ashore and
 // fight beside it; the cat gives back a heart, twice a fight, and more for a fish from the hold. Tap it to feed or pet it.
-const cat = new Pal('cat'), warrior = new Pal('warrior');
-let palsTold = false, wasFight = false;
-for (const p of [cat, warrior]){ p.findTarget = (x, y, r) => warlock.findTarget(x, y, r); p.onSwing = () => sfx.spearHit();
-  p.onHurt = (out) => { addText(p.x, p.y, 26, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 15, 1); if (out){ toasts.clear(); toast(p.kind === 'cat' ? 'The cat is worn out. It goes back to the boat to rest.' : 'The warrior is worn out. It goes back to the boat to rest.', 2800, 1); } }; }
+// And the Forgotten One's bones, the kid's, on your side once he falls: they hit for two and raise a ghost and a
+// skeleton to fight for you.
+const cat = new Pal('cat'), warrior = new Pal('warrior'), bonesPal = new Pal('bones');
+let palsTold = false, wasFight = false, bonesTold = false, raiseTold = false;
+for (const p of [cat, warrior, bonesPal]){ p.findTarget = (x, y, r) => warlock.findTarget(x, y, r); p.onSwing = () => sfx.spearHit();
+  p.onHurt = (out) => { addText(p.x, p.y, 26, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 15, 1); if (out){ toasts.clear(); toast(`The ${p.kind === 'cat' ? 'cat' : p.kind === 'warrior' ? 'warrior' : 'skeleton'} is worn out. It goes back to the boat to rest.`, 2800, 1); } }; }
+bonesPal.canRaise = () => allies.count('ghost') + allies.count('skeleton') === 0;
+bonesPal.onRaise = (x, y) => { allies.call(x + 18, y + 8, 'ghost'); allies.call(x - 14, y + 16, 'skeleton'); sfx.portal();
+  if (!raiseTold){ raiseTold = true; toast('The skeleton raises a ghost and a skeleton out of the ground. They fight for you!', 3000, 1); } };
 cat.onHeal = () => { if (hearts < HEARTS){ hearts++; hudHearts(); sfx.turtle(); addText(walker.x, walker.y, 34, '+1', '#FF8FB0', 18, 1.2);
   for (let i=0;i<8;i++) sparks.push({x: walker.x, y: walker.y, vx:(Math.random()-.5)*60, vy:(Math.random()-.5)*60, z:20, vz:30+Math.random()*30, age:0, life:.7, c:'#FFB3C8'}); } };
 // Tapped: on the boat at sea with fish aboard it eats one, the commonest, for another heal; otherwise it is petted.
@@ -677,27 +682,30 @@ for (const i of CASTLE_ROOMS){ const h = hordes[i] = new Horde(ROOMS[i], CASTLE_
 const HORDES = Object.values(hordes);
 // The courtyard's portal home stands at its side, toward the viewer's right.
 const GATE_PORTAL = {x: ROOMS[GATE].x + ROOMS[GATE].r*.62*Math.SQRT1_2, y: ROOMS[GATE].y - ROOMS[GATE].r*.62*Math.SQRT1_2};
-// The throne room: three necromancers and the Forgotten One. Beaten, he falls apart and his bones get up and fight on,
-// hitting for two and calling up a ghost and a skeleton. The warlock calls merlocks up out of a puddle of sea to help.
+// The throne room: three necromancers and the Forgotten One. Beaten, he falls apart and his bones get up on your side
+// (the companions, below). The warlock calls merlocks up out of a puddle of sea to help.
 // Beat everyone and the Forgotten One stays beaten (isle7Stage 2): his throne is empty after, and behind it is a door,
 // locked, which the kid left for next time.
 const FORGOTTEN_PRIZE = 5000;
 const forgotten = new Forgotten(ROOMS[THRONE], FORGOTTEN_START);
 forgotten.onHit = (by) => bonked(by);
 forgotten.onWindup = () => sfx.spearThrow(); forgotten.onSkulls = () => sfx.spearThrow(); forgotten.onAim = () => sfx.zap();
-forgotten.onBeaten = (x, y) => { burst({x, y}); hordes[THRONE].raise(x, y, 'bones'); toasts.clear();
-  toast('He falls apart! But his bones get up, hair and all. They hit for two hearts.', 3600, 2); };
-const merlocks = new Merlocks();
-merlocks.findTarget = (x, y, r) => warlock.findTarget(x, y, r);
-merlocks.onJab = () => sfx.spearHit();
-merlocks.onHurt = (m, out) => addText(m.x, m.y, 30, out ? 'Splash!' : 'Ow!', '#B8F0E0', 16, 1.1);
+// Beaten, he falls apart, and his bones get up on your side, as the kid wrote: they come with you from then on.
+let bonesJoined = false;
+forgotten.onBeaten = (x, y) => { burst({x, y}); bonesJoined = true; bonesPal.come(x, y); bonesTold = true; toasts.clear();
+  toast('He falls apart! His bones get up, hair and all... and kneel to you. The Forgotten One\'s bones are on your side now, and they are coming with you!', 5200, 2); };
+// The warlock's merlocks, and the ghost and skeleton the bones raise: allies called up to fight beside the figure.
+const allies = new Allies();
+allies.findTarget = (x, y, r) => warlock.findTarget(x, y, r);
+allies.onHit = () => sfx.spearHit();
+allies.onHurt = (a, out) => addText(a.x, a.y, 30, out ? (a.kind === 'merlock' ? 'Splash!' : 'Crumble!') : 'Ow!', '#B8F0E0', 16, 1.1);
 let throneToldT = 0, merlockT = 0, merlocksTold = false;
 // Won once only: after it his throne room is empty.
 function castleWon(){ if (forgotten.state !== 'gone' || towerWon) return;
-  isle7Stage = 2; towerWon = true; hearts = HEARTS; hudHearts(); merlocks.clear();
+  isle7Stage = 2; towerWon = true; hearts = HEARTS; hudHearts(); allies.clear();
   coins += FORGOTTEN_PRIZE; earned += FORGOTTEN_PRIZE; sfx.tierUp(); shake = 1;
   addText(SEAT.x, SEAT.y, 60, '+' + FORGOTTEN_PRIZE, C.coin, 26, 2.6); toasts.clear();
-  toast(`You beat the Forgotten One! Behind his empty throne, a door, locked, with a lock as big as your head. That is for next time. +${FORGOTTEN_PRIZE} coins.`, 6400, 2);
+  toast(`You beat the Forgotten One, and his bones are on your side now! Behind his empty throne, a door, locked, with a lock as big as your head. That is for next time. +${FORGOTTEN_PRIZE} coins.`, 6400, 2);
   hud(); refreshShop(); save(); }
 function intoCastle(){ resetTowers(); towerWon = false; tower = CASTLE; toRoom(GATE); sfx.portal(); shake = Math.max(shake, .4); toasts.clear();
   // Once he is beaten, his throne room stays empty.
@@ -705,11 +713,13 @@ function intoCastle(){ resetTowers(); towerWon = false; tower = CASTLE; toRoom(G
   toast('Through the portal: Gigantis, a castle standing on the sea under a green sky. The dead walk here.', 4200, 2); }
 function updateCastle(dt){ throneToldT -= dt;
   if (tower !== CASTLE || floor !== THRONE) return;
+  // Won when he has finished falling apart and the room is clear, whichever comes last.
+  if (isle7Stage < 2 && hordes[THRONE].cleared) castleWon();
   // The warlock calls merlocks while the fight is on: two, and two more a while after they are gone.
   const fight = forgotten.up || hordes[THRONE].list.some(u => Horde.up(u));
   if (fight && warlock.shown){ merlockT -= dt;
-    if (merlocks.standing === 0 && merlockT <= 0){ merlockT = 12; sfx.portal();
-      for (const s of [-1, 1]) merlocks.call(warlock.x + s * 18, warlock.y + 14);
+    if (allies.count('merlock') === 0 && merlockT <= 0){ merlockT = 12; sfx.portal();
+      for (const s of [-1, 1]) allies.call(warlock.x + s * 18, warlock.y + 14, 'merlock');
       if (!merlocksTold){ merlocksTold = true; toast('The warlock calls up merlocks out of a puddle of sea! They fight beside you.', 3200, 1); } } }
   if (throneToldT > 0 || Math.hypot(walker.x - LOCKED.x, walker.y - LOCKED.y) > LOCKED_REACH) return;
   throneToldT = 20; toasts.clear(); toast('Locked, with a lock as big as your head. Whatever is behind it is for next time.', 4200, 2); }
@@ -747,8 +757,8 @@ warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
   toast(isle3Stage >= 2 ? 'Down at the tower\'s foot again. The portal is still turning.' : 'Down to the foot of the tower, under the sea.', 3000, 1); }
 function intoDemons(){ sfx.portal(); redFlash = 1; shake = Math.max(shake, .6); toRoom(DEMON); walker.diving = false; demonMonkeys.reset(); for (const d of demons) d.reset(); applyStage(); }
-function toRoom(i){ floor = i; const e = entry(i); walker.x = e.x; walker.y = e.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); }
-function resetTowers(){ for (const fl of camps) fl.reset(); for (const h of HORDES) h.reset(); forgotten.reset(); merlocks.clear(); merlockT = 1; boss.reset(); boss3.reset(); boss7.reset(); roofMonkeys.reset(); swordsman.reset(); for (const d of demons) d.reset(); demonMonkeys.reset(); pullT = 0; cageOpen = 0; }
+function toRoom(i){ floor = i; allies.clear(); const e = entry(i); walker.x = e.x; walker.y = e.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); }
+function resetTowers(){ for (const fl of camps) fl.reset(); for (const h of HORDES) h.reset(); forgotten.reset(); allies.clear(); bonesJoined = false; merlockT = 1; boss.reset(); boss3.reset(); boss7.reset(); roofMonkeys.reset(); swordsman.reset(); for (const d of demons) d.reset(); demonMonkeys.reset(); pullT = 0; cageOpen = 0; }
 function enterTower(t){ resetTowers(); towerWon = false; tower = t; toRoom(t.first);
   toast(!spear ? 'Inside the tower, and you have no spear! Leave, and buy one from the shipwright.'
     : t.boss === boss3 ? 'Inside the sunken tower. It drips. Beat the monkeys to open the stairs.' : t.boss === boss7 ? 'Inside island 7\'s tower. More monkeys this time: beat them to open the stairs.' : 'Inside the tower. Beat the monkeys to open the stairs.', 3200, 1); }
@@ -769,7 +779,7 @@ function climbAction(){
   if (floor === HALL && isle3Stage >= 2 && pullT <= 0 && Math.hypot(walker.x - PORTAL.x, walker.y - PORTAL.y) < STEP + 6) return 'portal';
   if (tower && floor < tower.roof && floors[floor] && floors[floor].cleared){ const st = stairs(floor); if (Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6) return 'stairs'; }
   return null; }
-function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || walker.dock === ISLE7_DOCK || walker.dock.tar || warlock.shown || cat.shown) || hearts < HEARTS; el.hidden = !show;
+function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || walker.dock === ISLE7_DOCK || walker.dock.tar || warlock.shown || cat.shown || bonesPal.shown) || hearts < HEARTS; el.hidden = !show;
   if (show) el.innerHTML = Array.from({length: HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
     // The warlock's, in green, after a gap.
     + (warlock.shown ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: WARLOCK_HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < warlock.hearts ? '#3FB37A' : 'rgba(128,128,128,.35)')).join('') : '')
@@ -787,7 +797,7 @@ walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
 walker.onLand = () => { gapTold = false; const told = walker.dock.tar ? 'tar' : walker.dock; if (!ashoreTold.has(told)){ ashoreTold.add(told);
     toast(walker.dock.tar ? 'Into the tar in your chemistry suit. Swim to the island; the boat waits at the edge.' : walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : walker.dock === ISLE6_DOCK ? `Ashore on island 6, the big island. ${CHESTS6.length} treasure chests are hidden on it: walk it all to find them.` : walker.dock === ISLE7_DOCK ? 'Ashore on island 7. Monkeys on the far side, a tower in the middle, and a ring of strange metal standing on burnt grass. It is dead quiet.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
-for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, monkeys7, ...camps, roofMonkeys, ...HORDES, forgotten, merlocks, boss, boss3, boss7, swordsman, ...demons, demonMonkeys, warlock, wboat, anchorer, tarbaby, king, deep, cth, cat, warrior, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
+for (const e of [rareEntity, leviathan, cthulu, angler, gulper, shallows, spears, monkeys, monkeys7, ...camps, roofMonkeys, ...HORDES, forgotten, allies, boss, boss3, boss7, swordsman, ...demons, demonMonkeys, warlock, wboat, anchorer, tarbaby, king, deep, cth, cat, warrior, bonesPal, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -1020,8 +1030,8 @@ function renderGuide(){
     ? 'The castle through island 7\'s portal is full of them. Skeletons with a sword and a little shield that takes one spear; archers that shoot where you are going, so turn when one looses; slow, tough zombies; ghosts whose wisps drift after you, slower than a walk; and necromancers that raise skeletons from the floor. Your spear goes for the necromancers first.'
     : 'Not met yet. Through the portal on island 7, once it is awake.'}</small><div class="facts"><span>Gigantis</span><span>A heart a hit</span><span>${isle7Stage >= 2 ? 'Beaten' : isle7Stage >= 1 ? 'Waiting' : 'Not met'}</span></div></article>`);
   pages.push(`<article class="page${isle7Stage >= 2 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle7Stage >= 2 ? 'The Forgotten One' : '?'}</b><small>${isle7Stage >= 2
-    ? 'The king of Gigantis, with long black hair, a pale face screaming and a black cloak, in his throne room behind three necromancers. He flings blue skulls trailing purple fire in a fan, swings a great sword when you are close, and shows a thin orange line before his death ray burns along it: step off the line. Beaten, he fell apart, and his bones got up and fought on, hitting for two and calling up a ghost and a skeleton. The warlock called merlocks out of a puddle of sea to help. Behind his throne is a locked door.'
-    : 'Not met yet. Something sits on a throne in Gigantis.'}</small><div class="facts"><span>Gigantis</span><span>${FORGOTTEN_HP}, then his bones</span><span>${isle7Stage >= 2 ? 'Beaten' : 'Not beaten'}</span></div></article>`);
+    ? 'The king of Gigantis, with long black hair, a pale face screaming and a black cloak, in his throne room behind three necromancers. He flings blue skulls trailing purple fire in a fan, swings a great sword when you are close, and shows a thin orange line before his death ray burns along it: step off the line. Beaten, he fell apart, and his bones got up on your side: they come with you now, hitting for two and raising a ghost and a skeleton to fight for you. The warlock called merlocks out of a puddle of sea to help. Behind his throne is a locked door.'
+    : 'Not met yet. Something sits on a throne in Gigantis.'}</small><div class="facts"><span>Gigantis</span><span>${FORGOTTEN_HP} to beat</span><span>${isle7Stage >= 2 ? 'Beaten' : 'Not beaten'}</span></div></article>`);
   pages.push(`<article class="page${masks ? ' gold' : ' unk'}">${LEV_SVG}<b>${masks ? 'Skull-mask monkeys' : '?'}</b><small>${masks
     ? 'A camp of monkeys in little skull masks on the far side of island 2. They run at you to bonk you, and two of them throw coconuts: keep moving, step out from under the shadow, and throw your spear. Beaten, a monkey drops its mask and runs off. Beat the whole camp and its chest opens.'
     : 'Not met yet. Something lives in the huts on the far side of island 2. Take a spear.'}</small><div class="facts"><span>Island 2</span><span>Three hearts ashore</span><span>${masks} masks</span></div></article>`);
@@ -1414,6 +1424,8 @@ function update(dt){
   jawsT -= dt; if (king.state === 'stalk' && jawsT <= 0){ sfx.jaws(); jawsT = king.angry ? .7 : 1.1; }
   openChests();
   cat.free = warrior.free = isle6Stage >= 2;
+  bonesPal.free = isle7Stage >= 2 || bonesJoined;
+  if (bonesPal.shown && !bonesTold){ bonesTold = true; toast('The Forgotten One\'s bones walk with you now. They hit for two, and raise a ghost and a skeleton to fight for you.', 4400, 1); }
   { const f = inFight(); if (f && !wasFight){ cat.newFight(); hudHearts(); } wasFight = f; }
   if (cat.shown && !palsTold){ palsTold = true; toast('The cat heals you, twice a fight: the pink crosses. Aboard at sea, tap it to feed it a fish from the hold for another heal.', 4400, 1); }
   tarbaby.free = isle4Stage >= 1; if (isle4Stage >= 1 && anchorer.state !== 'gone' && anchorer.state !== 'melt') anchorer.beaten();
@@ -1879,8 +1891,9 @@ function drawWorldObjects(){
   if (warlock.shown && floor < 0) list.push({d: walkerDepth(warlock.x, warlock.y, build, pierD, null), f: () => warlock.drawBody(drawView)});
   if (tarbaby.with && floor < 0) list.push({d: walkerDepth(tarbaby.x, tarbaby.y, build, pierD, null), f: () => tarbaby.drawBody(drawView)});
   if (tarbaby.free && !tarbaby.with) list.push({d: boat.x+boat.y+.5, f: () => tarbaby.drawAboard(drawView, boat, bk())});
-  for (const p of [cat, warrior]){ if (p.shown && floor < 0) list.push({d: walkerDepth(p.x, p.y, build, pierD, null), f: () => p.drawBody(drawView)});
+  for (const p of [cat, warrior, bonesPal]){ if (p.shown && floor < 0) list.push({d: walkerDepth(p.x, p.y, build, pierD, null), f: () => p.drawBody(drawView)});
     else if (p.free && !p.shown) list.push({d: boat.x+boat.y+.6, f: () => p.drawAboard(drawView, boat, bk())}); }
+  if (floor < 0) for (const a of allies.list) list.push({d: walkerDepth(a.x, a.y, build, pierD, null), f: () => allies.drawBody(drawView, a)});
   if (anchorer.state !== 'gone' && isle3Stage >= 4) list.push({d: anchorer.x + anchorer.y, f: () => anchorer.drawBody(drawView)});
   if (deep.state !== 'down') list.push({d: deep.x + deep.y, f: () => deep.drawBody(drawView)});
   list.push(...isle4Solids(drawView, isle4Look()));
@@ -2079,8 +2092,8 @@ function drawRoom(){
   const actors = [{d: walker.x + walker.y, f: () => walker.draw(drawView, 'solids')}];
   if (hordes[floor]) for (const u of hordes[floor].list) if (u.state !== 'gone') actors.push({d: u.x + u.y, f: () => hordes[floor].drawUnit(drawView, u)});
   if (floor === THRONE){ actors.push({d: SEAT.x + SEAT.y + SEAT.r, f: () => drawThrone(drawView, SEAT.x, SEAT.y, SEAT.r)});
-    if (forgotten.state !== 'gone') actors.push({d: forgotten.x + forgotten.y, f: () => forgotten.drawBody(drawView)});
-    for (const m of merlocks.list) actors.push({d: m.x + m.y, f: () => merlocks.drawBody(drawView, m)}); }
+    if (forgotten.state !== 'gone') actors.push({d: forgotten.x + forgotten.y, f: () => forgotten.drawBody(drawView)}); }
+  for (const a of allies.list) actors.push({d: a.x + a.y, f: () => allies.drawBody(drawView, a)});
   if (floor === ROOF7) for (const m of roofMonkeys.list) if (m.state !== 'gone') actors.push({d: m.x + m.y, f: () => roofMonkeys.drawMonkey(drawView, m, 0)});
   if (!roof && floors[floor]) for (const m of floors[floor].list) if (m.state !== 'gone') actors.push({d: m.x + m.y, f: () => floors[floor].drawMonkey(drawView, m, 0)});
   if (floor === HALL && swordsman.state !== 'gone') actors.push({d: swordsman.x + swordsman.y, f: () => swordsman.drawBody(drawView)});
@@ -2092,7 +2105,7 @@ function drawRoom(){
     actors.push({d: CAGE.x + CAGE.y + CAGE.r, f: () => drawCage(drawView, cageOpen, !warlock.free)}); }
   if (warlock.shown) actors.push({d: warlock.x + warlock.y, f: () => warlock.drawBody(drawView)});
   if (tarbaby.with) actors.push({d: tarbaby.x + tarbaby.y, f: () => tarbaby.drawBody(drawView)});
-  for (const p of [cat, warrior]) if (p.shown) actors.push({d: p.x + p.y, f: () => p.drawBody(drawView)});
+  for (const p of [cat, warrior, bonesPal]) if (p.shown) actors.push({d: p.x + p.y, f: () => p.drawBody(drawView)});
   actors.sort((a,b) => a.d-b.d); for (const o of actors) o.f();
   // The front rim, so the room reads as a room.
   if (!roof && R.kind !== 'demon'){ isoEllipse(R.x, R.y, R.r+4); ctx.strokeStyle = R.kind === 'hall' ? '#24413F' : '#2A2E34'; ctx.lineWidth = 6*Z; ctx.stroke(); }
@@ -2116,5 +2129,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, merlocks, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarbaby, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarbaby, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

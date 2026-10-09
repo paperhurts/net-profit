@@ -21,7 +21,7 @@ import { angDiff, clamp } from '../core/math';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkStep } from './walker';
 
-export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro' | 'bones';
+export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro';
 
 export type UndeadSpec = {
   hp: number;
@@ -106,20 +106,6 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     damage: 1,
     scale: 1.1,
   },
-  // What the Forgotten One leaves when he dies: his own great skeleton, his hair still on it, which
-  // swings for two and calls up a ghost and a skeleton, and two more a while after those are beaten.
-  bones: {
-    hp: 4,
-    speed: 52,
-    reach: 28,
-    windup: 0.55,
-    keep: 0,
-    shoot: 0,
-    block: false,
-    summon: 9,
-    damage: 2,
-    scale: 1.45,
-  },
 };
 
 /** The swing: how long it lands for after the warning, then how long it is open before it moves again. */
@@ -168,7 +154,7 @@ export type Undead = {
   blockT: number;
   /** For its walk and its float. */
   ph: number;
-  /** What a necromancer, or the Forgotten One's bones, has raised. */
+  /** What a necromancer has raised. */
   raised: Undead[];
   /** Raised by a necromancer, not standing in the room when the figure came in. */
   summoned: boolean;
@@ -415,22 +401,13 @@ export class Horde implements Entity {
     const dx = f.x - u.x;
     const dy = f.y - u.y;
     const d = Math.hypot(dx, dy) || 1;
-    // A necromancer raises a skeleton while it has none standing; the bones, a ghost and a skeleton.
+    // A necromancer raises a skeleton while it has none standing, out of the floor between it and the figure.
     if (sp.summon > 0) {
       if (!Horde.standing(u)) {
         u.cd -= dt;
         if (u.cd <= 0) {
           u.cd = sp.summon;
-          // Out of the floor between it and the figure, either side.
-          const kinds: UndeadKind[] = u.kind === 'bones' ? ['skeleton', 'ghost'] : ['skeleton'];
-          u.raised = kinds.map((kind, i) => {
-            const side = kinds.length > 1 ? (i ? 1 : -1) * 22 : 0;
-            return this.raise(
-              u.x + (dx / d) * 30 - (dy / d) * side,
-              u.y + (dy / d) * 30 + (dx / d) * side,
-              kind,
-            );
-          });
+          u.raised = [this.raise(u.x + (dx / d) * 30, u.y + (dy / d) * 30, 'skeleton')];
           for (const q of u.raised) this.onRaise?.(q);
         }
       }
@@ -601,16 +578,6 @@ export class Horde implements Entity {
     const { ctx, T } = v;
     const bone = W('#EDE8DA');
     const hy = base - 25 * k;
-    if (u.kind === 'bones') {
-      // The Forgotten One's long black hair, still on his skull, hanging down behind.
-      ctx.fillStyle = W('#0E0C10');
-      ctx.beginPath();
-      ctx.arc(sx, hy - 0.4 * k, 4.8 * k, Math.PI, 0);
-      ctx.lineTo(sx + 5.4 * k, hy + 9.5 * k);
-      for (let i = 1; i <= 4; i++) ctx.lineTo(sx + (5.4 - i * 2.7) * k, hy + (i % 2 ? 7 : 10) * k);
-      ctx.closePath();
-      ctx.fill();
-    }
     ctx.strokeStyle = bone;
     ctx.lineCap = 'round';
     // Legs and the spine.
@@ -643,23 +610,11 @@ export class Horde implements Entity {
     ctx.arc(sx, hy, 4.2 * k, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillRect(sx - 2.4 * k, hy + 2.6 * k, 4.8 * k, 2.4 * k);
-    ctx.fillStyle = u.kind === 'bones' ? '#FF5A4A' : '#1E2227';
+    ctx.fillStyle = '#1E2227';
     for (const e of [-1, 1]) {
       ctx.beginPath();
       ctx.arc(sx + face * 0.8 * k + e * 1.6 * k, hy - 0.2 * k, 1.1 * k, 0, Math.PI * 2);
       ctx.fill();
-    }
-    if (u.kind === 'bones') {
-      // And its fringe, either side of the skull.
-      ctx.fillStyle = W('#0E0C10');
-      for (const e of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo(sx + e * 0.4 * k, hy - 4.3 * k);
-        ctx.quadraticCurveTo(sx + e * 4.8 * k, hy - 4.4 * k, sx + e * 4.4 * k, hy + 5 * k);
-        ctx.lineTo(sx + e * 3.2 * k, hy + 1.5 * k);
-        ctx.quadraticCurveTo(sx + e * 3.2 * k, hy - 2.6 * k, sx + e * 0.4 * k, hy - 4.3 * k);
-        ctx.fill();
-      }
     }
     const hx = sx + face * 5 * k;
     const hyy = base - 16 * k;

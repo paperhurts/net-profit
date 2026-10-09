@@ -1,12 +1,16 @@
 /**
  * The two Cthulhu leaves behind when it crumbles, the kid's: a healer cat and
- * a little Cthulhu warrior. Both come along as the warlock does: aboard they
- * ride on the boat (the cat on the cabin roof, the warrior at the stern);
+ * a little Cthulhu warrior; and the Forgotten One's bones, which get up when
+ * he falls and are on your side, as the kid wrote. All come along as the
+ * warlock does: aboard they ride on the boat (the cat on the cabin roof, the
+ * warrior at the stern, the bones at the bow);
  * ashore they follow the figure everywhere, every island and every room,
- * popping over if left far behind. Each has five hit points; hurt to none, one
- * is worn out and rests aboard until the next landing, mending as it goes. In a
- * fight they go for whatever is near the figure and hit it up close: the
- * warrior for 2, the cat with a swipe for 1. And the cat heals: twice a fight,
+ * popping over if left far behind. The cat and the warrior have five hit
+ * points and the bones four; hurt to none, one is worn out and rests aboard
+ * until the next landing, mending as it goes. In a fight they go for whatever
+ * is near the figure and hit it up close: the warrior and the bones for 2, the
+ * cat with a swipe for 1. The bones also raise a ghost and a skeleton to fight
+ * for you (the game calls them up). And the cat heals: twice a fight,
  * a moment after the figure loses a heart, it gives one back. Fed a fish from
  * the hold (tap it on the boat, at sea, with fish aboard) it has another heal,
  * up to five, kept for the fights to come. Tap it otherwise to pet it. The game finds what they fight, as for the
@@ -16,18 +20,25 @@
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkable, walkStep } from './walker';
 
-export type PalKind = 'cat' | 'warrior';
+export type PalKind = 'cat' | 'warrior' | 'bones';
 
 export const PAL_HP = 5;
+export const BONES_HP = 4;
 export const PAL_SPEED = 100;
 /** How close each keeps behind the figure, and how far off it pops over. */
-export const PAL_HEEL: Readonly<Record<PalKind, number>> = { cat: 24, warrior: 30 };
+export const PAL_HEEL: Readonly<Record<PalKind, number>> = { cat: 24, warrior: 30, bones: 36 };
 export const PAL_BLINK = 200;
 /** Something this close to the figure is fought; each hits from this close, this often, this hard. */
 export const FIGHT_FROM = 130;
-export const REACH: Readonly<Record<PalKind, number>> = { cat: 20, warrior: 26 };
-export const SWING_EVERY: Readonly<Record<PalKind, number>> = { cat: 1.1, warrior: 1.4 };
-export const POWER: Readonly<Record<PalKind, number>> = { cat: 1, warrior: 2 };
+export const REACH: Readonly<Record<PalKind, number>> = { cat: 20, warrior: 26, bones: 28 };
+export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
+  cat: 1.1,
+  warrior: 1.4,
+  bones: 1.5,
+};
+export const POWER: Readonly<Record<PalKind, number>> = { cat: 1, warrior: 2, bones: 2 };
+/** The bones raise their ghost and skeleton once a fight is on, and again this long after, if those are gone. */
+export const RAISE_EVERY = 12;
 /** Blinking this long after a hit; worn out, resting this long. */
 export const PAL_INVULN = 1;
 export const PAL_REST = 40;
@@ -68,19 +79,31 @@ export class Pal implements Entity {
   onHurt: ((out: boolean) => void) | null = null;
   /** The cat gives the figure a heart back. */
   onHeal: (() => void) | null = null;
+  /** The bones raise a ghost and a skeleton here; the game calls them up. */
+  onRaise: ((x: number, y: number) => void) | null = null;
+  /** Whether the bones may raise them now: the game says whether the last ones are gone. */
+  canRaise: (() => boolean) | null = null;
+  private raiseCd = 0;
 
-  constructor(readonly kind: PalKind) {}
+  constructor(readonly kind: PalKind) {
+    this.hp = this.maxHp;
+  }
 
   /** Beside the figure, ashore. */
   get shown(): boolean {
     return this.state === 'with';
   }
 
+  /** Its hit points when whole. */
+  get maxHp(): number {
+    return this.kind === 'bones' ? BONES_HP : PAL_HP;
+  }
+
   /** Out of the temple at a point, as Cthulhu crumbles: free, and beside the figure. */
   come(x: number, y: number): void {
     this.free = true;
     this.state = 'with';
-    this.hp = PAL_HP;
+    this.hp = this.maxHp;
     this.x = x;
     this.y = y;
     this.trail.length = 0;
@@ -127,7 +150,7 @@ export class Pal implements Entity {
   private arrive(f: { x: number; y: number }): void {
     this.x = f.x;
     this.y = f.y;
-    const off = this.kind === 'cat' ? [16, 12] : [-16, 14];
+    const off = this.kind === 'cat' ? [16, 12] : this.kind === 'warrior' ? [-16, 14] : [14, -16];
     for (const [dx, dy] of [
       off,
       [-(off[0] as number), off[1] as number],
@@ -146,6 +169,7 @@ export class Pal implements Entity {
   update(dt: number, w: World): void {
     this.invuln = Math.max(0, this.invuln - dt);
     this.love = Math.max(0, this.love - dt);
+    this.raiseCd = Math.max(0, this.raiseCd - dt);
     this.swingT += dt;
     if (this.healT >= 0) {
       this.healT -= dt;
@@ -163,11 +187,11 @@ export class Pal implements Entity {
       if (landed) this.rest = 0;
       if (this.rest > 0) return;
       this.state = 'away';
-      this.hp = PAL_HP;
+      this.hp = this.maxHp;
     }
     if (!f) {
       if (this.state === 'with') this.state = 'away';
-      this.hp = PAL_HP;
+      this.hp = this.maxHp;
       return;
     }
     if (this.state === 'away' || Math.hypot(f.x - this.x, f.y - this.y) > PAL_BLINK) {
@@ -180,6 +204,10 @@ export class Pal implements Entity {
     const foe = this.findTarget?.(f.x, f.y, FIGHT_FROM) ?? null;
     this.swingCd -= dt;
     if (foe) {
+      if (this.kind === 'bones' && this.raiseCd <= 0 && (this.canRaise?.() ?? true)) {
+        this.raiseCd = RAISE_EVERY;
+        this.onRaise?.(this.x, this.y);
+      }
       const dx = foe.x - this.x;
       const dy = foe.y - this.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -234,7 +262,9 @@ export class Pal implements Entity {
     const sx = v.px(this.x, this.y);
     const sy = v.py(this.x, this.y, Math.abs(Math.sin(this.ph)) * 2 * this.gait);
     if (this.kind === 'cat') drawCat(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.25, 1);
-    else drawWarrior(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
+    else if (this.kind === 'warrior')
+      drawWarrior(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
+    else drawBones(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
     this.drawOver(v, sx, sy);
   }
 
@@ -242,11 +272,12 @@ export class Pal implements Entity {
   private drawOver(v: DrawView, sx: number, sy: number): void {
     const { ctx } = v;
     const Z = v.zoom;
-    const top = sy - (this.kind === 'cat' ? 20 : 30) * Z;
-    if (this.hp < PAL_HP) {
-      for (let i = 0; i < PAL_HP; i++) {
+    const top = sy - (this.kind === 'cat' ? 20 : this.kind === 'warrior' ? 30 : 40) * Z;
+    const max = this.maxHp;
+    if (this.hp < max) {
+      for (let i = 0; i < max; i++) {
         ctx.fillStyle = i < this.hp ? '#3FB37A' : 'rgba(128,128,128,.4)';
-        ctx.fillRect(sx + (i - PAL_HP / 2) * 5 * Z, top, 4 * Z, 3 * Z);
+        ctx.fillRect(sx + (i - max / 2) * 5 * Z, top, 4 * Z, 3 * Z);
       }
     }
     if (this.love > 0) {
@@ -265,13 +296,13 @@ export class Pal implements Entity {
     }
   }
 
-  /** Where it rides on a boat of this hull scale: the cat on the cabin roof, the warrior at the stern. */
+  /** Where it rides on a boat of this hull scale: the cat on the cabin roof, the warrior at the stern, the bones at the bow. */
   seat(b: { x: number; y: number; h: number }, k: number): { x: number; y: number; z: number } {
     const c = Math.cos(b.h);
     const s = Math.sin(b.h);
-    return this.kind === 'cat'
-      ? { x: b.x - c * 4 * k, y: b.y - s * 4 * k, z: 26 * k }
-      : { x: b.x - c * 22 * k - s * 5 * k, y: b.y - s * 22 * k + c * 5 * k, z: 9 * k + 1 };
+    if (this.kind === 'cat') return { x: b.x - c * 4 * k, y: b.y - s * 4 * k, z: 26 * k };
+    if (this.kind === 'bones') return { x: b.x + c * 20 * k, y: b.y + s * 20 * k, z: 9 * k + 1 };
+    return { x: b.x - c * 22 * k - s * 5 * k, y: b.y - s * 22 * k + c * 5 * k, z: 9 * k + 1 };
   }
 
   /** Riding along on a boat of this hull scale while the figure is aboard. */
@@ -286,9 +317,102 @@ export class Pal implements Entity {
       this.drawOver(v, sx, sy);
     } else {
       const p = this.seat(b, k);
-      drawWarrior(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, 0, false, 0.8);
+      const draw = this.kind === 'warrior' ? drawWarrior : drawBones;
+      draw(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, 0, false, 0.8);
     }
   }
+}
+
+/**
+ * The Forgotten One's bones, on your side now: a tall skeleton with his long black hair still on the
+ * skull, green where his eyes were red, and his great sword.
+ */
+export function drawBones(
+  v: DrawView,
+  x: number,
+  y: number,
+  h: number,
+  ph: number,
+  gait: number,
+  swing: boolean,
+  size: number,
+): void {
+  const { ctx } = v;
+  const Z = v.zoom * size * 1.3;
+  const dir = Math.cos(h) - Math.sin(h) >= 0 ? 1 : -1;
+  const step = Math.sin(ph) * 2.4 * gait;
+  const bone = '#EDE8DA';
+  const hy = y - 25 * Z;
+  // His hair, hanging down behind the skull.
+  ctx.fillStyle = '#0E0C10';
+  ctx.beginPath();
+  ctx.arc(x, hy - 0.4 * Z, 4.8 * Z, Math.PI, 0);
+  ctx.lineTo(x + 5.4 * Z, hy + 9.5 * Z);
+  for (let i = 1; i <= 4; i++) ctx.lineTo(x + (5.4 - i * 2.7) * Z, hy + (i % 2 ? 7 : 10) * Z);
+  ctx.closePath();
+  ctx.fill();
+  // Legs, spine, hips and ribs.
+  ctx.strokeStyle = bone;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 1.8 * Z;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + s * 2 * Z, y - 10 * Z);
+    ctx.lineTo(x + (s * 2 + step * s) * Z, y);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(x, y - 10 * Z);
+  ctx.lineTo(x, y - 21 * Z);
+  ctx.stroke();
+  ctx.lineWidth = 1.4 * Z;
+  ctx.beginPath();
+  ctx.moveTo(x - 3 * Z, y - 10 * Z);
+  ctx.lineTo(x + 3 * Z, y - 10 * Z);
+  ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.ellipse(x, y - 14 * Z - i * 2.4 * Z, (4 - i * 0.4) * Z, 1.2 * Z, 0, Math.PI, Math.PI * 2);
+    ctx.stroke();
+  }
+  // The skull, with green eyes now.
+  ctx.fillStyle = bone;
+  ctx.beginPath();
+  ctx.arc(x, hy, 4.2 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x - 2.4 * Z, hy + 2.6 * Z, 4.8 * Z, 2.4 * Z);
+  ctx.fillStyle = '#5BE08E';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(x + dir * 0.8 * Z + e * 1.6 * Z, hy - 0.2 * Z, 1.1 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // And the fringe of his hair either side of it.
+  ctx.fillStyle = '#0E0C10';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + e * 0.4 * Z, hy - 4.3 * Z);
+    ctx.quadraticCurveTo(x + e * 4.8 * Z, hy - 4.4 * Z, x + e * 4.4 * Z, hy + 5 * Z);
+    ctx.lineTo(x + e * 3.2 * Z, hy + 1.5 * Z);
+    ctx.quadraticCurveTo(x + e * 3.2 * Z, hy - 2.6 * Z, x + e * 0.4 * Z, hy - 4.3 * Z);
+    ctx.fill();
+  }
+  // His great sword, with its cross-guard: up, then down as he strikes.
+  const a = swing ? -0.2 : -1.1;
+  const hx = x + 5 * Z * dir;
+  const hyy = y - 16 * Z;
+  ctx.strokeStyle = '#B9C2C8';
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(hx, hyy);
+  ctx.lineTo(hx + Math.cos(a) * 16 * Z * dir, hyy + Math.sin(a) * 16 * Z);
+  ctx.stroke();
+  ctx.strokeStyle = '#5A5560';
+  ctx.lineWidth = 1.8 * Z;
+  ctx.beginPath();
+  ctx.moveTo(hx - 2.6 * Z, hyy + 0.6 * Z);
+  ctx.lineTo(hx + 2.6 * Z, hyy - 0.6 * Z);
+  ctx.stroke();
 }
 
 /** The healer cat: white, with a pink nose, a swishing tail and a red cross on its collar. */

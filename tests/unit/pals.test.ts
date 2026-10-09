@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { World } from '../../src/entities/entity';
 import {
+  BONES_HP,
   HEAL_DELAY,
   HEALS,
   MAX_HEALS,
@@ -9,6 +10,7 @@ import {
   PAL_HP,
   Pal,
   POWER,
+  RAISE_EVERY,
   SWING_EVERY,
 } from '../../src/entities/pals';
 import { LANDING, WALK_SPEED, walkable } from '../../src/entities/walker';
@@ -137,5 +139,54 @@ describe('the healer cat and the Cthulhu warrior', () => {
       p.drawBody(v.v);
       expect(v.calls.fill ?? 0).toBeGreaterThan(5);
     }
+  });
+});
+
+describe("the Forgotten One's bones, on your side", () => {
+  it('come where he fell, hit for two, raise a ghost and a skeleton once a fight is on, and not again while those stand', () => {
+    const p = new Pal('bones');
+    expect(p.hp).toBe(BONES_HP);
+    const f = figureAt(LANDING.x - 60, LANDING.y);
+    const w: World = baseWorld({ figure: f });
+    p.come(f.x + 10, f.y);
+    expect(p.free).toBe(true);
+    expect(p.shown).toBe(true);
+    let dealt = 0;
+    const foe = { x: f.x - 40, y: f.y, hit: (n: number) => (dealt += n) };
+    p.findTarget = (x, y, r) => (Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null);
+    const raised: [number, number][] = [];
+    let up = 0;
+    p.canRaise = () => up === 0;
+    p.onRaise = (x, y) => {
+      raised.push([x, y]);
+      up = 2;
+    };
+    for (let i = 0; i < (SWING_EVERY.bones * 2 + 1) / DT; i++) p.update(DT, w);
+    expect(dealt).toBeGreaterThanOrEqual(POWER.bones * 2);
+    expect(POWER.bones).toBe(2);
+    expect(raised).toHaveLength(1);
+    // While its two stand it raises no more; once they are gone, again after a while.
+    for (let i = 0; i < (RAISE_EVERY + 1) / DT; i++) p.update(DT, w);
+    expect(raised).toHaveLength(1);
+    up = 0;
+    for (let i = 0; i < 2 / DT; i++) p.update(DT, w);
+    expect(raised).toHaveLength(2);
+    // Worn out after four hits.
+    for (let i = 0; i < BONES_HP; i++) {
+      p.invuln = 0;
+      p.hurt();
+    }
+    expect(p.state).toBe('resting');
+  });
+
+  it('draws ashore and at the bow aboard', () => {
+    const p = new Pal('bones');
+    p.come(LANDING.x, LANDING.y);
+    const f = fakeView();
+    p.drawBody(f.v);
+    p.state = 'away';
+    p.drawAboard(f.v, { x: 0, y: 0, h: 0 }, 1);
+    expect(f.calls.fill ?? 0).toBeGreaterThan(4);
+    expect(f.calls.stroke ?? 0).toBeGreaterThan(6);
   });
 });
