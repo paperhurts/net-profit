@@ -184,6 +184,17 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
+#seamap{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#seamap[hidden]{display:none}
+#seamap .planks{width:min(560px,100%);padding:10px;box-sizing:border-box}
+#seamap h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#seamap h2 .pill{height:32px;padding:0 10px}
+#mapCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;background:#0B1C24;touch-action:auto;cursor:default}
+#mapNote{margin:8px 4px 2px;font-size:13px;font-weight:700;text-align:center}
+#mapBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center}
+#mapBtn[hidden]{display:none}
+#mapPill{position:absolute;left:10px;top:-52px;font-size:16px;height:42px;padding:3px 16px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#shop:not(.open) #mapPill{visibility:hidden}
 #flagger{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #flagger[hidden]{display:none}
 #flagger .planks{max-width:420px;margin:0 auto;padding:10px}
@@ -244,6 +255,7 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
 <div id="order" aria-live="polite"></div>
 <div id="rchips"><div id="hearts" title="Your hearts" hidden></div><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
 <div id="toast" role="status"></div>
+<button class="pill icon" id="mapBtn" aria-label="Sea map" title="Sea map"><svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true"><path d="M2 4l6-2 8 3 6-2v15l-6 2-8-3-6 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 2v15M16 5v15" stroke="currentColor" stroke-width="2"/></svg></button>
 <button class="pill" id="cast" hidden>Cast · 10</button>
 <button class="pill" id="aboard" hidden>Back aboard</button>
 <button class="pill" id="climb" hidden>Climb the tower</button>
@@ -253,6 +265,7 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
 <section id="shop" aria-hidden="true" aria-label="Upgrades">
   <div class="planks">
     <button class="pill" id="ashore" hidden>Step ashore</button>
+    <button class="pill" id="mapPill">Sea map</button>
     <h2>Upgrades <span id="tierTxt"></span></h2>
     <div class="row">
       <button class="up" data-k="net"><b>Wider net</b><div class="pips"></div><small></small><div class="buy"></div></button>
@@ -279,6 +292,14 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
     <div class="frow"><b>Second colour</b><div class="swatches" id="fAccent" role="group" aria-label="Second colour"></div></div>
     <div class="frow"><b>Emblem</b><div class="fchips" id="fEmblem" role="group" aria-label="Emblem"></div></div>
     <button class="go" id="flagDone">Fly it</button>
+  </div>
+</section>
+
+<section id="seamap" hidden aria-label="Sea map">
+  <div class="planks">
+    <h2>Sea map <button class="pill icon" id="mapClose" aria-label="Close the sea map">✕</button></h2>
+    <canvas id="mapCanvas"></canvas>
+    <p id="mapNote"></p>
   </div>
 </section>
 

@@ -59,6 +59,8 @@ type Np = {
   serpent: { state: string; resolve: number };
   armour: number;
   maxHearts: number;
+  sailedShare: number;
+  mapOpen: boolean;
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarling: { with: boolean; free: boolean };
@@ -417,6 +419,36 @@ test('armour: once there is a spear the shipwright sells leather armour, and it 
   expect(await page.evaluate(() => [window.__np.maxHearts, window.__np.coins])).toEqual([4, 800]);
   // Next on the shelf: diamond.
   await expect(card).toContainText('Diamond armour');
+  expect(errors).toEqual([]);
+});
+
+test('the sea map: sailing opens the fog, the map shows it, and the game waits while it is open', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 4000, y: 2400, h: 0, clock: 0.3, hold: [] },
+  });
+  const before = await page.evaluate(() => window.__np.sailedShare);
+  expect(before).toBeGreaterThan(0);
+  // Sail east a while: more of the sea is open.
+  await page.evaluate(() => {
+    window.__np.boat.v = 300;
+  });
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(() => window.__np.sailedShare);
+  expect(after).toBeGreaterThan(before);
+  await page.locator('#mapBtn').click();
+  await expect(page.locator('#seamap')).toBeVisible();
+  await expect(page.locator('#mapNote')).toContainText('of the sea');
+  // While it is open, nothing moves.
+  const at = await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y]);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y])).toEqual(at);
+  await page.locator('#mapClose').click();
+  await expect(page.locator('#seamap')).toBeHidden();
   expect(errors).toEqual([]);
 });
 
