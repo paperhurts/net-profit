@@ -57,6 +57,8 @@ type Np = {
   harpoonTarget: string | null;
   gulper: { resolve: number };
   serpent: { state: string; resolve: number };
+  armour: number;
+  maxHearts: number;
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarbaby: { with: boolean; free: boolean };
@@ -393,6 +395,28 @@ test('shop: the shipwright keeps the spear back until island 2 is found', async 
   await page.waitForTimeout(300);
   await expect(page.locator('#gear [data-g]').first()).toBeAttached();
   await expect(page.locator('#gear [data-s]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('armour: once there is a spear the shipwright sells leather armour, and it is a fourth heart', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 2000,
+    isle2Seen: true,
+    spear: 1,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  const card = page.locator('#gear [data-a]');
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText('Leather armour');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.armour === 1, null, { timeout: 2000 });
+  expect(await page.evaluate(() => [window.__np.maxHearts, window.__np.coins])).toEqual([4, 800]);
+  // Next on the shelf: diamond.
+  await expect(card).toContainText('Diamond armour');
   expect(errors).toEqual([]);
 });
 
