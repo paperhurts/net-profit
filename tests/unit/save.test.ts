@@ -471,6 +471,20 @@ describe('the leviathans driven off', () => {
   });
 });
 
+describe('armour', () => {
+  it('is none in a save from before it, survives a round trip, and keeps to its levels', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.armour).toBe(0);
+    s.armour = 3;
+    expect(parseSave(serializeSave(s), bounds).armour).toBe(3);
+    const bad = JSON.parse(serializeSave(s));
+    bad.armour = 99;
+    expect(parseSave(JSON.stringify(bad), bounds).armour).toBe(4);
+    bad.armour = 'gold';
+    expect(parseSave(JSON.stringify(bad), bounds).armour).toBe(0);
+  });
+});
+
 describe('the spear', () => {
   it('is none in a save from before it, survives a round trip, and is kept to the levels there are', () => {
     const s = parseSave(legacy, bounds);

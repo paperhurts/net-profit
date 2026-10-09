@@ -4,6 +4,8 @@
  * in localStorage. Existing saves must keep loading; tests/unit/save.test.ts
  * holds one. A versioned format with migration is Phase 2.
  */
+
+import { ARMOUR_MAX } from '../data/armour';
 import { type Flag, parseFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
@@ -96,6 +98,8 @@ export type SaveData = {
   meteorSeen: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
+  /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
+  armour: number;
   /** Skull masks dropped by beaten monkeys. */
   masks: number;
   /** The sorcerer on island 2's tower has been beaten: the tower flies the player's flag. */
@@ -180,6 +184,7 @@ export function defaultSave(b: Bounds): SaveData {
     gulperSeen: false,
     meteorSeen: false,
     spear: 0,
+    armour: 0,
     masks: 0,
     towerTaken: false,
     isle3Stage: 0,
@@ -271,6 +276,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.gulperSeen = !!o.gulperSeen;
   d.meteorSeen = !!o.meteorSeen;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
+  d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.masks = Math.max(0, int(o.masks));
   d.towerTaken = !!o.towerTaken;
   d.isle3Stage = Math.max(0, Math.min(ISLE3_STAGES, int(o.isle3Stage)));
@@ -349,6 +355,7 @@ export function serializeSave(d: SaveData): string {
     gulperSeen: d.gulperSeen,
     meteorSeen: d.meteorSeen,
     spear: d.spear,
+    armour: d.armour,
     masks: d.masks,
     towerTaken: d.towerTaken,
     isle3Stage: d.isle3Stage,

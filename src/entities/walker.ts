@@ -24,6 +24,7 @@
 
 import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
+import type { ArmourLook } from '../data/armour';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
 import {
   BEACH,
@@ -553,6 +554,8 @@ export class Walker implements Entity {
   readonly prints: Print[] = [];
   /** The shirt, which the game keeps in the boat's paint. */
   shirt = '#E4572E';
+  /** The armour it wears from the shipwright, or null. */
+  armour: ArmourLook | null = null;
   /** The figure has hopped onto the pier. */
   onLand: (() => void) | null = null;
   /** The figure is back aboard. */
@@ -902,6 +905,25 @@ export class Walker implements Entity {
     ctx.beginPath();
     ctx.ellipse(bx, by, 4.6 * Z, 5.8 * Z, 0, 0, Math.PI * 2);
     ctx.fill();
+    // Armour over the shirt: a chest plate with an edge and a shine (never over the chemistry suit).
+    const arm = suit ? null : this.armour;
+    if (arm) {
+      ctx.fillStyle = arm.plate;
+      ctx.strokeStyle = arm.edge;
+      ctx.lineWidth = 0.9 * Z;
+      ctx.beginPath();
+      ctx.ellipse(bx, by - 0.4 * Z, 4.4 * Z, 4.8 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx - 4 * Z, by + 2.6 * Z);
+      ctx.quadraticCurveTo(bx, by + 4.2 * Z, bx + 4 * Z, by + 2.6 * Z);
+      ctx.stroke();
+      ctx.fillStyle = arm.shine;
+      ctx.beginPath();
+      ctx.ellipse(bx - 1.6 * Z, by - 2 * Z, 1.1 * Z, 1.8 * Z, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // Arms, swinging against the legs; at night one hand carries a lantern. Swimming, they reach over in turn.
     ctx.strokeStyle = shirt;
     ctx.lineWidth = 2.2 * Z;
@@ -1016,6 +1038,67 @@ export class Walker implements Entity {
         );
         ctx.fill();
       }
+      return;
+    }
+    if (arm && arm.helm === 'space') {
+      // Space armour's helmet: a white dome, a dark visor toward where it looks with the sky in it, an antenna.
+      ctx.fillStyle = arm.plate;
+      ctx.strokeStyle = arm.edge;
+      ctx.lineWidth = 0.9 * Z;
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.6 * Z, 5.4 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      if (fy > -0.4) {
+        ctx.fillStyle = '#1C2638';
+        ctx.beginPath();
+        ctx.ellipse(hx + fx * 1.8 * Z, hy - 0.4 * Z, 3.6 * Z, 2.6 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = arm.shine;
+        ctx.beginPath();
+        ctx.ellipse(
+          hx + fx * 1.8 * Z - 1.3 * Z,
+          hy - 1.3 * Z,
+          1.3 * Z,
+          0.7 * Z,
+          -0.3,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      ctx.strokeStyle = arm.edge;
+      ctx.beginPath();
+      ctx.moveTo(hx + 3 * Z, hy - 4.6 * Z);
+      ctx.lineTo(hx + 4.4 * Z, hy - 8.6 * Z);
+      ctx.stroke();
+      ctx.fillStyle = arm.shine;
+      ctx.beginPath();
+      ctx.arc(hx + 4.4 * Z, hy - 8.6 * Z, 1.1 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    if (arm && arm.helm === 'helm') {
+      // A helmet in the armour's colour: a dome over the head with a rim and a crest, the face showing under it.
+      ctx.fillStyle = arm.plate;
+      ctx.strokeStyle = arm.edge;
+      ctx.lineWidth = 0.9 * Z;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy - 1.6 * Z, 4.6 * Z, 4.2 * Z, 0, Math.PI, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillRect(hx - 4.9 * Z, hy - 1.9 * Z, 9.8 * Z, 1.4 * Z);
+      ctx.fillStyle = arm.shine;
+      ctx.beginPath();
+      ctx.ellipse(hx - 1.6 * Z, hy - 4 * Z, 1.2 * Z, 0.8 * Z, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = arm.edge;
+      ctx.lineWidth = 1.4 * Z;
+      ctx.beginPath();
+      ctx.moveTo(hx - 2.4 * Z, hy - 5.4 * Z);
+      ctx.quadraticCurveTo(hx, hy - 7.4 * Z, hx + 2.4 * Z, hy - 5.4 * Z);
+      ctx.stroke();
       return;
     }
     ctx.fillStyle = BRIM;
