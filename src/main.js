@@ -689,11 +689,12 @@ merlocks.findTarget = (x, y, r) => warlock.findTarget(x, y, r);
 merlocks.onJab = () => sfx.spearHit();
 merlocks.onHurt = (m, out) => addText(m.x, m.y, 30, out ? 'Splash!' : 'Ow!', '#B8F0E0', 16, 1.1);
 let throneToldT = 0, merlockT = 0, merlocksTold = false;
+// Won once only: after it his throne room is empty.
 function castleWon(){ if (forgotten.state !== 'gone' || towerWon) return;
-  const first = isle7Stage < 2; isle7Stage = 2; towerWon = true; hearts = HEARTS; hudHearts(); merlocks.clear();
-  const prize = first ? FORGOTTEN_PRIZE : TOWER_AGAIN; coins += prize; earned += prize; sfx.tierUp(); shake = 1;
-  addText(SEAT.x, SEAT.y, 60, '+' + prize, C.coin, 26, 2.6); toasts.clear();
-  toast(first ? `You beat the Forgotten One! Behind his empty throne, a door, locked, with a lock as big as your head. That is for next time. +${prize} coins.` : `You beat them all again! +${prize} coins.`, 6400, 2);
+  isle7Stage = 2; towerWon = true; hearts = HEARTS; hudHearts(); merlocks.clear();
+  coins += FORGOTTEN_PRIZE; earned += FORGOTTEN_PRIZE; sfx.tierUp(); shake = 1;
+  addText(SEAT.x, SEAT.y, 60, '+' + FORGOTTEN_PRIZE, C.coin, 26, 2.6); toasts.clear();
+  toast(`You beat the Forgotten One! Behind his empty throne, a door, locked, with a lock as big as your head. That is for next time. +${FORGOTTEN_PRIZE} coins.`, 6400, 2);
   hud(); refreshShop(); save(); }
 function intoCastle(){ resetTowers(); towerWon = false; tower = CASTLE; toRoom(GATE); sfx.portal(); shake = Math.max(shake, .4); toasts.clear();
   // Once he is beaten, his throne room stays empty.
