@@ -84,6 +84,8 @@ type Np = {
   allies: { list: { kind: string }[] };
   bonesPal: { shown: boolean; free: boolean };
   lancers: { list: { state: string }[] };
+  oldOne: { state: string; up: boolean; hit(power: number): boolean };
+  soulArmour: boolean;
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1383,6 +1385,85 @@ test('the Deep One: harpooned down, it drags the boat under to its temple, where
   await page.evaluate(() => window.__np.cth.hit(99));
   await page.waitForFunction(() => window.__np.isle6Stage === 2, null, { timeout: 5000 });
   await expect(page.locator('#toast')).toContainText('rare fish', { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Old One: through the door behind the throne, he rises, you get soul armour, and he is beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  for (const [i, y, r] of [
+    [12, -6000, 170],
+    [13, -6900, 160],
+    [14, -7800, 160],
+  ] as const) {
+    await page.waitForFunction(
+      (n) => window.__np.hordes[n]?.list.some((u) => u.state !== 'wait'),
+      i,
+    );
+    await page.evaluate(
+      ([n, ry, rr]) => {
+        const h = window.__np.hordes[n];
+        if (!h) return;
+        for (const u of h.list) {
+          u.guard = false;
+          h.hit(u, 99, u.x + 40, u.y);
+        }
+        window.__np.walker.x = -13500 - rr * 0.6 * Math.SQRT1_2;
+        window.__np.walker.y = ry - rr * 0.6 * Math.SQRT1_2;
+      },
+      [i, y, r] as const,
+    );
+    await expect(page.locator('#climb')).toHaveText('Through the door');
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, i + 1);
+  }
+  // The throne room is empty, and the door behind it open: through it.
+  await page.evaluate(() => {
+    window.__np.walker.x = -13500 - 158 * Math.SQRT1_2;
+    window.__np.walker.y = -8800 - 158 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Through the door');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 16);
+  // He rises, the skeleton is knocked flying, and soul armour is yours.
+  await page.waitForFunction(() => window.__np.oldOne.state === 'rise', null, { timeout: 5000 });
+  await page.waitForFunction(() => window.__np.soulArmour, null, { timeout: 12000 });
+  await expect(page.locator('#toast')).toContainText('soul armour');
+  await page.waitForFunction(() => window.__np.oldOne.up, null, { timeout: 8000 });
+  await page.waitForFunction(
+    () => window.__np.hordes[16]?.list.filter((u) => u.kind === 'lagoon').length === 5,
+    null,
+    { timeout: 3000 },
+  );
+  await page.evaluate(() => window.__np.oldOne.hit(999));
+  await page.waitForFunction(() => window.__np.isle7Stage === 4, null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('Old One');
   expect(errors).toEqual([]);
 });
 

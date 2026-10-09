@@ -12,6 +12,10 @@
  * back and raises a skeleton out of the floor, one at a time, and another a
  * while after the last is beaten. Every hit is one heart, as the kid wrote.
  *
+ * And one kind that is not dead at all: the lagoon creatures the Old One summons
+ * out of the black pool in the ruins behind the throne, the kid's, scaly and
+ * finned, two hit points, a claw for a heart; quick, and they cannot block.
+ *
  * They wake when the figure comes into their room. The game does the hearts,
  * the companions and what the room opens as callbacks.
  */
@@ -21,7 +25,7 @@ import { angDiff, clamp } from '../core/math';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkStep } from './walker';
 
-export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro';
+export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro' | 'lagoon';
 
 export type UndeadSpec = {
   hp: number;
@@ -105,6 +109,18 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     summon: 7,
     damage: 1,
     scale: 1.1,
+  },
+  lagoon: {
+    hp: 2,
+    speed: 66,
+    reach: 22,
+    windup: 0.5,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 0,
+    damage: 1,
+    scale: 1.05,
   },
 };
 
@@ -542,8 +558,9 @@ export class Horde implements Entity {
     v.isoEllipse(u.x, u.y, 8 * u.spec.scale);
     ctx.fill();
     if (u.state === 'rise') {
-      // Climbing out of a green-lit crack in the floor.
-      ctx.fillStyle = rgba('#7CFF9A', 0.5 * (1 - rise));
+      // Climbing out of a green-lit crack in the floor, or out of the black water.
+      ctx.fillStyle =
+        u.kind === 'lagoon' ? rgba('#0A1A14', 0.8 * (1 - rise)) : rgba('#7CFF9A', 0.5 * (1 - rise));
       v.isoEllipse(u.x, u.y, 14);
       ctx.fill();
       ctx.save();
@@ -560,6 +577,7 @@ export class Horde implements Entity {
     if (u.kind === 'ghost') this.drawGhost(v, u, sx, base, k, W);
     else if (u.kind === 'necro') this.drawNecro(v, u, sx, base, k, W, face);
     else if (u.kind === 'zombie') this.drawZombie(v, u, sx, base, k, W, face, stride);
+    else if (u.kind === 'lagoon') this.drawLagoon(v, u, sx, base, k, W, face, stride);
     else this.drawSkeleton(v, u, sx, base, k, W, face, stride);
     if (u.state === 'rise') ctx.restore();
     ctx.globalAlpha = 1;
@@ -715,6 +733,102 @@ export class Horde implements Entity {
       ctx.fill();
     }
     ctx.fillRect(hx + face * 0.5 * k - 1.4 * k, hy + 2 * k, 2.8 * k, 0.8 * k);
+  }
+
+  /** A lagoon creature: green and scaly, a fin for a crest, big pale eyes, gills, and webbed claws. */
+  private drawLagoon(
+    v: DrawView,
+    u: Undead,
+    sx: number,
+    base: number,
+    k: number,
+    W: (c: string) => string,
+    face: number,
+    stride: number,
+  ): void {
+    const { ctx, T } = v;
+    const hunch = Math.sin(u.ph * 4) * 0.8 * k;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = W('#1F4A34');
+    ctx.lineWidth = 2.6 * k;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(sx + side * 2.2 * k, base - 9 * k);
+      ctx.lineTo(sx + side * 2.2 * k + stride * side, base);
+      ctx.stroke();
+    }
+    // The body, scaly, with a pale belly, and a fin down the back.
+    ctx.fillStyle = W('#2F6B4A');
+    ctx.beginPath();
+    ctx.ellipse(sx, base - 15 * k + hunch, 5.6 * k, 7.4 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = W('#8FC49A');
+    ctx.beginPath();
+    ctx.ellipse(sx + face * 1.4 * k, base - 14 * k + hunch, 2.8 * k, 5 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = W('#1E5A3C');
+    ctx.beginPath();
+    ctx.moveTo(sx - face * 4.6 * k, base - 21 * k + hunch);
+    ctx.lineTo(sx - face * 8.4 * k, base - 15 * k + hunch + Math.sin(T * 5 + u.ph) * k);
+    ctx.lineTo(sx - face * 4.8 * k, base - 9 * k + hunch);
+    ctx.closePath();
+    ctx.fill();
+    // Webbed claws, raised for the swipe.
+    const up = u.state === 'windup' ? 7 : u.state === 'swing' ? -3 : 1;
+    ctx.strokeStyle = W('#3E8A5E');
+    ctx.lineWidth = 2.2 * k;
+    for (const side of [-1, 1]) {
+      const ex = sx + face * 8 * k + side * 1.6 * k;
+      const ey = base - (16 + up) * k + hunch;
+      ctx.beginPath();
+      ctx.moveTo(sx + side * 3.8 * k, base - 19 * k + hunch);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.strokeStyle = W('#D8E6C0');
+      ctx.lineWidth = 0.9 * k;
+      for (let c = -1; c <= 1; c++) {
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex + face * 2.6 * k, ey + c * 1.6 * k - 1 * k);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = W('#3E8A5E');
+      ctx.lineWidth = 2.2 * k;
+    }
+    // The head: a fin crest, big pale eyes with black pupils, gill slits.
+    const hx = sx + face * 0.8 * k;
+    const hy = base - 25 * k + hunch;
+    ctx.fillStyle = W('#2F6B4A');
+    ctx.beginPath();
+    ctx.ellipse(hx, hy, 4.8 * k, 4.4 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = W('#1E5A3C');
+    ctx.beginPath();
+    ctx.moveTo(hx - 3.4 * k, hy - 2.6 * k);
+    ctx.lineTo(hx - 1 * k, hy - 9 * k + Math.sin(T * 6 + u.ph) * 0.8 * k);
+    ctx.lineTo(hx + 1.4 * k, hy - 6 * k);
+    ctx.lineTo(hx + 3 * k, hy - 8 * k);
+    ctx.lineTo(hx + 3.6 * k, hy - 2.6 * k);
+    ctx.closePath();
+    ctx.fill();
+    for (const e of [-1, 1]) {
+      ctx.fillStyle = '#E8F0B0';
+      ctx.beginPath();
+      ctx.arc(hx + face * 1 * k + e * 1.9 * k, hy - 0.6 * k, 1.5 * k, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0A0F0C';
+      ctx.beginPath();
+      ctx.arc(hx + face * 1.5 * k + e * 1.9 * k, hy - 0.6 * k, 0.7 * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(10,30,20,.7)';
+    ctx.lineWidth = 0.7 * k;
+    for (let g = 0; g < 3; g++) {
+      ctx.beginPath();
+      ctx.moveTo(hx - face * 2.8 * k, hy + (1 + g * 1.1) * k);
+      ctx.lineTo(hx - face * 1.6 * k, hy + (1.4 + g * 1.1) * k);
+      ctx.stroke();
+    }
   }
 
   private drawGhost(
