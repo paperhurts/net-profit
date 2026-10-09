@@ -253,3 +253,60 @@ export function drawCastleDoor(v: DrawView, x: number, y: number, open: boolean)
     ctx.fillRect(px(ax, ay), py(x, y, 0) - 56 * k * Z, px(bx, by) - px(ax, ay), 2.2 * Z);
   }
 }
+
+/** The locked door behind the throne, for next time: shut, chained across, with a padlock as big as a head. */
+export function drawLockedDoor(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  drawCastleDoor(v, x, y, false);
+  const D = Math.SQRT1_2;
+  const l = px(x - 20 * D, y + 20 * D);
+  const r = px(x + 20 * D, y - 20 * D);
+  const base = py(x, y, 0);
+  ctx.strokeStyle = '#7C8287';
+  ctx.lineWidth = 2.2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(l, base - 50 * Z);
+  ctx.lineTo(r, base - 10 * Z);
+  ctx.moveTo(r, base - 50 * Z);
+  ctx.lineTo(l, base - 10 * Z);
+  ctx.stroke();
+  const cx = (l + r) / 2;
+  const cy = base - 30 * Z;
+  ctx.strokeStyle = '#B49A4A';
+  ctx.lineWidth = 2.4 * Z;
+  ctx.beginPath();
+  ctx.arc(cx, cy - 4 * Z, 4.5 * Z, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#C9A13A';
+  ctx.fillRect(cx - 7 * Z, cy - 4 * Z, 14 * Z, 11 * Z);
+  ctx.fillStyle = '#3A2E14';
+  ctx.beginPath();
+  ctx.arc(cx, cy + 0.5 * Z, 1.6 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(cx - 0.7 * Z, cy + 0.5 * Z, 1.4 * Z, 3.5 * Z);
+}
+
+/** The Forgotten One's throne: a great stone chair on a step, its high back toward the wall, a skull on top. */
+export function drawThrone(v: DrawView, x: number, y: number, r: number): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  v.box(x - r - 4, y - r - 4, (r + 4) * 2, (r + 4) * 2, 0, 4, '#3A403D', '#4E5652');
+  v.box(x - r, y - r, r * 2, r * 2, 4, 16, '#454D49', '#5A2A44');
+  v.box(x - r, y - r, r * 2, 7, 16, 58, '#3E4642', '#565F5A');
+  v.box(x - r, y - r + 7, 7, r * 2 - 7, 16, 58, '#3E4642', '#565F5A');
+  // A skull on top of its back, at the corner nearest the wall.
+  const sx = px(x - r + 4, y - r + 4);
+  const sy = py(x - r + 4, y - r + 4, 64);
+  ctx.fillStyle = '#EDE8DA';
+  ctx.beginPath();
+  ctx.arc(sx, sy, 5 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(sx - 2.6 * Z, sy + 3 * Z, 5.2 * Z, 2.6 * Z);
+  ctx.fillStyle = '#C8322B';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(sx + e * 1.8 * Z, sy - 0.4 * Z, 1.2 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}

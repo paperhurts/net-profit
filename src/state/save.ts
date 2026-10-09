@@ -35,8 +35,8 @@ export const ISLE4_STAGES = 1;
 export const ISLE5_STAGES = 1;
 /** Island 6's story so far: 1, the Deep One beaten at the surface and its temple open below; 2, Cthulhu beaten. */
 export const ISLE6_STAGES = 2;
-/** Island 7's story so far: 1, the sorcerer beaten on its tower and the portal awake. */
-export const ISLE7_STAGES = 1;
+/** Island 7's story so far: 1, the sorcerer beaten on its tower and the portal awake; 2, the Forgotten One beaten in Gigantis. */
+export const ISLE7_STAGES = 2;
 
 export type SaveData = {
   coins: number;
@@ -79,7 +79,7 @@ export type SaveData = {
   chests6: number;
   /** Island 7, the monkeys' island with the alien portal, has been sighted. */
   isle7Seen: boolean;
-  /** How far through island 7's story: 0 not begun; 1 the sorcerer beaten a third time, the portal awake. */
+  /** How far through island 7's story: 0 not begun; 1 the sorcerer beaten a third time, the portal awake; 2 the Forgotten One beaten. */
   isle7Stage: number;
   /** How far through island 5's story: 0 not begun; 1 the Skeleton Shark King dead. */
   isle5Stage: number;

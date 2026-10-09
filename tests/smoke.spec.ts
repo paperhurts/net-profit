@@ -75,10 +75,13 @@ type Np = {
   hordes: Record<
     number,
     {
-      list: { x: number; y: number; guard: boolean }[];
+      list: { x: number; y: number; guard: boolean; kind: string; state: string }[];
+      cleared: boolean;
       hit(u: unknown, power: number, fx: number, fy: number): boolean;
     }
   >;
+  forgotten: { up: boolean; state: string; hit(power: number): void };
+  merlocks: { list: unknown[] };
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1243,6 +1246,100 @@ test('Gigantis: through the portal, beat the courtyard, on through the door, and
   await page.waitForFunction(
     () => window.__np.floor === -1 && window.__np.walker.state === 'ashore',
   );
+  expect(errors).toEqual([]);
+});
+
+test('the Forgotten One: through the halls to his throne room, his bones, and the locked door', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  const rooms: [number, number, number][] = [
+    [12, -6000, 170],
+    [13, -6900, 160],
+    [14, -7800, 160],
+  ];
+  for (const [i, y, r] of rooms) {
+    await page.waitForFunction(
+      (n) => window.__np.hordes[n]?.list.some((u) => u.state !== 'wait'),
+      i,
+    );
+    await page.evaluate(
+      ([n, ry, rr]) => {
+        const h = window.__np.hordes[n];
+        if (!h) return;
+        for (const u of h.list) {
+          u.guard = false;
+          h.hit(u, 99, u.x + 40, u.y);
+        }
+        window.__np.walker.x = -13500 - rr * 0.6 * Math.SQRT1_2;
+        window.__np.walker.y = ry - rr * 0.6 * Math.SQRT1_2;
+      },
+      [i, y, r] as const,
+    );
+    await expect(page.locator('#climb')).toHaveText('Through the door');
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, i + 1);
+  }
+  await page.waitForFunction(() => window.__np.forgotten.up, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Forgotten One');
+  // The warlock calls his merlocks.
+  await page.waitForFunction(() => window.__np.merlocks.list.length > 0, null, { timeout: 4000 });
+  // The necromancers down, then him.
+  await page.evaluate(() => {
+    const h = window.__np.hordes[15];
+    if (h) for (const u of h.list) h.hit(u, 99, u.x + 40, u.y);
+    window.__np.forgotten.hit(99);
+  });
+  // He falls apart, and his bones get up.
+  await page.waitForFunction(
+    () =>
+      window.__np.hordes[15]?.list.some(
+        (u) => u.kind === 'bones' && u.state !== 'fall' && u.state !== 'gone',
+      ),
+    null,
+    { timeout: 5000 },
+  );
+  await expect(page.locator('#toast')).toContainText('bones');
+  await page.waitForFunction(() => window.__np.hordes[15]?.list.some((u) => u.state === 'walk'));
+  await page.evaluate(() => {
+    const h = window.__np.hordes[15];
+    if (h) for (const u of h.list) h.hit(u, 99, u.x + 40, u.y);
+  });
+  await page.waitForFunction(() => window.__np.isle7Stage === 2, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('locked');
+  // The door behind the throne will not open.
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    window.__np.walker.x = -13500 - 158 * Math.SQRT1_2;
+    window.__np.walker.y = -8800 - 158 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#toast')).toContainText('next time', { timeout: 3000 });
+  await expect(page.locator('#leave')).toHaveText('Back through the portal');
   expect(errors).toEqual([]);
 });
 
