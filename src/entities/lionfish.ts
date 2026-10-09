@@ -79,11 +79,15 @@ export class Lionfishes implements Entity {
   readonly groups = lionGroups();
   /** Whether they are in the sea yet: the game says, once the shipwright is open. */
   here = false;
+  /** The shipwright's lionfish net is fitted: it sweeps them up rather than being cut. */
+  sweeps = false;
   private seen = false;
   /** Their spines cut the net here. The game cuts it. */
   onCut: ((x: number, y: number) => void) | null = null;
   /** The boat has come near a group for the first time. */
   onSight: (() => void) | null = null;
+  /** The lionfish net has swept one up here. The game pays the bounty. */
+  onSweep: ((x: number, y: number) => void) | null = null;
 
   /** The nearest group to a point, and how far it is. */
   nearest(x: number, y: number): { g: LionGroup; d: number } | null {
@@ -157,11 +161,16 @@ export class Lionfishes implements Entity {
       for (const f of g.fish) {
         if (f.away > 0) continue;
         const [fx, fy] = lionAt(g, f);
-        if (Math.hypot(fx - net.x, fy - net.y) < reach) {
-          g.scatter = SCATTER;
-          this.onCut?.(fx, fy);
-          return;
+        if (Math.hypot(fx - net.x, fy - net.y) >= reach) continue;
+        // The lionfish net's guard turns the spines: it takes the fish instead.
+        if (this.sweeps) {
+          this.take(f);
+          this.onSweep?.(fx, fy);
+          continue;
         }
+        g.scatter = SCATTER;
+        this.onCut?.(fx, fy);
+        return;
       }
     }
   }

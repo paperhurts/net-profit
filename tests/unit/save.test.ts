@@ -217,7 +217,14 @@ describe('the whale sighting', () => {
 describe('the shipwright gear', () => {
   it('is unfitted in a save from before the shipwright, and survives a round trip', () => {
     const s = parseSave(legacy, bounds);
-    expect(s.gear).toEqual({ mesh: false, strongbox: false, suit: false, kit: false, rod: false });
+    expect(s.gear).toEqual({
+      mesh: false,
+      strongbox: false,
+      suit: false,
+      kit: false,
+      rod: false,
+      lionnet: false,
+    });
     s.gear.mesh = true;
     s.gear.suit = true;
     expect(parseSave(serializeSave(s), bounds).gear).toEqual({
@@ -226,6 +233,7 @@ describe('the shipwright gear', () => {
       suit: true,
       kit: false,
       rod: false,
+      lionnet: false,
     });
   });
 
@@ -236,6 +244,7 @@ describe('the shipwright gear', () => {
       suit: false,
       kit: false,
       rod: false,
+      lionnet: false,
     });
     // A save from before the chemistry suit and the mending kit has neither.
     expect(parseSave(JSON.stringify({ gear: { mesh: 1, hat: true } }), bounds).gear).toEqual({
@@ -244,6 +253,7 @@ describe('the shipwright gear', () => {
       suit: false,
       kit: false,
       rod: false,
+      lionnet: false,
     });
   });
 });
