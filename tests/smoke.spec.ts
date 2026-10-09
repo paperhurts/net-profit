@@ -514,6 +514,30 @@ test('the fishing rod: stopped by some lionfish, cast, reel in when the float go
   expect(errors).toEqual([]);
 });
 
+test('the lionfish net: towed through them it is not cut, and sweeps them up for the bounty', async ({
+  context,
+  page,
+}) => {
+  const gx = 2400 + Math.cos(0.8) * 1700;
+  const gy = 2400 + Math.sin(0.8) * 1700;
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    lionSeen: true,
+    lv: { net: 3, hold: 3, engine: 3 },
+    gear: { lionnet: true },
+    trip: { x: gx - 160, y: gy - 160, h: Math.PI / 4, clock: 0.3, hold: [] },
+  });
+  await page.mouse.move(195, 600);
+  await page.mouse.down();
+  await page.mouse.move(195, 700, { steps: 5 });
+  await page.waitForFunction(() => window.__np.lionCaught > 0, null, { timeout: 5000 });
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.__np.netCut)).toBe(false);
+  expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(40);
+  expect(errors).toEqual([]);
+});
+
 test('island 2: sell at the trading post and step ashore on its sand', async ({
   context,
   page,

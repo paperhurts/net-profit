@@ -279,6 +279,12 @@ lionfish.onCut = (x, y) => { net.torn = NET_CUT; const lost = spill(3); lionSeen
   addText(x, y, 30, lost ? `Net cut, ${lost} fish lost` : 'Net cut', '#FF9A8A', 19, 2); shake = .6; sfx.netTorn(); toasts.clear();
   toast(gear.kit ? 'Lionfish spines cut your net! Stop the boat and tap Mend the net.' : 'Lionfish spines cut your net! It catches nothing until it is mended at a dock. The shipwright sells a mending kit.', 3800, 2);
   hud(); refreshShop(); save(); };
+// With the shipwright's lionfish net their spines cannot cut it: each one swept up pays the bounty.
+let sweptTold = false;
+lionfish.onSweep = (x, y) => { lionCaught++; coins += LION_BOUNTY; earned += LION_BOUNTY; sfx.orderFilled();
+  addText(x, y, 30, '+' + LION_BOUNTY, C.coin, 22, 2);
+  if (!sweptTold){ sweptTold = true; toast(`The lionfish net sweeps them up: ${LION_BOUNTY} coins bounty each.`, 3000, 1); }
+  hud(); };
 function mendNet(){ if (!netCut() || !gear.kit) return; if (boat.v > 40){ sfx.denied(); return; }
   if (mendT <= 0){ mendT = MEND_TIME; sfx.click(); } }
 // The button says what to do: stop first, then mend, then waits while the mending is done.
@@ -1066,7 +1072,7 @@ function hudPhase(){ $('phase').innerHTML = `<i style="background:${PHASE_C[phas
 function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>'; }
 function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier());
   // The chemistry suit is kept back until the tar island has been seen.
-  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => (id !== 'suit' || isle3Stage >= 4 || gear.suit) && (id !== 'kit' || lionSeen || gear.kit) && (id !== 'rod' || lionSeen || gear.rod)).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
+  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => (id !== 'suit' || isle3Stage >= 4 || gear.suit) && (id !== 'kit' || lionSeen || gear.kit) && (id !== 'rod' || lionSeen || gear.rod) && (id !== 'lionnet' || lionSeen || gear.lionnet)).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
     return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join('')
     // The spear is for island 2's shallows, so the shipwright keeps it back until island 2 has been found.
     + (() => { const n = nextSpear(spear), have = spearAt(spear); if (!isle2Seen && !spear) return '';
@@ -1220,7 +1226,7 @@ function renderGuide(){
     ? 'A long snake with two great wings and four legs, three claws on each, and a head like a meteor: lumpy rock with a glowing crater and a mouth full of teeth. It haunts island 6, flying slow loops high over it. Sail near and it hunts you: it circles over the boat, its head lights up like a falling star, and a ring shows on the water where you are going. Then it dives head-first into the ring, its hardest hit: steer out of it. After a dive it thrashes in the water a moment, and that is when the harpoon reaches it.'
     : 'Not seen yet. Something with wings flies round island 6.'}</small><div class="facts"><span>Island 6</span><span>Day and night</span><span>${beastFact('meteor')}</span></div></article>`);
   pages.push(`<article class="page${lionSeen ? ' gold' : ' unk'}">${FISH_SVG(lionSeen ? '#B9472F' : 'currentColor')}<b>${lionSeen ? 'Lionfish' : '?'}</b><small>${lionSeen
-    ? 'Little fish with red and white stripes, a fan of fins and long spines. They don\'t belong in this sea: real lionfish came to Florida\'s water from far away, and people there are asked to catch them. Tow your net through them and their spines cut it, and it catches nothing until it is mended, at a dock or with the shipwright\'s mending kit. They live in small groups round the outer sea.'
+    ? 'Little fish with red and white stripes, a fan of fins and long spines. They don\'t belong in this sea: real lionfish came to Florida\'s water from far away, and people there are asked to catch them. Tow your net through them and their spines cut it, and it catches nothing until it is mended, at a dock or with the shipwright\'s mending kit. Catch them on the rod, or sweep them up with the lionfish net, which they cannot cut: each pays a bounty. They live in small groups round the outer sea.'
     : 'Not seen yet. Something striped and spiny has turned up in the outer sea.'}</small><div class="facts"><span>The outer sea</span><span>Cuts nets</span><span>${lionCaught ? `Caught ${lionCaught} for the bounty` : gear.rod ? 'Catch them on the rod' : 'The shipwright sells a rod'}</span></div></article>`);
   pages.push(`<article class="page${snook.landed ? ' gold' : ' unk'}">${FISH_SVG(snook.landed ? '#C9D3D6' : 'currentColor')}<b>${snook.landed ? 'Snook' : '?'}</b><small>${snook.landed
     ? 'Silver, with a black line down its side and yellow fins. It holds in the shadow of the far abutment and runs for the piling the moment it feels the hook. Most of them get there.'
@@ -1653,7 +1659,7 @@ function update(dt){
   { const near = walker.state === 'ashore' && walker.dock === ISLE3_DOCK && floor < 0 && isle3Stage < 1 && Math.hypot(walker.x - DIVE3.x, walker.y - DIVE3.y) < STEP;
     if (near && !gapTold){ gapTold = true; toast('A gap in the seaweed, and deep water under it. You would need scuba gear.', 3200, 1); } }
   updateFishing(dt);
-  lionfish.here = shipwrightOpen(tier()); updateMend(dt); updateRod(dt);
+  lionfish.here = shipwrightOpen(tier()); lionfish.sweeps = gear.lionnet; updateMend(dt); updateRod(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView) - Z)*Math.min(1, dt*4);
 

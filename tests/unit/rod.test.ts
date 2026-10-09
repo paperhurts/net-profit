@@ -87,3 +87,26 @@ describe('a lionfish caught', () => {
     expect(l.nearestFish(g.x, g.y, 200)).not.toBeNull();
   });
 });
+
+describe('the lionfish net', () => {
+  it('is never cut, and sweeps up every lionfish it passes for the bounty', () => {
+    const l = new Lionfishes();
+    l.here = true;
+    l.sweeps = true;
+    const g = l.groups[0];
+    if (!g) throw new Error('group');
+    let cuts = 0;
+    let swept = 0;
+    l.onCut = () => cuts++;
+    l.onSweep = () => swept++;
+    const w = baseWorld({ net: { x: g.x - 200, y: g.y, speed: 120, torn: 0 }, netWidth: 140 });
+    for (let i = 0; i < 4 / DT; i++) {
+      w.net.x += 120 * DT;
+      l.update(DT, w);
+    }
+    expect(cuts).toBe(0);
+    expect(swept).toBe(g.fish.length);
+    expect(g.fish.every((f) => f.away > 0)).toBe(true);
+    expect(GEAR_IDS).toContain('lionnet');
+  });
+});

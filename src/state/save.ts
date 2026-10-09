@@ -124,7 +124,14 @@ export type SaveData = {
   turtleSeen: boolean;
   turtleSwims: number;
   /** What the shipwright has fitted. */
-  gear: { mesh: boolean; strongbox: boolean; suit: boolean; kit: boolean; rod: boolean };
+  gear: {
+    mesh: boolean;
+    strongbox: boolean;
+    suit: boolean;
+    kit: boolean;
+    rod: boolean;
+    lionnet: boolean;
+  };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -201,7 +208,7 @@ export function defaultSave(b: Bounds): SaveData {
     driven: noDriven(),
     turtleSeen: false,
     turtleSwims: 0,
-    gear: { mesh: false, strongbox: false, suit: false, kit: false, rod: false },
+    gear: { mesh: false, strongbox: false, suit: false, kit: false, rod: false, lionnet: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -304,6 +311,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       suit: !!g.suit,
       kit: !!g.kit,
       rod: !!g.rod,
+      lionnet: !!g.lionnet,
     };
   }
   if (o.snook && typeof o.snook === 'object') {
