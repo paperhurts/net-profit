@@ -32,7 +32,7 @@ import type { DrawView, Entity, Layer, World } from './entity';
 export const NOTICE = 700;
 export const LEASH = 1400;
 /** Harpoon hits to beat him. */
-export const KING_RESOLVE = 10;
+export const KING_RESOLVE = 6;
 /** He stalks the boat at about this distance, this fast, for this long between attacks. */
 export const STALK_R = 280;
 export const STALK_SPEED = 450;
