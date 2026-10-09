@@ -349,6 +349,17 @@ describe('island 6', () => {
   });
 });
 
+describe('island 7', () => {
+  it('is unseen in an old save and stays seen once sighted', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle7Seen).toBe(false);
+    s.isle7Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle7Seen).toBe(true);
+    expect(parseSave(JSON.stringify({ isle7Seen: 'yes' }), bounds).isle7Seen).toBe(true);
+    expect(parseSave(JSON.stringify({}), bounds).isle7Seen).toBe(false);
+  });
+});
+
 describe('island 4', () => {
   it('has its story not begun in an old save, keeps the Anchorer beaten, and clamps nonsense', () => {
     const s = parseSave(legacy, bounds);

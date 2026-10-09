@@ -66,6 +66,8 @@ type Np = {
   chests6: number;
   CHESTS6: [number, number][];
   isle6Stage: number;
+  isle7Seen: boolean;
+  monkeys7: { list: { state: string }[] };
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1069,6 +1071,50 @@ test('island 6: dock at the big island, step ashore, and find a treasure chest',
   });
   await page.waitForFunction(() => window.__np.chests6 > 0, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(400);
+  expect(errors).toEqual([]);
+});
+
+test('island 7: sight it, run up on its sand, and the monkeys come for you', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 5950, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.isle7Seen, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Island 7', { timeout: 3000 });
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 2400;
+    b.y = 6500;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.locator('#ashore').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 5000 });
+  await expect(page.locator('#hearts')).toBeVisible();
+  // Over to the camp on the far side.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    w.x = 2400 - 70 + 60;
+    w.y = 6900 + 170 - 70;
+  });
+  await page.waitForFunction(
+    () => window.__np.monkeys7.list.some((m) => m.state === 'chase'),
+    null,
+    { timeout: 4000 },
+  );
   expect(errors).toEqual([]);
 });
 

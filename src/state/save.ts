@@ -75,6 +75,8 @@ export type SaveData = {
   /** How far through island 6's story: 0 not begun; 1 the Deep One dragged the boat under; 2 Cthulhu beaten. */
   isle6Stage: number;
   chests6: number;
+  /** Island 7, the monkeys' island with the alien portal, has been sighted. */
+  isle7Seen: boolean;
   /** How far through island 5's story: 0 not begun; 1 the Skeleton Shark King dead. */
   isle5Stage: number;
   /** The flag designed in the shop, or null for the pennant in the hull's paint. */
@@ -159,6 +161,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle6Seen: false,
     isle6Stage: 0,
     chests6: 0,
+    isle7Seen: false,
     isle5Stage: 0,
     flag: null,
     gulperSeen: false,
@@ -246,6 +249,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle6Seen = !!o.isle6Seen;
   d.isle6Stage = Math.max(0, Math.min(ISLE6_STAGES, int(o.isle6Stage)));
   d.chests6 = Math.max(0, Math.min(255, int(o.chests6)));
+  d.isle7Seen = !!o.isle7Seen;
   d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
   d.gulperSeen = !!o.gulperSeen;
@@ -320,6 +324,7 @@ export function serializeSave(d: SaveData): string {
     isle6Seen: d.isle6Seen,
     isle6Stage: d.isle6Stage,
     chests6: d.chests6,
+    isle7Seen: d.isle7Seen,
     isle5Stage: d.isle5Stage,
     flag: d.flag,
     gulperSeen: d.gulperSeen,
