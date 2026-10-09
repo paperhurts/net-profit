@@ -71,6 +71,19 @@ import {
   ROCKS6,
   TEMPLE,
 } from '../world/isle6';
+import {
+  berth7,
+  CHEST7,
+  DOCK7,
+  HUTS7,
+  LANDING7,
+  onIsle7,
+  PALMS7,
+  PORTAL_FEET,
+  POST7,
+  TOTEM7,
+  TOWER7,
+} from '../world/isle7';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -126,7 +139,10 @@ export type Dock = {
   /** Off the bow into island 4's tar, in the chemistry suit, rather than onto planks or sand. */
   tar?: boolean;
 };
-/** The pier at home, island 2's beach, where the boat runs up onto the sand, and island 3's jetty. */
+/**
+ * The pier at home, island 2's beach, where the boat runs up onto the sand, island 3's jetty, island
+ * 6's pier, and island 7's beach (defined below).
+ */
 export const HOME_DOCK: Dock = { x: DOCK.x, y: DOCK.y, r: DOCK.r, berth, landing: LANDING };
 export const ISLE2_DOCK: Dock = {
   x: DOCK2.x,
@@ -149,7 +165,14 @@ export const ISLE6_DOCK: Dock = {
   berth: berth6,
   landing: LANDING6,
 };
-export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK];
+export const ISLE7_DOCK: Dock = {
+  x: DOCK7.x,
+  y: DOCK7.y,
+  r: DOCK7.r,
+  berth: berth7,
+  landing: LANDING7,
+};
+export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
 export function tarDock(a: number): Dock {
@@ -208,13 +231,14 @@ function inBox(
 
 /**
  * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
- * beach, island 2, island 3's planks and seaweed, and island 4 and its tar, which only a suited figure
- * gets into.
+ * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
+ * gets into, island 6 and its pier, and island 7.
  */
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (onIsle4(x, y)) return true;
   if (onIsle6(x, y)) return true;
+  if (onIsle7(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   if (onFloor(x, y)) return true;
@@ -342,6 +366,20 @@ export const PROPS: readonly Prop[] = [
   ...PALMS6.map((p) => post(p, 4, p[0] + p[1])),
   ...ROCKS6.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
   ...CHESTS6.map((p) => prop(p[0] - 7, p[1] - 5, p[0] + 7, p[1] + 5, p[0] + p[1], 0, 1.5)),
+  // Island 7: the trading post, the tower, the palms, the monkey camp and the portal's two feet.
+  prop(POST7.x0, POST7.y0, POST7.x1, POST7.y1, POST7.x1 + POST7.y1),
+  prop(
+    TOWER7.x - TOWER7.r,
+    TOWER7.y - TOWER7.r,
+    TOWER7.x + TOWER7.r,
+    TOWER7.y + TOWER7.r,
+    TOWER7.x + TOWER7.y,
+  ),
+  ...PALMS7.map((p) => post(p, 4, p[0] + p[1])),
+  ...HUTS7.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),
+  post([TOTEM7.x, TOTEM7.y], 2.5, TOTEM7.x + TOTEM7.y),
+  prop(CHEST7.x - 7, CHEST7.y - 5, CHEST7.x + 7, CHEST7.y + 5, CHEST7.x + CHEST7.y + 5, 0, 1.5),
+  ...PORTAL_FEET.map((p) => post(p, 5, p[0] + p[1])),
   // The demon dimension's cage.
   prop(
     CAGE.x - CAGE.r,
