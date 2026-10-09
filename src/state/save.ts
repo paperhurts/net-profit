@@ -37,9 +37,9 @@ export const ISLE5_STAGES = 1;
 export const ISLE6_STAGES = 2;
 /**
  * Island 7's story so far: 1, the sorcerer beaten on its tower and the portal awake; 2, the Forgotten One beaten
- * in Gigantis; 3, his bones have given the key to the door behind his throne.
+ * in Gigantis; 3, his bones have given the key to the door behind his throne; 4, the Old One beaten in the ruins.
  */
-export const ISLE7_STAGES = 3;
+export const ISLE7_STAGES = 4;
 
 export type SaveData = {
   coins: number;
@@ -82,6 +82,8 @@ export type SaveData = {
   chests6: number;
   /** Island 7, the monkeys' island with the alien portal, has been sighted. */
   isle7Seen: boolean;
+  /** Soul armour, from the Old One's ruins: it heals the figure as it hits. */
+  soulArmour: boolean;
   /** How far through island 7's story: 0 not begun; 1 the sorcerer beaten a third time, the portal awake; 2 the Forgotten One beaten. */
   isle7Stage: number;
   /** How far through island 5's story: 0 not begun; 1 the Skeleton Shark King dead. */
@@ -169,6 +171,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle6Stage: 0,
     chests6: 0,
     isle7Seen: false,
+    soulArmour: false,
     isle7Stage: 0,
     isle5Stage: 0,
     flag: null,
@@ -258,6 +261,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle6Stage = Math.max(0, Math.min(ISLE6_STAGES, int(o.isle6Stage)));
   d.chests6 = Math.max(0, Math.min(255, int(o.chests6)));
   d.isle7Seen = !!o.isle7Seen;
+  d.soulArmour = !!o.soulArmour;
   d.isle7Stage = Math.max(0, Math.min(ISLE7_STAGES, int(o.isle7Stage)));
   d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
@@ -334,6 +338,7 @@ export function serializeSave(d: SaveData): string {
     isle6Stage: d.isle6Stage,
     chests6: d.chests6,
     isle7Seen: d.isle7Seen,
+    soulArmour: d.soulArmour,
     isle7Stage: d.isle7Stage,
     isle5Stage: d.isle5Stage,
     flag: d.flag,

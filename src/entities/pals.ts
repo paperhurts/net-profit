@@ -123,6 +123,14 @@ export class Pal implements Entity {
     return true;
   }
 
+  /** Knocked flying, as by the Old One: back to the boat to rest, without a word. */
+  knockOut(): void {
+    if (this.state !== 'with') return;
+    this.state = 'resting';
+    this.rest = PAL_REST;
+    this.hp = 0;
+  }
+
   /** A fight has begun: the cat has at least its two heals again. */
   newFight(): void {
     this.heals = Math.max(this.heals, HEALS);
