@@ -23,7 +23,7 @@ export const BEASTS = ['guard', 'cthulu', 'angler', 'gulper', 'meteor'] as const
 export type Beast = (typeof BEASTS)[number];
 
 /** Harpoon hits to drive each one off. */
-/** The kid gave the meteor serpent four lives. */
+/** The kid gave Star, his meteor serpent, four lives. */
 export const RESOLVE: Record<Beast, number> = {
   guard: 3,
   cthulu: 3,
@@ -52,7 +52,7 @@ export const TROPHY: Record<Beast, { name: string; told: string }> = {
   },
   meteor: {
     name: 'Meteor shard',
-    told: 'You drove the meteor serpent off! It flies up and away over island 6, and a shard of its head floats in the water.',
+    told: 'You drove Star off! It flies up and away over island 6, and a shard of its meteor head floats in the water.',
   },
 };
 
