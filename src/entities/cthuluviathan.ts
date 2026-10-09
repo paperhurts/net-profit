@@ -1,14 +1,15 @@
 /**
- * The Cthuluviathan, the kid's: an octopus for a head, a fistful of
- * tentacles for a face and two small wings, asleep in a sunken city in a
- * corner of the deep. Go by slowly and it dreams on, snoring. Sail past fast,
+ * The Cthuluviathan, the kid's, and in his lore Cthulhu's pet: an octopus for
+ * a head, a fistful of tentacles for a face and two small wings, asleep in a
+ * sunken city in a corner of the deep. Go by slowly and it dreams on, snoring. Sail past fast,
  * or come too close, and it wakes: its eyes open, and it sends a tentacle up
  * wherever the boat is about to be. The water boils there for a second first,
  * so the counter is to steer off the bubbles. A tentacle that catches the
- * boat takes fish, never the boat, never coins. Get out of its reach and it
- * goes back to sleep. The tests dodge it with a person's reaction. A harpoon in
- * a tentacle sends it straight back down; five in one waking and it is driven
- * off, sunk into its city to sulk for a good while.
+ * boat takes fish and some of the boat's health (the game does both), never
+ * coins. Get out of its reach and it goes back to sleep. The tests dodge it
+ * with a person's reaction. A harpoon in a tentacle sends it straight back
+ * down; RESOLVE.cthulu in one waking and it is driven off, sunk into its city
+ * to sulk for a good while.
  */
 import { rgba } from '../core/color';
 import { AWAY, RESOLVE } from '../data/harpoon';
