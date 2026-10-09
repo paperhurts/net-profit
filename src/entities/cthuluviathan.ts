@@ -1,7 +1,8 @@
 /**
- * The Cthuluviathan, the kid's, and in his lore Cthulhu's pet: an octopus for
- * a head, a fistful of tentacles for a face and two small wings, asleep in a
- * sunken city in a corner of the deep. Go by slowly and it dreams on, snoring. Sail past fast,
+ * The Cthuluviathan, the kid's, and in his lore Cthulhu's pet: drawn as he
+ * drew it, a green octopus head with two wings up on top, a beard of
+ * tentacles, and one long arm that reaches under the water for the boat. It
+ * sleeps in a sunken city in a corner of the deep. Go by slowly and it dreams on, snoring. Sail past fast,
  * or come too close, and it wakes: its eyes open, and it sends a tentacle up
  * wherever the boat is about to be. The water boils there for a second first,
  * so the counter is to steer off the bubbles. A tentacle that catches the
@@ -224,6 +225,7 @@ export class Cthuluviathan implements Entity {
     const near = v.onScreen(LAIR.x, LAIR.y, 700);
     if (layer === 'underwater') {
       if (near) this.drawCity(v, false);
+      for (const t of this.tentacles) this.drawArm(v, t);
       if (near) this.drawBody(v);
     } else if (layer === 'surface') {
       if (near) this.drawCity(v, true);
@@ -283,39 +285,49 @@ export class Cthuluviathan implements Entity {
     }
   }
 
-  /** The great head under the water: a dome, two little wings, the face tentacles, and the eyes. */
+  /**
+   * The great head under the water, as the kid drew it: green, two wings up on top, the eyes, and a
+   * beard of tentacles.
+   */
   private drawBody(v: DrawView): void {
     const { ctx, px, py, T } = v;
     const Z = v.zoom;
     const e = this.eyes;
     const sx = px(LAIR.x, LAIR.y);
     const sy = py(LAIR.x, LAIR.y) - 6 * Z * e;
-    const body = e > 0.5 ? '#285E46' : '#173F33';
+    const body = e > 0.5 ? '#2F7A52' : '#1C4D3A';
     ctx.globalAlpha = 0.55 + 0.35 * e;
-    // Wings, either side, scalloped.
-    ctx.fillStyle = '#123629';
+    // Two wings up on top of the head, scalloped like a bat's, beating faster awake.
+    ctx.fillStyle = e > 0.5 ? '#1E5A3E' : '#143D2E';
     for (const s of [-1, 1]) {
-      const flap = Math.sin(T * (1 + 2 * e)) * 6 * Z;
+      const flap = Math.sin(T * (1 + 2 * e) + s) * 8 * Z;
+      const bx = sx + s * 30 * Z;
+      const by = sy - 44 * Z;
       ctx.beginPath();
-      ctx.moveTo(sx + s * 70 * Z, sy - 10 * Z);
-      ctx.lineTo(sx + s * 150 * Z, sy - 50 * Z - flap);
-      ctx.lineTo(sx + s * 130 * Z, sy - 10 * Z);
-      ctx.lineTo(sx + s * 150 * Z, sy + 10 * Z - flap * 0.5);
-      ctx.lineTo(sx + s * 115 * Z, sy + 14 * Z);
+      ctx.moveTo(bx, by + 10 * Z);
+      ctx.lineTo(bx + s * 22 * Z, by - 70 * Z - flap);
+      ctx.lineTo(bx + s * 38 * Z, by - 36 * Z - flap * 0.6);
+      ctx.lineTo(bx + s * 58 * Z, by - 46 * Z - flap * 0.7);
+      ctx.lineTo(bx + s * 60 * Z, by - 10 * Z - flap * 0.3);
+      ctx.lineTo(bx + s * 32 * Z, by + 6 * Z);
       ctx.closePath();
       ctx.fill();
     }
-    // The face tentacles, hanging and curling.
+    // The beard: tentacles bunched under the face, longest in the middle, curling at the tips.
     ctx.strokeStyle = body;
     ctx.lineCap = 'round';
-    for (let i = 0; i < 7; i++) {
-      const ox = (i - 3) * 16 * Z;
-      ctx.lineWidth = (12 - Math.abs(i - 3) * 2) * Z;
+    for (let i = 0; i < 11; i++) {
+      const c = i - 5;
+      const ox = c * 9 * Z;
+      const len = (84 - Math.abs(c) * 9) * Z;
+      ctx.lineWidth = (10 - Math.abs(c) * 1.1) * Z;
       ctx.beginPath();
-      ctx.moveTo(sx + ox, sy + 18 * Z);
-      for (let k = 1; k <= 5; k++) {
-        const wag = Math.sin(T * 1.6 + i * 0.9 + k * 0.7) * (5 + 6 * e) * Z;
-        ctx.lineTo(sx + ox * (1 + k * 0.08) + wag, sy + (18 + k * 16) * Z);
+      ctx.moveTo(sx + ox, sy + 24 * Z);
+      for (let k = 1; k <= 6; k++) {
+        const f = k / 6;
+        const wag = Math.sin(T * 1.8 + i * 1.3 + k * 0.9) * (4 + 5 * e) * Z;
+        const curl = (c >= 0 ? 1 : -1) * f * f * 12 * Z;
+        ctx.lineTo(sx + ox * (1 + f * 0.3) + wag + curl, sy + 24 * Z + f * len);
       }
       ctx.stroke();
     }
@@ -324,7 +336,7 @@ export class Cthuluviathan implements Entity {
     ctx.beginPath();
     ctx.ellipse(sx, sy, 92 * Z, 58 * Z, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#356F55';
+    ctx.fillStyle = e > 0.5 ? '#4A9A6C' : '#2B6449';
     ctx.beginPath();
     ctx.ellipse(sx - 18 * Z, sy - 16 * Z, 46 * Z, 22 * Z, -0.2, 0, Math.PI * 2);
     ctx.fill();
@@ -350,6 +362,53 @@ export class Cthuluviathan implements Entity {
         ctx.fill();
       }
     }
+  }
+
+  /**
+   * A standing tentacle's arm, a shadow under the water all the way back to the head: one long
+   * tentacle reaching for the boat, as the kid drew it.
+   */
+  private drawArm(v: DrawView, t: Tentacle): void {
+    const phase = tentaclePhase(t.t);
+    if (phase !== 'up' && phase !== 'sink') return;
+    const dx = t.x - LAIR.x;
+    const dy = t.y - LAIR.y;
+    const d = Math.hypot(dx, dy);
+    const from = 80;
+    if (d <= from) return;
+    const k =
+      phase === 'up' ? Math.min(1, (t.t - WARN) / 0.25) : Math.max(0, 1 - (t.t - WARN - UP) / SINK);
+    const { ctx, px, py, T } = v;
+    const ux = dx / d;
+    const uy = dy / d;
+    // One tapering ribbon, filled once, so it reads as a single arm.
+    const left: [number, number][] = [];
+    const right: [number, number][] = [];
+    for (let i = 0; i <= 16; i++) {
+      const s = i / 16;
+      const along = from + (d - from) * s;
+      const sway = Math.sin(s * Math.PI) * Math.sin(T * 1.4 + t.x * 0.01) * 60;
+      const half = 34 - 22 * s;
+      for (const [side, out] of [
+        [1, left],
+        [-1, right],
+      ] as const) {
+        const wx = LAIR.x + ux * along - uy * (sway + side * half);
+        const wy = LAIR.y + uy * along + ux * (sway + side * half);
+        out.push([px(wx, wy), py(wx, wy)]);
+      }
+    }
+    ctx.fillStyle = '#123629';
+    ctx.globalAlpha = 0.42 * k;
+    ctx.beginPath();
+    for (const [x, y] of left) ctx.lineTo(x, y);
+    for (let i = right.length - 1; i >= 0; i--) {
+      const q = right[i] as [number, number];
+      ctx.lineTo(q[0], q[1]);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   /** A tentacle: boiling water first, then up it comes with suckers down one side, then down again. */
