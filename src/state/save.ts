@@ -100,6 +100,8 @@ export type SaveData = {
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
   armour: number;
+  /** Everywhere the boat has sailed, for the sea map (state/sailed.ts), as base64; empty before the map. */
+  sailed: string;
   /** Skull masks dropped by beaten monkeys. */
   masks: number;
   /** The sorcerer on island 2's tower has been beaten: the tower flies the player's flag. */
@@ -185,6 +187,7 @@ export function defaultSave(b: Bounds): SaveData {
     meteorSeen: false,
     spear: 0,
     armour: 0,
+    sailed: '',
     masks: 0,
     towerTaken: false,
     isle3Stage: 0,
@@ -277,6 +280,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.meteorSeen = !!o.meteorSeen;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
+  d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
   d.masks = Math.max(0, int(o.masks));
   d.towerTaken = !!o.towerTaken;
   d.isle3Stage = Math.max(0, Math.min(ISLE3_STAGES, int(o.isle3Stage)));
@@ -356,6 +360,7 @@ export function serializeSave(d: SaveData): string {
     meteorSeen: d.meteorSeen,
     spear: d.spear,
     armour: d.armour,
+    sailed: d.sailed,
     masks: d.masks,
     towerTaken: d.towerTaken,
     isle3Stage: d.isle3Stage,

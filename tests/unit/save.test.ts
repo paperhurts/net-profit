@@ -485,6 +485,20 @@ describe('armour', () => {
   });
 });
 
+describe('the sea map', () => {
+  it('is empty in a save from before it, keeps a short string, and drops a long one', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.sailed).toBe('');
+    s.sailed = 'AAAA';
+    expect(parseSave(serializeSave(s), bounds).sailed).toBe('AAAA');
+    const bad = JSON.parse(serializeSave(s));
+    bad.sailed = 'x'.repeat(5000);
+    expect(parseSave(JSON.stringify(bad), bounds).sailed).toBe('');
+    bad.sailed = 7;
+    expect(parseSave(JSON.stringify(bad), bounds).sailed).toBe('');
+  });
+});
+
 describe('the spear', () => {
   it('is none in a save from before it, survives a round trip, and is kept to the levels there are', () => {
     const s = parseSave(legacy, bounds);
