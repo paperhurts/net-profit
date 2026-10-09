@@ -24,6 +24,7 @@
 
 import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
+import { SEAT } from '../world/gigantis';
 import {
   BEACH,
   BRIDGE,
@@ -380,6 +381,14 @@ export const PROPS: readonly Prop[] = [
   post([TOTEM7.x, TOTEM7.y], 2.5, TOTEM7.x + TOTEM7.y),
   prop(CHEST7.x - 7, CHEST7.y - 5, CHEST7.x + 7, CHEST7.y + 5, CHEST7.x + CHEST7.y + 5, 0, 1.5),
   ...PORTAL_FEET.map((p) => post(p, 5, p[0] + p[1])),
+  // The Forgotten One's throne in Gigantis.
+  prop(
+    SEAT.x - SEAT.r,
+    SEAT.y - SEAT.r,
+    SEAT.x + SEAT.r,
+    SEAT.y + SEAT.r,
+    SEAT.x + SEAT.y + SEAT.r,
+  ),
   // The demon dimension's cage.
   prop(
     CAGE.x - CAGE.r,

@@ -18,12 +18,14 @@ import {
   WISP_SPEED,
 } from '../../src/entities/undead';
 import { WALK_SPEED, walkable } from '../../src/entities/walker';
-import { CASTLE_ROOMS, CASTLE_SPAWNS, PORTAL_OUT } from '../../src/world/gigantis';
+import { CASTLE_SPAWNS, PORTAL_OUT } from '../../src/world/gigantis';
 import { entry, GATE, HALL_A, HALL_B, ROOMS, type Room, stairs } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
 const DT = 1 / 30;
+/** The courtyard and the two halls: the throne room has its own fight (forgotten.test.ts). */
+const HALLS = [GATE, HALL_A, HALL_B] as const;
 const room = ROOMS[HALL_A] as Room;
 const one = (kind: UndeadKind, dx = -40, dy = -40): Horde =>
   new Horde(room, [{ kind, x: room.x + dx, y: room.y + dy }]);
@@ -34,7 +36,7 @@ const run = (h: Horde, w: World, s: number) => {
 
 describe("Gigantis's rooms", () => {
   it('are walkable from the way in to the door at the back, with everyone standing on the floor', () => {
-    for (const i of CASTLE_ROOMS) {
+    for (const i of HALLS) {
       expect(walkable(entry(i).x, entry(i).y, 0)).toBe(true);
       expect(walkable(stairs(i).x, stairs(i).y, 0)).toBe(true);
       const spawns = CASTLE_SPAWNS[i] as readonly Spawn[];
@@ -359,7 +361,7 @@ describe('the undead', () => {
   }
 
   it('make each room a fair fight: won alone for a heart or so, even a beat slow, and surely with the cat', () => {
-    for (const i of CASTLE_ROOMS) {
+    for (const i of HALLS) {
       for (const level of [3, 4]) {
         const sharp = fights(i, level);
         expect(sharp.wins).toBeGreaterThanOrEqual(28);
@@ -404,7 +406,5 @@ describe('the undead', () => {
     h.draw(f.v, 'air');
     expect(f.calls.arc ?? 0).toBeGreaterThan(30);
     expect(f.calls.restore).toBe(f.calls.save);
-    void GATE;
-    void HALL_B;
   });
 });

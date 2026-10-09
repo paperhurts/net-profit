@@ -21,7 +21,7 @@ import { angDiff, clamp } from '../core/math';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkStep } from './walker';
 
-export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro';
+export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro' | 'bones';
 
 export type UndeadSpec = {
   hp: number;
@@ -37,8 +37,10 @@ export type UndeadSpec = {
   shoot: number;
   /** Blocks the first spear, once. */
   block: boolean;
-  /** Seconds between raising skeletons, once the last is beaten; 0 never. */
+  /** Seconds between raising the dead, once the last are beaten; 0 never. */
   summon: number;
+  /** Hearts a swing takes. */
+  damage: number;
   /** Its size against the figure's. */
   scale: number;
 };
@@ -53,6 +55,7 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     shoot: 0,
     block: true,
     summon: 0,
+    damage: 1,
     scale: 1,
   },
   archer: {
@@ -64,6 +67,7 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     shoot: 2.8,
     block: false,
     summon: 0,
+    damage: 1,
     scale: 1,
   },
   zombie: {
@@ -75,6 +79,7 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     shoot: 0,
     block: false,
     summon: 0,
+    damage: 1,
     scale: 1.1,
   },
   ghost: {
@@ -86,6 +91,7 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     shoot: 3,
     block: false,
     summon: 0,
+    damage: 1,
     scale: 1,
   },
   necro: {
@@ -97,7 +103,22 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     shoot: 0,
     block: false,
     summon: 7,
+    damage: 1,
     scale: 1.1,
+  },
+  // What the Forgotten One leaves when he dies: his own great skeleton, crowned, which swings for two
+  // and calls up a ghost and a skeleton, and two more a while after those are beaten.
+  bones: {
+    hp: 4,
+    speed: 52,
+    reach: 28,
+    windup: 0.55,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 9,
+    damage: 2,
+    scale: 1.45,
   },
 };
 
@@ -147,8 +168,8 @@ export type Undead = {
   blockT: number;
   /** For its walk and its float. */
   ph: number;
-  /** A necromancer's skeleton, while it stands. */
-  raised: Undead | null;
+  /** What a necromancer, or the Forgotten One's bones, has raised. */
+  raised: Undead[];
   /** Raised by a necromancer, not standing in the room when the figure came in. */
   summoned: boolean;
 };
@@ -180,7 +201,7 @@ export class Horde implements Entity {
   /** Everyone in it is beaten. */
   cleared = false;
   /** A swing or a shot hit the figure. */
-  onHit: ((by: 'slash' | 'arrow' | 'wisp') => void) | null = null;
+  onHit: ((by: 'slash' | 'arrow' | 'wisp', hearts: number) => void) | null = null;
   /** A shield took a spear. */
   onBlock: ((u: Undead) => void) | null = null;
   /** One of them is beaten. */
@@ -219,7 +240,7 @@ export class Horde implements Entity {
       flash: 0,
       blockT: 0,
       ph: this.list.length,
-      raised: null,
+      raised: [],
       summoned,
     };
   }
@@ -231,6 +252,11 @@ export class Horde implements Entity {
     this.shots.length = 0;
     this.cleared = false;
     this.awake = false;
+  }
+
+  /** Whether anything it raised still stands. */
+  static standing(u: Undead): boolean {
+    return u.raised.some((q) => q.state !== 'fall' && q.state !== 'gone');
   }
 
   /** In the fight: there to be speared. */
@@ -271,9 +297,9 @@ export class Horde implements Entity {
     return best ?? this.nearest(x, y, reach);
   }
 
-  /** A skeleton raised out of the floor at a point, as a necromancer does. */
-  raise(x: number, y: number): Undead {
-    const u = this.make('skeleton', x, y, true);
+  /** One of the dead raised out of the floor at a point, as a necromancer does: a skeleton, unless said. */
+  raise(x: number, y: number, kind: UndeadKind = 'skeleton'): Undead {
+    const u = this.make(kind, x, y, true);
     this.list.push(u);
     this.cleared = false;
     return u;
@@ -296,11 +322,12 @@ export class Horde implements Entity {
       u.state = 'fall';
       u.t = 0;
       this.onBeat?.(u);
-      // A necromancer's skeleton falls with it.
-      if (u.raised && u.raised.state !== 'fall' && u.raised.state !== 'gone') {
-        u.raised.state = 'fall';
-        u.raised.t = 0;
-      }
+      // What a necromancer raised falls with it.
+      for (const q of u.raised)
+        if (q.state !== 'fall' && q.state !== 'gone') {
+          q.state = 'fall';
+          q.t = 0;
+        }
       this.checkClear();
     } else if (u.state === 'windup') {
       // Hit as it raises its sword, it flinches and starts over.
@@ -360,7 +387,7 @@ export class Horde implements Entity {
       const life = s.kind === 'arrow' ? ARROW_LIFE : WISP_LIFE;
       if (f && inRoom && Math.hypot(s.x - f.x, s.y - f.y) < SHOT_HIT) {
         this.shots.splice(i, 1);
-        this.onHit?.(s.kind);
+        this.onHit?.(s.kind, 1);
       } else if (s.t > life || Math.hypot(s.x - this.room.x, s.y - this.room.y) > this.room.r + 20)
         this.shots.splice(i, 1);
     }
@@ -371,19 +398,27 @@ export class Horde implements Entity {
     const dx = f.x - u.x;
     const dy = f.y - u.y;
     const d = Math.hypot(dx, dy) || 1;
-    // A necromancer raises a skeleton while it has none standing.
+    // A necromancer raises a skeleton while it has none standing; the bones, a ghost and a skeleton.
     if (sp.summon > 0) {
-      const standing = u.raised && u.raised.state !== 'fall' && u.raised.state !== 'gone';
-      if (!standing) {
+      if (!Horde.standing(u)) {
         u.cd -= dt;
         if (u.cd <= 0) {
           u.cd = sp.summon;
-          // Out of the floor between it and the figure.
-          u.raised = this.raise(u.x + (dx / d) * 30, u.y + (dy / d) * 30);
-          this.onRaise?.(u.raised);
+          // Out of the floor between it and the figure, either side.
+          const kinds: UndeadKind[] = u.kind === 'bones' ? ['skeleton', 'ghost'] : ['skeleton'];
+          u.raised = kinds.map((kind, i) => {
+            const side = kinds.length > 1 ? (i ? 1 : -1) * 22 : 0;
+            return this.raise(
+              u.x + (dx / d) * 30 - (dy / d) * side,
+              u.y + (dy / d) * 30 + (dx / d) * side,
+              kind,
+            );
+          });
+          for (const q of u.raised) this.onRaise?.(q);
         }
       }
-    } else if (sp.shoot > 0) {
+    }
+    if (sp.shoot > 0) {
       u.cd -= dt;
       if (u.cd <= 0 && d < sp.keep * 1.6) {
         u.cd = sp.shoot;
@@ -432,7 +467,7 @@ export class Horde implements Entity {
           u.state = 'swing';
           u.t = 0;
           if (d < sp.reach + SLASH_SLACK && Math.abs(angDiff(u.h, Math.atan2(dy, dx))) < SLASH_ARC)
-            this.onHit?.('slash');
+            this.onHit?.('slash', sp.damage);
         }
         break;
       case 'swing':
@@ -581,10 +616,20 @@ export class Horde implements Entity {
     ctx.arc(sx, hy, 4.2 * k, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillRect(sx - 2.4 * k, hy + 2.6 * k, 4.8 * k, 2.4 * k);
-    ctx.fillStyle = '#1E2227';
+    ctx.fillStyle = u.kind === 'bones' ? '#FF5A4A' : '#1E2227';
     for (const e of [-1, 1]) {
       ctx.beginPath();
       ctx.arc(sx + face * 0.8 * k + e * 1.6 * k, hy - 0.2 * k, 1.1 * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (u.kind === 'bones') {
+      // The Forgotten One's crown, still on his skull.
+      ctx.fillStyle = W('#C9A13A');
+      ctx.beginPath();
+      ctx.moveTo(sx - 4.4 * k, hy - 3 * k);
+      for (let i = 0; i <= 4; i++) ctx.lineTo(sx - 4.4 * k + i * 2.2 * k, hy - (i % 2 ? 5 : 8) * k);
+      ctx.lineTo(sx + 4.4 * k, hy - 3 * k);
+      ctx.closePath();
       ctx.fill();
     }
     const hx = sx + face * 5 * k;
@@ -756,8 +801,7 @@ export class Horde implements Entity {
       ctx.fill();
     }
     // A staff with a little skull on it, glowing as it raises the dead.
-    const raising =
-      u.cd < 0.8 && !(u.raised && u.raised.state !== 'fall' && u.raised.state !== 'gone');
+    const raising = u.cd < 0.8 && !Horde.standing(u);
     const gx = sx + face * 8 * k;
     ctx.strokeStyle = W('#5E3D1C');
     ctx.lineWidth = 1.6 * k;
