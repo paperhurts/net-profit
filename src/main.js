@@ -665,7 +665,7 @@ const hordes = {};
 const CASTLE_WAKE = {[GATE]: 'Gigantis! Skeletons with swords and shields, and archers. Turn when an arrow flies.',
   [HALL_A]: 'Zombies, slow and tough, and ghosts. Walk away from their wisps.',
   [HALL_B]: 'Necromancers! They raise skeletons from the floor. Your spear goes for them first.',
-  [THRONE]: 'The throne room! Three necromancers, and the Forgotten One: skulls, a sword, and a death ray. Step off the red line!'};
+  [THRONE]: 'The throne room! Three necromancers, and the Forgotten One: skulls, a sword, and a death ray. Step off the orange line!'};
 for (const i of CASTLE_ROOMS){ const h = hordes[i] = new Horde(ROOMS[i], CASTLE_SPAWNS[i]);
   h.onHit = (by, n) => bonked(by, n); h.onWindup = () => sfx.spearThrow(); h.onShoot = () => sfx.spearThrow();
   h.onWake = () => { toasts.clear(); toast(CASTLE_WAKE[i], 3600, 2); };
@@ -686,7 +686,7 @@ const forgotten = new Forgotten(ROOMS[THRONE], FORGOTTEN_START);
 forgotten.onHit = (by) => bonked(by);
 forgotten.onWindup = () => sfx.spearThrow(); forgotten.onSkulls = () => sfx.spearThrow(); forgotten.onAim = () => sfx.zap();
 forgotten.onBeaten = (x, y) => { burst({x, y}); hordes[THRONE].raise(x, y, 'bones'); toasts.clear();
-  toast('He falls apart! But his bones get up, crown and all. They hit for two hearts.', 3600, 2); };
+  toast('He falls apart! But his bones get up, hair and all. They hit for two hearts.', 3600, 2); };
 const merlocks = new Merlocks();
 merlocks.findTarget = (x, y, r) => warlock.findTarget(x, y, r);
 merlocks.onJab = () => sfx.spearHit();
@@ -1019,7 +1019,7 @@ function renderGuide(){
     ? 'The castle through island 7\'s portal is full of them. Skeletons with a sword and a little shield that takes one spear; archers that shoot where you are going, so turn when one looses; slow, tough zombies; ghosts whose wisps drift after you, slower than a walk; and necromancers that raise skeletons from the floor. Your spear goes for the necromancers first.'
     : 'Not met yet. Through the portal on island 7, once it is awake.'}</small><div class="facts"><span>Gigantis</span><span>A heart a hit</span><span>${isle7Stage >= 2 ? 'Beaten' : isle7Stage >= 1 ? 'Waiting' : 'Not met'}</span></div></article>`);
   pages.push(`<article class="page${isle7Stage >= 2 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle7Stage >= 2 ? 'The Forgotten One' : '?'}</b><small>${isle7Stage >= 2
-    ? 'The king of Gigantis, a tall crowned skeleton in black armour, in his throne room behind three necromancers. He flings skulls in a fan, swings a great sword when you are close, and shows a thin red line before his death ray burns along it: step off the line. Beaten, he fell apart, and his bones got up and fought on, hitting for two and calling up a ghost and a skeleton. The warlock called merlocks out of a puddle of sea to help. Behind his throne is a locked door.'
+    ? 'The king of Gigantis, with long black hair, a pale face screaming and a black cloak, in his throne room behind three necromancers. He flings blue skulls trailing purple fire in a fan, swings a great sword when you are close, and shows a thin orange line before his death ray burns along it: step off the line. Beaten, he fell apart, and his bones got up and fought on, hitting for two and calling up a ghost and a skeleton. The warlock called merlocks out of a puddle of sea to help. Behind his throne is a locked door.'
     : 'Not met yet. Something sits on a throne in Gigantis.'}</small><div class="facts"><span>Gigantis</span><span>${FORGOTTEN_HP}, then his bones</span><span>${isle7Stage >= 2 ? 'Beaten' : 'Not beaten'}</span></div></article>`);
   pages.push(`<article class="page${masks ? ' gold' : ' unk'}">${LEV_SVG}<b>${masks ? 'Skull-mask monkeys' : '?'}</b><small>${masks
     ? 'A camp of monkeys in little skull masks on the far side of island 2. They run at you to bonk you, and two of them throw coconuts: keep moving, step out from under the shadow, and throw your spear. Beaten, a monkey drops its mask and runs off. Beat the whole camp and its chest opens.'
