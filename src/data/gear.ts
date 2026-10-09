@@ -8,10 +8,11 @@
  * suit is the one piece for the figure, not the boat: the kid's way into the
  * tar round island 4, kept back until the tar has been seen. The mending kit is
  * the answer to the kid's lionfish, whose spines cut the net: kept back until
- * a lionfish has been seen, it mends a cut net at sea.
+ * a lionfish has been seen, it mends a cut net at sea; and the fishing rod
+ * catches them for a bounty.
  */
 
-export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit';
+export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit' | 'rod';
 
 export type Gear = {
   name: string;
@@ -48,10 +49,17 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
     fitted: 'A mending kit. When lionfish cut your net, stop the boat and tap Mend the net.',
     cost: 1500,
   },
+  rod: {
+    name: 'Fishing rod',
+    blurb: 'Catch lionfish on a line.',
+    fitted:
+      'A fishing rod. Stop near some lionfish and tap Cast for lionfish; reel in when the float goes under.',
+    cost: 800,
+  },
 };
 
 /** The shelf, in the order it is shown. */
-export const GEAR_IDS: readonly GearId[] = ['mesh', 'strongbox', 'kit', 'suit'];
+export const GEAR_IDS: readonly GearId[] = ['mesh', 'strongbox', 'kit', 'rod', 'suit'];
 
 /** The shipwright takes an interest once the boat is this tier: a cutter. */
 export const SHIPWRIGHT_TIER = 2;
@@ -63,7 +71,7 @@ export const STRONGBOX_SHARE = 0.25;
 export type Owned = Record<GearId, boolean>;
 
 export function noGear(): Owned {
-  return { mesh: false, strongbox: false, suit: false, kit: false };
+  return { mesh: false, strongbox: false, suit: false, kit: false, rod: false };
 }
 
 export function shipwrightOpen(tier: number): boolean {

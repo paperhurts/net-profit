@@ -19,6 +19,8 @@ export type Lionfish = {
   oy: number;
   ph: number;
   h: number;
+  /** Seconds until it is back, once caught; none while it is here. */
+  away: number;
 };
 
 export type LionGroup = {
@@ -43,6 +45,8 @@ export const SCATTER = 6;
 export const LION_SIGHT = 380;
 /** How long a lionfish is, head to tail. */
 export const LION_LEN = 18;
+/** Seconds before a caught lionfish's place in its group is taken again. */
+export const LION_BACK = 90;
 
 export function lionGroups(): LionGroup[] {
   return LION_ANGLES.map((a, g) => ({
@@ -56,6 +60,7 @@ export function lionGroups(): LionGroup[] {
         oy: Math.sin(t) * GROUP_R * 0.6,
         ph: i * 1.7 + g,
         h: t + Math.PI / 2,
+        away: 0,
       };
     }),
   }));
@@ -92,7 +97,38 @@ export class Lionfishes implements Entity {
 
   reset(): void {
     this.seen = false;
-    for (const g of this.groups) g.scatter = 0;
+    for (const g of this.groups) {
+      g.scatter = 0;
+      for (const f of g.fish) f.away = 0;
+    }
+  }
+
+  /** The nearest lionfish to a point within reach, and where it is, or null. */
+  nearestFish(
+    x: number,
+    y: number,
+    reach: number,
+  ): { g: LionGroup; f: Lionfish; x: number; y: number } | null {
+    let best: { g: LionGroup; f: Lionfish; x: number; y: number } | null = null;
+    let bd = reach;
+    for (const g of this.groups) {
+      if (Math.hypot(g.x - x, g.y - y) > reach + GROUP_R * 4) continue;
+      for (const f of g.fish) {
+        if (f.away > 0) continue;
+        const [fx, fy] = lionAt(g, f);
+        const d = Math.hypot(fx - x, fy - y);
+        if (d < bd) {
+          bd = d;
+          best = { g, f, x: fx, y: fy };
+        }
+      }
+    }
+    return best;
+  }
+
+  /** A lionfish caught: gone from its group for a while. */
+  take(f: Lionfish): void {
+    f.away = LION_BACK;
   }
 
   update(dt: number, w: World): void {
@@ -102,6 +138,7 @@ export class Lionfishes implements Entity {
       for (const f of g.fish) {
         f.ph += dt;
         f.h += Math.sin(f.ph * 0.6) * dt * 0.8;
+        f.away = Math.max(0, f.away - dt);
       }
     }
     const b = w.boat;
@@ -118,6 +155,7 @@ export class Lionfishes implements Entity {
     for (const g of this.groups) {
       if (g.scatter > 0 || Math.hypot(net.x - g.x, net.y - g.y) > GROUP_R * 2 + reach) continue;
       for (const f of g.fish) {
+        if (f.away > 0) continue;
         const [fx, fy] = lionAt(g, f);
         if (Math.hypot(fx - net.x, fy - net.y) < reach) {
           g.scatter = SCATTER;
@@ -135,6 +173,7 @@ export class Lionfishes implements Entity {
     for (const g of this.groups) {
       if (!v.onScreen(g.x, g.y, 200)) continue;
       for (const f of g.fish) {
+        if (f.away > 0) continue;
         const [x, y] = lionAt(g, f);
         drawLionfish(ctx, px(x, y), py(x, y, -3), f.h, f.ph, Z);
       }
