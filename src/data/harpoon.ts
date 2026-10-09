@@ -23,7 +23,7 @@ export const BEASTS = ['guard', 'cthulu', 'angler', 'gulper'] as const;
 export type Beast = (typeof BEASTS)[number];
 
 /** Harpoon hits to drive each one off. */
-export const RESOLVE: Record<Beast, number> = { guard: 3, cthulu: 5, angler: 3, gulper: 4 };
+export const RESOLVE: Record<Beast, number> = { guard: 3, cthulu: 3, angler: 3, gulper: 4 };
 
 /** What each leaves behind, and what the game says when it goes. */
 export const TROPHY: Record<Beast, { name: string; told: string }> = {
