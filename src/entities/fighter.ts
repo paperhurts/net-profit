@@ -141,9 +141,10 @@ export class Fighter implements Entity {
   t = 0;
   /** Its block is still to use. */
   guard: boolean;
-  /** Seconds of the hit flash, and of the block's spark. */
+  /** Seconds of the hit flash, and of the block's spark, and left stuck with tar on its face. */
   flash = 0;
   blockT = 0;
+  stunT = 0;
   private dashCd = FIRST_DASH;
   private summonCd = FIRST_SUMMON;
   private pair: Summoned[] = [];
@@ -187,9 +188,20 @@ export class Fighter implements Entity {
     this.t = 0;
     this.flash = 0;
     this.blockT = 0;
+    this.stunT = 0;
     this.dashCd = FIRST_DASH;
     this.summonCd = FIRST_SUMMON;
     this.pair = [];
+  }
+
+  /** Tar on its face: it stops where it is for this many seconds, and a raised sword comes down unswung. */
+  stun(s: number): void {
+    if (!this.up) return;
+    this.stunT = Math.max(this.stunT, s);
+    if (this.state === 'windup' || this.state === 'crouch' || this.state === 'dash') {
+      this.state = 'walk';
+      this.t = 0;
+    }
   }
 
   /** A spear lands with this power. Returns whether it was blocked. */
@@ -239,6 +251,10 @@ export class Fighter implements Entity {
     if (this.state === 'gone') return;
     if (!inRoom || !f) {
       this.reset();
+      return;
+    }
+    if (this.stunT > 0) {
+      this.stunT -= dt;
       return;
     }
     const dx = f.x - this.x;

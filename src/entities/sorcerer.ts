@@ -74,6 +74,8 @@ export class Sorcerer implements Entity {
   /** Angry on island 7's roof, it calls monkeys up, from where it is flying. */
   onCall: ((x: number, y: number) => void) | null = null;
 
+  /** Seconds left stuck with tar on its face: it hangs where it is, and casts nothing. */
+  stunT = 0;
   /** Casts since it got angry, for the ring; and until it calls monkeys again. */
   private casts = 0;
   private callT = 0;
@@ -113,7 +115,18 @@ export class Sorcerer implements Entity {
     this.swoop = SWOOP_EVERY;
     this.casts = 0;
     this.callT = 0;
+    this.stunT = 0;
     this.bolts.length = 0;
+  }
+
+  /** Tar on its face: it hangs where it is this many seconds; a swoop breaks off. */
+  stun(s: number): void {
+    if (!this.up) return;
+    this.stunT = Math.max(this.stunT, s);
+    if (this.state === 'swoop') {
+      this.state = 'back';
+      this.t = 0;
+    }
   }
 
   /** A spear lands with this power. */
@@ -166,7 +179,9 @@ export class Sorcerer implements Entity {
         this.onCall?.(this.x, this.y);
       }
     }
-    if (this.state === 'fly') {
+    if (this.stunT > 0) {
+      this.stunT -= dt;
+    } else if (this.state === 'fly') {
       this.a += FLY * speed * dt;
       this.x += (this.home.x + Math.cos(this.a) * RING - this.x) * Math.min(1, dt * 3);
       this.y += (this.home.y + Math.sin(this.a) * RING - this.y) * Math.min(1, dt * 3);

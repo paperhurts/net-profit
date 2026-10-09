@@ -140,6 +140,23 @@ export class Anchorer implements Entity {
     this.aim = null;
     this.throwCd = FIRST_THROW;
     this.sweepCd = 0;
+    this.stunT = 0;
+  }
+
+  /** Seconds left stuck with tar on its face. */
+  stunT = 0;
+  /**
+   * Tar on its face: a whirl or a sweep it was winding up comes to nothing, and wading or waiting for
+   * its anchor it stands still this many seconds. An anchor already in the air lands as it was going to.
+   */
+  stun(s: number): void {
+    if (!this.up) return;
+    if (this.state === 'whirl' || this.state === 'sweepUp') {
+      this.state = 'wade';
+      this.t = 0;
+      this.aim = null;
+    }
+    if (this.state === 'wade' || this.state === 'down') this.stunT = Math.max(this.stunT, s);
   }
 
   /** Beaten for good, as a save remembers. */
@@ -205,6 +222,10 @@ export class Anchorer implements Entity {
     const dx = f.x - this.x;
     const dy = f.y - this.y;
     const d = Math.hypot(dx, dy) || 1;
+    if (this.stunT > 0) {
+      this.stunT -= dt;
+      return;
+    }
     this.throwCd -= dt;
     this.sweepCd -= dt;
     switch (this.state) {

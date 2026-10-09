@@ -4,8 +4,10 @@
  * rides on the deck by the stern. Ashore it hops along at the figure's heel,
  * every island and every room, along the way the figure walked, and pops up
  * beside it if it falls far behind. In a fight it spits a blob of tar at
- * whatever the figure is fighting every couple of seconds, one hit each.
- * Nothing hurts it. The game finds what it spits at, as for the warlock.
+ * whatever the figure is fighting every couple of seconds, in the face, as the
+ * kid wrote: one hit, and stuck there with tar on its face for about a second,
+ * doing nothing (a sword it was raising comes down unswung). Nothing hurts it.
+ * The game finds what it spits at, as for the warlock, and how each is stuck.
  */
 
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -20,8 +22,19 @@ export const SPIT_EVERY = 2.4;
 export const SPIT_RANGE = 120;
 export const SPIT_POWER = 1;
 export const SPIT_SPEED = 240;
+/** Seconds what it spits at is stuck, tar on its face. */
+export const STUN = 1;
 
-export type SpitTarget = { x: number; y: number; hit(power: number): void };
+/** Something to spit at: where it is, how high its face is, and how it is hurt and stuck. */
+export type SpitTarget = {
+  x: number;
+  y: number;
+  hit(power: number): void;
+  stun?(seconds: number): void;
+  head?: number;
+};
+/** Tar on a face, for as long as it sticks. */
+type Stuck = { to: SpitTarget; t: number };
 
 type Spit = { x0: number; y0: number; to: SpitTarget; t: number; dur: number };
 
@@ -37,6 +50,7 @@ export class Tarbaby implements Entity {
   ph = 0;
   gait = 0;
   readonly spits: Spit[] = [];
+  readonly stuck: Stuck[] = [];
   private spitCd = 1;
   private readonly trail: { x: number; y: number }[] = [];
   /** What it can spit at, nearest, within reach; the game knows. */
@@ -79,13 +93,25 @@ export class Tarbaby implements Entity {
       if (s.t >= s.dur) {
         this.spits.splice(i, 1);
         s.to.hit(SPIT_POWER);
+        if (s.to.stun) {
+          s.to.stun(STUN);
+          const was = this.stuck.find((q) => q.to === s.to);
+          if (was) was.t = STUN;
+          else this.stuck.push({ to: s.to, t: STUN });
+        }
       }
+    }
+    for (let i = this.stuck.length - 1; i >= 0; i--) {
+      const q = this.stuck[i] as Stuck;
+      q.t -= dt;
+      if (q.t <= 0) this.stuck.splice(i, 1);
     }
     if (!this.free) return;
     const f = w.figure;
     if (!f) {
       this.with = false;
       this.spits.length = 0;
+      this.stuck.length = 0;
       return;
     }
     if (!this.with || Math.hypot(f.x - this.x, f.y - this.y) > TB_BLINK) {
@@ -157,11 +183,35 @@ export class Tarbaby implements Entity {
     drawTarblob(v, v.px(x, y), v.py(x, y, 9 * k + 1), b.h, 0.9, v.T);
   }
 
-  /** Its spits, in the air. */
+  /** Its spits, in the air, and the tar on the faces it has hit, with little stars going round. */
   draw(v: DrawView, layer: Layer): void {
     if (layer !== 'air') return;
-    const { ctx, px, py } = v;
+    const { ctx, px, py, T } = v;
     const Z = v.zoom;
+    for (const q of this.stuck) {
+      const sx = px(q.to.x, q.to.y);
+      const sy = py(q.to.x, q.to.y, q.to.head ?? 24);
+      ctx.globalAlpha = Math.min(1, q.t / 0.25);
+      ctx.fillStyle = '#1C1719';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, 6.5 * Z, 4.6 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (const [dx, len] of [
+        [-2.6, 4],
+        [1.4, 6],
+        [3.4, 3],
+      ] as const) {
+        ctx.beginPath();
+        ctx.ellipse(sx + dx * Z, sy + (2 + len / 2) * Z, 1 * Z, (len / 2) * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#FFE14A';
+      for (let k = 0; k < 3; k++) {
+        const a = T * 6 + (k * Math.PI * 2) / 3;
+        v.star(sx + Math.cos(a) * 10 * Z, sy - 9 * Z + Math.sin(a) * 3 * Z, 3 * Z);
+      }
+      ctx.globalAlpha = 1;
+    }
     for (const s of this.spits) {
       const k = s.t / s.dur;
       const x = s.x0 + (s.to.x - s.x0) * k;
