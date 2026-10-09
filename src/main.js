@@ -988,7 +988,7 @@ function renderGuide(){
     ? 'A squadron of three to five, gliding the middle rings in a V. Stay near and, every so often, one leaps clear of the water and comes down with a whump.'
     : 'Not seen yet. Something with wings glides the middle rings.'}</small><div class="facts"><span>1,200 to 1,700 out</span><span>Day and night</span><span>The net slides off them</span></div></article>`);
   pages.push(`<article class="page${cthuluSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${cthuluSeen ? 'Cthuluviathan' : '?'}</b><small>${cthuluSeen
-    ? 'An octopus for a head, a fistful of tentacles for a face, and two small wings. It sleeps in a sunken city in a far corner of the deep and snores. Sail by fast or close and it wakes, and a tentacle comes up wherever the water boils. Go slowly and it dreams on.'
+    ? 'Cthulhu\'s pet. An octopus for a head, a fistful of tentacles for a face, and two small wings. It sleeps in a sunken city in a far corner of the deep and snores. Sail by fast or close and it wakes, and a tentacle comes up wherever the water boils. Go slowly and it dreams on.'
     : 'Not seen yet. Something sleeps in a sunken city, far out in the deep. Go quietly.'}</small><div class="facts"><span>A corner of the deep</span><span>Asleep, mostly</span><span>${beastFact('cthulu')}</span></div></article>`);
   pages.push(`<article class="page${anglerSeen ? ' gold' : ' unk'}">${LEV_SVG}<b>${anglerSeen ? 'Anglerfish' : '?'}</b><small>${anglerSeen
     ? 'A light in the deep at night, with what look like glowing fish around it. There are no glowing fish in the deep. Make for the light and its jaws open under you: turn away. Caught, it swallows the boat whole and spits it out in the home shallows, without your catch.'
@@ -1013,6 +1013,7 @@ function renderGuide(){
     : 'Not seen yet. Something rules a reef out in the far deep.'}</small><div class="facts"><span>Island 5</span><span>${KING_RESOLVE} harpoon hits</span><span>${isle5Stage >= 1 ? 'Dead' : 'Not beaten'}</span></div></article>`);
   pages.push(`<article class="page${isle6Stage >= 1 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle6Stage >= 1 ? 'The Deep One' : '?'}</b><small>${isle6Stage >= 1
     ? 'Island 6\'s leviathan, huge and slow, asleep in the sea off the temple. One tentacle grabs and squeezes the boat until you harpoon it loose; two throw driftwood into rings where you are going; its eye opens every few seconds, and that is where the harpoon hurts it. Beaten, it does not die: it drags you under to its temple, where it waits as Cthulhu, sending up tentacles faster than you can run, one spear each.'
+      + ' Its pet is the Cthuluviathan, asleep in a sunken city in the deep near home.'
       + (isle6Stage >= 2 ? ' You beat it there too, and it left a rare fish behind.' : ' The temple\'s door on island 6 is the way back down.')
     : 'Not met yet. Something sleeps off the temple on the big island.'}</small><div class="facts"><span>Island 6</span><span>${DEEP_RESOLVE} harpoon hits, then 10 spears</span><span>${isle6Stage >= 2 ? 'Beaten' : isle6Stage >= 1 ? 'Waiting below' : 'Not beaten'}</span></div></article>`);
   pages.push(`<article class="page${isle7Stage >= 2 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle7Stage >= 2 ? 'The undead of Gigantis' : '?'}</b><small>${isle7Stage >= 2

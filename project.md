@@ -305,6 +305,12 @@ Further:
 - **Island 2 and the meta layer.** Reaching a new island unlocks a new mechanic and a renderer upgrade (water shader, shadows, weather, particles). Each island is a chapter in the game growing up.
 - Crew and a fleet of auto-fishing boats. Weather and storms (rough water, double prices). Ice and freshness (value decays in the hold). Sonar upgrade. Dock buildings that multiply value: smokehouse, cannery, sushi bar. Pelican thief. Message bottles with map fragments leading to a dig site. More dawn/dusk rares per zone, seasonal rares.
 
+## The kid's lore
+
+The kid's world, as he tells it, collected here as it comes. The game says it where it fits, mostly in the guide.
+
+- The Cthuluviathan is Cthulhu's pet (2026-10-09, the start of the lore). The guide's Cthuluviathan page opens with it, and the Deep One's page, once Cthulhu has been met under island 6, names its pet and where it sleeps.
+
 ## Look and voice
 
 - Palette anchors: sea `#2B8A99` / `#1B6676`, foam `#F3FFFB`, sand `#F2D79B`, buoy red `#E4572E`, cream `#FFF6E5`, coin `#FFC53D`, ink `#12303A`. Flat shaded, no outlines, light from the left (+y faces lighter than +x faces).
