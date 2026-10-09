@@ -61,6 +61,9 @@ type Np = {
   maxHearts: number;
   sailedShare: number;
   mapOpen: boolean;
+  lionSeen: boolean;
+  netCut: boolean;
+  mending: boolean;
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarling: { with: boolean; free: boolean };
@@ -449,6 +452,36 @@ test('the sea map: sailing opens the fog, the map shows it, and the game waits w
   expect(await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y])).toEqual(at);
   await page.locator('#mapClose').click();
   await expect(page.locator('#seamap')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('lionfish: towed through, their spines cut the net, and the mending kit mends it at sea', async ({
+  context,
+  page,
+}) => {
+  // A cutter just short of the first group, round the outer sea, with fish aboard and the kit.
+  const gx = 2400 + Math.cos(0.8) * 1700;
+  const gy = 2400 + Math.sin(0.8) * 1700;
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 3, hold: 3, engine: 3 },
+    gear: { kit: true },
+    trip: { x: gx - 160, y: gy - 160, h: Math.PI / 4, clock: 0.3, hold: [3, 3] },
+  });
+  await page.waitForFunction(() => window.__np.lionSeen, null, { timeout: 3000 });
+  // Sail through them, holding the stick the way the boat points (straight down the screen).
+  await page.mouse.move(195, 600);
+  await page.mouse.down();
+  await page.mouse.move(195, 700, { steps: 5 });
+  await page.waitForFunction(() => window.__np.netCut, null, { timeout: 5000 });
+  await page.mouse.up();
+  const mend = page.locator('#mend');
+  await expect(mend).toBeVisible();
+  await page.waitForFunction(() => window.__np.boat.v < 40, null, { timeout: 8000 });
+  await mend.click();
+  await page.waitForFunction(() => window.__np.mending, null, { timeout: 1000 });
+  await page.waitForFunction(() => !window.__np.netCut, null, { timeout: 4000 });
+  await expect(mend).toBeHidden();
   expect(errors).toEqual([]);
 });
 
