@@ -4,10 +4,10 @@ import {
   SPIT_EVERY,
   SPIT_POWER,
   SPIT_RANGE,
-  Tarbaby,
+  Tarling,
   TB_BLINK,
   TB_HEEL,
-} from '../../src/entities/tarbaby';
+} from '../../src/entities/tarling';
 import { LANDING, WALK_SPEED, walkable } from '../../src/entities/walker';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
@@ -15,9 +15,9 @@ import { baseWorld } from './helpers/world';
 const DT = 1 / 60;
 const figureAt = (x: number, y: number) => ({ x, y, vx: 0, vy: 0 });
 
-describe('the tarbaby', () => {
+describe('the tarling', () => {
   it('is nowhere until it is freed, then pops up beside the figure ashore', () => {
-    const b = new Tarbaby();
+    const b = new Tarling();
     const w: World = baseWorld({ figure: figureAt(LANDING.x, LANDING.y) });
     b.update(DT, w);
     expect(b.with).toBe(false);
@@ -33,7 +33,7 @@ describe('the tarbaby', () => {
   });
 
   it('hops along at the heel along the way the figure walked, and keeps up', () => {
-    const b = new Tarbaby();
+    const b = new Tarling();
     b.free = true;
     const f = figureAt(LANDING.x, LANDING.y);
     const w: World = baseWorld({ figure: f });
@@ -56,7 +56,7 @@ describe('the tarbaby', () => {
   });
 
   it('spits at what is in reach every so often, and each spit lands', () => {
-    const b = new Tarbaby();
+    const b = new Tarling();
     b.free = true;
     const w: World = baseWorld({ figure: figureAt(LANDING.x, LANDING.y) });
     b.update(DT, w);
@@ -80,7 +80,7 @@ describe('the tarbaby', () => {
   });
 
   it('draws ashore, on the deck aboard, and its spits in the air', () => {
-    const b = new Tarbaby();
+    const b = new Tarling();
     const v = fakeView();
     b.drawBody(v.v);
     b.drawAboard(v.v, { x: 0, y: 0, h: 0 }, 1.6);

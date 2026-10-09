@@ -31,7 +31,7 @@ export type Trip = {
 
 /** The last of island 3's stages. */
 export const ISLE3_STAGES = 4;
-/** Island 4's story so far: 1, the Tar Anchorer beaten and the tarbaby yours. */
+/** Island 4's story so far: 1, the Tar Anchorer beaten and the tarling yours. */
 export const ISLE4_STAGES = 1;
 /** Island 5's story so far: 1, the Skeleton Shark King dead. */
 export const ISLE5_STAGES = 1;
@@ -110,7 +110,7 @@ export type SaveData = {
    * stage stays done.
    */
   isle3Stage: number;
-  /** How far through island 4's story: 0 not begun; 1 the Tar Anchorer beaten and the tarbaby yours. */
+  /** How far through island 4's story: 0 not begun; 1 the Tar Anchorer beaten and the tarling yours. */
   isle4Stage: number;
   /** How many times the harpoon has driven off each leviathan. */
   driven: Driven;

@@ -1,5 +1,5 @@
 /**
- * The tarbaby, the kid's: what is left of the Tar Anchorer once it is beaten,
+ * The tarling, the kid's: what is left of the Tar Anchorer once it is beaten,
  * a little blob of tar with its yellow eyes, and it comes with you. Aboard it
  * rides on the deck by the stern. Ashore it hops along at the figure's heel,
  * every island and every room, along the way the figure walked, and pops up
@@ -38,7 +38,7 @@ type Stuck = { to: SpitTarget; t: number };
 
 type Spit = { x0: number; y0: number; to: SpitTarget; t: number; dur: number };
 
-export class Tarbaby implements Entity {
+export class Tarling implements Entity {
   /** Freed: it is yours. */
   free = false;
   /** Beside the figure, ashore. */
@@ -229,7 +229,7 @@ export class Tarbaby implements Entity {
   }
 }
 
-/** A tarbaby at a screen point: a glossy black drop with yellow eyes toward where it faces. */
+/** A tarling at a screen point: a glossy black drop with yellow eyes toward where it faces. */
 export function drawTarblob(
   v: DrawView,
   x: number,
