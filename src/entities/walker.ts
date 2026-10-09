@@ -25,6 +25,7 @@
 import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
 import type { ArmourLook } from '../data/armour';
+import { AQUARIUM, AQUARIUM_FROM, AQUARIUM_MID } from '../world/aquarium';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
 import {
   BEACH,
@@ -316,6 +317,15 @@ export const PROPS: readonly Prop[] = [
     SMOKEHOUSE.y + 12,
     SMOKEHOUSE.x + SMOKEHOUSE.y,
     5,
+  ),
+  // The aquarium's plot, staked out with the tree platform, and then the aquarium on it.
+  prop(
+    AQUARIUM.x0,
+    AQUARIUM.y0,
+    AQUARIUM.x1,
+    AQUARIUM.y1,
+    AQUARIUM_MID.x + AQUARIUM_MID.y,
+    AQUARIUM_FROM,
   ),
   // The crates on the pier, a little inside their fronts so the way past along the front edge is wide enough.
   prop(PX0 + 117, IY - 13, PX0 + 141, IY + 8, 0, 0, 0, false),

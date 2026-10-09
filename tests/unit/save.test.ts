@@ -526,3 +526,15 @@ describe('the spear', () => {
     expect(parseSave(JSON.stringify(bad), bounds).spear).toBe(SPEAR_MAX);
   });
 });
+
+describe('the aquarium', () => {
+  it('is not built in a save from before it, and stays built once it is', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.aquarium).toBe(false);
+    s.aquarium = true;
+    expect(parseSave(serializeSave(s), bounds).aquarium).toBe(true);
+    const bad = JSON.parse(serializeSave(s));
+    bad.aquarium = 0;
+    expect(parseSave(JSON.stringify(bad), bounds).aquarium).toBe(false);
+  });
+});

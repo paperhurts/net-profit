@@ -100,6 +100,8 @@ export type SaveData = {
   lionSeen: boolean;
   /** Lionfish caught on the rod, for the bounty. */
   lionCaught: number;
+  /** The aquarium on the home island is built. */
+  aquarium: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
@@ -198,6 +200,7 @@ export function defaultSave(b: Bounds): SaveData {
     meteorSeen: false,
     lionSeen: false,
     lionCaught: 0,
+    aquarium: false,
     spear: 0,
     armour: 0,
     sailed: '',
@@ -293,6 +296,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.meteorSeen = !!o.meteorSeen;
   d.lionSeen = !!o.lionSeen;
   d.lionCaught = Math.max(0, int(o.lionCaught));
+  d.aquarium = !!o.aquarium;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
@@ -382,6 +386,7 @@ export function serializeSave(d: SaveData): string {
     meteorSeen: d.meteorSeen,
     lionSeen: d.lionSeen,
     lionCaught: d.lionCaught,
+    aquarium: d.aquarium,
     spear: d.spear,
     armour: d.armour,
     sailed: d.sailed,
