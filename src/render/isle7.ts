@@ -9,6 +9,7 @@
  */
 import { rgba } from '../core/color';
 import type { DrawView } from '../entities/entity';
+import type { Point } from '../world/island';
 import {
   CHEST7,
   FIRE7,
@@ -287,30 +288,44 @@ export const PORTAL_LIFT = 10;
 /** Lights round the ring. */
 const LIGHTS = 10;
 
-/** A point on the portal's ring at angle t round it, 0 at the right as the viewer sees it: world x, y and height. */
-export function ringAt(t: number, r: number = PORTAL7.r): [number, number, number] {
+/** Where a portal stands: island 7's, or the one home in Gigantis's courtyard. */
+type At = { x: number; y: number };
+
+/**
+ * A point on a portal's ring at angle t round it, 0 at the right as the viewer sees it: world x, y and
+ * height.
+ */
+export function ringAt(
+  t: number,
+  r: number = PORTAL7.r,
+  at: At = PORTAL7,
+): [number, number, number] {
   const s = Math.cos(t) * r * Math.SQRT1_2;
-  return [PORTAL7.x + s, PORTAL7.y - s, PORTAL_LIFT + PORTAL7.r + Math.sin(t) * r];
+  return [at.x + s, at.y - s, PORTAL_LIFT + PORTAL7.r + Math.sin(t) * r];
 }
 
 /** The ring as a path on the canvas, at radius r. */
-function ringPath(v: DrawView, r: number): void {
+function ringPath(v: DrawView, r: number, at: At): void {
   const { ctx, px, py } = v;
   ctx.beginPath();
   for (let i = 0; i <= 40; i++) {
-    const [x, y, z] = ringAt((i / 40) * Math.PI * 2, r);
+    const [x, y, z] = ringAt((i / 40) * Math.PI * 2, r, at);
     if (i === 0) ctx.moveTo(px(x, y), py(x, y, z));
     else ctx.lineTo(px(x, y), py(x, y, z));
   }
   ctx.closePath();
 }
 
-/** The alien portal: its feet, the ring, its lights, and what fills it once it is awake. */
-export function drawPortal7(v: DrawView, open: number): void {
+/** The alien portal: its feet, the ring, its lights, and what fills it once it is awake. at moves it. */
+export function drawPortal7(v: DrawView, open: number, at: At = PORTAL7): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
+  const feet: readonly Point[] =
+    at === PORTAL7
+      ? PORTAL_FEET
+      : PORTAL_FEET.map(([x, y]): Point => [x - PORTAL7.x + at.x, y - PORTAL7.y + at.y]);
   // The feet: struts from the ring's lower sides down to pads on the ground.
-  for (const [fx, fy] of PORTAL_FEET) {
+  for (const [fx, fy] of feet) {
     ctx.fillStyle = '#353A46';
     v.isoEllipse(fx, fy, 6);
     ctx.fill();
@@ -318,8 +333,8 @@ export function drawPortal7(v: DrawView, open: number): void {
   ctx.strokeStyle = '#353A46';
   ctx.lineWidth = 5 * Z;
   ctx.lineCap = 'round';
-  PORTAL_FEET.forEach(([fx, fy], i) => {
-    const [rx, ry, rz] = ringAt(i === 0 ? Math.PI + 0.5 : -0.5);
+  feet.forEach(([fx, fy], i) => {
+    const [rx, ry, rz] = ringAt(i === 0 ? Math.PI + 0.5 : -0.5, PORTAL7.r, at);
     ctx.beginPath();
     ctx.moveTo(px(fx, fy), py(fx, fy, 0));
     ctx.lineTo(px(rx, ry), py(rx, ry, rz));
@@ -327,10 +342,10 @@ export function drawPortal7(v: DrawView, open: number): void {
   });
   // What fills the ring, once it is awake: a turning green and violet light.
   if (open > 0) {
-    ringPath(v, PORTAL7.r - 4);
+    ringPath(v, PORTAL7.r - 4, at);
     ctx.save();
     ctx.clip();
-    const [cx, cy, cz] = ringAt(0, 0);
+    const [cx, cy, cz] = ringAt(0, 0, at);
     const sx = px(cx, cy);
     const sy = py(cx, cy, cz);
     // A little see-through, so whoever walks behind it is not lost.
@@ -361,9 +376,9 @@ export function drawPortal7(v: DrawView, open: number): void {
     [Math.PI / 2 + 0.9, 12],
     [Math.PI / 2 - 0.9, 12],
   ] as const) {
-    const [ax, ay, az] = ringAt(t - 0.14, PORTAL7.r + 3);
-    const [bx, by, bz] = ringAt(t + 0.14, PORTAL7.r + 3);
-    const [tx, ty, tz] = ringAt(t, PORTAL7.r + out);
+    const [ax, ay, az] = ringAt(t - 0.14, PORTAL7.r + 3, at);
+    const [bx, by, bz] = ringAt(t + 0.14, PORTAL7.r + 3, at);
+    const [tx, ty, tz] = ringAt(t, PORTAL7.r + out, at);
     ctx.beginPath();
     ctx.moveTo(px(ax, ay), py(ax, ay, az));
     ctx.lineTo(px(tx, ty), py(tx, ty, tz));
@@ -372,11 +387,11 @@ export function drawPortal7(v: DrawView, open: number): void {
     ctx.fill();
   }
   // The ring itself: a heavy band of dark metal in plates, lit along its top edge.
-  ringPath(v, PORTAL7.r);
+  ringPath(v, PORTAL7.r, at);
   ctx.strokeStyle = '#353A46';
   ctx.lineWidth = 12 * Z;
   ctx.stroke();
-  ringPath(v, PORTAL7.r);
+  ringPath(v, PORTAL7.r, at);
   ctx.strokeStyle = '#5D6577';
   ctx.lineWidth = 6 * Z;
   ctx.stroke();
@@ -384,7 +399,7 @@ export function drawPortal7(v: DrawView, open: number): void {
   ctx.lineWidth = 1.5 * Z;
   ctx.beginPath();
   for (let i = 0; i <= 16; i++) {
-    const [x, y, z] = ringAt(0.35 + (i / 16) * (Math.PI - 0.7), PORTAL7.r + 5);
+    const [x, y, z] = ringAt(0.35 + (i / 16) * (Math.PI - 0.7), PORTAL7.r + 5, at);
     if (i === 0) ctx.moveTo(px(x, y), py(x, y, z));
     else ctx.lineTo(px(x, y), py(x, y, z));
   }
@@ -393,8 +408,8 @@ export function drawPortal7(v: DrawView, open: number): void {
   ctx.lineWidth = 1.2 * Z;
   for (let i = 0; i < LIGHTS; i++) {
     const t = ((i + 0.5) / LIGHTS) * Math.PI * 2;
-    const [ax, ay, az] = ringAt(t, PORTAL7.r - 5);
-    const [bx, by, bz] = ringAt(t, PORTAL7.r + 5);
+    const [ax, ay, az] = ringAt(t, PORTAL7.r - 5, at);
+    const [bx, by, bz] = ringAt(t, PORTAL7.r + 5, at);
     ctx.beginPath();
     ctx.moveTo(px(ax, ay), py(ax, ay, az));
     ctx.lineTo(px(bx, by), py(bx, by, bz));
@@ -402,7 +417,7 @@ export function drawPortal7(v: DrawView, open: number): void {
   }
   // Lights set in the plates: dim, with the odd flicker, until it wakes; then green, chasing round.
   for (let i = 0; i < LIGHTS; i++) {
-    const [x, y, z] = ringAt((i / LIGHTS) * Math.PI * 2);
+    const [x, y, z] = ringAt((i / LIGHTS) * Math.PI * 2, PORTAL7.r, at);
     const flick = Math.sin(T * 7 + i * 2.1) > 0.93 ? 0.6 : 0;
     const chase = 0.5 + 0.5 * Math.sin(T * 6 - i * 0.9);
     ctx.fillStyle =

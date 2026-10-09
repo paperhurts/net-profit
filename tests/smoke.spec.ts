@@ -72,6 +72,13 @@ type Np = {
   monkeys7: { list: { state: string }[] };
   boss7: { up: boolean; hp: number; hit(power: number): void };
   roofMonkeys: { list: { state: string }[] };
+  hordes: Record<
+    number,
+    {
+      list: { x: number; y: number; guard: boolean }[];
+      hit(u: unknown, power: number, fx: number, fy: number): boolean;
+    }
+  >;
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1176,12 +1183,66 @@ test("island 7's tower: up two floors of monkeys, the sorcerer a third time, and
   await page.waitForFunction(() => window.__np.floor === -1 && window.__np.portalOpen >= 1, null, {
     timeout: 5000,
   });
-  // Into the ring: it shows where it goes, but not yet.
+  // Into the ring, and it is the way through.
   await page.evaluate(() => {
     window.__np.walker.x = 2400 + 150;
     window.__np.walker.y = 6900 + 95;
   });
-  await expect(page.locator('#toast')).toContainText('Not yet', { timeout: 3000 });
+  await expect(page.locator('#climb')).toHaveText('Into the portal', { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('Gigantis: through the portal, beat the courtyard, on through the door, and back home', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the portal');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  await expect(page.locator('#leave')).toHaveText('Back through the portal');
+  await expect(page.locator('#toast')).toContainText('Skeletons', { timeout: 3000 });
+  // Everyone in the courtyard down, then to the door at its back.
+  await page.evaluate(() => {
+    const h = window.__np.hordes[12];
+    if (!h) return;
+    for (const u of h.list) {
+      u.guard = false;
+      h.hit(u, 99, u.x + 40, u.y);
+    }
+    window.__np.walker.x = -13500 - 170 * 0.6 * Math.SQRT1_2;
+    window.__np.walker.y = -6000 - 170 * 0.6 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Through the door');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 13);
+  await expect(page.locator('#toast')).toContainText('Zombies', { timeout: 3000 });
+  await page.click('#leave');
+  await page.waitForFunction(
+    () => window.__np.floor === -1 && window.__np.walker.state === 'ashore',
+  );
   expect(errors).toEqual([]);
 });
 
