@@ -436,8 +436,9 @@ test('the sea map: sailing opens the fog, the map shows it, and the game waits w
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 4000, y: 2400, h: 0, clock: 0.3, hold: [] },
   });
+  // The boat opens the water round it on its first frame under way, which may come after Cast off returns.
+  await page.waitForFunction(() => window.__np.sailedShare > 0, null, { timeout: 3000 });
   const before = await page.evaluate(() => window.__np.sailedShare);
-  expect(before).toBeGreaterThan(0);
   // Sail east a while: more of the sea is open.
   await page.evaluate(() => {
     window.__np.boat.v = 300;
