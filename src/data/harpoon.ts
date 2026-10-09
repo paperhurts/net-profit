@@ -1,6 +1,6 @@
 /**
  * The harpoon: the spear's top level, mounted on the bow, and the kid's way to
- * beat a leviathan. Out past the buoys, when one of the four is up and near,
+ * beat a leviathan. Out past the buoys, when one of them is up and near,
  * the throw button fires a harpoon on a line from the bow and it always lands.
  * Every leviathan has a resolve; harpoon it down to none and it is driven off
  * (never killed): it goes away for a good while and leaves a trophy behind.
@@ -19,11 +19,18 @@ export const AWAY = 120;
 export const DRIVE_PRIZE = 1000;
 export const DRIVE_AGAIN = 200;
 
-export const BEASTS = ['guard', 'cthulu', 'angler', 'gulper'] as const;
+export const BEASTS = ['guard', 'cthulu', 'angler', 'gulper', 'meteor'] as const;
 export type Beast = (typeof BEASTS)[number];
 
 /** Harpoon hits to drive each one off. */
-export const RESOLVE: Record<Beast, number> = { guard: 3, cthulu: 3, angler: 3, gulper: 4 };
+/** The kid gave the meteor serpent four lives. */
+export const RESOLVE: Record<Beast, number> = {
+  guard: 3,
+  cthulu: 3,
+  angler: 3,
+  gulper: 4,
+  meteor: 4,
+};
 
 /** What each leaves behind, and what the game says when it goes. */
 export const TROPHY: Record<Beast, { name: string; told: string }> = {
@@ -43,13 +50,17 @@ export const TROPHY: Record<Beast, { name: string; told: string }> = {
     name: 'Gulper tooth',
     told: 'You drove the gulper off! It dives for the dark and leaves a tooth in your harpoon.',
   },
+  meteor: {
+    name: 'Meteor shard',
+    told: 'You drove the meteor serpent off! It flies up and away over island 6, and a shard of its head floats in the water.',
+  },
 };
 
 /** How many times each has been driven off. */
 export type Driven = Record<Beast, number>;
 
 export function noDriven(): Driven {
-  return { guard: 0, cthulu: 0, angler: 0, gulper: 0 };
+  return { guard: 0, cthulu: 0, angler: 0, gulper: 0, meteor: 0 };
 }
 
 /** The counts from a save, each missing or broken one read as none. */
