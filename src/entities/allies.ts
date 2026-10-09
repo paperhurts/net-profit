@@ -1,9 +1,9 @@
 /**
  * Allies called up to fight beside the figure, the kid's: in Gigantis's throne
- * room the warlock calls merlocks, fish-men with little tridents, up out of a
+ * room the warlock calls merlocks, fish-men with great bone blades, up out of a
  * puddle of sea; and once the Forgotten One's bones are yours, they raise a
  * ghost and a skeleton of their own out of the ground in any fight. Each goes
- * for the nearest foe and hits it for 1: a merlock jabs and the skeleton slashes
+ * for the nearest foe and hits it for 1: a merlock chops and the skeleton slashes
  * close in, the ghost keeps off and sends a wisp. With nothing to fight they
  * keep near the figure; the raised ones crumble back after a few quiet seconds.
  * Hurt to none, one goes back where it came from. The game finds what they
@@ -240,7 +240,11 @@ export class Allies implements Entity {
   }
 }
 
-/** A merlock: a little blue-green fish-man with a fin on its head and a trident. */
+/**
+ * A merlock, as the kid's picture of one: a hunched green fish-man, yellow down the front, with a huge round head
+ * that is mostly mouth (rows of teeth, a red tongue), one big red eye, long red spines fanning back off its crown,
+ * red hands and feet, and a great serrated blade of bone held up over its head, which it brings down as it hits.
+ */
 function drawMerlock(
   v: DrawView,
   a: Ally,
@@ -251,60 +255,153 @@ function drawMerlock(
   stride: number,
 ): void {
   const { ctx, T } = v;
-  ctx.strokeStyle = '#2F7A74';
   ctx.lineCap = 'round';
-  ctx.lineWidth = 2.2 * k;
+  ctx.lineJoin = 'round';
+  // Legs, bent, with red feet.
   for (const side of [-1, 1]) {
+    const fx = sx + side * 2.6 * k + stride * side;
+    ctx.strokeStyle = '#C8D24A';
+    ctx.lineWidth = 2.4 * k;
     ctx.beginPath();
-    ctx.moveTo(sx + side * 1.8 * k, base - 8 * k);
-    ctx.lineTo(sx + side * 1.8 * k + stride * side, base);
+    ctx.moveTo(sx + side * 1.6 * k, base - 8 * k);
+    ctx.lineTo(sx + side * 3.4 * k, base - 4 * k);
+    ctx.lineTo(fx, base - 0.8 * k);
+    ctx.stroke();
+    ctx.fillStyle = '#D8322A';
+    ctx.beginPath();
+    ctx.ellipse(fx + face * 0.8 * k, base - 0.4 * k, 1.9 * k, 1 * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // The body, hunched forward, green with a yellow front.
+  const bx = sx + face * 0.6 * k;
+  ctx.fillStyle = '#5FAE3A';
+  ctx.beginPath();
+  ctx.ellipse(bx, base - 12 * k, 4.6 * k, 5.4 * k, face * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#D9DE5C';
+  ctx.beginPath();
+  ctx.ellipse(bx + face * 1.4 * k, base - 11.4 * k, 2.4 * k, 4 * k, face * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  // The back arm, with a red hand.
+  ctx.strokeStyle = '#5FAE3A';
+  ctx.lineWidth = 1.8 * k;
+  ctx.beginPath();
+  ctx.moveTo(bx - face * 2.6 * k, base - 14 * k);
+  ctx.lineTo(bx - face * 3.6 * k, base - 8.6 * k);
+  ctx.stroke();
+  ctx.fillStyle = '#D8322A';
+  ctx.beginPath();
+  ctx.arc(bx - face * 3.8 * k, base - 8 * k, 1.3 * k, 0, Math.PI * 2);
+  ctx.fill();
+  // Red spines fanning back off the crown, swaying.
+  const hx = sx + face * 2.4 * k;
+  const hy = base - 22 * k;
+  const sway = Math.sin(T * 5 + a.ph) * 0.6 * k;
+  ctx.strokeStyle = '#D8442E';
+  ctx.lineWidth = 1.3 * k;
+  for (const [ox, oy, len] of [
+    [-3, -3, 7],
+    [-1, -4.4, 8.5],
+    [1.2, -4.6, 8],
+    [3, -3.8, 6.5],
+  ] as const) {
+    ctx.beginPath();
+    ctx.moveTo(hx + face * ox * k, hy + oy * k);
+    ctx.lineTo(hx + face * (ox - 3.2) * k + sway, hy + (oy - len) * k);
     ctx.stroke();
   }
-  ctx.fillStyle = '#3E9A92';
+  // The head: big and round, yellow-green, mostly mouth.
+  ctx.fillStyle = '#B9D046';
   ctx.beginPath();
-  ctx.ellipse(sx, base - 13 * k, 4.6 * k, 6 * k, 0, 0, Math.PI * 2);
+  ctx.ellipse(hx, hy, 6 * k, 5.4 * k, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#B8E4D6';
+  ctx.fillStyle = '#5FAE3A';
   ctx.beginPath();
-  ctx.ellipse(sx + face * 1 * k, base - 12 * k, 2.4 * k, 4 * k, 0, 0, Math.PI * 2);
+  ctx.ellipse(hx - face * 2.2 * k, hy - 2.4 * k, 3 * k, 2.2 * k, 0, 0, Math.PI * 2);
   ctx.fill();
-  // A fish's head with a fin crest and a big round eye.
-  const hy = base - 22 * k;
-  ctx.fillStyle = '#3E9A92';
+  const open = a.hitT < 0.3 ? 1.2 : 0.6 + Math.sin(T * 3 + a.ph) * 0.15;
+  const mx = hx + face * 2.4 * k;
+  const my = hy + 1.6 * k;
+  ctx.fillStyle = '#7A1A1E';
   ctx.beginPath();
-  ctx.ellipse(sx + face * 1 * k, hy, 4.6 * k, 4 * k, 0, 0, Math.PI * 2);
+  ctx.ellipse(mx, my, 3.6 * k, 2.4 * k * open, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#E2725B';
+  ctx.fillStyle = '#E2544E';
   ctx.beginPath();
-  ctx.moveTo(sx - face * 3 * k, hy - 2 * k);
-  ctx.lineTo(sx - face * 1 * k, hy - 8 * k + Math.sin(T * 6 + a.ph) * k);
-  ctx.lineTo(sx + face * 2 * k, hy - 3.5 * k);
-  ctx.closePath();
+  ctx.ellipse(mx - face * 0.6 * k, my + 1 * k * open, 1.8 * k, 1 * k * open, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#FFFFFF';
+  for (let i = -3; i <= 3; i++) {
+    const tx = mx + i * 0.95 * k;
+    const ty = my - 2.4 * k * open;
+    const by = my + 2.4 * k * open;
+    ctx.beginPath();
+    ctx.moveTo(tx - 0.5 * k, ty);
+    ctx.lineTo(tx, ty + 1.3 * k);
+    ctx.lineTo(tx + 0.5 * k, ty);
+    ctx.moveTo(tx - 0.5 * k, by);
+    ctx.lineTo(tx, by - 1.2 * k);
+    ctx.lineTo(tx + 0.5 * k, by);
+    ctx.fill();
+  }
+  // One big red eye.
+  const ex = hx + face * 0.6 * k;
+  const ey = hy - 2.6 * k;
+  ctx.fillStyle = '#FFF4D6';
   ctx.beginPath();
-  ctx.arc(sx + face * 2.6 * k, hy - 0.6 * k, 1.6 * k, 0, Math.PI * 2);
+  ctx.arc(ex, ey, 2 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#D8322A';
+  ctx.beginPath();
+  ctx.arc(ex + face * 0.3 * k, ey, 1.35 * k, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#1E2227';
   ctx.beginPath();
-  ctx.arc(sx + face * 3 * k, hy - 0.6 * k, 0.8 * k, 0, Math.PI * 2);
+  ctx.arc(ex + face * 0.5 * k, ey, 0.55 * k, 0, Math.PI * 2);
   ctx.fill();
-  // The trident, thrust out as it jabs.
-  const out = a.hitT < 0.25 ? Math.sin((a.hitT / 0.25) * Math.PI) * 6 * k : 0;
-  const hx = sx + face * (5 * k + out);
-  ctx.strokeStyle = '#C9B37A';
-  ctx.lineWidth = 1.4 * k;
+  // The great bone blade, held up over its head and brought down as it hits.
+  const swing = a.hitT < 0.25 ? Math.sin((a.hitT / 0.25) * Math.PI) : 0;
+  const gx = bx + face * 4 * k;
+  const gy = base - 15 * k;
+  const ang = -Math.PI / 2 + face * (0.35 + swing * 1.5);
+  const ux = Math.cos(ang);
+  const uy = Math.sin(ang);
+  const nx = -uy * face;
+  const ny = ux * face;
+  ctx.strokeStyle = '#3A3026';
+  ctx.lineWidth = 1.5 * k;
   ctx.beginPath();
-  ctx.moveTo(hx, base - 4 * k);
-  ctx.lineTo(hx, base - 26 * k);
+  ctx.moveTo(gx, gy);
+  ctx.lineTo(gx + ux * 9 * k, gy + uy * 9 * k);
   ctx.stroke();
+  ctx.fillStyle = '#D8322A';
   ctx.beginPath();
-  for (const p of [-2, 0, 2]) {
-    ctx.moveTo(hx + p * k, base - 26 * k);
-    ctx.lineTo(hx + p * k, base - 30 * k);
+  ctx.arc(gx, gy, 1.4 * k, 0, Math.PI * 2);
+  ctx.fill();
+  const b0x = gx + ux * 8 * k;
+  const b0y = gy + uy * 8 * k;
+  const len = 16 * k;
+  const wide = 5.2 * k;
+  ctx.fillStyle = '#9DB4C4';
+  ctx.strokeStyle = '#4E6474';
+  ctx.lineWidth = 0.8 * k;
+  ctx.beginPath();
+  ctx.moveTo(b0x, b0y);
+  ctx.lineTo(b0x + ux * len, b0y + uy * len);
+  ctx.quadraticCurveTo(
+    b0x + ux * len * 1.05 + nx * wide,
+    b0y + uy * len * 1.05 + ny * wide,
+    b0x + ux * len * 0.7 + nx * wide,
+    b0y + uy * len * 0.7 + ny * wide,
+  );
+  // Its toothed edge, back down to the grip.
+  for (let i = 6; i >= 0; i--) {
+    const f = (i / 6) * 0.7;
+    const tooth = i % 2 ? 2 * k : 0;
+    ctx.lineTo(b0x + ux * len * f + nx * (wide + tooth), b0y + uy * len * f + ny * (wide + tooth));
   }
-  ctx.moveTo(hx - 2 * k, base - 26 * k);
-  ctx.lineTo(hx + 2 * k, base - 26 * k);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
 }
 
