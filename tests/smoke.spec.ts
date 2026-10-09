@@ -65,6 +65,9 @@ type Np = {
   netCut: boolean;
   mending: boolean;
   lionCaught: number;
+  aquarium: boolean;
+  AQUARIUM: { x0: number; y0: number; x1: number; y1: number };
+  tankView: { fish: unknown[]; eaten: number };
   rod: { state: string };
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
@@ -455,6 +458,61 @@ test('the sea map: sailing opens the fog, the map shows it, and the game waits w
   expect(await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y])).toEqual(at);
   await page.locator('#mapClose').click();
   await expect(page.locator('#seamap')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the aquarium: built at the shop, walked up to ashore, and its fish eat what is dropped in', async ({
+  context,
+  page,
+}) => {
+  // Tied up at home with the tree platform built, wood and coins to spare, and three kinds caught.
+  const log = new Array(16).fill(0);
+  log[0] = 12;
+  log[3] = 2;
+  log[4] = 1;
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    coins: 1500,
+    wood: 30,
+    log,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  const card = page.locator('#aquaBtn');
+  await expect(card).toContainText('Build an aquarium');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.aquarium === true, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(500);
+  await expect(card).toContainText('3 kinds of fish');
+  // Ashore and up to its glass, where it can be looked into.
+  await expect(page.locator('#ashore')).toBeVisible();
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const A = window.__np.AQUARIUM;
+    w.x = A.x1 + 10;
+    w.y = (A.y0 + A.y1) / 2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Look in the aquarium');
+  await page.locator('#climb').click();
+  await expect(page.locator('#aquarium')).toBeVisible();
+  await expect(page.locator('#tankNote')).toContainText('3 kinds of fish');
+  // Three sardines, both pufferfish caught, one tuna.
+  expect(await page.evaluate(() => window.__np.tankView.fish.length)).toBe(6);
+  // The tank fits a phone.
+  const box = await page.locator('#tankCanvas').boundingBox();
+  if (!box) throw new Error('no tank');
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  // While it is open, the game waits.
+  const clock = await page.evaluate(() => window.__np.clock);
+  // A tap at the very top of the water, over every fish: food, and they eat it.
+  await page.mouse.click(box.x + box.width / 2, box.y + 5);
+  await page.waitForFunction(() => window.__np.tankView.eaten > 0, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.clock)).toBe(clock);
+  await page.locator('#tankClose').click();
+  await expect(page.locator('#aquarium')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

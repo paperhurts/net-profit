@@ -312,6 +312,14 @@ export const cues = {
     tone(700, 0.06, 'triangle', 0.05, 1.25);
     tone(900, 0.09, 'triangle', 0.05, 1.2, 0.08);
   },
+  /** A fish in the aquarium takes a flake: a tiny high blip. */
+  nibble(): void {
+    tone(1250, 0.04, 'sine', 0.035, 1.3);
+  },
+  /** Food dropped in the aquarium: a soft plip. */
+  plip(): void {
+    tone(880, 0.06, 'sine', 0.04, 0.7);
+  },
   /** A sea turtle comes alongside: two soft bubbling notes, rising. */
   turtle(): void {
     tone(392, 0.16, 'sine', 0.05, 1.15);

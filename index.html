@@ -176,7 +176,7 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #aboard:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #climb{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
-  background:#3E9E5C;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+  background:#3E9E5C;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
 #climb:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #leave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;font-size:14px;height:38px;padding:3px 14px 0}
 /* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
@@ -193,13 +193,15 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
-#seamap{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#seamap[hidden]{display:none}
-#seamap .planks{width:min(560px,100%);padding:10px;box-sizing:border-box}
-#seamap h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#seamap h2 .pill{height:32px;padding:0 10px}
+#seamap,#aquarium{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#seamap[hidden],#aquarium[hidden]{display:none}
+#seamap .planks,#aquarium .planks{width:min(560px,100%);padding:10px;box-sizing:border-box}
+#seamap h2,#aquarium h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#seamap h2 .pill,#aquarium h2 .pill{height:32px;padding:0 10px}
 #mapCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;background:#0B1C24;touch-action:auto;cursor:default}
-#mapNote{margin:8px 4px 2px;font-size:13px;font-weight:700;text-align:center}
+#mapNote,#tankNote{margin:8px 4px 2px;font-size:13px;font-weight:700;text-align:center}
+#tankCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;border:3px solid #3B4A4F;box-sizing:content-box;background:#3C9DB8;touch-action:none;cursor:pointer}
+#aquaBtn[hidden]{display:none}
 #mapBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center}
 #mapBtn[hidden]{display:none}
 #mapPill{position:absolute;left:10px;top:-52px;font-size:16px;height:42px;padding:3px 16px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -285,6 +287,7 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
     </div>
     <div class="gearrow" id="gear" hidden></div>
     <button class="build" id="build"></button>
+    <button class="build" id="aquaBtn" hidden></button>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>
     <div class="log" id="log" aria-label="Catch log"></div>
     <div class="pair">
@@ -303,6 +306,14 @@ body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;tra
     <div class="frow"><b>Second colour</b><div class="swatches" id="fAccent" role="group" aria-label="Second colour"></div></div>
     <div class="frow"><b>Emblem</b><div class="fchips" id="fEmblem" role="group" aria-label="Emblem"></div></div>
     <button class="go" id="flagDone">Fly it</button>
+  </div>
+</section>
+
+<section id="aquarium" hidden aria-label="Your aquarium">
+  <div class="planks">
+    <h2>Your aquarium <button class="pill icon" id="tankClose" aria-label="Close the aquarium">✕</button></h2>
+    <canvas id="tankCanvas"></canvas>
+    <p id="tankNote"></p>
   </div>
 </section>
 
