@@ -67,7 +67,11 @@ type Np = {
   CHESTS6: [number, number][];
   isle6Stage: number;
   isle7Seen: boolean;
+  isle7Stage: number;
+  portalOpen: number;
   monkeys7: { list: { state: string }[] };
+  boss7: { up: boolean; hp: number; hit(power: number): void };
+  roofMonkeys: { list: { state: string }[] };
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
   cat: { shown: boolean; heals: number; x: number; y: number };
@@ -1115,6 +1119,69 @@ test('island 7: sight it, run up on its sand, and the monkeys come for you', asy
     null,
     { timeout: 4000 },
   );
+  expect(errors).toEqual([]);
+});
+
+test("island 7's tower: up two floors of monkeys, the sorcerer a third time, and the portal wakes", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 52 * Math.SQRT1_2;
+    window.__np.walker.y = 6900 + 52 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 9);
+  for (const f of [9, 10]) {
+    await page.evaluate((i) => {
+      const fl = window.__np.floors[i];
+      if (!fl) return;
+      for (const m of fl.list) fl.hit(m, 9, m.x + 50, m.y);
+      window.__np.walker.x = -12000 - 130 * 0.6 * Math.SQRT1_2;
+      window.__np.walker.y = (i === 10 ? -6900 : -6000) - 130 * 0.6 * Math.SQRT1_2;
+    }, f);
+    await expect(page.locator('#climb')).toBeVisible();
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, f + 1);
+  }
+  await page.waitForFunction(() => window.__np.boss7.up, null, { timeout: 3000 });
+  // Hurt to half, it calls monkeys up onto the roof.
+  await page.evaluate(() => window.__np.boss7.hit(window.__np.boss7.hp / 2));
+  await page.waitForFunction(() => window.__np.roofMonkeys.list.length >= 2, null, {
+    timeout: 3000,
+  });
+  await page.evaluate(() => window.__np.boss7.hit(99));
+  await page.waitForFunction(() => window.__np.isle7Stage === 1, null, { timeout: 4000 });
+  await expect(page.locator('#leave')).toHaveText('Down to the portal');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1 && window.__np.portalOpen >= 1, null, {
+    timeout: 5000,
+  });
+  // Into the ring: it shows where it goes, but not yet.
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await expect(page.locator('#toast')).toContainText('Not yet', { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

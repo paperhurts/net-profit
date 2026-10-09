@@ -1,10 +1,10 @@
 /**
  * The towers, climbed as little dungeons: island 2's, two floors of monkeys and
- * the roof, where the sorcerer waits; and island 3's, the same again, where he
- * waits a second time. The floors are rooms in a pocket of the world
- * far from any sea, so the figure walks, throws and is bonked in them exactly as
- * it does outside; the game draws them as stone rooms lit by torches, and the
- * roof under the sky. The figure arrives at the front of each room, nearest the
+ * the roof, where the sorcerer waits; island 3's, the same again, where he
+ * waits a second time; and island 7's, where he waits a third. The floors are
+ * rooms in a pocket of the world far from any sea, so the figure walks, throws
+ * and is bonked in them exactly as it does outside; the game draws them as
+ * stone rooms lit by torches, and the roof under the sky. The figure arrives at the front of each room, nearest the
  * viewer, and the stairs up appear at the back once the room is beaten.
  */
 
@@ -29,10 +29,15 @@ export const ROOMS: readonly Room[] = [
   { x: -9000, y: -7000, r: ROOM_R + 40, roof: false, kind: 'demon' },
   // Under island 6, where the Deep One drags the boat: its drowned temple.
   { x: -10500, y: -6000, r: ROOM_R + 50, roof: false, kind: 'temple' },
+  // Island 7's tower, where the sorcerer waits a third time.
+  { x: -12000, y: -6000, r: ROOM_R, roof: false, kind: 'floor' },
+  { x: -12000, y: -6900, r: ROOM_R, roof: false, kind: 'floor' },
+  { x: -12000, y: -7800, r: ROOM_R + 20, roof: true, kind: 'roof' },
 ];
-/** Island 2's roof, and island 3's, in ROOMS. */
+/** Island 2's roof, island 3's and island 7's, in ROOMS. */
 export const ROOF = 2;
 export const ROOF3 = 5;
+export const ROOF7 = 11;
 /** The hall under island 3's tower, and the demon dimension. */
 export const HALL = 6;
 export const DEMON = 7;
@@ -42,6 +47,7 @@ export const TEMPLE6 = 8;
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },
   { first: 3, roof: ROOF3 },
+  { first: 9, roof: ROOF7 },
 ];
 
 const D = Math.SQRT1_2;

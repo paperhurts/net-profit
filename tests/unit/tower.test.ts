@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { rng } from '../../src/core/math';
 import { spearAt } from '../../src/data/spear';
 import type { World } from '../../src/entities/entity';
-import { BOSS_HP, FALL, NOVA_BOLTS, NOVA_EVERY, Sorcerer } from '../../src/entities/sorcerer';
+import { Monkeys } from '../../src/entities/monkeys';
+import {
+  BOSS_HP,
+  CALL_EVERY,
+  CALL_N,
+  FALL,
+  NOVA_BOLTS,
+  NOVA_EVERY,
+  Sorcerer,
+  THIRD_HP,
+} from '../../src/entities/sorcerer';
 import { Spears } from '../../src/entities/spears';
 import { WALK_SPEED, walkable } from '../../src/entities/walker';
 import { ISLE2, TOWER } from '../../src/world/isle2';
@@ -11,6 +21,7 @@ import {
   entry,
   ROOF,
   ROOF3,
+  ROOF7,
   ROOMS,
   type Room,
   roomAt,
@@ -81,14 +92,21 @@ describe('the leviathan sorcerer', () => {
     expect(b.state).toBe('gone');
   });
 
-  /** A person who strafes across its line of fire, turning back every second or two and away from the roof's edge, and throws when it is in reach a third of a second late. Wins out of 30. */
-  function fights(level: number, nova = false): number {
+  /**
+   * A person who strafes across its line of fire, turning back every second or two and away from the
+   * roof's edge, and throws when it is in reach a third of a second late. With calls, the sorcerer of
+   * island 7: its monkeys come as the game sends them (two, one throwing, while fewer than two are up),
+   * and the person throws at the nearest of them when the sorcerer is out of reach. heals is the healer
+   * cat's: a heart back a moment after one is lost, this many times. Wins out of 30.
+   */
+  function fights(level: number, nova = false, calls = false, heals = 0): number {
     const sp = spearAt(level);
     if (!sp) throw new Error('spear');
-    const r = rng(level * 7);
+    const r = rng(level * 7 + (calls ? 3 : 0));
     let wins = 0;
     for (let run = 0; run < 30; run++) {
-      const b = new Sorcerer(roof, nova);
+      const b = new Sorcerer(roof, nova, calls, calls ? THIRD_HP : BOSS_HP);
+      const camp = new Monkeys(roof, 0, 0, false);
       const spears = new Spears();
       const f = { x: roof.x + 20, y: roof.y + 40, vx: 0, vy: 0 };
       const w: World = baseWorld({ figure: f });
@@ -98,13 +116,30 @@ describe('the leviathan sorcerer', () => {
       let t = 0;
       let side = run % 2 ? 1 : -1;
       let flip = 1.2 + r() * 0.8;
-      b.onHit = () => {
+      let healsLeft = heals;
+      let healAt = -1;
+      const hurt = () => {
         if (invuln > 0) return;
         hearts--;
         invuln = 1.2;
+        if (healsLeft > 0 && hearts > 0 && healAt < 0) healAt = t + 1.2;
+      };
+      b.onHit = hurt;
+      camp.onBonk = hurt;
+      b.onCall = (x, y) => {
+        if (camp.list.filter((m) => m.state === 'chase').length >= CALL_N) return;
+        camp.summon(x + 14, y + 10);
+        camp.summon(x - 14, y + 10, true);
       };
       for (; t < 150 && b.state !== 'gone' && hearts > 0; t += DT) {
         invuln -= DT;
+        if (healAt >= 0 && t >= healAt) {
+          healAt = -1;
+          if (hearts < 3) {
+            hearts++;
+            healsLeft--;
+          }
+        }
         flip -= DT;
         const dx = b.x - f.x;
         const dy = b.y - f.y;
@@ -127,11 +162,18 @@ describe('the leviathan sorcerer', () => {
         f.vy = (vy / n) * WALK_SPEED;
         f.x += f.vx * DT;
         f.y += f.vy * DT;
-        if (b.up && t >= ready && d <= sp.range) {
+        if (t >= ready && b.up && d <= sp.range) {
           ready = t + sp.reload + 1 / 3;
           spears.launch(f.x, f.y, 20, b, 34, () => b.hit(sp.power));
+        } else if (t >= ready) {
+          const m = camp.nearest(f.x, f.y, sp.range);
+          if (m) {
+            ready = t + sp.reload + 1 / 3;
+            spears.launch(f.x, f.y, 20, m, 10, () => camp.hit(m, sp.power, f.x, f.y));
+          }
         }
         b.update(DT, w);
+        camp.update(DT, w);
         spears.update(DT, w);
       }
       if (b.state === 'gone' && hearts > 0) wins++;
@@ -188,6 +230,59 @@ describe('the leviathan sorcerer', () => {
   it('is still a fair fight with the ring, with the long spear, and a sure one with the barbed', () => {
     expect(fights(2, true)).toBeGreaterThanOrEqual(15);
     expect(fights(3, true)).toBeGreaterThanOrEqual(26);
+  });
+
+  it('comes back a third time to island 7, calling monkeys up once angry, at once and then every so often', () => {
+    const roof7 = ROOMS[ROOF7] as Room;
+    const b = new Sorcerer(roof7, true, true, THIRD_HP);
+    let called = 0;
+    b.onCall = (x, y) => {
+      called++;
+      expect(Math.hypot(x - roof7.x, y - roof7.y)).toBeLessThan(roof7.r - 12);
+    };
+    const w: World = baseWorld({ figure: { x: roof7.x, y: roof7.y + 40, vx: 0, vy: 0 } });
+    b.update(DT, w);
+    expect(b.state).toBe('fly');
+    for (let i = 0; i < 20 / DT; i++) b.update(DT, w);
+    expect(called).toBe(0);
+    b.hit(THIRD_HP / 2 - 1);
+    b.update(DT, w);
+    expect(called).toBe(0);
+    b.hit(1);
+    b.bolts.length = 0;
+    b.update(DT, w);
+    expect(called).toBe(1);
+    for (let i = 0; i < (CALL_EVERY - 0.5) / DT; i++) {
+      b.bolts.length = 0;
+      b.update(DT, w);
+    }
+    expect(called).toBe(1);
+    for (let i = 0; i < 1 / DT; i++) {
+      b.bolts.length = 0;
+      b.update(DT, w);
+    }
+    expect(called).toBe(2);
+    // Island 3's never learns it.
+    const b3 = new Sorcerer(ROOMS[ROOF3] as Room, true);
+    b3.onCall = () => called++;
+    b3.update(DT, w);
+    b3.hit(BOSS_HP / 2);
+    for (let i = 0; i < 20 / DT; i++) b3.update(DT, w);
+    expect(called).toBe(2);
+  });
+
+  it('is twice as tough there and a hard fight alone with its monkeys, and a sure one with the healer cat', () => {
+    // Alone, even with the barbed spear or the harpoon, about two times in three.
+    for (const level of [3, 4]) {
+      const alone = fights(level, true, true);
+      expect(alone).toBeGreaterThanOrEqual(12);
+      expect(alone).toBeLessThanOrEqual(24);
+    }
+    // Harder than island 3's, which the barbed spear always wins.
+    expect(fights(3, true)).toBe(30);
+    // With the healer cat's two heals, which anyone this far has, every time.
+    expect(fights(3, true, true, 2)).toBeGreaterThanOrEqual(28);
+    expect(fights(4, true, true, 2)).toBeGreaterThanOrEqual(28);
   });
 
   it('draws its bolts and its body in the air, and nothing once it is gone', () => {

@@ -8,6 +8,7 @@ import {
   ISLE4_STAGES,
   ISLE5_STAGES,
   ISLE6_STAGES,
+  ISLE7_STAGES,
   parseSave,
   SAVE_KEY,
   serializeSave,
@@ -357,6 +358,15 @@ describe('island 7', () => {
     expect(parseSave(serializeSave(s), bounds).isle7Seen).toBe(true);
     expect(parseSave(JSON.stringify({ isle7Seen: 'yes' }), bounds).isle7Seen).toBe(true);
     expect(parseSave(JSON.stringify({}), bounds).isle7Seen).toBe(false);
+  });
+
+  it('has the portal dead in an old save, keeps it awake, and clamps nonsense', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle7Stage).toBe(0);
+    s.isle7Stage = 1;
+    expect(parseSave(serializeSave(s), bounds).isle7Stage).toBe(1);
+    expect(parseSave(JSON.stringify({ isle7Stage: 9 }), bounds).isle7Stage).toBe(ISLE7_STAGES);
+    expect(parseSave(JSON.stringify({ isle7Stage: -2 }), bounds).isle7Stage).toBe(0);
   });
 });
 

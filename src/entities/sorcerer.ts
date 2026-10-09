@@ -11,6 +11,10 @@
  *
  * It comes back on island 3's tower having learned a trick: angry, every third
  * cast is a ring of bolts thrown out all round it, with gaps to stand in.
+ *
+ * And a third time on island 7's, with another: angry, it calls monkeys up onto
+ * the roof, at once and again every CALL_EVERY seconds. It only shrieks for
+ * them; the game decides how many come, so a roof never fills up.
  */
 
 import { rgba } from '../core/color';
@@ -34,6 +38,13 @@ export const PECK = 16;
 /** The trick it learns for island 3: angry, every this many casts is a ring of this many bolts. */
 export const NOVA_EVERY = 3;
 export const NOVA_BOLTS = 8;
+/**
+ * The trick it learns for island 7: angry, it calls monkeys up this often, the first time at once, and
+ * the game sends CALL_N (one of them throwing) while fewer than CALL_N are up. It is tougher there too.
+ */
+export const CALL_EVERY = 9;
+export const CALL_N = 2;
+export const THIRD_HP = 16;
 /** Seconds it falls once beaten, before the game is told. */
 export const FALL = 1.6;
 
@@ -60,21 +71,30 @@ export class Sorcerer implements Entity {
   onBeaten: (() => void) | null = null;
   /** It cast a bolt. */
   onCast: (() => void) | null = null;
+  /** Angry on island 7's roof, it calls monkeys up, from where it is flying. */
+  onCall: ((x: number, y: number) => void) | null = null;
 
-  /** Casts since it got angry, for the ring. */
+  /** Casts since it got angry, for the ring; and until it calls monkeys again. */
   private casts = 0;
+  private callT = 0;
 
-  /** At home on this roof; nova is the ring of bolts it learns for its return. */
+  /**
+   * At home on this roof; nova is the ring of bolts it learns for its return, calls the monkeys it
+   * learns for its third, and hpMax how much it takes to beat.
+   */
   constructor(
     readonly home: { x: number; y: number },
     readonly nova = false,
+    readonly calls = false,
+    readonly hpMax = BOSS_HP,
   ) {
+    this.hp = hpMax;
     this.x = home.x;
     this.y = home.y - RING;
   }
 
   get angry(): boolean {
-    return this.hp <= BOSS_HP / 2;
+    return this.hp <= this.hpMax / 2;
   }
 
   /** In the fight: there to be speared. */
@@ -84,7 +104,7 @@ export class Sorcerer implements Entity {
 
   reset(): void {
     this.state = 'wait';
-    this.hp = BOSS_HP;
+    this.hp = this.hpMax;
     this.t = 0;
     this.a = -Math.PI / 2;
     this.x = this.home.x;
@@ -92,6 +112,7 @@ export class Sorcerer implements Entity {
     this.cast = 1.5;
     this.swoop = SWOOP_EVERY;
     this.casts = 0;
+    this.callT = 0;
     this.bolts.length = 0;
   }
 
@@ -138,6 +159,13 @@ export class Sorcerer implements Entity {
       return;
     }
     const speed = this.angry ? 1.6 : 1;
+    if (this.calls && this.angry) {
+      this.callT -= dt;
+      if (this.callT <= 0) {
+        this.callT = CALL_EVERY;
+        this.onCall?.(this.x, this.y);
+      }
+    }
     if (this.state === 'fly') {
       this.a += FLY * speed * dt;
       this.x += (this.home.x + Math.cos(this.a) * RING - this.x) * Math.min(1, dt * 3);
