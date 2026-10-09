@@ -643,7 +643,7 @@ function puff(x, y){ for (let i=0;i<16;i++) sparks.push({x, y, vx:(Math.random()
 // an evil monkey summons a tar monster out of the sea, the water goes black, and island 4 turns to tar. A tap skips it.
 const CINE = 12, CINE_IN = 2.5, CINE_OUT = 9.5;
 const CAPTIONS = [[0, 'Far away, in the south corner of the deep...'], [2.6, 'An evil monkey is summoning something out of the sea.'],
-  [4.8, 'A tar monster! The water is turning black.'], [7.6, 'Island 4 is a tar island now. To go there, you will need a chemistry suit.']];
+  [4.8, 'A tar monster! The water is turning black.'], [7.6, 'Island 4 is a tar island now. To go there, you will need a chemistry suit from the shipwright.']];
 let cine = null, cineWait = 0, tarToastT = 0;
 const ease = (t) => t*t*(3 - 2*t);
 function cineK(){ if (!cine) return 0; const t = cine.t; return t < CINE_IN ? ease(t/CINE_IN) : t < CINE_OUT ? 1 : ease(clamp(1 - (t - CINE_OUT)/(CINE - CINE_OUT), 0, 1)); }
@@ -720,7 +720,7 @@ function isle4Look(){ if (isle3Stage >= 4) return {tar: 1, spread: 1, rise: 0, s
   return {summon: r(2.5, 4.6), rise: r(4.4, 6.8), spread: r(5, 8.2), tar: r(6.2, 8.8), monkey: t >= 2.5}; }
 function startCine(){ cine = {t: 0, cue: 0}; toasts.clear(); boat.v = 0; document.body.classList.add('cine'); }
 function endCine(){ cine = null; document.body.classList.remove('cine'); isle3Stage = Math.max(isle3Stage, 4); save(); refreshShop();
-  toast('Island 4 has turned to tar. A dark marker shows the way there. You will need a chemistry suit.', 4400, 1); }
+  toast('Island 4 has turned to tar. A dark marker shows the way there. You need a chemistry suit: dock, and the shipwright in the shop sells one.', 5200, 1); }
 function updateCine(dt){
   if (!cine){ if (isle3Stage === 3 && walker.aboard && started && swallowT <= 0){ cineWait += dt; if (cineWait > 1.5){ cineWait = 0; startCine(); } } else cineWait = 0; return; }
   cine.t += dt;
@@ -1003,7 +1003,7 @@ function renderGuide(){
   pages.push(`<article class="page${isle3Stage >= 4 ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle3Stage >= 4 ? 'Tar monster' : '?'}</b><small>${isle3Stage >= 4
     ? 'An evil monkey called it up out of the sea round island 4: a great dome of tar with glowing yellow eyes and dripping arms. The water round it went black and the island turned to tar. No boat can go into the black water, but you can, in a chemistry suit.'
       + (isle4Stage >= 1 ? ' Set foot on its sand and it rose with an anchor on a chain: the Tar Anchorer. It threw the anchor where you were going and swung it round itself. You beat it, it melted, and a tarbaby climbed out of what was left.' : '')
-    : 'Not seen yet.'}</small><div class="facts"><span>Island 4</span><span>${isle4Stage >= 1 ? 'The Tar Anchorer' : 'Black water'}</span><span>${isle4Stage >= 1 ? 'Beaten: a tarbaby' : 'Chemistry suit needed'}</span></div></article>`);
+    : 'Not seen yet.'}</small><div class="facts"><span>Island 4</span><span>${isle4Stage >= 1 ? 'The Tar Anchorer' : 'Black water'}</span><span>${isle4Stage >= 1 ? 'Beaten: a tarbaby' : gear.suit ? 'Suit bought' : 'Suit: the shipwright'}</span></div></article>`);
   pages.push(`<article class="page${isle5Seen ? ' gold' : ' unk'}">${LEV_SVG}<b>${isle5Seen ? 'The Skeleton Shark King' : '?'}</b><small>${isle5Seen
     ? 'King of all the sharks, and nothing left of him but bones, a crown and a trident. He rules the reef of bones out in the far deep. His fin stalks your boat; when the water churns, a line shows where he will charge, so turn off it. Then he leaps clean out of the water, which is when the harpoon reaches him. He throws his trident too: steer out of the gold ring.'
       + (isle5Stage >= 1 ? ' You beat him. Dying, he said he knew of a portal to another world, and died before he could say where.' : '')
