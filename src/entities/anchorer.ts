@@ -14,9 +14,9 @@
  * after it draws it back: step away. It takes a lot of spears, and the ring and
  * the swing are the whole fight; past half beaten it gets angry, its eyes go
  * red, and it throws twice as often. Beaten, it melts back into the tar and leaves
- * a tarbaby behind. Leave the island, or be bonked out, and it sinks back to
+ * a tarling behind. Leave the island, or be bonked out, and it sinks back to
  * its eyes, healed. The game does the hearts, the monkey's puff, the prize and
- * the tarbaby as callbacks; the tests play it with a person's reaction.
+ * the tarling as callbacks; the tests play it with a person's reaction.
  */
 
 import { angDiff } from '../core/math';

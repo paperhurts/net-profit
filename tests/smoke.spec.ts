@@ -61,7 +61,7 @@ type Np = {
   maxHearts: number;
   gear: { mesh: boolean; strongbox: boolean; suit: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
-  tarbaby: { with: boolean; free: boolean };
+  tarling: { with: boolean; free: boolean };
   isle4Stage: number;
   isle5Seen: boolean;
   isle5Stage: number;
@@ -968,7 +968,7 @@ test('the chemistry suit: from the shipwright, then into the tar off the bow, sw
   expect(errors).toEqual([]);
 });
 
-test('the Tar Anchorer: it rises when the figure reaches the sand, and beaten, leaves a tarbaby', async ({
+test('the Tar Anchorer: it rises when the figure reaches the sand, and beaten, leaves a tarling', async ({
   context,
   page,
 }) => {
@@ -1007,14 +1007,14 @@ test('the Tar Anchorer: it rises when the figure reaches the sand, and beaten, l
   await expect(page.locator('#throw')).toBeVisible({ timeout: 4000 });
   await page.evaluate(() => window.__np.anchorer.hit(200));
   await page.waitForFunction(() => window.__np.isle4Stage === 1, null, { timeout: 4000 });
-  await page.waitForFunction(() => window.__np.tarbaby.with, null, { timeout: 2000 });
+  await page.waitForFunction(() => window.__np.tarling.with, null, { timeout: 2000 });
   // Back aboard, it rides along.
   await page.evaluate(() => {
     const w = window.__np.walker;
     w.x = w.dock.landing.x;
     w.y = w.dock.landing.y;
   });
-  expect(await page.evaluate(() => window.__np.tarbaby.free)).toBe(true);
+  expect(await page.evaluate(() => window.__np.tarling.free)).toBe(true);
   expect(errors).toEqual([]);
 });
 

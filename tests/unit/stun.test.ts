@@ -6,7 +6,7 @@ import { Fighter, SWORDSMAN } from '../../src/entities/fighter';
 import { AIM, Forgotten } from '../../src/entities/forgotten';
 import { Monkeys } from '../../src/entities/monkeys';
 import { Sorcerer } from '../../src/entities/sorcerer';
-import { SPIT_POWER, STUN, Tarbaby } from '../../src/entities/tarbaby';
+import { SPIT_POWER, STUN, Tarling } from '../../src/entities/tarling';
 import { Horde } from '../../src/entities/undead';
 import { LANDING } from '../../src/entities/walker';
 import { FORGOTTEN_START } from '../../src/world/gigantis';
@@ -21,9 +21,9 @@ const run = (e: { update(dt: number, w: World): void }, w: World, s: number) => 
   for (let i = 0; i < s / DT; i++) e.update(DT, w);
 };
 
-describe("the tarbaby's tar", () => {
+describe("the tarling's tar", () => {
   it('hits for one and sticks whatever it lands on for about a second, with tar on its face', () => {
-    const tb = new Tarbaby();
+    const tb = new Tarling();
     tb.free = true;
     const f = fig(LANDING.x, LANDING.y);
     const w: World = baseWorld({ figure: f });
