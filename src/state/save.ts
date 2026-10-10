@@ -9,6 +9,7 @@ import { ARMOUR_MAX } from '../data/armour';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
+import { type Bases, noBases, parseBases } from '../world/bases';
 
 export const SAVE_KEY = 'netprofit.v1';
 
@@ -106,6 +107,8 @@ export type SaveData = {
   lionCaught: number;
   /** The aquarium on the home island is built. */
   aquarium: boolean;
+  /** How far each base on the other islands is built: 0 nothing, 1 its hut, and so on. */
+  bases: Bases;
   /** The naga, freed from the monkeys' cage on island 2, is yours. */
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
@@ -213,6 +216,7 @@ export function defaultSave(b: Bounds): SaveData {
     lionSeen: false,
     lionCaught: 0,
     aquarium: false,
+    bases: noBases(),
     nagaFree: false,
     isle8Seen: false,
     otterFed: 0,
@@ -316,6 +320,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.lionSeen = !!o.lionSeen;
   d.lionCaught = Math.max(0, int(o.lionCaught));
   d.aquarium = !!o.aquarium;
+  d.bases = parseBases(o.bases);
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
@@ -410,6 +415,7 @@ export function serializeSave(d: SaveData): string {
     lionSeen: d.lionSeen,
     lionCaught: d.lionCaught,
     aquarium: d.aquarium,
+    bases: d.bases,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,
