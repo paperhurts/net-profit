@@ -1,8 +1,9 @@
 /**
  * The towers, climbed as little dungeons: island 2's, two floors of monkeys and
  * the roof, where the sorcerer waits; island 3's, the same again, where he
- * waits a second time; island 7's, where he waits a third; and island 8's, where
- * his master the Heron waits behind two floors of hired men. The floors are
+ * waits a second time; island 7's, where he waits a third; island 8's, where
+ * his master the Heron waits behind two floors of hired men; and island 9's,
+ * where he waits again in his nest, shielded by the orb of power. The floors are
  * rooms in a pocket of the world far from any sea, so the figure walks, throws
  * and is bonked in them exactly as it does outside; the game draws them as
  * stone rooms lit by torches, and the roof under the sky. The figure arrives at the front of each room, nearest the
@@ -13,7 +14,8 @@ import { TOWER } from './isle2';
 
 /**
  * A stone floor, a roof under the sky, the hall under island 3's tower, the demon dimension, the drowned
- * temple, or Gigantis: its courtyard under the green sky, its halls, its throne room, and the ruins behind it.
+ * temple, Gigantis (its courtyard under the green sky, its halls, its throne room, and the ruins behind it), or the
+ * Heron's nest on top of island 9's tower.
  */
 export type RoomKind =
   | 'floor'
@@ -24,7 +26,8 @@ export type RoomKind =
   | 'court'
   | 'castle'
   | 'throne'
-  | 'ruins';
+  | 'ruins'
+  | 'nest';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -58,12 +61,18 @@ export const ROOMS: readonly Room[] = [
   { x: -15000, y: -6000, r: ROOM_R, roof: false, kind: 'floor' },
   { x: -15000, y: -6900, r: ROOM_R, roof: false, kind: 'floor' },
   { x: -15000, y: -7800, r: ROOM_R + 30, roof: true, kind: 'roof' },
+  // Island 9's, the Heron's own: two floors of hired men, and his nest on top.
+  { x: -16500, y: -6000, r: ROOM_R, roof: false, kind: 'floor' },
+  { x: -16500, y: -6900, r: ROOM_R, roof: false, kind: 'floor' },
+  { x: -16500, y: -7800, r: ROOM_R + 40, roof: true, kind: 'nest' },
 ];
-/** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. */
+/** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
 export const ROOF3 = 5;
 export const ROOF7 = 11;
 export const ROOF8 = 19;
+/** The Heron's nest, on top of island 9's tower. */
+export const NEST9 = 22;
 /** The hall under island 3's tower, and the demon dimension. */
 export const HALL = 6;
 export const DEMON = 7;
@@ -82,6 +91,7 @@ export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 3, roof: ROOF3 },
   { first: 9, roof: ROOF7 },
   { first: 17, roof: ROOF8 },
+  { first: 20, roof: NEST9 },
 ];
 
 const D = Math.SQRT1_2;

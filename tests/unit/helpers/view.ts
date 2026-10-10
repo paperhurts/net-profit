@@ -52,6 +52,7 @@ export function fakeView(): FakeView {
     rotate: count('rotate'),
     scale: count('scale'),
     setLineDash: count('setLineDash'),
+    createLinearGradient: () => ({ addColorStop: count('addColorStop') }),
   } as unknown as CanvasRenderingContext2D;
   const fake: FakeView = {
     calls,

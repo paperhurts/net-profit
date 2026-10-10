@@ -56,7 +56,7 @@ function reachable(step = 4): Set<string> {
   return seen;
 }
 
-const BARRED = { barred8: true, barred9: true, flag8: null };
+const BARRED = { barred8: true, barred9: true, flag8: null, orbLit: true, flag9: null };
 
 describe('islands 8 and 9, the twins', () => {
   it('sit out in the far deep east of home, the side nothing else is on, short of its end', () => {
@@ -160,6 +160,14 @@ describe('islands 8 and 9, the twins', () => {
     expect(f.calls.fill ?? 0).toBeGreaterThan(40);
     isle8Glow(f.v);
     expect(f.calls.glow ?? 0).toBeGreaterThan(0);
+    // Beaten for good: the orb is dark, its light is out, and the flag stands in the nest.
+    const glows = f.calls.glow ?? 0;
+    isle8Glow(f.v, false);
+    expect(f.calls.glow).toBe(glows);
+    let flags = 0;
+    const won = { ...BARRED, barred9: false, orbLit: false, flag9: () => flags++ };
+    for (const s of isle8Solids(f.v, won)) s.f();
+    expect(flags).toBe(1);
     f.v.onScreen = () => false;
     expect(isle8Solids(f.v, BARRED)).toHaveLength(0);
   });
