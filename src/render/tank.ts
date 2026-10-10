@@ -41,7 +41,9 @@ export type Shape =
   | 'tuna'
   | 'grouper'
   | 'parrot'
-  | 'crab';
+  | 'crab'
+  | 'squid'
+  | 'dragon';
 
 /** How one kind looks side on, and where in the water it likes to be. */
 export type Look = {
@@ -57,6 +59,8 @@ export type Look = {
   fat: number;
   tail: number;
   glow?: boolean;
+  /** The colour it glows, where that is not its body's. */
+  glowC?: string;
   sparkle?: boolean;
   /** Its depth, as shares of the water from the surface to the sand. */
   band: readonly [number, number];
@@ -111,8 +115,10 @@ const SHAPES: Record<string, Shape> = {
   grouper: 'grouper',
   parrotfish: 'parrot',
   'spider crab': 'crab',
+  'glow squid': 'squid',
+  'neon dragonfish': 'dragon',
 };
-const LOW = new Set(['pufferfish', 'dusk ray', 'grouper', 'parrotfish']);
+const LOW = new Set(['pufferfish', 'dusk ray', 'grouper', 'parrotfish', 'neon dragonfish']);
 const MID = new Set(['shark', 'marlin', 'mahi-mahi', 'sunrise koi', 'tuna', 'snapper']);
 
 /** Tank units per world unit of a fish's length. */
@@ -137,6 +143,7 @@ export function speciesLook(S: Species, i: number): Look {
     fat: S.fat,
     tail: S.tail,
     ...(S.glow ? { glow: true } : {}),
+    ...(S.light ? { glowC: S.light } : {}),
     ...(S.rare || S.name === 'goldfin' ? { sparkle: true } : {}),
     band: S.crab ? BAND.floor : LOW.has(S.name) ? BAND.low : MID.has(S.name) ? BAND.mid : BAND.top,
   };
@@ -575,8 +582,8 @@ export class Tank {
     for (const f of this.fish) {
       if (f.look.glow) {
         const gx = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.look.len * 0.9);
-        gx.addColorStop(0, rgba(f.look.c, 0.35));
-        gx.addColorStop(1, rgba(f.look.c, 0));
+        gx.addColorStop(0, rgba(f.look.glowC ?? f.look.c, 0.35));
+        gx.addColorStop(1, rgba(f.look.glowC ?? f.look.c, 0));
         ctx.fillStyle = gx;
         ctx.fillRect(f.x - f.look.len, f.y - f.look.len, f.look.len * 2, f.look.len * 2);
       }
@@ -772,6 +779,12 @@ export function drawSideFish(
     case 'crab':
       drawSideCrab(ctx, L, H, H * 0.5 + 2, ph);
       break;
+    case 'squid':
+      squid(ctx, look, L, H, ph);
+      break;
+    case 'dragon':
+      dragon(ctx, look, L, H, beat, T);
+      break;
     default:
       body(ctx, look, L, H, beat, dark);
   }
@@ -780,6 +793,97 @@ export function drawSideFish(
     ctx.fillStyle = '#FFFFFF';
     star(ctx, x - L * 0.1, y - H * 0.35, 2.6);
   }
+}
+
+/** A squid side on, swimming tail first as squid do: a long mantle with fins at its tip, eyes, and arms trailing. */
+function squid(ctx: CanvasRenderingContext2D, look: Look, L: number, H: number, ph: number): void {
+  ctx.fillStyle = look.c;
+  ctx.beginPath();
+  ctx.ellipse(L * 0.05, 0, L * 0.42, H * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // The fins at the mantle's tip, which leads.
+  ctx.beginPath();
+  ctx.moveTo(L * 0.42, 0);
+  ctx.lineTo(L * 0.3, -H * 0.9);
+  ctx.lineTo(L * 0.2, 0);
+  ctx.lineTo(L * 0.3, H * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  // Arms trailing behind, waving.
+  ctx.strokeStyle = look.c;
+  ctx.lineWidth = Math.max(1, H * 0.16);
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.35, i * H * 0.12);
+    ctx.quadraticCurveTo(
+      -L * 0.55,
+      i * H * 0.2 + Math.sin(ph + i) * H * 0.3,
+      -L * 0.75,
+      i * H * 0.28,
+    );
+    ctx.stroke();
+  }
+  ctx.fillStyle = look.mark ?? '#FFFFFF';
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.arc(
+      L * (0.25 - i * 0.12),
+      -H * 0.1 + (i % 2) * H * 0.2,
+      Math.max(0.8, H * 0.08),
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  eye(ctx, -L * 0.28, -H * 0.05, Math.max(1.2, H * 0.2));
+}
+
+/** A dragonfish side on: long and black, big jaws full of teeth, blue lights down its side and a glowing lure on its chin. */
+function dragon(
+  ctx: CanvasRenderingContext2D,
+  look: Look,
+  L: number,
+  H: number,
+  beat: number,
+  T: number,
+): void {
+  const light = look.glowC ?? look.mark ?? '#4FC3FF';
+  ctx.fillStyle = look.c;
+  ctx.beginPath();
+  ctx.ellipse(-L * 0.02, 0, L * 0.5, H * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  tailPath(ctx, L, H, look.tail, beat, false);
+  ctx.fill();
+  // Its jaws, a little open, with teeth.
+  ctx.strokeStyle = '#E8F2FF';
+  ctx.lineWidth = Math.max(0.6, H * 0.08);
+  for (let i = 0; i < 4; i++) {
+    const tx = L * (0.3 + i * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(tx, -H * 0.05);
+    ctx.lineTo(tx + L * 0.015, H * 0.2);
+    ctx.stroke();
+  }
+  // The lights down its side, and the lure on its chin, pulsing.
+  ctx.fillStyle = light;
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.arc(L * (0.25 - i * 0.11), H * 0.25, Math.max(0.8, H * 0.12), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = light;
+  ctx.lineWidth = Math.max(0.6, H * 0.08);
+  ctx.beginPath();
+  ctx.moveTo(L * 0.3, H * 0.4);
+  ctx.quadraticCurveTo(L * 0.35, H * 1.4, L * 0.45, H * 1.6);
+  ctx.stroke();
+  const a0 = ctx.globalAlpha;
+  ctx.globalAlpha = a0 * (0.6 + 0.4 * Math.sin(T * 4));
+  ctx.beginPath();
+  ctx.arc(L * 0.45, H * 1.6, Math.max(1.4, H * 0.3), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = a0;
+  eye(ctx, L * 0.3, -H * 0.2, Math.max(1, H * 0.16), false);
 }
 
 function tailPath(

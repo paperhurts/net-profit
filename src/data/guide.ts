@@ -46,8 +46,10 @@ export const HABITAT: Readonly<Record<number, Habitat>> = Object.fromEntries(
 export const SHARK_SP = 7;
 export const DAWN_SP = 10;
 export const DUSK_SP = 11;
-/** Species index of the spider crab, from the crab pots. */
+/** Species index of the spider crab, from the crab pots, and the trench's two, speared on a dive. */
 export const CRAB_SP = 16;
+export const SQUID_SP = 17;
+export const DRAGON_SP = 18;
 
 /** One line per species, in the game's voice. */
 export const BLURBS: readonly string[] = [
@@ -68,6 +70,8 @@ export const BLURBS: readonly string[] = [
   'Big, brown and mottled, with a mouth like a bucket. Groupers live in wrecks, and the drowned town under island 3 is the biggest wreck in the sea.',
   'Long, blue and fast, with a spear for a nose. Only out in the far deep, where nobody had fished before you.',
   'Legs like a spider, longer than your arm, and a shell as bright as a sweet wrapper. They walk the sea floor and climb into crab pots for the bait.',
+  'A squid that makes its own light, violet all over, down where the sun never reaches. Quick: aim where it is going.',
+  'Black as the water it swims in, with a row of blue lights down its side and a glowing lure hanging off its chin to catch its supper. The deepest thing you can catch.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -90,6 +94,10 @@ export function whereText(sp: number): string {
   if (sp === DAWN_SP || sp === DUSK_SP) return 'Anywhere inside your range, past the shallows.';
   if (sp === CRAB_SP)
     return 'In your crab pots, anywhere inside the buoys. Pots come with the crab shed on island 3.';
+  if (sp === SQUID_SP)
+    return 'The trench in the deep, in the midnight water. Dive with scuba gear and a spear.';
+  if (sp === DRAGON_SP)
+    return 'The trench in the deep, down by its floor. Dive with scuba gear and a spear.';
   return 'Out there somewhere.';
 }
 
@@ -101,6 +109,8 @@ export function whenText(sp: number): string {
   if (sp === DAWN_SP) return 'Dawn, for eighty seconds.';
   if (sp === DUSK_SP) return 'Dusk, for eighty seconds.';
   if (sp === CRAB_SP) return 'Day and night. Pots further out fill faster.';
+  if (sp === SQUID_SP || sp === DRAGON_SP)
+    return 'Day and night: down there it is always dark. Glows.';
   return '';
 }
 

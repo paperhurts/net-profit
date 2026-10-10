@@ -16,6 +16,10 @@
  */
 
 import { rng } from '../core/math';
+import { DRAGONFISH, GLOW_SQUID } from '../data/tuning';
+
+/** The lanternfish's species: the trench's lanternfish are the same fish as the far corners'. */
+export const LANTERN = 6;
 
 /** Where it is in the sea, and how near the boat must be stopped to dive. */
 export const TRENCH = { x: 1250, y: -620, r: 150 } as const;
@@ -137,7 +141,7 @@ export function trenchPlants(seed = 31): Plant[] {
   return out;
 }
 
-export type DiveFishKind = 'silver' | 'jelly' | 'lantern' | 'squid';
+export type DiveFishKind = 'silver' | 'jelly' | 'lantern' | 'squid' | 'dragon';
 /** A shoal in the trench: what kind, how many, where it ranges, and how big each is. */
 export type Shoal = {
   kind: DiveFishKind;
@@ -150,6 +154,9 @@ export type Shoal = {
   size: number;
   c: string;
   glow: boolean;
+  /** The species a spear takes it as, if it can be speared; and the colour it glows, if not its body's. */
+  sp?: number;
+  light?: string;
   /** Its own phase and pace round its range. */
   ph: number;
   pace: number;
@@ -207,6 +214,7 @@ export function trenchShoals(): Shoal[] {
       size: 6,
       c: '#5FF3FF',
       glow: true,
+      sp: LANTERN,
       ph: 3,
       pace: 0.09,
     },
@@ -220,10 +228,34 @@ export function trenchShoals(): Shoal[] {
       size: 13,
       c: '#B98AFF',
       glow: true,
+      sp: GLOW_SQUID,
       ph: 4,
       pace: 0.07,
     },
+    {
+      kind: 'dragon',
+      n: 3,
+      cx: TW * 0.5,
+      cy: 1390,
+      rx: 70,
+      ry: 30,
+      size: 14,
+      c: '#1A2238',
+      glow: true,
+      sp: DRAGONFISH,
+      light: '#4FC3FF',
+      ph: 5,
+      pace: 0.06,
+    },
   ];
+}
+
+/** Where fish i of a shoal is at time T: round the shoal's middle at its own place, bobbing. */
+export function fishIn(s: Shoal, i: number, T: number): { x: number; y: number } {
+  const c = shoalAt(s, T);
+  const a = i * 2.39996 + T * 0.4;
+  const r = 14 + ((i * 37) % 50);
+  return { x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r * 0.55 + Math.sin(T * 2 + i) * 3 };
 }
 
 /** Where a shoal's middle is at time T: round its range on a slow loop. */
