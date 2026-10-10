@@ -23,15 +23,23 @@ export const MIN_THROTTLE = 0.25;
 
 /**
  * One step: turn toward the input, set the throttle, ease the speed, move.
- * An input of zero coasts to a stop. maxV is the engine's top speed.
+ * An input of zero coasts to a stop. maxV is the engine's top speed; turnK
+ * scales the turn rate, 1 but in a storm (world/storm.ts), when it turns wider.
  */
-export function steerBoat(boat: Boat, ix: number, iy: number, maxV: number, dt: number): void {
+export function steerBoat(
+  boat: Boat,
+  ix: number,
+  iy: number,
+  maxV: number,
+  dt: number,
+  turnK = 1,
+): void {
   const mag = Math.hypot(ix, iy);
   let targetV = 0;
   if (mag > 0) {
     const w = dirToWorld(ix, iy);
     const diff = angDiff(Math.atan2(w[1], w[0]), boat.h);
-    const turn = (TURN_BASE + TURN_SLOW_BONUS * (1 - boat.v / maxV)) * dt;
+    const turn = (TURN_BASE + TURN_SLOW_BONUS * (1 - boat.v / maxV)) * dt * turnK;
     boat.h += clamp(diff, -turn, turn);
     targetV = maxV * mag * Math.max(MIN_THROTTLE, Math.cos(diff));
   }
@@ -56,8 +64,9 @@ export function steerBoatRelative(
   brake: boolean,
   maxV: number,
   dt: number,
+  turnK = 1,
 ): void {
-  const rate = (TURN_BASE + TURN_SLOW_BONUS * (1 - boat.v / maxV)) * dt;
+  const rate = (TURN_BASE + TURN_SLOW_BONUS * (1 - boat.v / maxV)) * dt * turnK;
   boat.h += clamp(turn, -1, 1) * rate;
   const targetV = maxV * clamp(throttle, 0, 1);
   const ease = targetV > boat.v ? ACCEL : brake ? BRAKE : DECEL;

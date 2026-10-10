@@ -67,6 +67,9 @@ type Np = {
   lurker: { x: number; y: number; a: number; state: string; t: number; wait: number };
   lurkerSeen: boolean;
   lurkerStung: number;
+  storm: { phase: string; t: number; bring(): void };
+  stormE: number;
+  stormSeen: boolean;
   wreckChest: boolean;
   diveSite: string;
   boneSharks: { x: number; y: number; state: string; t: number }[];
@@ -781,8 +784,9 @@ test('charters: at island 6 passengers board, see the whales, and pay at the nex
   const card = page.locator('#charterBtn');
   await expect(card).toBeVisible();
   await expect(card).toContainText('Take a charter');
-  // One passenger, who wants the whales.
+  // One passenger, who wants the whales; and Star, who haunts island 6, off on a long flight.
   await page.evaluate(() => {
+    window.__np.serpent.state = 'away';
     const o = window.__np.charterOffer;
     if (!o) return;
     o.wants = ['whales'];
@@ -815,10 +819,12 @@ test('charters: at island 6 passengers board, see the whales, and pay at the nex
     np.boat.v = 0;
   });
   await page.waitForFunction(() => window.__np.charter === null, null, { timeout: 3000 });
-  expect(await page.evaluate(() => [window.__np.coins, window.__np.chartersRun])).toEqual([
-    scared ? 300 : 600,
-    1,
-  ]);
+  // The fare, said as they step off. The purse may hold a little more: the net can sweep a fish on the way
+  // out to the whales, and tying up sells it.
+  const paid = scared ? 300 : 600;
+  await expect(page.locator('#toast')).toContainText(`+${paid} coins`);
+  expect(await page.evaluate(() => window.__np.chartersRun)).toBe(1);
+  expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(paid);
   await expect(page.locator('#charter')).toBeHidden();
   expect(errors).toEqual([]);
 });
@@ -1291,6 +1297,49 @@ test('the wreck: stopped beside it at island 5, dive to it, find its treasure, a
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').wreckChest),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('storms: out past the buoys a storm warns, comes, slows the boat, and the fish boil up after', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    isle2Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const st = window.__np.storm;
+    st.bring();
+  });
+  await expect(page.locator('#toast')).toContainText('a storm is coming');
+  // Hurried on from its warning.
+  await page.evaluate(() => {
+    window.__np.storm.t = 0.2;
+  });
+  await page.waitForFunction(() => window.__np.storm.phase === 'storm', null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('The storm is here');
+  await page.waitForFunction(() => window.__np.stormE > 0.9, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.stormSeen)).toBe(true);
+  // Full ahead in it, the boat makes less than its top speed.
+  await page.evaluate(() => {
+    window.__np.keys = 'drive';
+  });
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(2500);
+  const v = await page.evaluate(() => window.__np.boat.v);
+  await page.keyboard.up('ArrowUp');
+  expect(v).toBeLessThan(350 * 0.8);
+  expect(v).toBeGreaterThan(350 * 0.5);
+  // It passes, and the fish boil up.
+  await page.evaluate(() => {
+    window.__np.storm.t = 0.1;
+  });
+  await page.waitForFunction(() => window.__np.storm.phase === 'boil', null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('boiling up');
   expect(errors).toEqual([]);
 });
 
