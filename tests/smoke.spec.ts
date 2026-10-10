@@ -67,6 +67,10 @@ type Np = {
   lurker: { x: number; y: number; a: number; state: string; t: number; wait: number };
   lurkerSeen: boolean;
   lurkerStung: number;
+  wreckChest: boolean;
+  diveSite: string;
+  boneSharks: { x: number; y: number; state: string; t: number }[];
+  WRECK_CHEST: { x: number; y: number };
   charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
   charterOffer: { wants: string[]; shirts: number[] } | null;
   chartersRun: number;
@@ -1212,6 +1216,81 @@ test('the lurker: deep in the dark its eyes come, it bites air out of a diver wh
   await page.click('#throw');
   await page.waitForFunction(() => window.__np.lurkerStung === 1, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.lurker.state)).toBe('flee');
+  expect(errors).toEqual([]);
+});
+
+test('the wreck: stopped beside it at island 5, dive to it, find its treasure, and spear a bone shark off', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2306, y: 2523, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  const btn = page.locator('#diveBtn');
+  await expect(btn).toBeVisible();
+  await expect(btn).toContainText('Dive to the wreck');
+  await btn.click();
+  await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'wreck', null, {
+    timeout: 2000,
+  });
+  // Into the hold to the chest.
+  await page.evaluate(() => {
+    const np = window.__np;
+    for (const b of np.boneSharks) {
+      b.state = 'stung';
+      b.t = 60;
+    }
+    np.diver.x = np.WRECK_CHEST.x + 8;
+    np.diver.y = np.WRECK_CHEST.y - 10;
+    np.diver.vx = 0;
+    np.diver.vy = 0;
+  });
+  await page.waitForFunction(() => window.__np.wreckChest, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(1200);
+  await expect(page.locator('#toast')).toContainText("wreck's treasure");
+  // Out in the open, a bone shark ahead: the throw goes for it and stings it off.
+  const put = () =>
+    page.evaluate(() => {
+      const np = window.__np;
+      const d = np.diver;
+      d.x = 450;
+      d.y = 110;
+      d.vx = 0;
+      d.vy = 0;
+      d.face = 1;
+      const b = np.boneSharks[0];
+      if (!b) return;
+      b.state = 'cruise';
+      b.t = 0;
+      b.x = 560;
+      b.y = 110;
+    });
+  await put();
+  await page.waitForFunction(() => window.__np.diveAim !== null, null, { timeout: 2000 });
+  await put();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.boneSharks[0]?.state === 'stung', null, {
+    timeout: 3000,
+  });
+  // Back up: the treasure is saved.
+  await page.click('#surfaceBtn');
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 10000 });
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').wreckChest),
+  ).toBe(true);
   expect(errors).toEqual([]);
 });
 
