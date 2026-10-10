@@ -33,6 +33,9 @@ type Np = {
   dogAt: [number, number] | null;
   petted: boolean;
   swallowing: boolean;
+  swallow(by: string): void;
+  bases: Record<string, number>;
+  BASES: { spit: { x: number; y: number }; dock: { x: number; y: number; r: number } }[];
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
   masks: number;
@@ -656,6 +659,54 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
     (document.getElementById('rchips') as HTMLElement).getBoundingClientRect().bottom,
   ]);
   expect(toastTop, 'the message covers the bubbles').toBeGreaterThanOrEqual(chipsBottom);
+  expect(errors).toEqual([]);
+});
+
+test('bases: build a hut on island 2 from its dock, and the boat comes back up there after a sinking nearby', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 2000,
+    wood: 40,
+    isle2Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  const card = page.locator('#baseBtn');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Build a hut here');
+  await card.click();
+  await expect(card).toContainText('Your hut on island 2');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle2])).toEqual([500, 1]);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').bases),
+  ).toEqual({ isle2: 1 });
+  // Out past island 2's dock, nearer it than home, the boat goes down; it comes back up off that dock.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = -600 + 900 * Math.SQRT1_2;
+    b.y = 5400 - 900 * Math.SQRT1_2;
+    b.v = 0;
+  });
+  await page.evaluate(() => window.__np.swallow('log'));
+  await page.waitForFunction(() => !window.__np.swallowing, null, { timeout: 4000 });
+  const [at, spit] = await page.evaluate(() => [
+    [window.__np.boat.x, window.__np.boat.y],
+    window.__np.BASES[0]?.spit,
+  ]);
+  expect(
+    Math.hypot((at?.[0] ?? 0) - (spit?.x ?? 0), (at?.[1] ?? 0) - (spit?.y ?? 0)),
+    'not off island 2',
+  ).toBeLessThan(40);
+  await expect(page.locator('#toast')).toContainText('your hut on island 2');
   expect(errors).toEqual([]);
 });
 

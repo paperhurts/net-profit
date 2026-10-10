@@ -202,7 +202,7 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
 #mapCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;background:#0B1C24;touch-action:auto;cursor:default}
 #mapNote,#tankNote{margin:8px 4px 2px;font-size:13px;font-weight:700;text-align:center}
 #tankCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;border:3px solid #3B4A4F;box-sizing:content-box;background:#3C9DB8;touch-action:none;cursor:pointer}
-#aquaBtn[hidden]{display:none}
+#aquaBtn[hidden],#baseBtn[hidden]{display:none}
 #mapBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center}
 #mapBtn[hidden]{display:none}
 #mapPill{position:absolute;left:10px;top:-52px;font-size:16px;height:42px;padding:3px 16px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -287,6 +287,7 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
       <button class="up" data-k="engine"><b>Faster engine</b><div class="pips"></div><small></small><div class="buy"></div></button>
     </div>
     <div class="gearrow" id="gear" hidden></div>
+    <button class="build" id="baseBtn" hidden></button>
     <button class="build" id="build"></button>
     <button class="build" id="aquaBtn" hidden></button>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>

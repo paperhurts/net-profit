@@ -26,6 +26,7 @@ import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
 import type { ArmourLook } from '../data/armour';
 import { AQUARIUM, AQUARIUM_FROM, AQUARIUM_MID } from '../world/aquarium';
+import { BASES, polePoint } from '../world/bases';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
 import {
   BEACH,
@@ -373,6 +374,15 @@ export const PROPS: readonly Prop[] = [
     TOWER.x + TOWER.y,
   ),
   ...PALMS2.map((p) => post(p, 4, p[0] + p[1])),
+  // The bases' huts, or their plots until they are built, and their flagpoles.
+  ...BASES.flatMap((b) => {
+    const { x, y, half } = b.hut;
+    const p = polePoint(b);
+    return [
+      prop(x - half, y - half, x + half, y + half, x + y + half),
+      post([p.x, p.y], 2, x + y + half),
+    ];
+  }),
   // The monkey camp: three huts, the totem and the chest.
   ...HUTS.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),
   post([TOTEM.x, TOTEM.y], 2.5, TOTEM.x + TOTEM.y),
