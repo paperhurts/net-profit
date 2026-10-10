@@ -183,8 +183,8 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
   background:#1F5F8A;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
 #diveBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #surfaceBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
-/* Diving, the sea's own buttons and bubbles stand down: the dive draws its own air and depth. */
-body.diving #order,body.diving #holdPill,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #throw,body.diving #mend,body.diving #rodcast,body.diving #cast{display:none}
+/* Diving, the sea's own buttons and bubbles stand down: the dive draws its own air and depth. The hold stays, for what is speared, and so does the throw button. */
+body.diving #order,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast{display:none}
 #leave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;font-size:14px;height:38px;padding:3px 14px 0}
 /* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
 #throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;

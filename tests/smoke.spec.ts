@@ -39,7 +39,18 @@ type Np = {
   seine: { state: string };
   pots: { x: number; y: number; crabs: number }[];
   diving: boolean;
-  diver: { x: number; y: number; vy: number; air: number };
+  diver: { x: number; y: number; vx: number; vy: number; air: number; face: number };
+  trenchSh: {
+    kind: string;
+    cx: number;
+    cy: number;
+    rx: number;
+    ry: number;
+    ph: number;
+    pace: number;
+  }[];
+  diveT: number;
+  diveAim: { si: number } | null;
   trenchSeen: boolean;
   trenchDeep: number;
   haulLeft: number;
@@ -896,6 +907,51 @@ test('the trench: stopped over it with scuba gear, dive; down in the dark, then 
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').trenchDeep),
   ).toBeGreaterThan(1000);
+  expect(errors).toEqual([]);
+});
+
+test('spearfishing: down in the trench with a spear, a glow squid in reach is aimed at, and a throw takes it into the hold', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    trenchSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await page.click('#diveBtn');
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  await expect(page.locator('#throw')).toBeVisible();
+  // Just short of the squid, facing them: held there while the aim settles on one.
+  const squid = await page.evaluate(() =>
+    window.__np.trenchSh.findIndex((s) => s.kind === 'squid'),
+  );
+  const put = () =>
+    page.evaluate((si) => {
+      const np = window.__np;
+      const s = np.trenchSh[si];
+      if (!s) return;
+      const a = s.ph + np.diveT * s.pace;
+      const d = np.diver;
+      d.x = s.cx + Math.sin(a) * s.rx - 80;
+      d.y = s.cy + Math.sin(a * 1.7 + 1) * s.ry;
+      d.vx = 0;
+      d.vy = 0;
+      d.face = 1;
+    }, squid);
+  await put();
+  await page.waitForFunction((si) => window.__np.diveAim?.si === si, squid, { timeout: 2000 });
+  await put();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.hold >= 1, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

@@ -13,6 +13,7 @@ import type { Diver } from '../entities/diver';
 import { AIR_LOW, AIR_MAX } from '../entities/diver';
 import {
   ENTRY,
+  fishIn,
   floorAt,
   type Plant,
   type Shoal,
@@ -68,6 +69,12 @@ export type DiveScene = {
   trim: string;
   /** Bubbles going up, in scene units. */
   bubbles: readonly { x: number; y: number; r: number }[];
+  /** Whether fish i of shoal si is there; a speared one's place is empty a while. */
+  here?: (si: number, i: number) => boolean;
+  /** Spears in flight, the fish the next throw would go for, and words rising off a catch. */
+  spears?: readonly { x: number; y: number; vx: number; vy: number }[];
+  aim?: { x: number; y: number } | null;
+  texts?: readonly { x: number; y: number; t: number; msg: string; c: string }[];
 };
 
 /** The camera: the scene point at the screen's middle, and the scale. */
@@ -138,7 +145,10 @@ export function drawDive(
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
     if (!p.glow && p.y > top - 140 && p.y < bottom + 140) drawPlant(ctx, X, Y, s, p, T, false);
-  for (const sh of sc.shoals) if (!sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom);
+  const here = sc.here ?? (() => true);
+  sc.shoals.forEach((sh, si) => {
+    if (!sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom, (i) => here(si, i));
+  });
   // The boat overhead, the diver, and the bubbles.
   if (top < 30) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T);
   drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T);
@@ -160,7 +170,39 @@ export function drawDive(
   // What glows, over the dark.
   for (const p of sc.plants)
     if (p.glow && p.y > top - 140 && p.y < bottom + 140) drawPlant(ctx, X, Y, s, p, T, true);
-  for (const sh of sc.shoals) if (sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom);
+  sc.shoals.forEach((sh, si) => {
+    if (sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom, (i) => here(si, i));
+  });
+  // The spears in flight, a ring round what the next throw goes for, and what was caught.
+  ctx.strokeStyle = '#E8E2D0';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2 * s;
+  for (const sp of sc.spears ?? []) {
+    const l = Math.hypot(sp.vx, sp.vy) || 1;
+    const ux = sp.vx / l;
+    const uy = sp.vy / l;
+    ctx.beginPath();
+    ctx.moveTo(X(sp.x - ux * 26), Y(sp.y - uy * 26));
+    ctx.lineTo(X(sp.x), Y(sp.y));
+    ctx.stroke();
+  }
+  if (sc.aim) {
+    const k2 = (T * 2) % 1;
+    ctx.strokeStyle = `rgba(255,246,229,${0.9 - k2 * 0.5})`;
+    ctx.lineWidth = 1.6 * s;
+    ctx.beginPath();
+    ctx.arc(X(sc.aim.x), Y(sc.aim.y), (16 + k2 * 6) * s, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${Math.round(15 * Math.min(1.2, s))}px Grandstander, system-ui, sans-serif`;
+  for (const t of sc.texts ?? []) {
+    ctx.globalAlpha = Math.max(0, 1 - t.t);
+    ctx.fillStyle = t.c;
+    ctx.fillText(t.msg, X(t.x), Y(t.y - t.t * 30));
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
   drawGauge(ctx, d, W);
 }
 
@@ -345,23 +387,25 @@ function drawShoal(
   T: number,
   top: number,
   bottom: number,
+  here: (i: number) => boolean,
 ): void {
   const c = shoalAt(sh, T);
   if (c.y < top - 200 || c.y > bottom + 200) return;
   const ahead = shoalAt(sh, T + 0.2);
   const dir = ahead.x >= c.x ? 1 : -1;
+  const glowC = sh.light ?? sh.c;
   for (let i = 0; i < sh.n; i++) {
-    const a = i * 2.39996 + T * 0.4;
-    const r = 14 + ((i * 37) % 50);
-    const fx = X(c.x + Math.cos(a) * r);
-    const fy = Y(c.y + Math.sin(a) * r * 0.55 + Math.sin(T * 2 + i) * 3);
+    if (!here(i)) continue;
+    const p = fishIn(sh, i, T);
+    const fx = X(p.x);
+    const fy = Y(p.y);
     const z = sh.size * s;
     if (sh.glow) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const halo = ctx.createRadialGradient(fx, fy, 0, fx, fy, z * 2.6);
-      halo.addColorStop(0, hex(sh.c, 0.45));
-      halo.addColorStop(1, hex(sh.c, 0));
+      halo.addColorStop(0, hex(glowC, 0.45));
+      halo.addColorStop(1, hex(glowC, 0));
       ctx.fillStyle = halo;
       ctx.fillRect(fx - z * 2.6, fy - z * 2.6, z * 5.2, z * 5.2);
       ctx.restore();
@@ -385,6 +429,29 @@ function drawShoal(
         );
         ctx.stroke();
       }
+    } else if (sh.kind === 'dragon') {
+      // Long and black, a row of blue lights, jaws, and a glowing lure on its chin.
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, z, z * 0.24, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(fx - dir * z * 0.9, fy);
+      ctx.lineTo(fx - dir * z * 1.35, fy - z * 0.3);
+      ctx.lineTo(fx - dir * z * 1.35, fy + z * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = glowC;
+      for (let t = 0; t < 5; t++)
+        ctx.fillRect(fx + dir * (z * 0.5 - t * z * 0.28), fy + z * 0.08, 1.5 * s, 1.5 * s);
+      ctx.strokeStyle = glowC;
+      ctx.lineWidth = 0.9 * s;
+      ctx.beginPath();
+      ctx.moveTo(fx + dir * z * 0.7, fy + z * 0.15);
+      ctx.quadraticCurveTo(fx + dir * z * 0.8, fy + z * 0.9, fx + dir * z * 1.05, fy + z * 1.05);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(fx + dir * z * 1.05, fy + z * 1.05, (1.6 + Math.sin(T * 4 + i)) * s, 0, Math.PI * 2);
+      ctx.fill();
     } else if (sh.kind === 'squid') {
       ctx.beginPath();
       ctx.ellipse(fx, fy, z, z * 0.35, 0, 0, Math.PI * 2);

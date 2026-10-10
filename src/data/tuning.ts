@@ -46,6 +46,8 @@ export type Species = {
   rare?: boolean;
   /** Not a fish at all: a crab, drawn with legs, caught in pots rather than nets. */
   crab?: boolean;
+  /** The colour it glows, where that is not its body's: a dark fish with bright lights. */
+  light?: string;
 };
 
 export const SPECIES: readonly Species[] = [
@@ -187,10 +189,38 @@ export const SPECIES: readonly Species[] = [
     mark: '#7A4FC9',
     crab: true,
   },
+  // Speared in the trench's midnight water, the kid's glowing deep: a violet squid that lights up.
+  {
+    name: 'glow squid',
+    pl: 'glow squid',
+    v: 45,
+    c: '#B98AFF',
+    s: 9,
+    fat: 0.32,
+    tail: 0.5,
+    mark: '#E6D6FF',
+    glow: true,
+  },
+  // And down by the trench floor: black, with blue lights along it and a glowing lure on its chin.
+  {
+    name: 'neon dragonfish',
+    pl: 'neon dragonfish',
+    v: 65,
+    c: '#1A2238',
+    s: 11,
+    fat: 0.22,
+    tail: 0.6,
+    mark: '#4FC3FF',
+    glow: true,
+    light: '#4FC3FF',
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
 export const CRAB = 16;
+/** The trench's own catches, speared on a dive. */
+export const GLOW_SQUID = 17;
+export const DRAGONFISH = 18;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;
