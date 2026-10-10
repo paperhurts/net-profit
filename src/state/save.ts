@@ -11,6 +11,7 @@ import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
 import { type Pot, parsePots } from '../fishing/pots';
 import { type Bases, noBases, parseBases } from '../world/bases';
+import { LOOT_ALL } from '../world/loot';
 import { TD } from '../world/trench';
 
 export const SAVE_KEY = 'netprofit.v1';
@@ -116,6 +117,9 @@ export type SaveData = {
   /** The trench in the deep has been found, and the deepest the diver has been in it. */
   trenchSeen: boolean;
   trenchDeep: number;
+  /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
+  trenchLoot: number;
+  pearlDay: number;
   /** The naga, freed from the monkeys' cage on island 2, is yours. */
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
@@ -228,6 +232,8 @@ export function defaultSave(b: Bounds): SaveData {
     pots: [],
     trenchSeen: false,
     trenchDeep: 0,
+    trenchLoot: 0,
+    pearlDay: 0,
     nagaFree: false,
     isle8Seen: false,
     otterFed: 0,
@@ -343,6 +349,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.pots = parsePots(o.pots);
   d.trenchSeen = !!o.trenchSeen;
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
+  d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
+  d.pearlDay = Math.max(0, int(o.pearlDay));
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
@@ -442,6 +450,8 @@ export function serializeSave(d: SaveData): string {
     pots: d.pots,
     trenchSeen: d.trenchSeen,
     trenchDeep: d.trenchDeep,
+    trenchLoot: d.trenchLoot,
+    pearlDay: d.pearlDay,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,
