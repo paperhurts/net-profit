@@ -11,6 +11,7 @@ import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
 import { type Pot, parsePots } from '../fishing/pots';
 import { type Bases, noBases, parseBases } from '../world/bases';
+import { TD } from '../world/trench';
 
 export const SAVE_KEY = 'netprofit.v1';
 
@@ -112,6 +113,9 @@ export type SaveData = {
   bases: Bases;
   /** The crab pots out in the water, where each is, its crabs and how far toward the next. */
   pots: Pot[];
+  /** The trench in the deep has been found, and the deepest the diver has been in it. */
+  trenchSeen: boolean;
+  trenchDeep: number;
   /** The naga, freed from the monkeys' cage on island 2, is yours. */
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
@@ -221,6 +225,8 @@ export function defaultSave(b: Bounds): SaveData {
     aquarium: false,
     bases: noBases(),
     pots: [],
+    trenchSeen: false,
+    trenchDeep: 0,
     nagaFree: false,
     isle8Seen: false,
     otterFed: 0,
@@ -326,6 +332,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.aquarium = !!o.aquarium;
   d.bases = parseBases(o.bases);
   d.pots = parsePots(o.pots);
+  d.trenchSeen = !!o.trenchSeen;
+  d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
@@ -422,6 +430,8 @@ export function serializeSave(d: SaveData): string {
     aquarium: d.aquarium,
     bases: d.bases,
     pots: d.pots,
+    trenchSeen: d.trenchSeen,
+    trenchDeep: d.trenchDeep,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,
