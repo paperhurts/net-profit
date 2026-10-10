@@ -64,6 +64,9 @@ type Np = {
   trenchLoot: number;
   pearlDay: number;
   TRENCH_LOOT: { kind: string; x: number; y: number }[];
+  lurker: { x: number; y: number; a: number; state: string; t: number; wait: number };
+  lurkerSeen: boolean;
+  lurkerStung: number;
   haulLeft: number;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
@@ -1042,6 +1045,78 @@ test('trench treasure: swim up to the chest on the floor and it is yours, once; 
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').trenchLoot),
   ).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test('the lurker: deep in the dark its eyes come, it bites air out of a diver who stays put, and a spear stings it off', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    trenchSeen: true,
+    trenchDeep: 900,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await page.click('#diveBtn');
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  // Down in the midnight water, and it has nearly made up its mind.
+  await page.evaluate(() => {
+    const d = window.__np.diver;
+    d.x = 380;
+    d.y = 1100;
+    d.vx = 0;
+    d.vy = 0;
+    window.__np.lurker.wait = 5.8;
+  });
+  await page.waitForFunction(() => window.__np.lurkerSeen, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Two eyes in the dark');
+  // Its warning, a little way off a diver who stays put: the bite takes air.
+  const air = await page.evaluate(() => {
+    const np = window.__np;
+    const d = np.diver;
+    const l = np.lurker;
+    d.vx = 0;
+    d.vy = 0;
+    l.x = d.x - 90;
+    l.y = d.y;
+    l.a = 0;
+    l.state = 'tell';
+    l.t = 0.05;
+    return d.air;
+  });
+  await page.waitForFunction((a) => window.__np.diver.air < a - 20, air, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('bit your tank');
+  // Out again, ahead of the diver: the throw goes for it, and the spear stings it off.
+  const put = () =>
+    page.evaluate(() => {
+      const np = window.__np;
+      const d = np.diver;
+      const l = np.lurker;
+      d.x = 380;
+      d.y = 1100;
+      d.vx = 0;
+      d.vy = 0;
+      d.face = 1;
+      l.state = 'stalk';
+      l.t = 5;
+      l.x = d.x + 110;
+      l.y = d.y;
+    });
+  await put();
+  await page.waitForFunction(() => window.__np.diveAim !== null, null, { timeout: 2000 });
+  await put();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.lurkerStung === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.lurker.state)).toBe('flee');
   expect(errors).toEqual([]);
 });
 

@@ -12,6 +12,7 @@
 
 import type { Diver } from '../entities/diver';
 import { AIR_LOW } from '../entities/diver';
+import type { Lurker } from '../entities/lurker';
 import type { Loot } from '../world/loot';
 import {
   ENTRY,
@@ -27,6 +28,7 @@ import {
   wallIn,
 } from '../world/trench';
 import { drawLoot, drawLootGlint } from './loot';
+import { drawLurker, drawLurkerGlow } from './lurker';
 
 /** How much of the trench shows across the screen. */
 export const VIEW_W = 420;
@@ -82,6 +84,8 @@ export type DiveScene = {
   loot?: readonly Loot[];
   found?: (i: number) => boolean;
   pearl?: boolean;
+  /** The thing in the dark, if there is one. */
+  lurker?: Lurker;
 };
 
 /** The camera: the scene point at the screen's middle, and the scale. */
@@ -161,6 +165,8 @@ export function drawDive(
   sc.shoals.forEach((sh, si) => {
     if (!sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom, (i) => here(si, i));
   });
+  // The lurker's body, under the dark: only the lamp shows its shape.
+  if (sc.lurker) drawLurker(ctx, X, Y, s, sc.lurker, T);
   // The boat overhead, the diver, and the bubbles.
   if (top < 30) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T);
   drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T);
@@ -189,6 +195,7 @@ export function drawDive(
     if (l.y > top - 40 && l.y < bottom + 40)
       drawLootGlint(ctx, X, Y, s, l, i, T, found(i), !!sc.pearl);
   });
+  if (sc.lurker) drawLurkerGlow(ctx, X, Y, s, sc.lurker, T);
   // The spears in flight, a ring round what the next throw goes for, and what was caught.
   ctx.strokeStyle = '#E8E2D0';
   ctx.lineCap = 'round';

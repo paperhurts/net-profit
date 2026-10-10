@@ -120,6 +120,9 @@ export type SaveData = {
   /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
   trenchLoot: number;
   pearlDay: number;
+  /** The lurker in the trench's dark has been met, and how many times a spear has stung it off. */
+  lurkerSeen: boolean;
+  lurkerStung: number;
   /** The naga, freed from the monkeys' cage on island 2, is yours. */
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
@@ -234,6 +237,8 @@ export function defaultSave(b: Bounds): SaveData {
     trenchDeep: 0,
     trenchLoot: 0,
     pearlDay: 0,
+    lurkerSeen: false,
+    lurkerStung: 0,
     nagaFree: false,
     isle8Seen: false,
     otterFed: 0,
@@ -351,6 +356,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
   d.pearlDay = Math.max(0, int(o.pearlDay));
+  d.lurkerSeen = !!o.lurkerSeen;
+  d.lurkerStung = Math.max(0, int(o.lurkerStung));
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
@@ -452,6 +459,8 @@ export function serializeSave(d: SaveData): string {
     trenchDeep: d.trenchDeep,
     trenchLoot: d.trenchLoot,
     pearlDay: d.pearlDay,
+    lurkerSeen: d.lurkerSeen,
+    lurkerStung: d.lurkerStung,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,
