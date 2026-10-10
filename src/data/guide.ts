@@ -46,6 +46,8 @@ export const HABITAT: Readonly<Record<number, Habitat>> = Object.fromEntries(
 export const SHARK_SP = 7;
 export const DAWN_SP = 10;
 export const DUSK_SP = 11;
+/** Species index of the spider crab, from the crab pots. */
+export const CRAB_SP = 16;
 
 /** One line per species, in the game's voice. */
 export const BLURBS: readonly string[] = [
@@ -65,6 +67,7 @@ export const BLURBS: readonly string[] = [
   'Sea-green with pink lips, and a beak for biting coral. Only round island 2, which is a long way to go for a fish. Worth it. With a spear you can take them from its sand.',
   'Big, brown and mottled, with a mouth like a bucket. Groupers live in wrecks, and the drowned town under island 3 is the biggest wreck in the sea.',
   'Long, blue and fast, with a spear for a nose. Only out in the far deep, where nobody had fished before you.',
+  'Legs like a spider, longer than your arm, and a shell as bright as a sweet wrapper. They walk the sea floor and climb into crab pots for the bait.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -85,6 +88,8 @@ export function whereText(sp: number): string {
   if (h) return `Schools ${h.r0} to ${h.r1} out. ${cap(boatFor(h.r0))} range.`;
   if (sp === SHARK_SP) return 'Circling the tuna, goldfin and lanternfish schools.';
   if (sp === DAWN_SP || sp === DUSK_SP) return 'Anywhere inside your range, past the shallows.';
+  if (sp === CRAB_SP)
+    return 'In your crab pots, anywhere inside the buoys. Pots come with the crab shed on island 3.';
   return 'Out there somewhere.';
 }
 
@@ -95,6 +100,7 @@ export function whenText(sp: number): string {
   if (sp === SHARK_SP) return 'Day and night. A net of level 3 holds one.';
   if (sp === DAWN_SP) return 'Dawn, for eighty seconds.';
   if (sp === DUSK_SP) return 'Dusk, for eighty seconds.';
+  if (sp === CRAB_SP) return 'Day and night. Pots further out fill faster.';
   return '';
 }
 

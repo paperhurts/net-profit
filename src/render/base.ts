@@ -200,6 +200,35 @@ function netIcon(ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: numbe
   ctx.fill();
 }
 
+/** A crab pot, for the crab shed's sign: a little cage with a crab-red shell in it. */
+function potIcon(ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: number): void {
+  ctx.strokeStyle = '#2C4A7C';
+  ctx.lineWidth = 0.8 * Z;
+  ctx.strokeRect(sx - 3.5 * Z, sy - 3 * Z, 7 * Z, 5 * Z);
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - 3 * Z);
+  ctx.lineTo(sx, sy + 2 * Z);
+  ctx.stroke();
+  ctx.fillStyle = '#E8604C';
+  ctx.beginPath();
+  ctx.arc(sx - 1.6 * Z, sy, 1.2 * Z, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** A crab pot stood on the planks at (x, y), from height z: a squat cage of mesh on a frame. */
+function cage(v: DrawView, x: number, y: number, z: number): void {
+  const { ctx, px, py } = v;
+  v.box(x - 4, y - 4, 8, 8, z, z + 5.5, '#5C7F8A', '#7FA8A3');
+  ctx.strokeStyle = 'rgba(20,34,42,.45)';
+  ctx.lineWidth = 0.7 * v.zoom;
+  for (const t of [-2, 0, 2]) {
+    ctx.beginPath();
+    ctx.moveTo(px(x + t, y + 4), py(x + t, y + 4, z));
+    ctx.lineTo(px(x + t, y + 4), py(x + t, y + 4, z + 5.5));
+    ctx.stroke();
+  }
+}
+
 /** The plot's sign, on two legs at the near edge: a board with what goes there on it. */
 function sign(
   v: DrawView,
@@ -236,16 +265,26 @@ export function drawBaseShed(view: DrawView, b: Base, built: boolean, roof: stri
   const x1 = x + half;
   const y0 = y - half;
   const y1 = y + half;
+  const pots = b.shed.keeps === 'pots';
   if (!built) {
     plot(v, x0, y0, x1, y1);
-    sign(v, x, y1, netIcon);
+    sign(v, x, y1, pots ? potIcon : netIcon);
     return;
   }
   v.box(x0, y0, x1 - x0, y1 - y0, 0, wall, SHED_WALL, WALL_TOP);
-  // The open front: dark inside, the net hung across it, the corks along its foot.
+  // The open front, dark inside.
   ctx.fillStyle = '#4A3828';
   face(v, [x0 + 2, y1], [x1 - 2, y1], 0, wall - 2);
   ctx.fill();
+  if (pots) {
+    // A crab pot inside, the roof, and two more stacked by the front corner.
+    cage(v, x, y1 - 4, 0);
+    v.box(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4, wall, wall + 3, roof, roof);
+    cage(v, x1 + 4, y1 + 1, 0);
+    cage(v, x1 + 4, y1 + 1, 6);
+    return;
+  }
+  // The net hung across the front, the corks along its foot.
   ctx.strokeStyle = 'rgba(214,228,230,.75)';
   ctx.lineWidth = 0.8 * Z;
   for (let i = 0; i <= 6; i++) {

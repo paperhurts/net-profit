@@ -578,6 +578,17 @@ describe('bases', () => {
   });
 });
 
+describe('crab pots', () => {
+  it('are none in a save from before them, and keep where they are and their crabs', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.pots).toEqual([]);
+    s.pots = [{ x: 3000, y: 2000, crabs: 4, t: 12.5 }];
+    expect(parseSave(serializeSave(s), bounds).pots).toEqual([
+      { x: 3000, y: 2000, crabs: 4, t: 12.5 },
+    ]);
+  });
+});
+
 describe('islands 8 and 9', () => {
   it('are unseen in a save from before them, and stay seen once sighted', () => {
     const s = parseSave(legacy, bounds);

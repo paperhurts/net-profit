@@ -32,8 +32,8 @@ export type Base = {
   dock: { x: number; y: number; r: number };
   /** The hut: its centre, the half width of its footprint, and the height of its walls. */
   hut: { x: number; y: number; half: number; wall: number };
-  /** Its second building, the same way, once the base has one. */
-  shed?: { x: number; y: number; half: number; wall: number };
+  /** Its second building, the same way, and what it keeps: island 2's seine, or island 3's crab pots. */
+  shed?: { x: number; y: number; half: number; wall: number; keeps: 'seine' | 'pots' };
   /** What they stand on is this high: the sand, or a raft's planks. */
   z: number;
   /** What the shop says of it once every stage is built. */
@@ -70,7 +70,7 @@ export const BASES: readonly Base[] = [
     // On the open sand beside the tower, on the way up from the landing: in sight from the dock.
     hut: { x: ISLE2.x + 40, y: ISLE2.y - 150, half: 14, wall: 18 },
     // Between the hut and the tower, clear of the way round either.
-    shed: { x: ISLE2.x - 5, y: ISLE2.y - 102, half: 12, wall: 15 },
+    shed: { x: ISLE2.x - 5, y: ISLE2.y - 102, half: 12, wall: 15, keeps: 'seine' },
     z: 0,
     done: 'A home port, and the gear shed that keeps your seine.',
     // Its dock faces home, up and to the right.
@@ -93,11 +93,24 @@ export const BASES: readonly Base[] = [
     dock: DOCK3,
     // On the base raft (world/isle3.ts), at its far end from the walk out to it.
     hut: { x: ISLE3.x + 120, y: ISLE3.y - 120, half: 12, wall: 16 },
+    // Beside it, toward the walk, clear of the hut's flagpole behind them.
+    shed: { x: ISLE3.x + 154, y: ISLE3.y - 112, half: 10, wall: 13, keeps: 'pots' },
     z: PLANK_Z,
-    done: 'A home port on the floating town.',
+    done: 'A home port, and the crab shed that keeps your pots.',
     // Its jetty points along x.
     spit: spitOff(DOCK3, 1, 0),
-    stages: [hutStage('island 3')],
+    stages: [
+      hutStage('island 3'),
+      {
+        name: 'crab shed',
+        wood: 50,
+        coins: 3000,
+        blurb:
+          'Opens crab pots: three pots to drop in home water and come back to, full of spider crabs.',
+        built:
+          'Built the crab shed on island 3. Your boat carries three crab pots now: in home water, tap the crab button to drop one, and come back past it later for the crabs.',
+      },
+    ],
   },
 ];
 
@@ -107,6 +120,14 @@ export const SEINE_STAGE = 2;
 /** Whether the boat has a seine: island 2's gear shed is built. */
 export function hasSeine(bases: Bases): boolean {
   return bases.isle2 >= SEINE_STAGE;
+}
+
+/** Island 3's stage that opens crab pots. */
+export const POTS_STAGE = 2;
+
+/** Whether the boat has crab pots: island 3's crab shed is built. */
+export function hasPots(bases: Bases): boolean {
+  return bases.isle3 >= POTS_STAGE;
 }
 
 /** How far each base is built: 0 for nothing yet, then a stage at a time. */

@@ -44,6 +44,8 @@ export type Species = {
   glow?: boolean;
   /** A dawn or dusk sparkle rare. */
   rare?: boolean;
+  /** Not a fish at all: a crab, drawn with legs, caught in pots rather than nets. */
+  crab?: boolean;
 };
 
 export const SPECIES: readonly Species[] = [
@@ -173,7 +175,22 @@ export const SPECIES: readonly Species[] = [
     tail: 1.15,
     mark: '#6FC3E8',
   },
+  // From the crab pots only, inside the buoys: the owner's crazy crabs, long spider legs and bright shells.
+  {
+    name: 'spider crab',
+    pl: 'spider crabs',
+    v: 25,
+    c: '#E8604C',
+    s: 7,
+    fat: 0.8,
+    tail: 0,
+    mark: '#7A4FC9',
+    crab: true,
+  },
 ];
+
+/** Index of the spider crab in SPECIES. */
+export const CRAB = 16;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;
