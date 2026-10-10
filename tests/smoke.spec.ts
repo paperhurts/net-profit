@@ -82,6 +82,7 @@ type Np = {
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
   nest: { up: boolean; state: string; hit(power: number): void };
   nestHorde: { list: { state: string }[] };
+  necroPal: { shown: boolean; free: boolean };
   heron: {
     up: boolean;
     hp: number;
@@ -1771,10 +1772,52 @@ test("the Heron's nest: up island 9's tower, the orb shields him until the necro
   await page.evaluate(() => window.__np.heron9.hit(99));
   await page.waitForFunction(() => window.__np.heronStage === 2, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('for good');
+  // The necromancer is free, and comes with you.
+  expect(await page.evaluate(() => window.__np.necroPal.shown)).toBe(true);
   await expect(page.locator('#leave')).toHaveText('Back to the boat');
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
   await expect(page.locator('#log')).toContainText('Heron beaten for good');
+  expect(errors).toEqual([]);
+});
+
+test('the necromancer: with the Heron beaten for good he comes along, and in a fight raises his skeleton hamster', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 6560, y: 2070, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    for (const s of window.__np.hiredBoats.boats) s.state = 'sunk';
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.necroPal.shown, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('necromancer walks with you', {
+    timeout: 9000,
+  });
+  // Up to island 8's camp of hired men: a fight, and he raises his hamster.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const c = window.__np.hired8;
+    w.x = c.home.x - 70;
+    w.y = c.home.y - 30;
+  });
+  await page.waitForFunction(
+    () => window.__np.allies.list.some((a) => a.kind === 'hamster'),
+    null,
+    { timeout: 6000 },
+  );
   expect(errors).toEqual([]);
 });
 

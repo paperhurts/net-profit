@@ -4,9 +4,11 @@ import {
   BONES_HP,
   drawNagaCage,
   drawSwimming,
+  HAMSTER_EVERY,
   HEAL_DELAY,
   HEALS,
   MAX_HEALS,
+  NECRO_HP,
   nagaSwims,
   PAL_BLINK,
   PAL_HEEL,
@@ -262,5 +264,57 @@ describe('the naga, freed from the monkey camp', () => {
     drawNagaCage(f.v, 0, 0, 11, 0, true);
     drawNagaCage(f.v, 0, 0, 11, 1, false);
     expect(f.calls.stroke ?? 0).toBeGreaterThan(20);
+  });
+});
+
+describe('the necromancer, freed from the orb', () => {
+  it('keeps back at the heel in a fight, never hits, and raises his hamster, again only once it has fallen', () => {
+    const p = new Pal('necro');
+    expect(p.hp).toBe(NECRO_HP);
+    const f = figureAt(LANDING.x - 60, LANDING.y);
+    const w: World = baseWorld({ figure: f });
+    p.come(f.x + 10, f.y);
+    let dealt = 0;
+    const foe = { x: f.x - 80, y: f.y, hit: (n: number) => (dealt += n) };
+    p.findTarget = (x, y, r) => (Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null);
+    const raised: [number, number][] = [];
+    let up = 0;
+    p.canRaise = () => up === 0;
+    p.onRaise = (x, y) => {
+      raised.push([x, y]);
+      up = 1;
+    };
+    for (let i = 0; i < 4 / DT; i++) p.update(DT, w);
+    expect(dealt).toBe(0);
+    expect(POWER.necro).toBe(0);
+    expect(raised).toHaveLength(1);
+    // He stays by the figure, not out at the foe.
+    expect(Math.hypot(p.x - f.x, p.y - f.y)).toBeLessThanOrEqual(PAL_HEEL.necro + 2);
+    // While it stands, no other; once it falls, another after a while.
+    for (let i = 0; i < (HAMSTER_EVERY + 1) / DT; i++) p.update(DT, w);
+    expect(raised).toHaveLength(1);
+    up = 0;
+    for (let i = 0; i < 2 / DT; i++) p.update(DT, w);
+    expect(raised).toHaveLength(2);
+    for (let i = 0; i < NECRO_HP; i++) {
+      p.invuln = 0;
+      p.hurt();
+    }
+    expect(p.state).toBe('resting');
+  });
+
+  it('draws ashore, his arms up as he raises, and amidships aboard', () => {
+    const p = new Pal('necro');
+    p.come(LANDING.x, LANDING.y);
+    const f = fakeView();
+    p.drawBody(f.v);
+    const fills = f.calls.fill ?? 0;
+    expect(fills).toBeGreaterThanOrEqual(8);
+    p.state = 'away';
+    p.drawAboard(f.v, { x: 0, y: 0, h: 0 }, 1);
+    expect(f.calls.fill ?? 0).toBeGreaterThan(fills + 5);
+    const seat = p.seat({ x: 0, y: 0, h: 0 }, 1);
+    expect(Math.hypot(seat.x, seat.y)).toBeLessThan(14);
+    expect(seat.z).toBeGreaterThan(0);
   });
 });
