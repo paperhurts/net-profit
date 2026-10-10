@@ -50,6 +50,7 @@ import { AQUARIUM, AQUARIUM_BASE, AQUARIUM_COST, AQUARIUM_FROM, AQUARIUM_MID, AQ
 import { nextSpear, spearAt } from './data/spear';
 import { drivePrize, HARPOON_LEVEL, HARPOON_POWER, HARPOON_RANGE, HARPOON_RELOAD, noDriven, RESOLVE, TROPHY } from './data/harpoon';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
+import { spreadOut } from './entities/spread';
 import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK, ISLE8_DOCK, tarDock, WALK_ZOOM, Walker, walkerDepth, walkStep } from './entities/walker';
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, NAGA_CAGE, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
 import { DIVE3, DOCK3, DOOR3, ISLE3, MAT, onPlanks, pushOffTown, TRADER_MID } from './world/isle3';
@@ -679,6 +680,11 @@ warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' 
   if (out){ toasts.clear(); toast('The warlock is worn out. He flies back to his boat to rest.', 3200, 1); } };
 warlock.onArrive = () => { if (!warlockTold){ warlockTold = true; toast('The warlock comes ashore with you. He casts at whatever you fight.', 3000, 1); } };
 // What would hurt the figure hurts the warlock if he is in the way: a monkey's bonk, a bolt, a slash.
+// The companions with the figure keep a little apart, round it, rather than all stopping in one stack behind it.
+function spreadPals(dt){ if (walker.state !== 'ashore') return; const list = [];
+  if (warlock.shown) list.push(warlock); if (tarling.with) list.push(tarling);
+  for (const p of [cat, warrior, bonesPal, naga, necroPal]) if (p.shown) list.push(p);
+  if (list.length) spreadOut(list, walker, dt, (b, dx, dy) => walkStep(b, dx, dy, build)); }
 function hurtWarlock(dt){ for (const h of [warlock, cat, warrior, bonesPal, naga, necroPal]) hurtHelper(h, dt);
   for (const a of allies.list) hurtHelper({shown: a.state === 'fight', x: a.x, y: a.y, hurt: () => allies.hurt(a)}, dt); }
 // What would hurt the figure hurts a helper in the way: the warlock, the cat, the warrior or the bones.
@@ -1821,7 +1827,7 @@ function update(dt){
   // Nothing walks through the tar monster.
   if (anchorer.state !== 'gone' && walker.state === 'ashore'){ const dx = walker.x - anchorer.x, dy = walker.y - anchorer.y, d = Math.hypot(dx, dy);
     if (d < BODY_R && d > 0) walkStep(walker, dx/d*(BODY_R - d), dy/d*(BODY_R - d), build); }
-  warlock.free = isle3Stage >= 3; hurtWarlock(dt); wboat.free = warlock.free; wboat.crewed = !warlock.shown;
+  warlock.free = isle3Stage >= 3; hurtWarlock(dt); spreadPals(dt); wboat.free = warlock.free; wboat.crewed = !warlock.shown;
   if (wboat.free){ const wk = .85; pushOut(wboat, IX, IY, IR+24*wk); for (const b of PIER_BUMPS) pushOut(wboat, b[0], b[1], 20+20*wk);
     for (const b of BRIDGE_BUMPS) pushOut(wboat, b[0], b[1], 18+20*wk); pushOut(wboat, BEACH.x, BEACH.y, BEACH.r+24*wk);
     pushOut(wboat, ISLE2.x, ISLE2.y, ISLE2.r+24*wk); pushOut(wboat, ISLE5.x, ISLE5.y, ISLE5.r+24*wk); pushOffIsle6(wboat, 24*wk); pushOffIsle7(wboat, 24*wk); pushOffTwins(wboat, 24*wk); pushOffTown(wboat, 4+20*wk); pushOut(wboat, ISLE4.x, ISLE4.y, Math.max(ISLE4.r, TAR_R*isle4Look().spread) + 24*wk); pushOut(wboat, boat.x, boat.y, 36*k);

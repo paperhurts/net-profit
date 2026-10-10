@@ -14,6 +14,7 @@
 import { drawWarlock } from '../render/warlock';
 import { inTar } from '../world/isle4';
 import type { DrawView, Entity, Layer, World } from './entity';
+import { STUCK_T } from './pals';
 import { walkable, walkStep } from './walker';
 
 export const WARLOCK_HEARTS = 3;
@@ -60,6 +61,8 @@ export class Warlock implements Entity {
   private mend = 0;
   private rest = 0;
   private readonly trail: { x: number; y: number }[] = [];
+  /** Seconds it has wanted to follow and not moved. */
+  private blockedT = 0;
   private hadFigure = false;
   /** The nearest thing in reach to cast at, which the game finds. */
   findTarget: ((x: number, y: number, range: number) => Target | null) | null = null;
@@ -199,6 +202,12 @@ export class Warlock implements Entity {
       if (dl > 0.5) {
         const sp = Math.min(WARLOCK_SPEED, 30 + (d - HEEL) * 4);
         const moved = walkStep(this, (dx / dl) * sp * dt, (dy / dl) * sp * dt, 99);
+        // No way along the steps at all for a while: pop over beside the figure.
+        this.blockedT = moved > 0 ? 0 : this.blockedT + dt;
+        if (this.blockedT >= STUCK_T) {
+          this.blockedT = 0;
+          this.arrive(f);
+        }
         if (moved > 0) {
           this.h = Math.atan2(dy, dx);
           this.ph += moved * 0.12;

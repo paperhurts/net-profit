@@ -46,6 +46,8 @@ export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
   necro: 42,
 };
 export const PAL_BLINK = 200;
+/** A companion that cannot make any way along the figure's steps for this long pops over beside it. */
+export const STUCK_T = 0.8;
 /** Something this close to the figure is fought; each hits from this close, this often, this hard. */
 export const FIGHT_FROM = 130;
 export const REACH: Readonly<Record<PalKind, number>> = {
@@ -127,6 +129,8 @@ export class Pal implements Entity {
   /** Whether they may raise now: the game says whether the last ones are gone. */
   canRaise: (() => boolean) | null = null;
   private raiseCd = 0;
+  /** Seconds it has wanted to follow and not moved. */
+  private blockedT = 0;
 
   constructor(readonly kind: PalKind) {
     this.hp = this.maxHp;
@@ -308,8 +312,19 @@ export class Pal implements Entity {
       const dx = t.x - this.x;
       const dy = t.y - this.y;
       const dl = Math.hypot(dx, dy);
-      if (dl > 0.5)
-        this.step(dx / dl, dy / dl, Math.min(PAL_SPEED, 30 + (d - PAL_HEEL[this.kind]) * 5), dt);
+      if (dl > 0.5) {
+        const moved = this.step(
+          dx / dl,
+          dy / dl,
+          Math.min(PAL_SPEED, 30 + (d - PAL_HEEL[this.kind]) * 5),
+          dt,
+        );
+        this.blockedT = moved > 0 ? 0 : this.blockedT + dt;
+        if (this.blockedT >= STUCK_T) {
+          this.blockedT = 0;
+          this.arrive(f);
+        }
+      }
     } else this.h = Math.atan2(f.y - this.y, f.x - this.x);
   }
 
@@ -349,13 +364,14 @@ export class Pal implements Entity {
     this.ph += dt * (2.5 + Math.abs(b.v) / 30);
   }
 
-  private step(ux: number, uy: number, sp: number, dt: number): void {
+  private step(ux: number, uy: number, sp: number, dt: number): number {
     const moved = walkStep(this, ux * sp * dt, uy * sp * dt, 99);
     if (moved > 0) {
       this.h = Math.atan2(uy, ux);
       this.ph += moved * 0.3;
       this.gait = 1;
     }
+    return moved;
   }
 
   draw(_v: DrawView, _layer: Layer): void {}

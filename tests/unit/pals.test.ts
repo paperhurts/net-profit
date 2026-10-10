@@ -17,6 +17,7 @@ import {
   POWER,
   RAISE_EVERY,
   REACH,
+  STUCK_T,
   SWIM_SIDE,
   SWING_EVERY,
 } from '../../src/entities/pals';
@@ -78,6 +79,20 @@ describe('the healer cat and the Cthulhu warrior', () => {
     }
     expect(POWER.warrior).toBe(2);
     expect(POWER.cat).toBe(1);
+  });
+
+  it('pop over beside the figure when they can make no way along its steps', () => {
+    const p = new Pal('warrior');
+    const f = figureAt(LANDING.x - 60, LANDING.y);
+    const w: World = baseWorld({ figure: f });
+    p.come(f.x + 10, f.y);
+    for (let i = 0; i < 0.5 / DT; i++) p.update(DT, w);
+    // Caught somewhere it cannot walk out of, as off the end of a pier.
+    p.x = f.x + 120;
+    p.y = f.y + 120;
+    expect(walkable(p.x, p.y, 99)).toBe(false);
+    for (let i = 0; i < (STUCK_T + 0.3) / DT; i++) p.update(DT, w);
+    expect(Math.hypot(p.x - f.x, p.y - f.y)).toBeLessThan(40);
   });
 
   it('wear out after five hits, rest, and are back whole at the next landing', () => {
