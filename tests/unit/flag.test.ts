@@ -5,9 +5,11 @@ import {
   type Flag,
   flagShapes,
   flagSvg,
+  OLD_START_FLAG,
   PATTERNS,
   parseFlag,
   START_FLAG,
+  sameFlag,
 } from '../../src/data/flag';
 
 /** Every flag there is. */
@@ -22,6 +24,10 @@ function* every(): Generator<Flag> {
 describe('flags', () => {
   it('are read back only when they make sense', () => {
     expect(parseFlag(START_FLAG)).toEqual(START_FLAG);
+    // The first flag is the game's own: a fish, and not red with a gold star, which reads as a country's.
+    expect(EMBLEMS[START_FLAG.emblem]).toBe('fish');
+    expect(sameFlag(START_FLAG, OLD_START_FLAG)).toBe(false);
+    expect(sameFlag(START_FLAG, { ...START_FLAG })).toBe(true);
     expect(parseFlag({ field: 9, accent: 0, pattern: 5, emblem: 6 })).toEqual({
       field: 9,
       accent: 0,

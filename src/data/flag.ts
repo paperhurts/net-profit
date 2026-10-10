@@ -36,8 +36,20 @@ export const FLAG_COLOR_NAMES = [
 export const PATTERNS = ['plain', 'stripe', 'cross', 'diagonal', 'halves', 'border'] as const;
 export const EMBLEMS = ['none', 'star', 'fish', 'skull', 'anchor', 'heart', 'crown'] as const;
 
-/** A first flag to start designing from: red with a gold star. */
-export const START_FLAG: Flag = { field: 0, accent: 1, pattern: 0, emblem: 1 };
+/**
+ * A first flag to start designing from, flown on the towers taken before one is designed: gold with a navy
+ * fish, the game's own. It was red with a gold star until 2026-10-10, which reads as a country's flag.
+ */
+export const START_FLAG: Flag = { field: 1, accent: 3, pattern: 0, emblem: 2 };
+/** That old first flag, red with a gold star. */
+export const OLD_START_FLAG: Flag = { field: 0, accent: 1, pattern: 0, emblem: 1 };
+
+/** Whether two flags are the same design. */
+export function sameFlag(a: Flag, b: Flag): boolean {
+  return (
+    a.field === b.field && a.accent === b.accent && a.pattern === b.pattern && a.emblem === b.emblem
+  );
+}
 
 /** A flag from a save, or null if there is none or it does not make sense. */
 export function parseFlag(o: unknown): Flag | null {

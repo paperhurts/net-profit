@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { OLD_START_FLAG } from '../../src/data/flag';
 import { SPEAR_MAX } from '../../src/data/spear';
 import {
   type Bounds,
@@ -427,6 +428,14 @@ describe('the flag', () => {
     const bad = JSON.parse(serializeSave(s));
     bad.flag = { field: 99, accent: 2, pattern: 3, emblem: 3 };
     expect(parseSave(JSON.stringify(bad), bounds).flag).toBeNull();
+  });
+
+  it('lets go of the old first flag, red with a gold star, so the new one shows; any other design is kept', () => {
+    const s = parseSave(legacy, bounds);
+    s.flag = { ...OLD_START_FLAG };
+    expect(parseSave(serializeSave(s), bounds).flag).toBeNull();
+    s.flag = { ...OLD_START_FLAG, emblem: 2 };
+    expect(parseSave(serializeSave(s), bounds).flag).toEqual(s.flag);
   });
 });
 
