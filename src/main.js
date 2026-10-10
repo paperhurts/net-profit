@@ -40,7 +40,7 @@ import { BONK_EVERY, BONK_R, Monkeys } from './entities/monkeys';
 import { BOLT_HIT, CALL_N, Sorcerer, THIRD_HP } from './entities/sorcerer';
 import { Warlock, WARLOCK_HEARTS } from './entities/warlock';
 import { WarlockBoat } from './entities/warlockboat';
-import { CAGE, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, ROOF, ROOF3, ROOF7, ROOF8, ROOMS, RUINS, STEP, stairs, TEMPLE6, THRONE, TOWERS } from './world/tower';
+import { CAGE, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, NEST9, ROOF, ROOF3, ROOF7, ROOF8, ROOMS, RUINS, STEP, stairs, TEMPLE6, THRONE, TOWERS } from './world/tower';
 import { Spears } from './entities/spears';
 import { armourAt, nextArmour, heartsFor } from './data/armour';
 import { decodeSailed, encodeSailed, noSailed, sail, sailedCount, sailedShare, seedSailed } from './state/sailed';
@@ -67,7 +67,9 @@ import { drawNagaCage, drawSwimming, nagaSwims, Pal } from './entities/pals';
 import { drawIsle6Flat, drawIsle6Sea, isle6Solids } from './render/isle6';
 import { CAMP7, CHEST7, DOCK7, DOOR7, ISLE7, PORTAL7, POST7_MID, pushOffIsle7, SIGHT7 } from './world/isle7';
 import { BAR, CAMP8, CAMP9, DOCK8, DOOR8, DOOR9, ISLE8, ISLE9, nearTwins, POST8_MID, pushOffTwins, SIGHT8 } from './world/isle8';
-import { HERON_HP, Heron, segDist, ZAP_HIT } from './entities/heron';
+import { HERON_HP, HERON9_HP, Heron, segDist, ZAP_HIT } from './entities/heron';
+import { Nest } from './entities/nest';
+import { drawNestBack, drawNestFront } from './render/nest';
 import { HIRED_BOUNTY, HIRED_CAMP_PRIZE, HIRED_HP, HIRED_MAN_HP, HIRED_PAY, HIRED_RAM, HiredBoats } from './entities/hired';
 import { drawIsle8Flat, drawIsle8Sea, isle8Glow, isle8Solids } from './render/isle8';
 import { drawIsle7Flat, drawIsle7Sea, drawPortal7, isle7Glow, isle7Solids } from './render/isle7';
@@ -453,6 +455,13 @@ function spearTarget(){ const sp = spearAt(spear); if (walker.state !== 'ashore'
     if (floor === THRONE && forgotten.up && (!u || u.kind !== 'necro')){ const fd = Math.hypot(forgotten.x - walker.x, forgotten.y - walker.y);
       if (fd <= sp.range && (!u || fd < Math.hypot(u.x - walker.x, u.y - walker.y))) return forgotten; }
     return u; }
+  if (floor === NEST9){ const u = nestHorde.nearest(walker.x, walker.y, sp.range);
+    if (u && Math.hypot(u.x - walker.x, u.y - walker.y) < CLOSE_FOE) return u;
+    if (nest.up && Math.hypot(nest.x - walker.x, nest.y - walker.y) <= sp.range) return nest;
+    if (u) return u;
+    let best = null, bd = sp.range;
+    for (const t of heron9.targets()){ const d = Math.hypot(t.x - walker.x, t.y - walker.y); if (d <= bd){ bd = d; best = t; } }
+    return best; }
   if (floor === ROOF8){ let best = null, bd = sp.range;
     for (const t of heron.targets()){ const d = Math.hypot(t.x - walker.x, t.y - walker.y); if (d <= bd){ bd = d; best = t; } }
     return best; }
@@ -467,7 +476,8 @@ function throwSpear(target){ const sp = spearAt(spear); if (walker.state !== 'as
   reloadAt = T + sp.reload; walker.throwAt(f.x, f.y); sfx.spearThrow();
   if (f instanceof Sorcerer){ spears.launch(walker.x, walker.y, walker.z + 20, f, 34, () => { f.hit(sp.power); soulHit(); }); return; }
   if (f instanceof Fighter){ spears.launch(walker.x, walker.y, walker.z + 20, f, 18*f.spec.scale, () => { f.hit(sp.power); soulHit(); }); return; }
-  if (f === heron || heron.copies.includes(f)){ spears.launch(walker.x, walker.y, walker.z + 20, f, 60, () => { const real = f === heron && heron.up; heron.spear(f, sp.power); if (real) soulHit(); }); return; }
+  for (const hn of [heron, heron9]) if (f === hn || hn.copies.includes(f)){ spears.launch(walker.x, walker.y, walker.z + 20, f, 60, () => { const real = f === hn && hn.up && !hn.shielded; hn.spear(f, sp.power); if (real) soulHit(); }); return; }
+  if (f === nest){ spears.launch(walker.x, walker.y, walker.z + 20, f, 28, () => { nest.hit(sp.power); soulHit(); }); return; }
   if (f === anchorer){ spears.launch(walker.x, walker.y, walker.z + 20, f, 70, () => { f.hit(sp.power); soulHit(); }); return; }
   if (f === cth){ spears.launch(walker.x, walker.y, walker.z + 20, f, 90, () => { cth.hit(sp.power); soulHit(); }); return; }
   if (cth.tents.includes(f)){ spears.launch(walker.x, walker.y, walker.z + 20, f, 24, () => { cth.hitTent(f, sp.power); soulHit(); }); return; }
@@ -533,6 +543,7 @@ floors[0] = new Monkeys(ROOMS[0], 3, 0); floors[1] = new Monkeys(ROOMS[1], 4, 2)
 floors[3] = new Monkeys(ROOMS[3], 4, 1); floors[4] = new Monkeys(ROOMS[4], 5, 2); // island 3's, a little busier
 floors[9] = new Monkeys(ROOMS[9], 5, 1); floors[10] = new Monkeys(ROOMS[10], 6, 2); // and island 7's, busier still
 floors[17] = new Monkeys(ROOMS[17], 5, 2, true, 'hired', HIRED_MAN_HP); floors[18] = new Monkeys(ROOMS[18], 6, 2, true, 'hired', HIRED_MAN_HP); // island 8's: the Heron's hired men
+floors[20] = new Monkeys(ROOMS[20], 6, 2, true, 'hired', HIRED_MAN_HP); floors[21] = new Monkeys(ROOMS[21], 7, 3, true, 'hired', HIRED_MAN_HP); // and island 9's, more of them
 const camps = floors.filter(Boolean);
 for (const [i, fl] of floors.entries()){ if (!fl) continue; const men = fl.look === 'hired';
   fl.onBonk = (by) => bonked(men && by === 'coconut' ? 'stone' : by); fl.onThrow = () => sfx.spearThrow(); fl.onBeat = men ? hired8.onBeat : monkeys.onBeat;
@@ -581,9 +592,36 @@ heron.onPop = (x, y) => { sfx.spearHit(); addText(x, y, 60, 'Pop!', '#FFB0E8', 2
 heron.onBeaten = () => { const prize = HERON_PRIZE; coins += prize; earned += prize; heronStage = Math.max(heronStage, 1); towerWon = true;
   burst(heron); addText(heron.home.x, heron.home.y, 60, '+' + prize, C.coin, 26, 2.6); toasts.clear();
   toast(`You beat the Heron! He screeches and flies off across the sandbar to his nest on island 9's tower. Your flag flies here now. +${prize} coins.`, 6200, 2); hud(); refreshShop(); save(); };
+// Round two, in his nest on top of island 9's tower: tougher, and shielded by the orb of power while the necromancer
+// is chained to it, raising skeletons. Beat the necromancer and his chain snaps, the orb goes dark and the shield with
+// it; beat the Heron then and he is beaten for good (heronStage 2).
+const HERON9_PRIZE = 4000;
+const heron9 = new Heron(ROOMS[NEST9], HERON9_HP), nest = new Nest(ROOMS[NEST9]);
+let blockToldT = 0;
+heron9.onWake = () => { sfx.cthuluWake(); shake = Math.max(shake, .4); };
+heron9.onHit = (by) => bonked(by);
+heron9.onZap = () => sfx.zap();
+heron9.onCast = () => sfx.portal();
+heron9.onPop = heron.onPop;
+heron9.onBlock = (x, y) => { sfx.clang(); addText(x, y, 60, 'Shielded!', '#FFB0E8', 18, 1.1);
+  if (blockToldT <= 0){ blockToldT = 8; toast('The orb\'s shield! Nothing gets through it while the necromancer is chained. Spear him first.', 3200, 2); } };
+heron9.onBeaten = () => { const prize = HERON9_PRIZE; coins += prize; earned += prize; heronStage = 2; towerWon = true;
+  burst(heron9); addText(heron9.home.x, heron9.home.y, 60, '+' + prize, C.coin, 26, 2.6); toasts.clear();
+  toast(`You beat the Heron for good! He tumbles out of his nest and flaps off over the sea, and he is not coming back. Your flag flies on his tower. +${prize} coins.`, 6600, 2); hud(); refreshShop(); save(); };
+nest.onWake = () => { toasts.clear(); toast('The Heron\'s nest, and the orb of power! While the necromancer is chained to it, the Heron is shielded. Spear the necromancer first.', 4400, 2); };
+nest.standing = () => nestHorde.list.filter(u => u.state !== 'fall' && u.state !== 'gone').length;
+nest.onRaise = (x, y) => { sfx.tentacle(); const u = nestHorde.raise(x, y, 'skeleton'); addText(u.x, u.y, 34, 'Rise!', '#8CFFA8', 18, 1.1); };
+nest.onHurt = () => sfx.spearHit();
+nest.onFree = () => { for (const u of nestHorde.list) if (u.state !== 'gone' && u.state !== 'fall'){ u.state = 'fall'; u.t = 0; }
+  heron9.shielded = false; burst({x: nest.orb.x, y: nest.orb.y}); addText(nest.x, nest.y, 40, 'Snap!', '#9FB8FF', 22, 1.4); toasts.clear();
+  toast('His chain snaps! The orb of power goes dark, and the Heron\'s shield goes with it. Now spear the Heron!', 4200, 2); };
 const bosses = {[ROOF]: boss, [ROOF3]: boss3, [ROOF7]: boss7};
 // Each tower: the dock its island is reached from, its door, its rooms and its boss.
-const TOWER_AT = [{dock: ISLE2_DOCK, door: DOOR, ...TOWERS[0], boss}, {dock: ISLE3_DOCK, door: DOOR3, ...TOWERS[1], boss: boss3}, {dock: ISLE7_DOCK, door: DOOR7, ...TOWERS[2], boss: boss7}, {dock: ISLE8_DOCK, door: DOOR8, ...TOWERS[3], boss: heron}];
+const TOWER_AT = [{dock: ISLE2_DOCK, door: DOOR, ...TOWERS[0], boss}, {dock: ISLE3_DOCK, door: DOOR3, ...TOWERS[1], boss: boss3}, {dock: ISLE7_DOCK, door: DOOR7, ...TOWERS[2], boss: boss7}, {dock: ISLE8_DOCK, door: DOOR8, ...TOWERS[3], boss: heron}, {dock: ISLE8_DOCK, door: DOOR9, ...TOWERS[4], boss: heron9}];
+// The tower whose open door the figure is up against, or null. Island 8's dock reaches both twins' towers: island 8's
+// opens once island 7's sorcerer has failed the Heron, island 9's once he has fled to it.
+function towerAtDoor(){ return TOWER_AT.find(t => t.dock === walker.dock && (t.boss !== heron || isle7Stage >= 1) && (t.boss !== heron9 || heronStage >= 1)
+  && Math.hypot(walker.x - t.door.x, walker.y - t.door.y) < STEP) || null; }
 // Under island 3's tower, the kid's real boss. With the scuba gear, a gap in the seaweed is the way down to the hall
 // at the tower's foot, where the swordsman waits. Beaten, he heals the figure, drops a key, and the floor opens into the
 // demon dimension, where he has become three little demons. Beat them and the key opens the cage: the warlock is free.
@@ -630,7 +668,8 @@ warlock.findTarget = (x, y, range) => { let best = null, bd = range;
   for (const h of HORDES) for (const u of h.list) if (Horde.up(u)) consider({get x(){ return u.x; }, get y(){ return u.y; }, hit: (p) => h.hit(u, p, warlock.x, warlock.y), stun: (s) => h.stun(u, s), head: (u.kind === 'ghost' ? 34 : 25)*u.spec.scale}, Math.hypot(u.x - x, u.y - y));
   for (const b of [boss, boss3, boss7, anchorer, cth, forgotten]) if (b.up) consider(fighterTarget(b, bossHead(b)), Math.hypot(b.x - x, b.y - y));
   if (oldOne.up) consider(fighterTarget(oldOne, 120), Math.hypot(oldOne.x - x, oldOne.y - y));
-  for (const t of heron.targets()) consider({get x(){ return t.x; }, get y(){ return t.y; }, hit: (p) => heron.spear(t, p), stun: (s) => { if (t === heron) heron.stun(s); }, head: 60}, Math.hypot(t.x - x, t.y - y));
+  for (const hn of [heron, heron9]) if (!hn.shielded) for (const t of hn.targets()) consider({get x(){ return t.x; }, get y(){ return t.y; }, hit: (p) => hn.spear(t, p), stun: (s) => { if (t === hn) hn.stun(s); }, head: 60}, Math.hypot(t.x - x, t.y - y));
+  if (nest.up) consider(fighterTarget(nest, 30), Math.hypot(nest.x - x, nest.y - y));
   for (const l of lancers.list) if (Lancers.up(l)) consider({get x(){ return l.x; }, get y(){ return l.y; }, hit: (p) => lancers.hit(l, p), stun: (s) => lancers.stun(l, s), head: 40}, Math.hypot(l.x - x, l.y - y));
   for (const k of cth.tents) if (k.state === 'chase') consider({get x(){ return k.x; }, get y(){ return k.y; }, hit: (p) => cth.hitTent(k, p), stun: (s) => cth.stunTent(k, s), head: 22}, Math.hypot(k.x - x, k.y - y));
   return best; };
@@ -645,7 +684,7 @@ function hurtWarlock(dt){ for (const h of [warlock, cat, warrior, bonesPal, naga
 function hurtHelper(h, dt){ if (!h.shown) return;
   for (const camp of [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys]) for (const m of camp.list)
     if (m.state === 'chase' && !m.thrower && m.cd <= 0 && Math.hypot(m.x - h.x, m.y - h.y) < BONK_R){ m.cd = BONK_EVERY; h.hurt(); }
-  for (const z of heron.zaps) if (z.t === 0 && segDist(h.x, h.y, z.x0, z.y0, z.x1, z.y1) < ZAP_HIT) h.hurt();
+  for (const hn of [heron, heron9]) for (const z of hn.zaps) if (z.t === 0 && segDist(h.x, h.y, z.x0, z.y0, z.x1, z.y1) < ZAP_HIT) h.hurt();
   for (const b of [boss, boss3, boss7]) for (let i = b.bolts.length - 1; i >= 0; i--){ const q = b.bolts[i];
     if (Math.hypot(q.x - h.x, q.y - h.y) < BOLT_HIT){ b.bolts.splice(i, 1); h.hurt(); } }
   for (const f of [swordsman, ...demons]) if (f.state === 'swing' && f.t <= dt * 1.01){
@@ -803,8 +842,8 @@ const ease = (t) => t*t*(3 - 2*t);
 function cineK(){ if (!cine) return 0; const t = cine.t; return t < CINE_IN ? ease(t/CINE_IN) : t < CINE_OUT ? 1 : ease(clamp(1 - (t - CINE_OUT)/(CINE - CINE_OUT), 0, 1)); }
 // Once it is tar the Anchorer draws the monster, and the evil monkey stands on the beach until it wakes.
 // How island 7 looks now: the camp's chest, the tower's flag once the sorcerer is beaten there, and the portal.
-function isle8Look(){ return {barred8: isle7Stage < 1, barred9: true,
-  flag8: heronStage >= 1 ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null}; }
+function isle8Look(){ const fl = (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1);
+  return {barred8: isle7Stage < 1, barred9: heronStage < 1, flag8: heronStage >= 1 ? fl : null, orbLit: heronStage < 2, flag9: heronStage >= 2 ? fl : null}; }
 function isle7Look(){ return {cleared: monkeys7.cleared, open: isle7Stage >= 1 ? portalOpen : 0,
   flag: isle7Stage >= 1 ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null}; }
 // The portal wakes the first time the figure is back out on island 7 after the sorcerer falls: its lights come on and
@@ -827,6 +866,9 @@ for (const i of [...CASTLE_ROOMS, RUINS]){ const h = hordes[i] = new Horde(ROOMS
   h.onRaise = (u) => { sfx.tentacle(); addText(u.x, u.y, 34, 'Rise!', '#8CFFA8', 18, 1.1); };
   h.onClear = () => { if (i === RUINS) return; if (i === THRONE){ castleWon(); return; } sfx.orderFilled();
     toast(i === HALL_B ? 'The hall is clear. The great door at its back opens on the throne room.' : 'The room is clear, and the door at the back is open.', 3000, 1); }; }
+const nestHorde = hordes[NEST9] = new Horde(ROOMS[NEST9], []);
+nestHorde.onHit = (by, n) => bonked(by, n); nestHorde.onWindup = () => sfx.spearThrow();
+nestHorde.onBeat = (u) => { sfx.spearHit(); addText(u.x, u.y, 30, 'Down!', '#D8FFE0', 18, 1.1); };
 const HORDES = Object.values(hordes);
 // The courtyard's portal home stands at its side, toward the viewer's right.
 const GATE_PORTAL = {x: ROOMS[GATE].x + ROOMS[GATE].r*.62*Math.SQRT1_2, y: ROOMS[GATE].y - ROOMS[GATE].r*.62*Math.SQRT1_2};
@@ -966,18 +1008,19 @@ function drawCine(){ if (!cine) return; const k = Math.min(1, cine.t/.5, (CINE -
   lines.forEach((l, i) => ctx.fillText(l, W/2, H - bar/2 + (i - (lines.length - 1)/2)*22));
   ctx.font = `600 12px Grandstander, ui-rounded, system-ui, sans-serif`; ctx.fillStyle = 'rgba(255,241,214,.6)'; ctx.fillText('Tap to skip', W/2, bar*.75);
   ctx.globalAlpha = 1; }
-function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || boss.up || boss3.up || boss7.up || heron.up || swordsman.up || demons.some(d => d.up) || anchorer.up || cth.up || lancers.roused || oldOne.up || !!oldScene || pullT > 0; }
+function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || boss.up || boss3.up || boss7.up || heron.up || heron9.up || nest.up || swordsman.up || demons.some(d => d.up) || anchorer.up || cth.up || lancers.roused || oldOne.up || !!oldScene || pullT > 0; }
 warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
   toast(isle3Stage >= 2 ? 'Down at the tower\'s foot again. The portal is still turning.' : 'Down to the foot of the tower, under the sea.', 3000, 1); }
 function intoDemons(){ sfx.portal(); redFlash = 1; shake = Math.max(shake, .6); toRoom(DEMON); walker.diving = false; demonMonkeys.reset(); for (const d of demons) d.reset(); applyStage(); }
 // Inside a room the boat's bubbles (the order, the hold, the hull, the market, the driftwood) are put away: only coins and hearts matter in there.
 function toRoom(i){ floor = i; document.body.classList.add('inside'); allies.clear(); const e = entry(i); walker.x = e.x; walker.y = e.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); if (i === RUINS) intoRuins(); }
-function resetTowers(){ for (const fl of camps) fl.reset(); for (const h of HORDES) h.reset(); forgotten.reset(); lancers.reset(); oldOne.reset(); oldScene = null; oldWinT = 0; bonesRun = null; allies.clear(); bonesJoined = false; merlockT = 1; boss.reset(); boss3.reset(); boss7.reset(); heron.reset(); if (heronStage >= 1) heron.away(); roofMonkeys.reset(); swordsman.reset(); for (const d of demons) d.reset(); demonMonkeys.reset(); pullT = 0; cageOpen = 0; }
+function resetTowers(){ for (const fl of camps) fl.reset(); for (const h of HORDES) h.reset(); forgotten.reset(); lancers.reset(); oldOne.reset(); oldScene = null; oldWinT = 0; bonesRun = null; allies.clear(); bonesJoined = false; merlockT = 1; boss.reset(); boss3.reset(); boss7.reset(); heron.reset(); if (heronStage >= 1) heron.away(); heron9.reset(); nest.reset(); if (heronStage >= 2){ heron9.away(); nest.freed(); } roofMonkeys.reset(); swordsman.reset(); for (const d of demons) d.reset(); demonMonkeys.reset(); pullT = 0; cageOpen = 0; }
 function enterTower(t){ resetTowers(); towerWon = false; tower = t; toRoom(t.first);
   toast(!spear ? 'Inside the tower, and you have no spear! Leave, and buy one from the shipwright.'
     : t.boss === boss3 ? 'Inside the sunken tower. It drips. Beat the monkeys to open the stairs.' : t.boss === boss7 ? 'Inside island 7\'s tower. More monkeys this time: beat them to open the stairs.'
-    : t.boss === heron ? (heronStage >= 1 ? 'Inside island 8\'s tower. He has hired more men to hold it.' : 'Inside the Heron\'s tower. His hired men hold the floors: beat them to open the stairs.') : 'Inside the tower. Beat the monkeys to open the stairs.', 3200, 1); }
+    : t.boss === heron ? (heronStage >= 1 ? 'Inside island 8\'s tower. He has hired more men to hold it.' : 'Inside the Heron\'s tower. His hired men hold the floors: beat them to open the stairs.')
+    : t.boss === heron9 ? (heronStage >= 2 ? 'Inside island 9\'s tower. His hired men still hold it, unpaid.' : 'Inside the Heron\'s own tower. More hired men, and his nest at the top.') : 'Inside the tower. Beat the monkeys to open the stairs.', 3200, 1); }
 function leaveTower(out = true){ if (floor < 0) return; floor = -1; document.body.classList.remove('inside'); resetTowers(); walker.diving = false;
   if (out && walker.state === 'ashore' && tower){ walker.x = tower.door.x; walker.y = tower.door.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; }
   tower = null; }
@@ -990,7 +1033,7 @@ function climbAction(){
     if (walker.dock === ISLE3_DOCK && isle3Stage >= 1 && Math.hypot(walker.x - DIVE3.x, walker.y - DIVE3.y) < STEP) return 'dive';
     if (walker.dock === ISLE6_DOCK && isle6Stage === 1 && Math.hypot(walker.x - TEMPLE_DOOR.x, walker.y - TEMPLE_DOOR.y) < STEP + 6) return 'temple';
     if (walker.dock === ISLE7_DOCK && isle7Stage >= 1 && portalOpen >= 1 && Math.hypot(walker.x - PORTAL7.x, walker.y - PORTAL7.y) < PORTAL7.r * .7) return 'castle';
-    const t = TOWER_AT.find(t => t.dock === walker.dock); return t && (t.boss !== heron || isle7Stage >= 1) && Math.hypot(walker.x - t.door.x, walker.y - t.door.y) < STEP ? 'door' : null; }
+    return towerAtDoor() ? 'door' : null; }
   if (tower === CASTLE){ const h = hordes[floor], st = stairs(floor);
     if (floor === THRONE) return isle7Stage >= 3 && Math.hypot(walker.x - LOCKED.x, walker.y - LOCKED.y) < LOCKED_REACH ? 'onward' : null;
     if (floor === RUINS) return null;
@@ -1019,8 +1062,8 @@ const walker = new Walker();
 walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
 walker.onLand = () => { gapTold = false; const told = walker.dock.tar ? 'tar' : walker.dock; if (!ashoreTold.has(told)){ ashoreTold.add(told);
-    toast(walker.dock.tar ? 'Into the tar in your chemistry suit. Swim to the island; the boat waits at the edge.' : walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : walker.dock === ISLE6_DOCK ? `Ashore on island 6, the big island. ${CHESTS6.length} treasure chests are hidden on it: walk it all to find them.` : walker.dock === ISLE8_DOCK ? (isle7Stage < 1 ? 'Ashore on island 8. Walk across the sandbar to island 9. Both towers are barred shut, for now.' : heronStage >= 1 ? 'Ashore on island 8. Your flag flies on its tower. Across the sandbar, the Heron sits in his nest on island 9.' : 'Ashore on island 8. Its tower door is open: the Heron waits on the roof, behind his hired men.') : walker.dock === ISLE7_DOCK ? 'Ashore on island 7. Monkeys on the far side, a tower in the middle, and a ring of strange metal standing on burnt grass. It is dead quiet.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
-for (const e of [rareEntity, leviathan, cthulu, angler, gulper, serpent, lionfish, shallows, spears, monkeys, monkeys7, hired8, hired9, hiredBoats, ...camps, roofMonkeys, ...HORDES, forgotten, lancers, allies, boss, boss3, boss7, heron, swordsman, ...demons, demonMonkeys, warlock, wboat, anchorer, tarling, king, deep, cth, cat, warrior, bonesPal, naga, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
+    toast(walker.dock.tar ? 'Into the tar in your chemistry suit. Swim to the island; the boat waits at the edge.' : walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : walker.dock === ISLE6_DOCK ? `Ashore on island 6, the big island. ${CHESTS6.length} treasure chests are hidden on it: walk it all to find them.` : walker.dock === ISLE8_DOCK ? (isle7Stage < 1 ? 'Ashore on island 8. Walk across the sandbar to island 9. Both towers are barred shut, for now.' : heronStage >= 2 ? 'Ashore on island 8. Your flags fly on both towers, and the orb over island 9 is dark.' : heronStage >= 1 ? 'Ashore on island 8. Your flag flies on its tower. Across the sandbar, island 9\'s door is open: the Heron waits in his nest.' : 'Ashore on island 8. Its tower door is open: the Heron waits on the roof, behind his hired men.') : walker.dock === ISLE7_DOCK ? 'Ashore on island 7. Monkeys on the far side, a tower in the middle, and a ring of strange metal standing on burnt grass. It is dead quiet.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
+for (const e of [rareEntity, leviathan, cthulu, angler, gulper, serpent, lionfish, shallows, spears, monkeys, monkeys7, hired8, hired9, hiredBoats, ...camps, roofMonkeys, ...HORDES, forgotten, lancers, allies, boss, boss3, boss7, heron, heron9, nest, swordsman, ...demons, demonMonkeys, warlock, wboat, anchorer, tarling, king, deep, cth, cat, warrior, bonesPal, naga, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -1114,7 +1157,7 @@ function refreshShop(){
     + (isle6Stage >= 2 ? '<span class="chip gold">Deep One beaten</span>' : '')
     + (isle7Seen ? '<span class="chip gold">Island 7 found</span>' : '')
     + (isle8Seen ? '<span class="chip gold">Islands 8 and 9 found</span>' : '')
-    + (heronStage >= 1 ? '<span class="chip gold">Heron driven off</span>' : '')
+    + (heronStage >= 1 ? `<span class="chip gold">${heronStage >= 2 ? 'Heron beaten for good' : 'Heron driven off'}</span>` : '')
     + (isle7Stage >= 1 ? '<span class="chip gold">Portal awake</span>' : '')
     + (isle7Stage >= 2 ? '<span class="chip gold">Forgotten One beaten</span>' : '')
     + (isle6Seen ? `<span class="chip gold">Big island found${chests6 ? ': ' + popcount(chests6) + ' of ' + CHESTS6.length + ' chests' : ''}</span>` : '')
@@ -1288,8 +1331,8 @@ function renderGuide(){
     ? 'What slept under the black pool in the ruins behind the Forgotten One\'s throne. He rose wanting you dead, knocked your skeleton flying and roared at you, and fought from the water: he called lagoon creatures out of it, five at a time, and brought his great hand down on anyone at the pool\'s edge. Beaten, he sank back, and the pool went still. Your skeleton\'s soul stayed with you as soul armour: every third hit gives a heart back.'
     : 'Not met yet. Something sleeps under the black pool in the ruins behind the throne.'}</small><div class="facts"><span>Gigantis ruins</span><span>${OLD_HP} to beat</span><span>${isle7Stage >= 4 ? 'Beaten' : 'Not beaten'}</span></div></article>`);
   if (isle7Stage >= 1) pages.push(`<article class="page${heronStage >= 1 ? ' gold' : ' unk'}">${LEV_SVG}<b>${heronStage >= 1 ? 'The Heron' : '?'}</b><small>${heronStage >= 1
-    ? 'The leviathan sorcerer\'s boss: a great grey heron on long black legs, with an alien gun and a staff of illusion. He hires men to keep his water round islands 8 and 9. On island 8\'s tower roof he zapped down a thin pink line and made copies of himself with his staff, and only the real one could be hurt. Beaten there, he flew off to his nest on island 9\'s tower, where the orb of power is.'
-    : 'Not met yet. The sorcerer had a boss. Its banner, a white heron on midnight blue, flies on island 8.'}</small><div class="facts"><span>Islands 8 and 9</span><span>${HERON_HP} to beat</span><span>${heronStage >= 1 ? 'Flown to his nest' : 'Not met'}</span></div></article>`);
+    ? 'The leviathan sorcerer\'s boss: a great grey heron on long black legs, with an alien gun and a staff of illusion. He hires men to keep his water round islands 8 and 9. On island 8\'s tower roof he zapped down a thin pink line and made copies of himself with his staff, and only the real one could be hurt. Beaten there, he flew off to his nest on island 9\'s tower, where the orb of power is.' + (heronStage >= 2 ? ' In his nest the orb shielded him while a necromancer was chained to it, raising skeletons; you beat the necromancer, his chain snapped, the orb went dark, and you beat the Heron for good. He flapped off over the sea.' : '')
+    : 'Not met yet. The sorcerer had a boss. Its banner, a white heron on midnight blue, flies on island 8.'}</small><div class="facts"><span>Islands 8 and 9</span><span>${HERON_HP} to beat</span><span>${heronStage >= 2 ? 'Beaten for good' : heronStage >= 1 ? 'Flown to his nest' : 'Not met'}</span></div></article>`);
   pages.push(`<article class="page${masks ? ' gold' : ' unk'}">${LEV_SVG}<b>${masks ? 'Skull-mask monkeys' : '?'}</b><small>${masks
     ? 'A camp of monkeys in little skull masks on the far side of island 2. They run at you to bonk you, and two of them throw coconuts: keep moving, step out from under the shadow, and throw your spear. Beaten, a monkey drops its mask and runs off. Beat the whole camp and its chest opens.'
     : 'Not met yet. Something lives in the huts on the far side of island 2. Take a spear.'}</small><div class="facts"><span>Island 2</span><span>Three hearts ashore</span><span>${masks} masks</span></div></article>`);
@@ -1548,7 +1591,7 @@ elClimb.addEventListener('click', () => { audio(); const a = climbAction();
   if (a === 'aquarium'){ openTank(); return; }
   if (a === 'temple'){ intoTemple(); return; }
   if (a === 'castle'){ intoCastle(); return; }
-  if (a === 'door') enterTower(TOWER_AT.find(t => t.dock === walker.dock));
+  if (a === 'door') enterTower(towerAtDoor());
   else if (a === 'dive') dive(); else if (a === 'portal') intoDemons();
   else if (a === 'stairs' || a === 'onward'){ toRoom(floor + 1); if (hearts < maxHearts()){ hearts = maxHearts(); hudHearts(); toast('You catch your breath on the stairs. Hearts full.', 2000); } } });
 elLeave.addEventListener('click', () => { audio(); if (floor < 0) return;
@@ -1747,6 +1790,8 @@ function update(dt){
   if (isle6Stage >= 1 && deep.state !== 'down' && deep.state !== 'drag') deep.down();
   updatePortal7(dt); updateCastle(dt); updateRuins(dt);
   if (floor === ROOF8 && heron.state === 'gone' && !towerWon) towerWon = true;
+  if (floor === NEST9 && heron9.state === 'gone' && !towerWon) towerWon = true;
+  heron9.shielded = nest.lit; blockToldT -= dt;
   if (isle6Stage >= 2 && cth.state !== 'gone' && cth.state !== 'fall') cth.beaten();
   if (deep.up > .3 && deep.state !== 'down') pushOut(boat, deep.x, deep.y, DEEP_BODY + 24*bk());
   if (floor === TEMPLE6 && cth.state !== 'gone' && walker.state === 'ashore'){ const dx = walker.x - cth.x, dy = walker.y - cth.y, d = Math.hypot(dx, dy);
@@ -1756,12 +1801,12 @@ function update(dt){
   cat.free = warrior.free = isle6Stage >= 2;
   bonesPal.free = isle7Stage >= 2 || bonesJoined;
   naga.free = nagaFree; hiredBoats.here = isle7Stage >= 1 && farOpen(); hiredSpotT -= dt; if (nagaFree && nagaCage < 1) nagaCage = Math.min(1, nagaCage + dt);
-  // Island 9's tower is barred, for now, and island 8's until the Heron's war has begun: up at a barred door, say so.
+  // Island 8's tower is barred until the Heron's war has begun, and island 9's until he has fled to it: at a barred door, say so.
   barredT -= dt;
   if (barredT <= 0 && floor < 0 && walker.state === 'ashore' && walker.dock === ISLE8_DOCK){
-    const at9 = Math.hypot(walker.x - DOOR9.x, walker.y - DOOR9.y) < 26;
+    const at9 = heronStage < 1 && Math.hypot(walker.x - DOOR9.x, walker.y - DOOR9.y) < 26;
     if (at9 || (isle7Stage < 1 && Math.hypot(walker.x - DOOR8.x, walker.y - DOOR8.y) < 26)){ barredT = 8; sfx.denied();
-      toast(at9 ? (heronStage >= 1 ? 'Barred from inside. Up in the nest of sticks, the Heron is licking his wounds. Not yet.' : 'Barred from inside. High above, something shifts in the nest of sticks, and the purple light flickers.') : 'Barred from inside. Up top flies a banner: a white heron on midnight blue.', 3600, 1); } }
+      toast(at9 ? 'Barred from inside. High above, something shifts in the nest of sticks, and the purple light flickers.' : 'Barred from inside. Up top flies a banner: a white heron on midnight blue.', 3600, 1); } }
   if (bonesPal.shown && !bonesTold){ bonesTold = true; toast('The Forgotten One\'s bones walk with you now. They hit for two, and raise a ghost and a skeleton to fight for you.', 4400, 1); }
   { const f = inFight(); if (f && !wasFight){ cat.newFight(); hudHearts(); } wasFight = f; }
   if (cat.shown && !palsTold){ palsTold = true; toast('The cat heals you, twice a fight: the pink crosses. Aboard at sea, tap it to feed it a fish from the hold for another heal.', 4400, 1); }
@@ -1939,7 +1984,7 @@ function drawGlow(){
     glow(AQUARIUM_MID.x, AQUARIUM_MID.y, AQUARIUM_TOP*.6, 55, rgba('#7FE3F0', .4*dark)); ctx.globalCompositeOperation = 'source-over'; }
   if (isle3Stage < 1) isle3Glow(drawView);
   isle7Glow(drawView, isle7Look());
-  isle8Glow(drawView);
+  isle8Glow(drawView, heronStage < 2);
   scene.draw(drawView, 'glow');
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = q.c || (Math.random() < .5 ? '#FFFFFF' : '#FFE58A'); star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
 }
@@ -2450,6 +2495,9 @@ function drawRoom(){
   const castle = R.kind === 'court' || R.kind === 'castle' || R.kind === 'throne' || R.kind === 'ruins';
   if (castle){ if (R.kind === 'court'){ drawCourtBack(drawView, R, W, H); drawPortal7(drawView, 1, GATE_PORTAL); } else if (R.kind === 'ruins') drawRuinsBack(drawView, R, W, H); else drawCastleBack(drawView, R, W, H);
     if (floor === THRONE) drawLockedDoor(drawView, LOCKED.x, LOCKED.y, isle7Stage >= 3); else if (floor !== RUINS){ const st = stairs(floor); drawCastleDoor(drawView, st.x, st.y, hordes[floor].cleared); } }
+  else if (R.kind === 'nest'){ drawNestBack(drawView, R, W, H, nest.lit);
+    if (towerWon){ ctx.strokeStyle = C.wood; ctx.lineWidth = 2.4*Z; ctx.beginPath(); ctx.moveTo(px(R.x,R.y),py(R.x,R.y,0)); ctx.lineTo(px(R.x,R.y),py(R.x,R.y,60)); ctx.stroke();
+      drawFlagAt(px(R.x,R.y), py(R.x,R.y,60), 22*Z, 15*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1); } }
   else if (under){ if (R.kind === 'hall'){ drawHallBack(drawView, R, W, H); if (isle3Stage >= 2) drawPortal(drawView, PORTAL.x, PORTAL.y); } else if (R.kind === 'temple') drawHallBack(drawView, R, W, H, true); else drawDemonBack(drawView, R, W, H); }
   else {
   if (roof){ const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1A1440'); g.addColorStop(1, '#4B2E83'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -2489,6 +2537,7 @@ function drawRoom(){
     if (forgotten.state !== 'gone') actors.push({d: forgotten.x + forgotten.y, f: () => forgotten.drawBody(drawView)}); }
   for (const a of allies.list) actors.push({d: a.x + a.y, f: () => allies.drawBody(drawView, a)});
   if (floor === ROOF8) actors.push(...heron.solids(drawView));
+  if (floor === NEST9) actors.push(...nest.solids(drawView), ...heron9.solids(drawView));
   if (floor === ROOF7) for (const m of roofMonkeys.list) if (m.state !== 'gone') actors.push({d: m.x + m.y, f: () => roofMonkeys.drawMonkey(drawView, m, 0)});
   if (!roof && floors[floor]) for (const m of floors[floor].list) if (m.state !== 'gone') actors.push({d: m.x + m.y, f: () => floors[floor].drawMonkey(drawView, m, 0)});
   if (floor === HALL && swordsman.state !== 'gone') actors.push({d: swordsman.x + swordsman.y, f: () => swordsman.drawBody(drawView)});
@@ -2502,6 +2551,7 @@ function drawRoom(){
   if (tarling.with) actors.push({d: tarling.x + tarling.y, f: () => tarling.drawBody(drawView)});
   for (const p of [cat, warrior, bonesPal, naga]) if (p.shown) actors.push({d: p.x + p.y, f: () => p.drawBody(drawView)});
   actors.sort((a,b) => a.d-b.d); for (const o of actors) o.f();
+  if (R.kind === 'nest') drawNestFront(drawView, R);
   // The front rim, so the room reads as a room.
   if (!roof && R.kind !== 'demon'){ isoEllipse(R.x, R.y, R.r+4); ctx.strokeStyle = R.kind === 'hall' ? '#24413F' : '#2A2E34'; ctx.lineWidth = 6*Z; ctx.stroke(); }
   scene.draw(drawView, 'air'); if (floor === RUINS) oldOne.draw(drawView, 'air'); drawFlies();
@@ -2524,5 +2574,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, openMap, closeMap, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, openMap, closeMap, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

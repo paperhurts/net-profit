@@ -79,6 +79,9 @@ type Np = {
   DOOR9: { x: number; y: number };
   DOOR8: { x: number; y: number };
   heronStage: number;
+  heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
+  nest: { up: boolean; state: string; hit(power: number): void };
+  nestHorde: { list: { state: string }[] };
   heron: {
     up: boolean;
     hp: number;
@@ -1695,6 +1698,83 @@ test("the Heron: up island 8's tower past his hired men, and on the roof he spli
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
   await expect(page.locator('#log')).toContainText('Heron driven off');
+  expect(errors).toEqual([]);
+});
+
+test("the Heron's nest: up island 9's tower, the orb shields him until the necromancer's chain snaps, and he is beaten for good", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 6560, y: 2070, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    for (const s of window.__np.hiredBoats.boats) s.state = 'sunk';
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Island 9's camp is away; up to the Heron's own door, open now he has fled to it.
+  await page.evaluate(() => {
+    for (const m of window.__np.hired9.list) {
+      m.state = 'gone';
+      m.back = 999;
+    }
+    const w = window.__np.walker;
+    const D = window.__np.DOOR9;
+    w.x = D.x;
+    w.y = D.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 20);
+  for (const f of [20, 21]) {
+    await page.evaluate((i) => {
+      const fl = window.__np.floors[i];
+      if (!fl) return;
+      for (const m of fl.list) fl.hit(m, 9, m.x + 50, m.y);
+      window.__np.walker.x = -16500 - 130 * 0.6 * Math.SQRT1_2;
+      window.__np.walker.y = (i === 21 ? -6900 : -6000) - 130 * 0.6 * Math.SQRT1_2;
+    }, f);
+    await expect(page.locator('#climb')).toBeVisible();
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, f + 1);
+  }
+  // The nest: the necromancer wakes, chained to the orb, and the Heron is shielded.
+  await page.waitForFunction(() => window.__np.nest.up, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('orb of power');
+  expect(await page.evaluate(() => window.__np.heron9.shielded)).toBe(true);
+  const hp = await page.evaluate(() => window.__np.heron9.hp);
+  await page.waitForFunction(() => window.__np.heron9.up, null, { timeout: 3000 });
+  await page.evaluate(() => window.__np.heron9.hit(5));
+  expect(await page.evaluate(() => window.__np.heron9.hp)).toBe(hp);
+  // He raises a skeleton out of the sticks.
+  await page.waitForFunction(() => window.__np.nestHorde.list.length >= 1, null, { timeout: 6000 });
+  // Beaten, his chain snaps: the shield is down and what he raised falls.
+  await page.evaluate(() => window.__np.nest.hit(99));
+  await page.waitForFunction(() => !window.__np.heron9.shielded, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('chain snaps');
+  expect(
+    await page.evaluate(() =>
+      window.__np.nestHorde.list.every((u) => u.state === 'fall' || u.state === 'gone'),
+    ),
+  ).toBe(true);
+  await page.evaluate(() => window.__np.heron9.hit(99));
+  await page.waitForFunction(() => window.__np.heronStage === 2, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('for good');
+  await expect(page.locator('#leave')).toHaveText('Back to the boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  await expect(page.locator('#log')).toContainText('Heron beaten for good');
   expect(errors).toEqual([]);
 });
 

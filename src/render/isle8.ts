@@ -3,9 +3,10 @@
  * island 8's green and island 9's darker marsh grass, reeds at the shores,
  * island 8's trading post, palms and tower flying the Heron's banner, and
  * island 9's dead trees, rocks and the Heron's own tower: dark stone banded with
- * alien metal, crowned with a great nest of sticks under a purple light. Island
- * 9's door is barred with planks; island 8's too, until island 7's sorcerer has
- * failed, and once the Heron is beaten on its roof it flies the player's flag.
+ * alien metal, crowned with a great nest of sticks under the orb of power's
+ * light. Island 8's door is barred with planks until island 7's sorcerer has
+ * failed, and island 9's until the Heron has fled there; each flies the
+ * player's flag once he is beaten on it, and the orb goes dark at the last.
  * Stand-in shapes, in island 7's style, until the kid draws them.
  */
 import { rgba } from '../core/color';
@@ -34,6 +35,10 @@ export type Isle8Look = {
   barred9: boolean;
   /** Draws the player's flag at a screen point, or null while the Heron holds island 8's tower. */
   flag8: ((sx: number, sy: number) => void) | null;
+  /** The orb of power over island 9's nest is lit; dark once the Heron is beaten for good. */
+  orbLit: boolean;
+  /** Draws the player's flag in the nest, or null while the Heron holds it. */
+  flag9: ((sx: number, sy: number) => void) | null;
 };
 
 const MID = { x: ISLE8.x, y: (ISLE8.y + ISLE9.y) / 2 } as const;
@@ -386,17 +391,29 @@ function drawTower9(v: DrawView, look: Isle8Look): void {
     ctx.stroke();
     ctx.restore();
   }
-  // The purple light over it.
+  // The orb of power over it: the purple light, bobbing while it is lit, still and dark after.
   const ox = px(t.x, t.y);
-  const oy = py(t.x, t.y, nz + 30 + Math.sin(T * 1.5) * 3);
-  ctx.fillStyle = '#9C6BFF';
+  const oy = py(t.x, t.y, nz + 30 + (look.orbLit ? Math.sin(T * 1.5) * 3 : 0));
+  ctx.fillStyle = look.orbLit ? '#C21E9E' : '#4A3550';
   ctx.beginPath();
   ctx.arc(ox, oy, 6 * Z, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.fillStyle = look.orbLit ? 'rgba(255,220,250,.75)' : 'rgba(200,180,210,.3)';
   ctx.beginPath();
   ctx.arc(ox - 2 * Z, oy - 2 * Z, 2 * Z, 0, Math.PI * 2);
   ctx.fill();
+  if (look.flag9) {
+    // Taken: the player's flag stands in the nest.
+    const fx = px(t.x + 6, t.y + 6);
+    const fy = py(t.x + 6, t.y + 6, nz);
+    ctx.strokeStyle = '#8A6A43';
+    ctx.lineWidth = 2 * Z;
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx, fy - 40 * Z);
+    ctx.stroke();
+    look.flag9(fx, fy - 40 * Z);
+  }
 }
 
 /** A hired men's tent: midnight-blue canvas over a ridge pole, its flap open toward the viewer. */
@@ -457,9 +474,9 @@ function drawCampfire(v: DrawView, x: number, y: number): void {
   }
 }
 
-/** The purple light over the Heron's nest, always, and brighter at night. */
-export function isle8Glow(v: DrawView): void {
-  if (!near(v, 200)) return;
+/** The orb of power's light over the Heron's nest, while it is lit, brighter at night. */
+export function isle8Glow(v: DrawView, orbLit = true): void {
+  if (!orbLit || !near(v, 200)) return;
   const { ctx, T } = v;
   const t = TOWER9;
   ctx.globalCompositeOperation = 'screen';
@@ -468,7 +485,7 @@ export function isle8Glow(v: DrawView): void {
     t.y,
     t.h + 42,
     80,
-    rgba('#B98AFF', (0.25 + 0.45 * v.dark) * (0.8 + 0.2 * Math.sin(T * 2))),
+    rgba('#E05BC4', (0.25 + 0.45 * v.dark) * (0.8 + 0.2 * Math.sin(T * 2))),
   );
   ctx.globalCompositeOperation = 'source-over';
 }

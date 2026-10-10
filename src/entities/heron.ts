@@ -11,7 +11,10 @@
  * pops a copy in a puff of pink, and only the real one can be hurt. Hurt to half
  * he is angry: two zaps at a time, and three copies. Beaten here he does not
  * fall: he screeches and flies off to his nest on island 9, and the game calls
- * it round one. The game does the hearts, the prize and the way on as callbacks.
+ * it round one. Round two is in that nest, tougher, and while the orb of power
+ * is lit he is shielded: a spear, or a helper's blow, glances off him and his
+ * copies alike, until the necromancer chained to the orb is beaten. The game
+ * does the hearts, the prize, the shield and the way on as callbacks.
  */
 
 import { clamp } from '../core/math';
@@ -19,6 +22,8 @@ import type { Solid } from '../render/layers';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export const HERON_HP = 14;
+/** Round two, in his nest on island 9. */
+export const HERON9_HP = 18;
 /** How fast he stalks, and how far from the figure he likes to stand. */
 export const STALK = 46;
 export const KEEP = 95;
@@ -68,7 +73,7 @@ export function segDist(
 
 export class Heron implements Entity {
   state: HeronState = 'wait';
-  hp = HERON_HP;
+  hp: number;
   x: number;
   y: number;
   h = Math.PI / 4;
@@ -83,6 +88,8 @@ export class Heron implements Entity {
   private illusionCd = 5;
   private shots = 0;
   private stunT = 0;
+  /** The orb of power's shield is on him: nothing hurts him or pops a copy. The game says, each frame. */
+  shielded = false;
   /** He has seen the figure arrive. */
   onWake: (() => void) | null = null;
   /** A zap has hit the figure. */
@@ -93,10 +100,16 @@ export class Heron implements Entity {
   onPop: ((x: number, y: number) => void) | null = null;
   /** He was hurt. */
   onHurt: (() => void) | null = null;
+  /** A spear or a blow glanced off his shield, here. */
+  onBlock: ((x: number, y: number) => void) | null = null;
   /** Beaten: he is flying off. The game is told at once, so leaving mid-flight keeps the win. */
   onBeaten: (() => void) | null = null;
 
-  constructor(readonly home: Home) {
+  constructor(
+    readonly home: Home,
+    readonly hp0 = HERON_HP,
+  ) {
+    this.hp = hp0;
     this.x = home.x - home.r * 0.3;
     this.y = home.y - home.r * 0.3;
   }
@@ -107,12 +120,12 @@ export class Heron implements Entity {
   }
 
   get angry(): boolean {
-    return this.hp <= HERON_HP / 2;
+    return this.hp <= this.hp0 / 2;
   }
 
   reset(): void {
     this.state = 'wait';
-    this.hp = HERON_HP;
+    this.hp = this.hp0;
     this.x = this.home.x - this.home.r * 0.3;
     this.y = this.home.y - this.home.r * 0.3;
     this.h = Math.PI / 4;
@@ -140,7 +153,11 @@ export class Heron implements Entity {
   }
 
   /** A spear lands on him, or on a copy. */
-  spear(target: object, power: number): void {
+  spear(target: { x: number; y: number }, power: number): void {
+    if (this.shielded && this.up) {
+      this.onBlock?.(target.x, target.y);
+      return;
+    }
     if (target === this) {
       this.hit(power);
       return;
@@ -154,6 +171,10 @@ export class Heron implements Entity {
 
   hit(power: number): void {
     if (!this.up) return;
+    if (this.shielded) {
+      this.onBlock?.(this.x, this.y);
+      return;
+    }
     this.hp = Math.max(0, this.hp - power);
     this.flash = 0.2;
     this.onHurt?.();
@@ -322,7 +343,12 @@ export class Heron implements Entity {
   solids(v: DrawView): Solid[] {
     if (this.state === 'wait' || this.state === 'gone') {
       return this.state === 'wait'
-        ? [{ d: this.x + this.y, f: () => drawHeron(v, this.x, this.y, this.h, this.ph, {}) }]
+        ? [
+            {
+              d: this.x + this.y,
+              f: () => drawHeron(v, this.x, this.y, this.h, this.ph, { shield: this.shielded }),
+            },
+          ]
         : [];
     }
     const out: Solid[] = [];
@@ -345,13 +371,18 @@ export class Heron implements Entity {
           flash: this.flash > 0,
           aiming: this.state === 'aim',
           cast: this.state === 'cast' ? this.t / CAST_T : 0,
+          shield: this.shielded,
         }),
     });
     for (const c of this.copies)
       out.push({
         d: c.x + c.y,
         f: () =>
-          drawHeron(v, c.x, c.y, c.h, c.ph, { copy: true, pop: c.pop > 0 ? 1 - c.pop / 0.4 : 0 }),
+          drawHeron(v, c.x, c.y, c.h, c.ph, {
+            copy: true,
+            pop: c.pop > 0 ? 1 - c.pop / 0.4 : 0,
+            shield: this.shielded,
+          }),
       });
     return out;
   }
@@ -405,6 +436,8 @@ type HeronLook = {
   pop?: number;
   fly?: boolean;
   lift?: number;
+  /** The orb of power's shield round him: a pink bubble. */
+  shield?: boolean;
 };
 
 /**
@@ -598,6 +631,22 @@ export function drawHeron(
     ctx.beginPath();
     ctx.arc(X(22), Y(-34 + up), (o.aiming ? 2.2 : 1.4) * Z, 0, Math.PI * 2);
     ctx.fill();
+  }
+  if (o.shield) {
+    // The orb's shield: a pink bubble round him, shimmering.
+    const r = 46 * Z;
+    const cy = sy - 40 * Z;
+    ctx.fillStyle = `rgba(255,120,220,${0.12 + 0.05 * Math.sin(T * 4 + ph)})`;
+    ctx.beginPath();
+    ctx.ellipse(sx, cy, r * 0.8, r, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,160,235,${0.55 + 0.25 * Math.sin(T * 6 + ph)})`;
+    ctx.lineWidth = 1.6 * v.zoom;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,240,255,.5)';
+    ctx.beginPath();
+    ctx.ellipse(sx, cy, r * 0.8, r, 0, Math.PI * 1.15, Math.PI * 1.45);
+    ctx.stroke();
   }
   ctx.restore();
 }
