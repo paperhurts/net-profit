@@ -97,6 +97,7 @@ import {
   POST8,
   ROCKS9,
   SNAGS9,
+  TENTS8,
   TOWER8,
   TOWER9,
 } from '../world/isle8';
@@ -427,6 +428,8 @@ export const PROPS: readonly Prop[] = [
   ...PALMS8.map((p) => post(p, 4, p[0] + p[1])),
   ...SNAGS9.map((p) => post(p, 3.5, p[0] + p[1])),
   ...ROCKS9.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
+  // The hired men's tents.
+  ...TENTS8.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1] + 7)),
   post([TOTEM7.x, TOTEM7.y], 2.5, TOTEM7.x + TOTEM7.y),
   prop(CHEST7.x - 7, CHEST7.y - 5, CHEST7.x + 7, CHEST7.y + 5, CHEST7.x + CHEST7.y + 5, 0, 1.5),
   ...PORTAL_FEET.map((p) => post(p, 5, p[0] + p[1])),
