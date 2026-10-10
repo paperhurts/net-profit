@@ -963,7 +963,8 @@ test('tower: in at the door, up both floors, beat the sorcerer, and the tower is
   await page.click('#climb');
   await page.waitForFunction(() => window.__np.floor === 0);
   // Inside, the boat's bubbles are put away; the hearts stay.
-  for (const id of ['#order', '#holdPill', '#hull', '#wood']) await expect(page.locator(id)).toBeHidden();
+  for (const id of ['#order', '#holdPill', '#hull', '#wood'])
+    await expect(page.locator(id)).toBeHidden();
   await expect(page.locator('#hearts')).toBeVisible();
   for (const f of [0, 1]) {
     // Beat the floor, step onto its stairs, climb.
