@@ -68,6 +68,12 @@ type Np = {
   aquarium: boolean;
   nagaFree: boolean;
   isle8Seen: boolean;
+  hiredBoats: { chasing: boolean; boats: { x: number; y: number; state: string }[] };
+  hired8: {
+    home: { x: number; y: number };
+    list: unknown[];
+    hit(m: unknown, power: number, fx: number, fy: number): void;
+  };
   BAR: { x0: number; x1: number; y0: number; y1: number };
   DOOR9: { x: number; y: number };
   NAGA_CAGE: { x: number; y: number; r: number };
@@ -1529,6 +1535,71 @@ test('islands 8 and 9: sight the twins, tie up at island 8, walk the sandbar, an
   // After the landing's own message, which is still up.
   await expect(page.locator('#toast')).toContainText('Barred', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Islands 8 and 9 found');
+  expect(errors).toEqual([]);
+});
+
+test("the Heron's hired men: boats chase and ram at sea and the harpoon sinks one; ashore, a beaten man drops his pay", async ({
+  context,
+  page,
+}) => {
+  // Island 7's sorcerer beaten, so the Heron has hired them; a flagship with a harpoon off island 8.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 6300, y: 2070, h: 0, clock: 0.3, hold: [] },
+  });
+  // One comes for the boat: a chase, and a ram that costs hull.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    const s = window.__np.hiredBoats.boats[0];
+    if (!s) return;
+    s.x = b.x + 220;
+    s.y = b.y - 120;
+  });
+  await page.waitForFunction(() => window.__np.hiredBoats.chasing, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('hired boats');
+  await page.waitForFunction(() => window.__np.hp < 100, null, { timeout: 6000 });
+  // The harpoon aims at the nearest; enough hits sink it, for the bounty.
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'hired', null, { timeout: 3000 });
+  for (let i = 0; i < 6; i++) {
+    await page.evaluate(() => window.__np.fireHarpoon());
+    await page.waitForTimeout(1300);
+    if (await page.evaluate(() => window.__np.hiredBoats.boats.some((s) => s.state === 'sunk')))
+      break;
+  }
+  expect(
+    await page.evaluate(() => window.__np.hiredBoats.boats.some((s) => s.state === 'sunk')),
+  ).toBe(true);
+  expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThan(coins);
+  // Ashore on island 8, by their camp: a beaten man drops his pay.
+  await page.evaluate(() => {
+    for (const s of window.__np.hiredBoats.boats) s.state = 'sunk';
+    const b = window.__np.boat;
+    b.x = 6560;
+    b.y = 2070;
+    b.v = 0;
+    b.h = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const before = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const c = window.__np.hired8;
+    w.x = c.home.x - 70;
+    w.y = c.home.y - 30;
+    const m = c.list[0];
+    if (m) c.hit(m, 9, w.x, w.y);
+  });
+  await page.waitForFunction((b) => window.__np.coins > b, before, { timeout: 2000 });
+  await expect(page.locator('#hearts')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

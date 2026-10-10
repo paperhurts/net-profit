@@ -143,3 +143,11 @@ export function pushOffTwins(s: { x: number; y: number; v: number }, pad: number
     s.v *= 0.6;
   }
 }
+
+/**
+ * The Heron's hired men camp on both twins: on island 8 by its tower's door, round a fire between two
+ * tents; on island 9 a smaller guard by the Heron's door, one tent and a fire.
+ */
+export const CAMP8 = { x: ISLE8.x + 95, y: ISLE8.y + 70 } as const;
+export const CAMP9 = { x: ISLE9.x - 70, y: ISLE9.y + 70 } as const;
+export const TENTS8: readonly Point[] = [at8(55, 95), at8(140, 100), at9(-115, 95)];

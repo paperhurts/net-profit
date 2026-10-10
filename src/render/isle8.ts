@@ -11,6 +11,8 @@ import { rgba } from '../core/color';
 import type { DrawView } from '../entities/entity';
 import {
   BAR,
+  CAMP8,
+  CAMP9,
   ISLE8,
   ISLE9,
   PALMS8,
@@ -18,6 +20,7 @@ import {
   REEDS8,
   ROCKS9,
   SNAGS9,
+  TENTS8,
   TOWER8,
   TOWER9,
 } from '../world/isle8';
@@ -378,6 +381,64 @@ function drawTower9(v: DrawView, look: Isle8Look): void {
   ctx.fill();
 }
 
+/** A hired men's tent: midnight-blue canvas over a ridge pole, its flap open toward the viewer. */
+function drawTent(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py } = v;
+  const p = (dx: number, dy: number, z: number): [number, number] => [
+    px(x + dx, y + dy),
+    py(x + dx, y + dy, z),
+  ];
+  const ridge = [p(-9, 0, 15), p(9, 0, 15)] as const;
+  const fill = (pts: [number, number][], col: string) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (const [i, [sx, sy]] of pts.entries()) {
+      if (i) ctx.lineTo(sx, sy);
+      else ctx.moveTo(sx, sy);
+    }
+    ctx.closePath();
+    ctx.fill();
+  };
+  fill([p(-9, -7, 0), p(9, -7, 0), ridge[1], ridge[0]], '#2A3758');
+  fill([p(-9, 7, 0), p(9, 7, 0), ridge[1], ridge[0]], '#1F2A4A');
+  fill([p(9, -7, 0), p(9, 7, 0), ridge[1]], '#34446B');
+  fill([p(9, -3, 0), p(9, 3, 0), p(9, 0, 10)], '#141B30');
+}
+
+/** The camp's fire: a ring of stones and flickering flames. */
+function drawCampfire(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  ctx.fillStyle = '#8A8F96';
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(
+      px(x + Math.cos(a) * 7, y + Math.sin(a) * 7),
+      py(x + Math.cos(a) * 7, y + Math.sin(a) * 7, 1),
+      1.8 * Z,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  for (const [col, h, w] of [
+    ['#F2894A', 11, 4],
+    ['#FFD24A', 7, 2.4],
+  ] as const) {
+    const sx = px(x, y);
+    const sy = py(x, y, 1);
+    const f = (h + Math.sin(T * 9 + x) * 2) * Z;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(sx - w * Z, sy);
+    ctx.quadraticCurveTo(sx - w * 0.4 * Z, sy - f * 0.6, sx, sy - f);
+    ctx.quadraticCurveTo(sx + w * 0.4 * Z, sy - f * 0.6, sx + w * Z, sy);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
 /** The purple light over the Heron's nest, always, and brighter at night. */
 export function isle8Glow(v: DrawView): void {
   if (!near(v, 200)) return;
@@ -409,6 +470,8 @@ export function isle8Solids(v: DrawView, look: Isle8Look): Solid[] {
     out.push({ d: x + y, f: () => drawSnag(v, x, y, i) });
   });
   for (const [x, y] of ROCKS9) out.push({ d: x + y, f: () => drawRock(v, x, y) });
+  for (const [x, y] of TENTS8) out.push({ d: x + y + 7, f: () => drawTent(v, x, y) });
+  for (const c of [CAMP8, CAMP9]) out.push({ d: c.x + c.y, f: () => drawCampfire(v, c.x, c.y) });
   REEDS8.forEach(([x, y], i) => {
     out.push({ d: x + y, f: () => drawReeds(v, x, y, i) });
   });

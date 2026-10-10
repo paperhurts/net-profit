@@ -25,6 +25,7 @@ import {
   ROCKS9,
   SIGHT8,
   SNAGS9,
+  TENTS8,
   TOWER8,
   TOWER9,
 } from '../../src/world/isle8';
@@ -150,7 +151,10 @@ describe('islands 8 and 9, the twins', () => {
     drawIsle8Flat(f.v);
     const solids = isle8Solids(f.v, { barred: true });
     for (const s of solids) s.f();
-    expect(solids).toHaveLength(3 + PALMS8.length + SNAGS9.length + ROCKS9.length + REEDS8.length);
+    // The post, both towers, both camps' fires, and everything else that stands there.
+    expect(solids).toHaveLength(
+      5 + PALMS8.length + SNAGS9.length + ROCKS9.length + REEDS8.length + TENTS8.length,
+    );
     expect(f.calls.fill ?? 0).toBeGreaterThan(40);
     isle8Glow(f.v);
     expect(f.calls.glow ?? 0).toBeGreaterThan(0);

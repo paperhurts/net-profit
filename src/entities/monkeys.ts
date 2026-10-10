@@ -8,6 +8,10 @@
  * drops its mask and runs off into the trees, back a minute later. Beat the
  * whole camp and its chest opens. The game keeps the hearts, the masks and the
  * coins as callbacks.
+ *
+ * The Heron's hired men on islands 8 and 9 fight the same way, a camp of them
+ * with a look of their own: men in his midnight blue with helmets and clubs,
+ * tougher than a monkey, the throwers slinging stones.
  */
 
 import { CAMP } from '../world/isle2';
@@ -39,6 +43,8 @@ export const RETURN = 60;
 export const CLEAR_RETURN = 90;
 
 export type MonkeyState = 'idle' | 'chase' | 'flee' | 'gone';
+/** Who the camp is: monkeys, or the Heron's hired men. */
+export type CampLook = 'monkey' | 'hired';
 
 export type Monkey = {
   x: number;
@@ -88,6 +94,8 @@ export class Monkeys implements Entity {
     readonly n = MONKEYS,
     readonly throwers = THROWERS,
     readonly respawn = true,
+    readonly look: CampLook = 'monkey',
+    readonly hp0 = MONKEY_HP,
   ) {
     for (let i = 0; i < n; i++) this.list.push(this.spawn(i));
   }
@@ -100,7 +108,7 @@ export class Monkeys implements Entity {
       x,
       y,
       h: a,
-      hp: MONKEY_HP,
+      hp: this.hp0,
       state: 'idle',
       thrower: i >= this.n - this.throwers,
       cd: 0,
@@ -120,7 +128,7 @@ export class Monkeys implements Entity {
       x,
       y,
       h: 0,
-      hp: MONKEY_HP,
+      hp: this.hp0,
       state: 'chase',
       thrower,
       cd: 0.8,
@@ -310,9 +318,9 @@ export class Monkeys implements Entity {
         ctx.fillStyle = 'rgba(0,0,0,.2)';
         v.isoEllipse(n.tx, n.ty, 6 * (0.5 + k * 0.5));
         ctx.fill();
-        ctx.fillStyle = '#6B4423';
+        ctx.fillStyle = this.look === 'hired' ? '#8A8F96' : '#6B4423';
         ctx.beginPath();
-        ctx.arc(px(x, y), py(x, y, z), 3.6 * Z, 0, Math.PI * 2);
+        ctx.arc(px(x, y), py(x, y, z), (this.look === 'hired' ? 2.6 : 3.6) * Z, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -321,6 +329,10 @@ export class Monkeys implements Entity {
   /** One monkey, for the game's sorted solids. */
   drawMonkey(v: DrawView, m: Monkey, z: number): void {
     if (!v.onScreen(m.x, m.y, 40)) return;
+    if (this.look === 'hired') {
+      drawHired(v, m, z);
+      return;
+    }
     const { ctx, px, py } = v;
     const Z = v.zoom;
     const moving = m.state === 'chase' || m.state === 'flee';
@@ -385,5 +397,86 @@ export class Monkeys implements Entity {
       ctx.arc(bx + (c - s) * 4 * Z, py(m.x, m.y, z + 20 + bob), 2.6 * Z, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+}
+
+/**
+ * One of the Heron's hired men: boots, a midnight-blue tunic with a white sash, a grey helmet,
+ * and a club; a thrower has a sling and a stone ready. Beaten, he drops his helmet and runs.
+ */
+function drawHired(v: DrawView, m: Monkey, z: number): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const moving = m.state === 'chase' || m.state === 'flee';
+  const step = moving ? Math.sin(m.ph) * 2.4 : 0;
+  const c = Math.cos(m.h);
+  const s = Math.sin(m.h);
+  const dir = c - s >= 0 ? 1 : -1;
+  ctx.fillStyle = 'rgba(0,0,0,.2)';
+  v.isoEllipse(m.x, m.y, 6, z);
+  ctx.fill();
+  const x = px(m.x, m.y);
+  const y = py(m.x, m.y, z);
+  const flash = m.flash > 0;
+  ctx.lineCap = 'round';
+  // Legs and boots.
+  ctx.strokeStyle = flash ? '#FFFFFF' : '#3A2E28';
+  ctx.lineWidth = 2.4 * Z;
+  for (const k of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + k * 1.8 * Z, y - 8 * Z);
+    ctx.lineTo(x + (k * 1.8 + step * k) * Z, y);
+    ctx.stroke();
+  }
+  // The tunic, with a white sash across it.
+  ctx.fillStyle = flash ? '#FFFFFF' : '#1F2A4A';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 12 * Z, 4.6 * Z, 6 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (!flash) {
+    ctx.strokeStyle = '#F4F1E6';
+    ctx.lineWidth = 1.4 * Z;
+    ctx.beginPath();
+    ctx.moveTo(x - 3.2 * Z * dir, y - 16 * Z);
+    ctx.lineTo(x + 3 * Z * dir, y - 8.5 * Z);
+    ctx.stroke();
+  }
+  // Head, and the helmet unless he has dropped it running.
+  const hy = y - 21 * Z;
+  ctx.fillStyle = flash ? '#FFFFFF' : '#E3B990';
+  ctx.beginPath();
+  ctx.arc(x, hy, 3.4 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  if (m.state !== 'flee') {
+    ctx.fillStyle = '#8A9098';
+    ctx.beginPath();
+    ctx.arc(x, hy - 0.6 * Z, 3.8 * Z, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(x - 4.4 * Z, hy - 0.8 * Z, 8.8 * Z, 1.2 * Z);
+  }
+  // A club, or a sling with a stone in it.
+  const hx = x + 4.5 * Z * dir;
+  const hyy = y - 13 * Z;
+  if (m.thrower) {
+    ctx.strokeStyle = '#6B4A2C';
+    ctx.lineWidth = 1 * Z;
+    ctx.beginPath();
+    ctx.moveTo(hx, hyy);
+    ctx.lineTo(hx + 3 * Z * dir, hyy + 5 * Z);
+    ctx.stroke();
+    if (m.state === 'chase' && m.cd < 1) {
+      ctx.fillStyle = '#8A8F96';
+      ctx.beginPath();
+      ctx.arc(hx + 3 * Z * dir, hyy + 5.5 * Z, 1.6 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (m.state !== 'flee') {
+    const up = m.state === 'chase' && m.cd > 0.8 ? 0.3 : -1.1;
+    ctx.strokeStyle = '#7A5A36';
+    ctx.lineWidth = 2.4 * Z;
+    ctx.beginPath();
+    ctx.moveTo(hx, hyy);
+    ctx.lineTo(hx + Math.cos(up) * 9 * Z * dir, hyy + Math.sin(up) * 9 * Z);
+    ctx.stroke();
   }
 }
