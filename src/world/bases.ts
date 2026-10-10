@@ -8,7 +8,8 @@
  * island 2's is seining (fishing/seine.ts), and the seine goes everywhere with
  * the boat from then on. Island 2 is the first; the floating town on island 3
  * has a raft kept for its base, and crab pots come with its second stage; the
- * big island, island 6 (charters), comes after them.
+ * big island, island 6, has its hut on the beach at the root of its pier, across
+ * from the trading post, and charters come next.
  *
  * Later, the kid wants companions to be given jobs at a base. Nothing waits at
  * one yet; a base's stage is one number in the save, and a job would sit beside
@@ -17,9 +18,10 @@
 
 import { DOCK2, ISLE2 } from './isle2';
 import { DOCK3, ISLE3, PLANK_Z } from './isle3';
+import { DOCK6, ISLE6, PIER6 } from './isle6';
 
-export type BaseId = 'isle2' | 'isle3';
-export const BASE_IDS: readonly BaseId[] = ['isle2', 'isle3'];
+export type BaseId = 'isle2' | 'isle3' | 'isle6';
+export const BASE_IDS: readonly BaseId[] = ['isle2', 'isle3', 'isle6'];
 
 /** One stage of a base: what it is called, what it costs, and what the shop says before and after. */
 export type BaseStage = { name: string; wood: number; coins: number; blurb: string; built: string };
@@ -112,6 +114,18 @@ export const BASES: readonly Base[] = [
       },
     ],
   },
+  {
+    id: 'isle6',
+    island: 'island 6',
+    dock: DOCK6,
+    // On the beach at the root of the pier, across the way up from the trading post: the first thing ashore.
+    hut: { x: ISLE6.x - 70, y: PIER6.y0 - 60, half: 14, wall: 18 },
+    z: 0,
+    done: 'A home port out in the far deep.',
+    // Its pier runs out toward home, down the screen.
+    spit: spitOff(DOCK6, 0, 1),
+    stages: [hutStage('island 6')],
+  },
 ];
 
 /** Island 2's stage that opens seining. */
@@ -134,7 +148,7 @@ export function hasPots(bases: Bases): boolean {
 export type Bases = Record<BaseId, number>;
 
 export function noBases(): Bases {
-  return { isle2: 0, isle3: 0 };
+  return { isle2: 0, isle3: 0, isle6: 0 };
 }
 
 /** The stages from a save, each missing or broken one read as nothing built, and none past the last. */

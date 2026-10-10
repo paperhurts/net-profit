@@ -724,6 +724,33 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
   expect(errors).toEqual([]);
 });
 
+test("bases: island 6's hut is built from its pier, a home port out in the far deep", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 2000,
+    wood: 40,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: -1322 + 40, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  const card = page.locator('#baseBtn');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Build a hut here');
+  await card.click();
+  await expect(card).toContainText('Your base on island 6');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle6])).toEqual([500, 1]);
+  expect(errors).toEqual([]);
+});
+
 test('bases: build a hut on island 2 from its dock, and the boat comes back up there after a sinking nearby', async ({
   context,
   page,
@@ -751,7 +778,7 @@ test('bases: build a hut on island 2 from its dock, and the boat comes back up t
   expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle2])).toEqual([500, 1]);
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').bases),
-  ).toEqual({ isle2: 1, isle3: 0 });
+  ).toEqual({ isle2: 1, isle3: 0, isle6: 0 });
   // Out past island 2's dock, nearer it than home, the boat goes down; it comes back up off that dock.
   await page.evaluate(() => {
     const b = window.__np.boat;
