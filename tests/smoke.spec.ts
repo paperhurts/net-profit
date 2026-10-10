@@ -67,6 +67,9 @@ type Np = {
   lurker: { x: number; y: number; a: number; state: string; t: number; wait: number };
   lurkerSeen: boolean;
   lurkerStung: number;
+  storm: { phase: string; t: number; bring(): void };
+  stormE: number;
+  stormSeen: boolean;
   wreckChest: boolean;
   diveSite: string;
   boneSharks: { x: number; y: number; state: string; t: number }[];
@@ -1291,6 +1294,49 @@ test('the wreck: stopped beside it at island 5, dive to it, find its treasure, a
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').wreckChest),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('storms: out past the buoys a storm warns, comes, slows the boat, and the fish boil up after', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    isle2Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const st = window.__np.storm;
+    st.bring();
+  });
+  await expect(page.locator('#toast')).toContainText('a storm is coming');
+  // Hurried on from its warning.
+  await page.evaluate(() => {
+    window.__np.storm.t = 0.2;
+  });
+  await page.waitForFunction(() => window.__np.storm.phase === 'storm', null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('The storm is here');
+  await page.waitForFunction(() => window.__np.stormE > 0.9, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.stormSeen)).toBe(true);
+  // Full ahead in it, the boat makes less than its top speed.
+  await page.evaluate(() => {
+    window.__np.keys = 'drive';
+  });
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(2500);
+  const v = await page.evaluate(() => window.__np.boat.v);
+  await page.keyboard.up('ArrowUp');
+  expect(v).toBeLessThan(350 * 0.8);
+  expect(v).toBeGreaterThan(350 * 0.5);
+  // It passes, and the fish boil up.
+  await page.evaluate(() => {
+    window.__np.storm.t = 0.1;
+  });
+  await page.waitForFunction(() => window.__np.storm.phase === 'boil', null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('boiling up');
   expect(errors).toEqual([]);
 });
 

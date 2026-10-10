@@ -123,6 +123,8 @@ export type SaveData = {
   pearlDay: number;
   /** The treasure chest in the wreck off island 5 has been found. */
   wreckChest: boolean;
+  /** A storm has been met out past the buoys, which puts ballast on the shipwright's shelf. */
+  stormSeen: boolean;
   /** The lurker in the trench's dark has been met, and how many times a spear has stung it off. */
   lurkerSeen: boolean;
   lurkerStung: number;
@@ -169,6 +171,7 @@ export type SaveData = {
     rod: boolean;
     lionnet: boolean;
     tank: boolean;
+    ballast: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -244,6 +247,7 @@ export function defaultSave(b: Bounds): SaveData {
     trenchLoot: 0,
     pearlDay: 0,
     wreckChest: false,
+    stormSeen: false,
     lurkerSeen: false,
     lurkerStung: 0,
     charter: null,
@@ -270,6 +274,7 @@ export function defaultSave(b: Bounds): SaveData {
       rod: false,
       lionnet: false,
       tank: false,
+      ballast: false,
     },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -366,6 +371,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
   d.pearlDay = Math.max(0, int(o.pearlDay));
   d.wreckChest = !!o.wreckChest;
+  d.stormSeen = !!o.stormSeen;
   d.lurkerSeen = !!o.lurkerSeen;
   d.lurkerStung = Math.max(0, int(o.lurkerStung));
   d.charter = parseCharter(o.charter);
@@ -394,6 +400,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       rod: !!g.rod,
       lionnet: !!g.lionnet,
       tank: !!g.tank,
+      ballast: !!g.ballast,
     };
   }
   if (o.snook && typeof o.snook === 'object') {
@@ -472,6 +479,7 @@ export function serializeSave(d: SaveData): string {
     trenchLoot: d.trenchLoot,
     pearlDay: d.pearlDay,
     wreckChest: d.wreckChest,
+    stormSeen: d.stormSeen,
     lurkerSeen: d.lurkerSeen,
     lurkerStung: d.lurkerStung,
     charter: d.charter,

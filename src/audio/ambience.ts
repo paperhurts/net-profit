@@ -200,6 +200,8 @@ export type Snapshot = {
   dark: number;
   /** How far out past the buoys, 0..1. */
   deepness?: number;
+  /** How strong a storm is where the boat is, 0..1: the swell builds and the pad fades out. */
+  storm?: number;
   phase: Phase;
   /** Distance from the boat to the nearest bit of shore or pier. */
   shoreDist: number;
@@ -347,17 +349,22 @@ export class Ambience {
 
     // Waves.
     const w = waveMix(s.speedRatio, s.dockness, s.dark, s.deepness);
+    const st = Math.max(0, Math.min(1, s.storm ?? 0));
     const breath = 1 - w.depth + w.depth * swellPhase(s.t, w.period);
-    this.swellGain.gain.setTargetAtTime(0.4 * w.swell * breath, now, 0.1);
+    this.swellGain.gain.setTargetAtTime(0.4 * w.swell * breath * (1 + 0.7 * st), now, 0.1);
     this.swellFilter.frequency.setTargetAtTime(w.cutoff * (0.8 + 0.4 * breath), now, 0.2);
     this.hissGain.gain.setTargetAtTime(0.35 * w.hiss, now, 0.15);
     const crest = swellPhase(s.t, w.period) ** 2;
-    this.surfGain.gain.setTargetAtTime(SURF_LEVEL * w.surf * (0.2 + 0.8 * crest), now, 0.12);
+    this.surfGain.gain.setTargetAtTime(
+      SURF_LEVEL * w.surf * (0.2 + 0.8 * crest) * (1 + 0.4 * st),
+      now,
+      0.12,
+    );
     this.surfFilter.frequency.setTargetAtTime(SURF_BASE + SURF_SWEEP * crest, now, 0.2);
 
     // The pad: fade voices to the chord for the phase, with a slow chorus.
     const notes = padNotes(s.phase);
-    this.padGain.gain.setTargetAtTime(0.08 * (1 - s.dark * 0.3), now, 0.5);
+    this.padGain.gain.setTargetAtTime(0.08 * (1 - s.dark * 0.3) * (1 - st), now, 0.5);
     this.padOscs.forEach((o, i) => {
       const f = notes[i];
       const g = this.padVoiceGains[i];

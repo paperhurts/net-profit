@@ -149,6 +149,8 @@ export type Sweep = {
   dt: number;
   /** Night strength, 0..1. */
   dark: number;
+  /** Gone deep for now (a storm), so not seen or caught. */
+  sunk?: (sc: School) => boolean;
   net: { x: number; y: number };
   netWidth: number;
   /** The net can take fish right now: under way, moving, whole, and not full of jellyfish. */
@@ -176,7 +178,7 @@ export function updateSchools(
   for (const sc of schools) {
     sc.cx = sc.ax + Math.sin(T * 0.05 + sc.p) * 60;
     sc.cy = sc.ay + Math.cos(T * 0.04 + sc.q) * 60;
-    if (sc.night && dark < 0.5) {
+    if ((sc.night && dark < 0.5) || s.sunk?.(sc)) {
       sc.vis = false;
       continue;
     }

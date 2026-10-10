@@ -12,10 +12,11 @@
  * catches them for a bounty; and the lionfish net, the kid's way to clear
  * them out, sweeps them up without being cut. The big air tank is for the
  * diver in the trench: kept back until the scuba gear has been found, it holds
- * more air, so a dive goes deeper and longer and takes more bites.
+ * more air, so a dive goes deeper and longer and takes more bites. Ballast,
+ * kept back until a storm has been met, steadies the boat in one.
  */
 
-export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit' | 'rod' | 'lionnet' | 'tank';
+export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit' | 'rod' | 'lionnet' | 'tank' | 'ballast';
 
 export type Gear = {
   name: string;
@@ -73,6 +74,13 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
       'A big air tank. Your dives last longer now: watch the air bubbles, there are more of them.',
     cost: 3500,
   },
+  ballast: {
+    name: 'Ballast',
+    blurb: 'Steadies the boat in a storm: nearly full speed, nearly tight turns.',
+    fitted:
+      'Ballast fitted, low in the hull. In a storm your boat keeps nearly its full speed and turns nearly as tight.',
+    cost: 2500,
+  },
 };
 
 /** The shelf, in the order it is shown. */
@@ -84,6 +92,7 @@ export const GEAR_IDS: readonly GearId[] = [
   'lionnet',
   'suit',
   'tank',
+  'ballast',
 ];
 
 /** The shipwright takes an interest once the boat is this tier: a cutter. */
@@ -104,6 +113,7 @@ export function noGear(): Owned {
     rod: false,
     lionnet: false,
     tank: false,
+    ballast: false,
   };
 }
 
