@@ -832,6 +832,8 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
     if (p) p.crabs = 4;
   });
   await expect(page.locator('#potN')).toHaveText('2');
+  // The towed net may land a fish or two on the way, so count from here, and wait for the pot itself to empty.
+  const before = await page.evaluate(() => window.__np.hold);
   await page.evaluate(() => {
     const b = window.__np.boat;
     const p = window.__np.pots[0];
@@ -839,8 +841,8 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
     b.x = p.x + 20;
     b.y = p.y;
   });
-  await page.waitForFunction(() => window.__np.hold >= 4, null, { timeout: 3000 });
-  expect(await page.evaluate(() => window.__np.pots[0]?.crabs)).toBe(0);
+  await page.waitForFunction(() => window.__np.pots[0]?.crabs === 0, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.hold)).toBeGreaterThanOrEqual(before + 4);
   // Past the buoys, no pots.
   await page.evaluate(() => {
     const b = window.__np.boat;
