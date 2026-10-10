@@ -74,6 +74,7 @@ type Np = {
     list: unknown[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
   };
+  hired9: { list: { state: string; back: number }[] };
   BAR: { x0: number; x1: number; y0: number; y1: number };
   DOOR9: { x: number; y: number };
   NAGA_CAGE: { x: number; y: number; r: number };
@@ -1526,7 +1527,12 @@ test('islands 8 and 9: sight the twins, tie up at island 8, walk the sandbar, an
   });
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  // The Heron's hired men camp by that door; this is about the door, so they are away.
   await page.evaluate(() => {
+    for (const m of window.__np.hired9.list) {
+      m.state = 'gone';
+      m.back = 999;
+    }
     const w = window.__np.walker;
     const D = window.__np.DOOR9;
     w.x = D.x + 4;
