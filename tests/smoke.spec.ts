@@ -83,6 +83,8 @@ type Np = {
   nest: { up: boolean; state: string; hit(power: number): void };
   nestHorde: { list: { state: string }[] };
   necroPal: { shown: boolean; free: boolean };
+  otter: { state: string; fed: number; free: boolean; reason: string | null };
+  tapOtter(): void;
   heron: {
     up: boolean;
     hp: number;
@@ -1819,6 +1821,42 @@ test('the necromancer: with the Heron beaten for good he comes along, and in a f
     null,
     { timeout: 6000 },
   );
+  expect(errors).toEqual([]);
+});
+
+test('the otter: three fish off the dock make him yours, he swims along, and climbs aboard past the buoys', async ({
+  context,
+  page,
+}) => {
+  const hold = new Array(16).fill(0);
+  hold[0] = 5;
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2700, y: 2210, h: -0.5, clock: 0.3, hold },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('otter', { timeout: 4000 });
+  await expect(page.locator('#log')).toContainText('Something off the dock?');
+  for (let i = 0; i < 3; i++) await page.evaluate(() => window.__np.tapOtter());
+  expect(await page.evaluate(() => window.__np.otter.free)).toBe(true);
+  expect(await page.evaluate(() => window.__np.hold)).toBe(2);
+  await expect(page.locator('#toast')).toContainText('The otter is yours');
+  await expect(page.locator('#log')).toContainText('Otter befriended');
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').otterFed,
+  );
+  expect(saved).toBe(3);
+  // Out past the buoys, he climbs up on deck.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 5100;
+    b.y = 2400;
+    b.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.otter.state === 'aboard', null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 
