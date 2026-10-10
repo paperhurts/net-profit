@@ -54,6 +54,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 
 body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;transition:opacity .4s}
+body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,body.inside #wood{display:none}
 .hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;pointer-events:none;
   padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left))}
 .pill{pointer-events:auto;background:var(--pill-bg);color:var(--pill-fg);border-radius:999px;height:40px;padding:0 14px;
