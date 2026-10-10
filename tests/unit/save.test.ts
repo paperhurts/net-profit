@@ -547,3 +547,12 @@ describe('the naga', () => {
     expect(parseSave(serializeSave(s), bounds).nagaFree).toBe(true);
   });
 });
+
+describe('islands 8 and 9', () => {
+  it('are unseen in a save from before them, and stay seen once sighted', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle8Seen).toBe(false);
+    s.isle8Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle8Seen).toBe(true);
+  });
+});

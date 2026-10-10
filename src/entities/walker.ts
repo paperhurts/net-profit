@@ -88,6 +88,18 @@ import {
   TOTEM7,
   TOWER7,
 } from '../world/isle7';
+import {
+  berth8,
+  DOCK8,
+  LANDING8,
+  onTwins,
+  PALMS8,
+  POST8,
+  ROCKS9,
+  SNAGS9,
+  TOWER8,
+  TOWER9,
+} from '../world/isle8';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 
@@ -176,7 +188,22 @@ export const ISLE7_DOCK: Dock = {
   berth: berth7,
   landing: LANDING7,
 };
-export const DOCKS: readonly Dock[] = [HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK];
+/** Island 8's dock, which is island 9's too: the sandbar joins them. */
+export const ISLE8_DOCK: Dock = {
+  x: DOCK8.x,
+  y: DOCK8.y,
+  r: DOCK8.r,
+  berth: berth8,
+  landing: LANDING8,
+};
+export const DOCKS: readonly Dock[] = [
+  HOME_DOCK,
+  ISLE2_DOCK,
+  ISLE3_DOCK,
+  ISLE6_DOCK,
+  ISLE7_DOCK,
+  ISLE8_DOCK,
+];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
 export function tarDock(a: number): Dock {
@@ -236,13 +263,14 @@ function inBox(
 /**
  * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
  * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
- * gets into, island 6 and its pier, and island 7.
+ * gets into, island 6 and its pier, island 7, and islands 8 and 9 with the sandbar between.
  */
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (onIsle4(x, y)) return true;
   if (onIsle6(x, y)) return true;
   if (onIsle7(x, y)) return true;
+  if (onTwins(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
@@ -393,6 +421,12 @@ export const PROPS: readonly Prop[] = [
   ),
   ...PALMS7.map((p) => post(p, 4, p[0] + p[1])),
   ...HUTS7.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),
+  // Islands 8 and 9: the trading post, both towers, island 8's palms, island 9's dead trees and rocks.
+  prop(POST8.x0, POST8.y0, POST8.x1, POST8.y1, POST8.x1 + POST8.y1),
+  ...[TOWER8, TOWER9].map((t) => prop(t.x - t.r, t.y - t.r, t.x + t.r, t.y + t.r, t.x + t.y)),
+  ...PALMS8.map((p) => post(p, 4, p[0] + p[1])),
+  ...SNAGS9.map((p) => post(p, 3.5, p[0] + p[1])),
+  ...ROCKS9.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
   post([TOTEM7.x, TOTEM7.y], 2.5, TOTEM7.x + TOTEM7.y),
   prop(CHEST7.x - 7, CHEST7.y - 5, CHEST7.x + 7, CHEST7.y + 5, CHEST7.x + CHEST7.y + 5, 0, 1.5),
   ...PORTAL_FEET.map((p) => post(p, 5, p[0] + p[1])),

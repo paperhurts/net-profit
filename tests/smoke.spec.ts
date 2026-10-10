@@ -67,6 +67,9 @@ type Np = {
   lionCaught: number;
   aquarium: boolean;
   nagaFree: boolean;
+  isle8Seen: boolean;
+  BAR: { x0: number; x1: number; y0: number; y1: number };
+  DOOR9: { x: number; y: number };
   NAGA_CAGE: { x: number; y: number; r: number };
   naga: { shown: boolean; swimming: boolean; x: number; y: number };
   AQUARIUM: { x0: number; y0: number; x1: number; y1: number };
@@ -1484,6 +1487,48 @@ test("island 7's tower: up two floors of monkeys, the sorcerer a third time, and
     window.__np.walker.y = 6900 + 95;
   });
   await expect(page.locator('#climb')).toHaveText('Into the portal', { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('islands 8 and 9: sight the twins, tie up at island 8, walk the sandbar, and the towers are barred', async ({
+  context,
+  page,
+}) => {
+  // A flagship out in the far deep, west of island 8's dock, sailing for it.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 6300, y: 2070, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.isle8Seen, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Islands 8 and 9');
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Over the sandbar to island 9, and up to its tower's door.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const B = window.__np.BAR;
+    w.x = (B.x0 + B.x1) / 2;
+    w.y = (B.y0 + B.y1) / 2;
+  });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const D = window.__np.DOOR9;
+    w.x = D.x + 4;
+    w.y = D.y + 4;
+  });
+  // After the landing's own message, which is still up.
+  await expect(page.locator('#toast')).toContainText('Barred', { timeout: 9000 });
+  await expect(page.locator('#log')).toContainText('Islands 8 and 9 found');
   expect(errors).toEqual([]);
 });
 
