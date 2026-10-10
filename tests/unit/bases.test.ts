@@ -15,6 +15,17 @@ import {
 import { DOCK, pastBuoys } from '../../src/world/island';
 import { CAMP, DOCK2, ISLE2, LANDING2, PALMS2, POST, TOWER } from '../../src/world/isle2';
 import { BASE_RAFT, DOCK3, ISLE3, onPlanks, PLANK_Z, SHACKS } from '../../src/world/isle3';
+import {
+  CHESTS6,
+  DOCK6,
+  ISLE6,
+  onIsle6,
+  onIsle6Ground,
+  PALMS6,
+  PIER6,
+  POST6,
+  ROCKS6,
+} from '../../src/world/isle6';
 import { fakeView } from './helpers/view';
 
 const isle2 = BASES.find((b) => b.id === 'isle2');
@@ -24,12 +35,12 @@ if (!isle3) throw new Error('no base on island 3');
 
 describe('bases', () => {
   it('reads nothing built from an old save, a broken one, or one from the future', () => {
-    expect(parseBases(undefined)).toEqual({ isle2: 0, isle3: 0 });
-    expect(parseBases('hut')).toEqual({ isle2: 0, isle3: 0 });
-    expect(parseBases({ isle2: -2, nowhere: 4 })).toEqual({ isle2: 0, isle3: 0 });
-    expect(parseBases({ isle2: Number.NaN })).toEqual({ isle2: 0, isle3: 0 });
-    expect(parseBases({ isle2: 1.7, isle3: 1 })).toEqual({ isle2: 1, isle3: 1 });
-    expect(parseBases({ isle2: 99 })).toEqual({ isle2: isle2.stages.length, isle3: 0 });
+    expect(parseBases(undefined)).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
+    expect(parseBases('hut')).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
+    expect(parseBases({ isle2: -2, nowhere: 4 })).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
+    expect(parseBases({ isle2: Number.NaN })).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
+    expect(parseBases({ isle2: 1.7, isle3: 1 })).toEqual({ isle2: 1, isle3: 1, isle6: 0 });
+    expect(parseBases({ isle2: 99 })).toEqual({ isle2: isle2.stages.length, isle3: 0, isle6: 0 });
   });
 
   it('builds island 2 a stage at a time, the hut first and then the gear shed, which brings the seine', () => {
@@ -156,7 +167,7 @@ describe('bases', () => {
     // From the walk out to the raft, round in front of both.
     expect(walkable(BASE_RAFT.x0 + 52, BASE_RAFT.y1 - 6, 0)).toBe(true);
     expect(walkable(hut.x, hut.y + hut.half + 8, 0)).toBe(true);
-    expect(nextStage(isle3, { isle2: 0, isle3: 1 })?.name).toBe('crab shed');
+    expect(nextStage(isle3, { isle2: 0, isle3: 1, isle6: 0 })?.name).toBe('crab shed');
   });
 
   it('draws the crab shed with crab pots stacked by it', () => {
@@ -174,10 +185,12 @@ describe('bases', () => {
     expect(pastBuoys(x, y)).toBe(true);
     expect(Math.cos(h - Math.atan2(DOCK3.y - y, DOCK3.x - x))).toBeGreaterThan(0.999);
     expect(baseAtDock(DOCK3.x, DOCK3.y)).toBe(isle3);
-    const both = { isle2: 1, isle3: 1 };
+    const both = { isle2: 1, isle3: 1, isle6: 0 };
     expect(homePort(both, ISLE3.x + 700, ISLE3.y + 200, DOCK)).toBe(isle3);
     expect(homePort(both, ISLE2.x + 600, ISLE2.y - 600, DOCK)).toBe(isle2);
-    expect(homePort({ isle2: 1, isle3: 0 }, ISLE3.x + 700, ISLE3.y + 200, DOCK)).not.toBe(isle3);
+    expect(homePort({ isle2: 1, isle3: 0, isle6: 0 }, ISLE3.x + 700, ISLE3.y + 200, DOCK)).not.toBe(
+      isle3,
+    );
   });
 
   it('draws a base on a raft up on its planks', () => {
@@ -214,5 +227,40 @@ describe('bases', () => {
     expect(flown).toBe(1);
     baseHutLight(hut.v, isle2, true);
     expect(hut.calls.light).toBe(1);
+  });
+});
+
+describe("island 6's base", () => {
+  const isle6 = BASES.find((b) => b.id === 'isle6');
+  if (!isle6) throw new Error('no base on island 6');
+
+  it('stands on the beach at the root of the pier, clear of the trading post, the way up and what grows there', () => {
+    const { x, y, half } = isle6.hut;
+    expect(onIsle6Ground(x - half, y + half)).toBe(true);
+    expect(onIsle6Ground(x + half, y + half)).toBe(true);
+    expect(onIsle6Ground(x, y + half + 30)).toBe(true);
+    // Across the way up from the trading post, and not on the pier.
+    expect(x + half).toBeLessThan(PIER6.x0 - 30);
+    expect(x + half).toBeLessThan(POST6.x0);
+    for (const p of [...PALMS6, ...ROCKS6, ...CHESTS6])
+      expect(Math.hypot(x - p[0], y - p[1])).toBeGreaterThan(half * 2 + 20);
+    expect(walkable(x, y, 0)).toBe(false);
+    // From the pier's root, up the beach past it.
+    expect(walkable(ISLE6.x, PIER6.y0 - 10, 0)).toBe(true);
+    expect(walkable(x, y + half + 12, 0)).toBe(true);
+    expect(nextStage(isle6, noBases())?.name).toBe('hut');
+    expect(nextStage(isle6, { ...noBases(), isle6: 1 })).toBeNull();
+  });
+
+  it('brings the boat back up off its pier, facing in, when it is the nearest built base', () => {
+    const { x, y, h } = isle6.spit;
+    expect(Math.hypot(x - DOCK6.x, y - DOCK6.y)).toBeCloseTo(SPIT_OFF, 6);
+    expect(baseAtDock(x, y)).toBeNull();
+    expect(baseAtDock(DOCK6.x, DOCK6.y)).toBe(isle6);
+    expect(onIsle6(x, y)).toBe(false);
+    expect(Math.cos(h - Math.atan2(DOCK6.y - y, DOCK6.x - x))).toBeGreaterThan(0.999);
+    const built = { ...noBases(), isle2: 1, isle6: 1 };
+    expect(homePort(built, ISLE6.x + 300, ISLE6.y + 900, DOCK)).toBe(isle6);
+    expect(homePort({ ...built, isle6: 0 }, ISLE6.x + 300, ISLE6.y + 900, DOCK)).not.toBe(isle6);
   });
 });
