@@ -11,6 +11,7 @@ import {
   ISLE5_STAGES,
   ISLE6_STAGES,
   ISLE7_STAGES,
+  OTTER_FEEDS,
   parseSave,
   SAVE_KEY,
   serializeSave,
@@ -555,6 +556,16 @@ describe('the naga', () => {
     expect(s.nagaFree).toBe(false);
     s.nagaFree = true;
     expect(parseSave(serializeSave(s), bounds).nagaFree).toBe(true);
+  });
+});
+
+describe('the otter', () => {
+  it('is wild in a save from before him, and keeps how many fish he has had, within reason', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.otterFed).toBe(0);
+    s.otterFed = 2;
+    expect(parseSave(serializeSave(s), bounds).otterFed).toBe(2);
+    expect(parseSave(JSON.stringify({ ...s, otterFed: 50 }), bounds).otterFed).toBe(OTTER_FEEDS);
   });
 });
 
