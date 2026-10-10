@@ -4,6 +4,7 @@ import { baseHutLight, drawBaseHut, drawBaseShed } from '../../src/render/base';
 import {
   BASES,
   baseAtDock,
+  hasCharters,
   hasSeine,
   homePort,
   nextStage,
@@ -249,7 +250,39 @@ describe("island 6's base", () => {
     expect(walkable(ISLE6.x, PIER6.y0 - 10, 0)).toBe(true);
     expect(walkable(x, y + half + 12, 0)).toBe(true);
     expect(nextStage(isle6, noBases())?.name).toBe('hut');
-    expect(nextStage(isle6, { ...noBases(), isle6: 1 })).toBeNull();
+    expect(nextStage(isle6, { ...noBases(), isle6: 1 })?.name).toBe('charter office');
+    expect(nextStage(isle6, { ...noBases(), isle6: 2 })).toBeNull();
+  });
+
+  it('puts the charter office between the hut and the pier, clear of both and of the way up', () => {
+    const sh = isle6.shed;
+    if (!sh) throw new Error('no charter office on island 6');
+    expect(sh.keeps).toBe('charters');
+    const { hut } = isle6;
+    expect(onIsle6Ground(sh.x - sh.half, sh.y + sh.half + 8)).toBe(true);
+    expect(onIsle6Ground(sh.x + sh.half, sh.y + sh.half + 8)).toBe(true);
+    expect(sh.x + sh.half).toBeLessThan(PIER6.x0 - 8);
+    expect(Math.hypot(sh.x - hut.x, sh.y - hut.y)).toBeGreaterThan(hut.half + sh.half + 16);
+    for (const p of [...PALMS6, ...ROCKS6, ...CHESTS6])
+      expect(Math.hypot(sh.x - p[0], sh.y - p[1])).toBeGreaterThan(sh.half * 2 + 20);
+    expect(walkable(sh.x, sh.y, 0)).toBe(false);
+    // Up from the pier's root, past it, and round in front of it.
+    expect(walkable(ISLE6.x, PIER6.y0 - 10, 0)).toBe(true);
+    expect(walkable(ISLE6.x + 10, PIER6.y0 - 60, 0)).toBe(true);
+    expect(walkable(sh.x, sh.y + sh.half + 10, 0)).toBe(true);
+    expect(hasCharters({ ...noBases(), isle6: 1 })).toBe(false);
+    expect(hasCharters({ ...noBases(), isle6: 2 })).toBe(true);
+  });
+
+  it('draws the charter office with its awning and its board, or its plot', () => {
+    const plot = fakeView();
+    drawBaseShed(plot.v, isle6, false, '#2C4A7C');
+    expect(plot.calls.box).toBe(1);
+    const office = fakeView();
+    drawBaseShed(office.v, isle6, true, '#2C4A7C');
+    // The walls, the counter, the roof and the board.
+    expect(office.calls.box).toBe(4);
+    expect(office.calls.fill ?? 0).toBeGreaterThan(6);
   });
 
   it('brings the boat back up off its pier, facing in, when it is the nearest built base', () => {

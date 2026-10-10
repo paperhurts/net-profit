@@ -9,7 +9,8 @@
  * the boat from then on. Island 2 is the first; the floating town on island 3
  * has a raft kept for its base, and crab pots come with its second stage; the
  * big island, island 6, has its hut on the beach at the root of its pier, across
- * from the trading post, and charters come next.
+ * from the trading post, and its second stage, the charter office, takes
+ * passengers out to see the sea's creatures (fishing/charter.ts).
  *
  * Later, the kid wants companions to be given jobs at a base. Nothing waits at
  * one yet; a base's stage is one number in the save, and a job would sit beside
@@ -34,8 +35,8 @@ export type Base = {
   dock: { x: number; y: number; r: number };
   /** The hut: its centre, the half width of its footprint, and the height of its walls. */
   hut: { x: number; y: number; half: number; wall: number };
-  /** Its second building, the same way, and what it keeps: island 2's seine, or island 3's crab pots. */
-  shed?: { x: number; y: number; half: number; wall: number; keeps: 'seine' | 'pots' };
+  /** Its second building, the same way, and what it keeps: island 2's seine, island 3's crab pots, island 6's charters. */
+  shed?: { x: number; y: number; half: number; wall: number; keeps: 'seine' | 'pots' | 'charters' };
   /** What they stand on is this high: the sand, or a raft's planks. */
   z: number;
   /** What the shop says of it once every stage is built. */
@@ -120,11 +121,24 @@ export const BASES: readonly Base[] = [
     dock: DOCK6,
     // On the beach at the root of the pier, across the way up from the trading post: the first thing ashore.
     hut: { x: ISLE6.x - 70, y: PIER6.y0 - 60, half: 14, wall: 18 },
+    // Nearer the water, between the hut and the pier: the passengers wait at its counter.
+    shed: { x: ISLE6.x - 34, y: PIER6.y0 - 14, half: 11, wall: 14, keeps: 'charters' },
     z: 0,
-    done: 'A home port out in the far deep.',
+    done: 'A home port, and the charter office: passengers wait here to see the sea.',
     // Its pier runs out toward home, down the screen.
     spit: spitOff(DOCK6, 0, 1),
-    stages: [hutStage('island 6')],
+    stages: [
+      hutStage('island 6'),
+      {
+        name: 'charter office',
+        wood: 50,
+        coins: 3000,
+        blurb:
+          'Opens charters: take passengers out to see the whales, the mantas and more, for a fare.',
+        built:
+          'Built the charter office on island 6. Passengers will wait here: docked at this pier, the shop offers a charter. Show them what they want to see, then tie up at any dock for the fare.',
+      },
+    ],
   },
 ];
 
@@ -142,6 +156,14 @@ export const POTS_STAGE = 2;
 /** Whether the boat has crab pots: island 3's crab shed is built. */
 export function hasPots(bases: Bases): boolean {
   return bases.isle3 >= POTS_STAGE;
+}
+
+/** Island 6's stage that opens charters. */
+export const CHARTER_STAGE = 2;
+
+/** Whether charters are run: island 6's charter office is built. */
+export function hasCharters(bases: Bases): boolean {
+  return bases.isle6 >= CHARTER_STAGE;
 }
 
 /** How far each base is built: 0 for nothing yet, then a stage at a time. */
