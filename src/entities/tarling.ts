@@ -11,6 +11,7 @@
  */
 
 import type { DrawView, Entity, Layer, World } from './entity';
+import { STUCK_T } from './pals';
 import { walkable, walkStep } from './walker';
 
 /** It keeps this close behind the figure, hops this fast, and further off than BLINK it pops over. */
@@ -53,6 +54,8 @@ export class Tarling implements Entity {
   readonly stuck: Stuck[] = [];
   private spitCd = 1;
   private readonly trail: { x: number; y: number }[] = [];
+  /** Seconds it has wanted to follow and not moved. */
+  private blockedT = 0;
   /** What it can spit at, nearest, within reach; the game knows. */
   findTarget: ((x: number, y: number, range: number) => SpitTarget | null) | null = null;
   /** It spat. */
@@ -139,6 +142,12 @@ export class Tarling implements Entity {
       if (dl > 0.5) {
         const sp = Math.min(TB_SPEED, 30 + (d - TB_HEEL) * 5);
         const moved = walkStep(this, (dx / dl) * sp * dt, (dy / dl) * sp * dt, 99);
+        // No way along the steps at all for a while: pop over beside the figure.
+        this.blockedT = moved > 0 ? 0 : this.blockedT + dt;
+        if (this.blockedT >= STUCK_T) {
+          this.blockedT = 0;
+          this.arrive(f);
+        }
         if (moved > 0) {
           this.h = Math.atan2(dy, dx);
           this.ph += moved * 0.35;
