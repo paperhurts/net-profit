@@ -38,6 +38,10 @@ type Np = {
   BASES: { spit: { x: number; y: number }; dock: { x: number; y: number; r: number } }[];
   seine: { state: string };
   pots: { x: number; y: number; crabs: number }[];
+  diving: boolean;
+  diver: { x: number; y: number; vy: number; air: number };
+  trenchSeen: boolean;
+  trenchDeep: number;
   haulLeft: number;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
@@ -828,6 +832,8 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
     if (p) p.crabs = 4;
   });
   await expect(page.locator('#potN')).toHaveText('2');
+  // The towed net may land a fish or two on the way, so count from here, and wait for the pot itself to empty.
+  const before = await page.evaluate(() => window.__np.hold);
   await page.evaluate(() => {
     const b = window.__np.boat;
     const p = window.__np.pots[0];
@@ -835,8 +841,8 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
     b.x = p.x + 20;
     b.y = p.y;
   });
-  await page.waitForFunction(() => window.__np.hold >= 4, null, { timeout: 3000 });
-  expect(await page.evaluate(() => window.__np.pots[0]?.crabs)).toBe(0);
+  await page.waitForFunction(() => window.__np.pots[0]?.crabs === 0, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.hold)).toBeGreaterThanOrEqual(before + 4);
   // Past the buoys, no pots.
   await page.evaluate(() => {
     const b = window.__np.boat;
@@ -846,6 +852,69 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
   await button.click();
   await expect(page.locator('#toast')).toContainText('No crab pots past the buoys');
   expect(await page.evaluate(() => window.__np.pots.length)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('the trench: stopped over it with scuba gear, dive; down in the dark, then swim back up to the boat', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#diveBtn')).toBeVisible();
+  expect(await page.evaluate(() => window.__np.trenchSeen)).toBe(true);
+  await page.click('#diveBtn');
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  // The sea's own buttons stand down; the way back up shows.
+  await expect(page.locator('#mapBtn')).toBeHidden();
+  await expect(page.locator('#surfaceBtn')).toBeVisible();
+  // The stick swims it down.
+  await page.mouse.move(195, 400);
+  await page.mouse.down();
+  await page.mouse.move(195, 520, { steps: 4 });
+  await page.waitForFunction(() => window.__np.diver.y > 150, null, { timeout: 4000 });
+  await page.mouse.up();
+  // Deep down, then back up on purpose.
+  await page.evaluate(() => {
+    window.__np.diver.y = 1100;
+  });
+  await page.waitForTimeout(200);
+  await page.click('#surfaceBtn');
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 10000 });
+  expect(await page.evaluate(() => window.__np.trenchDeep)).toBeGreaterThan(1000);
+  await expect(page.locator('#toast')).toContainText('Back aboard');
+  await expect(page.locator('#mapBtn')).toBeVisible();
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').trenchDeep),
+  ).toBeGreaterThan(1000);
+  expect(errors).toEqual([]);
+});
+
+test('the trench: without the scuba gear there is no diving, and the game says where to get it', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('scuba gear');
+  await page.waitForTimeout(500);
+  await expect(page.locator('#diveBtn')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

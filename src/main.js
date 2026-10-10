@@ -50,6 +50,9 @@ import { Tank, TANK_W, tankKinds } from './render/tank';
 import { BASES, baseAtDock, hasPots, hasSeine, homePort, nextStage, noBases } from './world/bases';
 import { canDrop, fillPots, POT_MAX, POT_REACH, POTS, potNear } from './fishing/pots';
 import { drawPot } from './render/pots';
+import { TRENCH, TRENCH_SIGHT, trenchPlants, trenchShoals } from './world/trench';
+import { Diver } from './entities/diver';
+import { drawDive } from './render/dive';
 import { crabSvg, drawSpiderCrab } from './render/crab';
 import { HAUL_GAP, keepShare, Seine } from './fishing/seine';
 import { drawSeine } from './render/seine';
@@ -115,7 +118,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, isle5Seen = false, isle5Stage = 0, isle6Seen = false, chests6 = 0, isle6Stage = 0, isle7Seen = false, soulArmour = false, isle7Stage = 0, flag = null, gulperSeen = false, meteorSeen = false, lionSeen = false, lionCaught = 0, aquarium = false, aquaKinds = [], bases = noBases(), pots = [], nagaFree = false, nagaCage = 0, isle8Seen = false, heronStage = 0, otterFed0 = 0, barredT = 0, spear = 0, armour = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, isle5Seen = false, isle5Stage = 0, isle6Seen = false, chests6 = 0, isle6Stage = 0, isle7Seen = false, soulArmour = false, isle7Stage = 0, flag = null, gulperSeen = false, meteorSeen = false, lionSeen = false, lionCaught = 0, aquarium = false, aquaKinds = [], bases = noBases(), pots = [], trenchSeen = false, trenchDeep = 0, nagaFree = false, nagaCage = 0, isle8Seen = false, heronStage = 0, otterFed0 = 0, barredT = 0, spear = 0, armour = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
 let hp = HP_MAX, swallowT = 0, irisT = 0, hpShown = -1; // the boat's health in the deep, and being swallowed
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false, farToastT = 0, wasFar = false;
 const lv = {net:0, hold:0, engine:0};
@@ -133,11 +136,11 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; isle5Stage = s.isle5Stage; isle6Seen = s.isle6Seen; chests6 = s.chests6; isle6Stage = s.isle6Stage; isle7Seen = s.isle7Seen; soulArmour = s.soulArmour; isle7Stage = s.isle7Stage; flag = s.flag; gulperSeen = s.gulperSeen; meteorSeen = s.meteorSeen; lionSeen = s.lionSeen; lionCaught = s.lionCaught; aquarium = s.aquarium; bases = s.bases; pots = s.pots; nagaFree = s.nagaFree; isle8Seen = s.isle8Seen; heronStage = s.heronStage; otterFed0 = s.otterFed; nagaCage = nagaFree ? 1 : 0; spear = s.spear; armour = s.armour; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; sailed.set(decodeSailed(s.sailed)); }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; isle5Stage = s.isle5Stage; isle6Seen = s.isle6Seen; chests6 = s.chests6; isle6Stage = s.isle6Stage; isle7Seen = s.isle7Seen; soulArmour = s.soulArmour; isle7Stage = s.isle7Stage; flag = s.flag; gulperSeen = s.gulperSeen; meteorSeen = s.meteorSeen; lionSeen = s.lionSeen; lionCaught = s.lionCaught; aquarium = s.aquarium; bases = s.bases; pots = s.pots; trenchSeen = s.trenchSeen; trenchDeep = s.trenchDeep; nagaFree = s.nagaFree; isle8Seen = s.isle8Seen; heronStage = s.heronStage; otterFed0 = s.otterFed; nagaCage = nagaFree ? 1 : 0; spear = s.spear; armour = s.armour; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; sailed.set(decodeSailed(s.sailed)); }
 setMuted(muted);
 // A save from before the sea map: open the water such a player must know, round home and each island found.
 if (earned > 0 && sailedCount(sailed) === 0) seedSailed(sailed, [[isle2Seen, ISLE2], [isle3Seen, ISLE3], [isle3Stage >= 4, ISLE4], [isle5Seen, ISLE5], [isle6Seen, ISLE6], [isle7Seen, ISLE7], [isle8Seen, ISLE8], [isle8Seen, ISLE9]].filter(([f]) => f).map(([, i]) => i));
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, chests6, isle6Stage, isle7Seen, soulArmour, isle7Stage, flag, gulperSeen, meteorSeen, lionSeen, lionCaught, aquarium, bases, pots, nagaFree, isle8Seen, heronStage, otterFed: otter.fed, spear, armour, sailed: encodeSailed(sailed), masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, chests6, isle6Stage, isle7Seen, soulArmour, isle7Stage, flag, gulperSeen, meteorSeen, lionSeen, lionCaught, aquarium, bases, pots, trenchSeen, trenchDeep: Math.round(trenchDeep), nagaFree, isle8Seen, heronStage, otterFed: otter.fed, spear, armour, sailed: encodeSailed(sailed), masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -406,6 +409,46 @@ function updatePots(dt){ fillPots(pots, dt);
   const label = near ? 'lift' : String(potsAboard());
   if (label !== potLabel){ potLabel = label; $('potN').textContent = near ? '\u2191' : label;
     el.setAttribute('aria-label', near ? 'Lift the crab pot' : `Drop a crab pot (${potsAboard()} on the boat)`); el.classList.toggle('empty', !near && !potsAboard()); } }
+// The trench, the kid's THE DEEP: stopped over it with the scuba gear, dive. The sea waits while the diver is down.
+const diver = new Diver(), trenchPl = trenchPlants(), trenchSh = trenchShoals();
+let diving = false, diveT = 0, diveBubT = 0, diveBubbles = [], diveShown = false, trenchToastT = 0;
+function hasScuba(){ return isle3Stage >= 1; }
+function overTrench(){ return Math.hypot(boat.x - TRENCH.x, boat.y - TRENCH.y) < TRENCH.r; }
+function startDive(){ audio(); if (!diveShown) return; diving = true; diver.reset(); diveBubbles = []; stowSeine(); joy.on = false;
+  document.body.classList.add('diving'); $('diveBtn').hidden = true; diveShown = false; $('surfaceBtn').hidden = false; sfx.spit(); toasts.clear();
+  toast(trenchDeep ? 'Back down the trench. Swim with the stick; let go and you drift up.' : 'Down into the trench! Swim with the stick; let go and you drift gently up. The deeper you go, the darker it gets, until only the glowing things light the way.', trenchDeep ? 2600 : 4600, 1); }
+// Back aboard: from the surface, or (quietly) when the game starts over.
+function endDive(quiet){ const deepest = diver.deepest, record = deepest > trenchDeep + 1; diving = false; trenchDeep = Math.max(trenchDeep, deepest);
+  document.body.classList.remove('diving'); $('surfaceBtn').hidden = true; if (quiet) return;
+  sfx.spit(); toasts.clear(); toast(`Back aboard. ${record ? `Deepest yet: ${Math.round(deepest)}!` : `You went ${Math.round(deepest)} deep.`}`, 2600, 1); save(); refreshShop(); }
+function updateDive(dt){ diveT += dt;
+  let ix = 0, iy = 0;
+  if (joy.on){ const v = joystickVector(joy); ix = v[0]; iy = v[1]; } else { const v = keyVector(keys); ix = v[0]; iy = v[1]; }
+  const ev = diver.update(dt, ix, iy);
+  if (ev === 'low'){ toasts.clear(); toast('Air running low! Head back up.', 2600, 2); sfx.denied(); }
+  else if (ev === 'out'){ toasts.clear(); toast('Out of air! You float back up to the boat.', 2600, 2); }
+  diveBubT -= dt;
+  if (diveBubT <= 0){ diveBubT = .35 + Math.random()*.3; diveBubbles.push({x: diver.x + diver.face*10, y: diver.y - 6, r: 1.5 + Math.random()*1.8}); }
+  for (const b of diveBubbles){ b.y -= (36 + b.r*8)*dt; b.x += Math.sin(diveT*3 + b.r*7)*8*dt; }
+  diveBubbles = diveBubbles.filter(b => b.y > 0);
+  if (ev === 'surfaced') endDive(false); }
+// Over the trench, stopped, the Dive button; and the first sight of it.
+function updateTrench(dt){ trenchToastT -= dt;
+  const near = Math.hypot(boat.x - TRENCH.x, boat.y - TRENCH.y) < TRENCH.r + TRENCH_SIGHT;
+  if (near && walker.aboard && !trenchSeen){ trenchSeen = true; save(); refreshShop(); trenchToastT = 30;
+    toast(hasScuba() ? 'A trench! The water here goes down and down, and bubbles come up from the dark. Stop over the bubbles to dive.' : 'A trench! The water here goes down and down, and bubbles come up from the dark. You need scuba gear to dive: it is in island 3\'s tower.', 4600, 1); sfx.tierUp(); }
+  const show = started && walker.aboard && !docked && swallowT <= 0 && !cine && hasScuba() && overTrench() && boat.v < 40;
+  if (show !== diveShown){ diveShown = show; $('diveBtn').hidden = !show; }
+  if (!hasScuba() && overTrench() && walker.aboard && trenchToastT <= 0){ trenchToastT = 20; toast('To dive here you need scuba gear: it is in island 3\'s tower.', 2600); } }
+// The trench from the surface: a patch of darker water with bubbles coming up.
+function drawTrenchMark(){ if (!onScreen(TRENCH.x, TRENCH.y, (TRENCH.r + 60)*Z)) return;
+  const g = ctx.createRadialGradient(px(TRENCH.x, TRENCH.y), py(TRENCH.x, TRENCH.y), 0, px(TRENCH.x, TRENCH.y), py(TRENCH.x, TRENCH.y), TRENCH.r*1.2*Z);
+  g.addColorStop(0, 'rgba(2,10,24,.5)'); g.addColorStop(1, 'rgba(2,10,24,0)');
+  ctx.fillStyle = g; isoEllipse(TRENCH.x, TRENCH.y, TRENCH.r*1.2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  for (let i = 0; i < 9; i++){ const t = (T*.6 + i*.37) % 1, a = i*2.4, r = 20 + (i*31) % 90, x = TRENCH.x + Math.cos(a)*r, y = TRENCH.y + Math.sin(a)*r;
+    ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(px(x,y), py(x,y,t*6), (2 + t*3)*Z, 0, Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha = 1; }
 // The kid's rod: stopped near some lionfish, cast; when the float goes under, reel in, for the bounty.
 const rod = new Rod();
 let rodAt = null, rodShown = false;
@@ -1259,6 +1302,7 @@ function refreshShop(){
     + `<span class="chip${masks?' gold':' unk'}">${masks ? 'Skull masks ' + masks : 'Masks on island 2?'}</span>`
     + `<span class="chip${gulperSeen?' gold':' unk'}">${gulperSeen?'Gulper escaped':'An open mouth?'}</span>`
     + (lionSeen ? '<span class="chip gold">Lionfish sighted</span>' : '')
+    + (trenchSeen || hasScuba() ? `<span class="chip${trenchSeen?' gold':' unk'}">${trenchDeep ? 'Trench dived ' + Math.round(trenchDeep) + ' deep' : trenchSeen ? 'Trench found' : 'A trench in the deep?'}</span>` : '')
     + (isle6Seen ? `<span class="chip${meteorSeen?' gold':' unk'}">${meteorSeen?'Star sighted':'Wings over island 6?'}</span>` : '')
     + Object.keys(TROPHY).filter(k => driven[k]).map(k => `<span class="chip gold">${TROPHY[k].name}${driven[k] > 1 ? ' \u00d7' + driven[k] : ''}</span>`).join('')
     + (hasHarpoon() && !Object.keys(TROPHY).some(k => driven[k]) ? '<span class="chip unk">Harpoon a leviathan?</span>' : '')
@@ -1576,7 +1620,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; isle5Seen = false; isle5Stage = 0; isle6Seen = false; chests6 = 0; isle6Stage = 0; isle7Seen = false; soulArmour = false; isle7Stage = 0; portalOpen = 0; deep.state = 'sleep'; deep.reset(); cth.state = 'wait'; cth.reset(); king.state = 'wait'; king.reset(); anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; meteorSeen = false; lionSeen = false; lionCaught = 0; aquarium = false; bases = noBases(); pots = []; potHaul = 0; potTold = false; if (tankOpen) closeTank(); nagaFree = false; nagaCage = 0; isle8Seen = false; heronStage = 0; otter.set(0); naga.free = false; naga.state = 'away'; necroPal.free = false; necroPal.state = 'away'; lionfish.reset(); stowSeine(); seineTold = false; mendT = 0; rod.stop(); rodAt = null; serpent.state = 'haunt'; serpent.reset(); spear = 0; armour = 0; sailed.fill(0); masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); monkeys7.reset(); hired8.reset(); hired9.reset(); hiredBoats.reset(); hearts = maxHearts(); shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; isle5Seen = false; isle5Stage = 0; isle6Seen = false; chests6 = 0; isle6Stage = 0; isle7Seen = false; soulArmour = false; isle7Stage = 0; portalOpen = 0; deep.state = 'sleep'; deep.reset(); cth.state = 'wait'; cth.reset(); king.state = 'wait'; king.reset(); anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; meteorSeen = false; lionSeen = false; lionCaught = 0; aquarium = false; bases = noBases(); pots = []; potHaul = 0; potTold = false; if (diving) endDive(true); trenchSeen = false; trenchDeep = 0; if (tankOpen) closeTank(); nagaFree = false; nagaCage = 0; isle8Seen = false; heronStage = 0; otter.set(0); naga.free = false; naga.state = 'away'; necroPal.free = false; necroPal.state = 'away'; lionfish.reset(); stowSeine(); seineTold = false; mendT = 0; rod.stop(); rodAt = null; serpent.state = 'haunt'; serpent.reset(); spear = 0; armour = 0; sailed.fill(0); masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); monkeys7.reset(); hired8.reset(); hired9.reset(); hiredBoats.reset(); hearts = maxHearts(); shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -1713,6 +1757,8 @@ $('cast').addEventListener('click', cast);
 $('mend').addEventListener('click', mendNet);
 $('seineBtn').addEventListener('click', toggleSeine);
 $('potBtn').addEventListener('click', tapPot);
+$('diveBtn').addEventListener('click', startDive);
+$('surfaceBtn').addEventListener('click', () => { audio(); diver.surface(); });
 $('rodcast').addEventListener('click', useRod);
 const elAshore = $('ashore'), elAboard = $('aboard'); let shopOpen = false, aboardShown = false;
 let dockHere = HOME_DOCK; // the dock the boat is in, or was in last
@@ -1966,7 +2012,7 @@ function update(dt){
   { const near = walker.state === 'ashore' && walker.dock === ISLE3_DOCK && floor < 0 && isle3Stage < 1 && Math.hypot(walker.x - DIVE3.x, walker.y - DIVE3.y) < STEP;
     if (near && !gapTold){ gapTold = true; toast('A gap in the seaweed, and deep water under it. You would need scuba gear.', 3200, 1); } }
   updateFishing(dt);
-  lionfish.here = shipwrightOpen(tier()); lionfish.sweeps = gear.lionnet; updateMend(dt); updateSeine(dt); updatePots(dt); updateRod(dt);
+  lionfish.here = shipwrightOpen(tier()); lionfish.sweeps = gear.lionnet; updateMend(dt); updateSeine(dt); updatePots(dt); updateTrench(dt); updateRod(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView) - Z)*Math.min(1, dt*4);
 
@@ -2578,6 +2624,7 @@ function indicator(wx,wy,bg,kind,pulse){
   if (kind === 'dock'){ ctx.fillStyle = C.wood; ctx.fillRect(ix-7,iy-6,14,12); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.strokeRect(ix-7,iy-6,14,12);
     ctx.beginPath(); ctx.moveTo(ix-7,iy); ctx.lineTo(ix+7,iy); ctx.stroke(); }
   else if (kind === 'crab') drawSpiderCrab(ctx, ix, iy, 4.2, 0, T*5);
+  else if (kind === 'bubbles'){ ctx.fillStyle = '#BFEFFF'; for (const [bx, by, br] of [[-3,3,3.2],[3,-1,2.4],[-1,-5,1.8]]){ ctx.beginPath(); ctx.arc(ix+bx, iy+by, br, 0, Math.PI*2); ctx.fill(); } }
   else if (kind === 'pirate'){ ctx.fillStyle = '#fff'; ctx.font = '800 20px Grandstander, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', ix, iy+2); }
   else if (kind === 'sleep'){ ctx.fillStyle = C.trim; ctx.font = '800 18px Grandstander, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', ix, iy+1); }
   else if (kind === 'eye'){ ctx.fillStyle = '#C8F56A'; ctx.beginPath(); ctx.ellipse(ix,iy,9,6,0,0,Math.PI*2); ctx.fill();
@@ -2590,7 +2637,8 @@ function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
   if (floor >= 0 && walker.shown){ drawRoom(); return; }
-  drawSea(); scene.draw(drawView, 'underwater'); drawFish(); drawSnookShadow(); scene.draw(drawView, 'surface'); drawWakes(); drawNet(); { const st = seineStern(); drawSeine(drawView, seine, st.x, st.y); } for (const p of pots) if (onScreen(p.x, p.y, 60*Z)) drawPot(drawView, p, PAINTS[paint].hull); drawBuoys(); scene.draw(drawView, 'afloat'); drawWorldObjects(); drawFishing(); drawRod(); scene.draw(drawView, 'air'); drawFlies();
+  if (diving){ const P = PAINTS[paint]; drawDive(ctx, W, H, diveT, {diver, plants: trenchPl, shoals: trenchSh, hull: P.hull, trim: P.trim, bubbles: diveBubbles}); drawStick(); return; }
+  drawSea(); scene.draw(drawView, 'underwater'); drawFish(); drawSnookShadow(); scene.draw(drawView, 'surface'); drawTrenchMark(); drawWakes(); drawNet(); { const st = seineStern(); drawSeine(drawView, seine, st.x, st.y); } for (const p of pots) if (onScreen(p.x, p.y, 60*Z)) drawPot(drawView, p, PAINTS[paint].hull); drawBuoys(); scene.draw(drawView, 'afloat'); drawWorldObjects(); drawFishing(); drawRod(); scene.draw(drawView, 'air'); drawFlies();
 
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
@@ -2601,6 +2649,7 @@ function draw(){
   if (!cine && !kingDying()){
   if (!docked) indicator(DOCK.x, DOCK.y, full ? C.coin : C.trim, 'dock', full);
   if (walker.aboard) for (const p of pots) if (p.crabs >= POT_MAX) indicator(p.x, p.y, '#2F8A78', 'crab', true); // a full crab pot
+  if (walker.aboard && trenchSeen && hasScuba() && pastBuoys(boat.x, boat.y) && !overTrench()) indicator(TRENCH.x, TRENCH.y, '#123A5A', 'bubbles', false); // the trench, to dive
   if (walker.aboard && pastBuoys(boat.x, boat.y) && !(docked && dockHere === ISLE2_DOCK)) indicator(DOCK2.x, DOCK2.y, '#9CF0C0', 'dock', !isle2Seen); // the way to island 2
   if (walker.aboard && pastBuoys(boat.x, boat.y) && (isle2Seen || towerTaken || isle3Seen) && !(docked && dockHere === ISLE3_DOCK)) indicator(DOCK3.x, DOCK3.y, '#9CD8F0', 'dock', !isle3Seen); // and to island 3, once island 2 is found
   if (walker.aboard && pastBuoys(boat.x, boat.y) && isle3Stage >= 4) indicator(ISLE4.x, ISLE4.y, '#3B2A44', 'dock', false); // the tar island
@@ -2632,11 +2681,12 @@ function draw(){
     ctx.fillStyle = '#05080C'; ctx.beginPath(); ctx.rect(0, 0, W, H);
     if (r > 1){ ctx.moveTo(px(boat.x,boat.y) + r, py(boat.x,boat.y)); ctx.arc(px(boat.x,boat.y), py(boat.x,boat.y), r, 0, Math.PI*2, true); }
     ctx.fill('evenodd'); }
-  if (joy.on && started){
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(joy.x,joy.y,20,0,Math.PI*2); ctx.fill();
-  }
+  drawStick();
 }
+// The stick's ring and knob, where the thumb is.
+function drawStick(){ if (!joy.on || !started) return;
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(joy.sx,joy.sy,JR,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(joy.x,joy.y,20,0,Math.PI*2); ctx.fill(); }
 
 /* ---------- the tower's rooms ---------- */
 // A stone room lit by torches, or the roof under the sky: the floor, the back wall, the stairs once open,
@@ -2718,12 +2768,12 @@ function drawRoom(){
 let last = performance.now(), saveT = 0;
 function frame(now){
   const dt = Math.min(.05, Math.max(.001, (now-last)/1000)); last = now;
-  if (!mapOpen && !tankOpen) update(dt); updateAmbience(dt); draw(); drawMap(); drawTank(dt);
+  if (diving) updateDive(dt); else if (!mapOpen && !tankOpen) update(dt); updateAmbience(dt); draw(); drawMap(); drawTank(dt);
   elShop.classList.toggle('steer', joy.on && joy.through);
   renderToast();
   if (started){ saveT += dt; if (saveT >= 5){ saveT = 0; save(); } }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, get bases(){ return bases; }, BASES, get pots(){ return pots; }, tapPot, swallow, seine, get haulLeft(){ return haul.length; }, toggleSeine, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, necroPal, otter, tapOtter, OTTER_HOME, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, openMap, closeMap, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, get bases(){ return bases; }, BASES, get pots(){ return pots; }, get diving(){ return diving; }, diver, startDive, get trenchSeen(){ return trenchSeen; }, get trenchDeep(){ return trenchDeep; }, TRENCH, tapPot, swallow, seine, get haulLeft(){ return haul.length; }, toggleSeine, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, necroPal, otter, tapOtter, OTTER_HOME, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, openMap, closeMap, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

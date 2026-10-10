@@ -16,6 +16,7 @@ import {
   SAVE_KEY,
   serializeSave,
 } from '../../src/state/save';
+import { TD } from '../../src/world/trench';
 
 const bounds: Bounds = {
   maxLevel: 5,
@@ -586,6 +587,19 @@ describe('crab pots', () => {
     expect(parseSave(serializeSave(s), bounds).pots).toEqual([
       { x: 3000, y: 2000, crabs: 4, t: 12.5 },
     ]);
+  });
+});
+
+describe('the trench', () => {
+  it('is unfound in a save from before it, and keeps the deepest dive within the trench', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.trenchSeen).toBe(false);
+    expect(s.trenchDeep).toBe(0);
+    s.trenchSeen = true;
+    s.trenchDeep = 1234;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.trenchSeen, back.trenchDeep]).toEqual([true, 1234]);
+    expect(parseSave(JSON.stringify({ ...s, trenchDeep: 99999 }), bounds).trenchDeep).toBe(TD);
   });
 });
 
