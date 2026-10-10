@@ -155,6 +155,7 @@ export type SaveData = {
     kit: boolean;
     rod: boolean;
     lionnet: boolean;
+    tank: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -241,7 +242,15 @@ export function defaultSave(b: Bounds): SaveData {
     driven: noDriven(),
     turtleSeen: false,
     turtleSwims: 0,
-    gear: { mesh: false, strongbox: false, suit: false, kit: false, rod: false, lionnet: false },
+    gear: {
+      mesh: false,
+      strongbox: false,
+      suit: false,
+      kit: false,
+      rod: false,
+      lionnet: false,
+      tank: false,
+    },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -357,6 +366,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       kit: !!g.kit,
       rod: !!g.rod,
       lionnet: !!g.lionnet,
+      tank: !!g.tank,
     };
   }
   if (o.snook && typeof o.snook === 'object') {

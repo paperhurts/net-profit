@@ -5,7 +5,7 @@
  * breathes from the tank while under, and the tank fills again at the surface.
  * Cosy, as the owner chose: when the air runs out nothing bad happens, the
  * diver just floats back up to the boat and the dive ends; the Surface button
- * does the same on purpose.
+ * does the same on purpose. The shipwright's big air tank holds more.
  */
 
 import { ENTRY, keepInWater } from '../world/trench';
@@ -13,6 +13,8 @@ import { ENTRY, keepInWater } from '../world/trench';
 /** Seconds of air in the tank, and the share left when the game warns. */
 export const AIR_MAX = 75;
 export const AIR_LOW = 0.25;
+/** Seconds of air in the shipwright's big air tank. */
+export const TANK_AIR = 120;
 /** Top swimming speed, how quickly it eases to the stick, and how fast it drifts up when let go. */
 export const SWIM = 115;
 export const EASE = 3.5;
@@ -36,18 +38,21 @@ export class Diver {
   /** The flippers' beat, faster as it swims harder. */
   kick = 0;
   air = AIR_MAX;
+  /** What the tank on its back holds: the scuba gear's, or the big air tank's. */
+  airMax = AIR_MAX;
   state: 'swim' | 'up' = 'swim';
   /** The deepest it has been this dive. */
   deepest = 0;
   private warned = false;
 
-  /** Back in at the top under the boat, a full tank. */
-  reset(): void {
+  /** Back in at the top under the boat, a full tank of the size given. */
+  reset(airMax = AIR_MAX): void {
+    this.airMax = airMax;
     this.x = ENTRY;
     this.y = TOP + 6;
     this.vx = 0;
     this.vy = 0;
-    this.air = AIR_MAX;
+    this.air = airMax;
     this.state = 'swim';
     this.deepest = 0;
     this.warned = false;
@@ -79,13 +84,13 @@ export class Diver {
     this.kick += dt * (3 + Math.hypot(this.vx, this.vy) / 14);
     this.deepest = Math.max(this.deepest, this.y);
     if (this.y <= TOP) {
-      this.air = Math.min(AIR_MAX, this.air + dt * 25);
+      this.air = Math.min(this.airMax, this.air + dt * 25);
       this.warned = false;
       // Up at the top and still heading up: back aboard.
       if (this.state === 'up' || this.vy < -SWIM * 0.4) return 'surfaced';
     } else if (this.state === 'swim') {
       this.air = Math.max(0, this.air - dt);
-      if (!this.warned && this.air <= AIR_MAX * AIR_LOW) {
+      if (!this.warned && this.air <= this.airMax * AIR_LOW) {
         this.warned = true;
         ev = 'low';
       }

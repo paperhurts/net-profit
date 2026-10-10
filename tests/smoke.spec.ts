@@ -39,7 +39,15 @@ type Np = {
   seine: { state: string };
   pots: { x: number; y: number; crabs: number }[];
   diving: boolean;
-  diver: { x: number; y: number; vx: number; vy: number; air: number; face: number };
+  diver: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    air: number;
+    airMax: number;
+    face: number;
+  };
   trenchSh: {
     kind: string;
     cx: number;
@@ -122,7 +130,7 @@ type Np = {
   AQUARIUM: { x0: number; y0: number; x1: number; y1: number };
   tankView: { fish: unknown[]; eaten: number };
   rod: { state: string };
-  gear: { mesh: boolean; strongbox: boolean; suit: boolean };
+  gear: { mesh: boolean; strongbox: boolean; suit: boolean; tank: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarling: { with: boolean; free: boolean };
   isle4Stage: number;
@@ -459,6 +467,32 @@ test('shop: the shipwright keeps the spear back until island 2 is found', async 
   await page.waitForTimeout(300);
   await expect(page.locator('#gear [data-g]').first()).toBeAttached();
   await expect(page.locator('#gear [data-s]')).toHaveCount(0);
+  // Nor is there a big air tank before the scuba gear.
+  await expect(page.locator('#gear [data-g="tank"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('shop: once there is scuba gear the shipwright sells a big air tank', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 4000,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  const card = page.locator('#gear [data-g="tank"]');
+  await expect(card).toContainText('Big air tank');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.gear.tank, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(500);
+  await expect(card).toContainText('Fitted');
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').gear.tank),
+  ).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -875,6 +909,7 @@ test('the trench: stopped over it with scuba gear, dive; down in the dark, then 
     isle2Seen: true,
     isle3Seen: true,
     isle3Stage: 1,
+    gear: { tank: true },
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
   });
@@ -885,6 +920,9 @@ test('the trench: stopped over it with scuba gear, dive; down in the dark, then 
   expect(await page.evaluate(() => window.__np.trenchSeen)).toBe(true);
   await page.click('#diveBtn');
   await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  // The big air tank from the shipwright: more air in it.
+  expect(await page.evaluate(() => window.__np.diver.airMax)).toBe(120);
+  expect(await page.evaluate(() => window.__np.diver.air)).toBeGreaterThan(100);
   // The sea's own buttons stand down; the way back up shows.
   await expect(page.locator('#mapBtn')).toBeHidden();
   await expect(page.locator('#surfaceBtn')).toBeVisible();

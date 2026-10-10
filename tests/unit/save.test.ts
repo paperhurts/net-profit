@@ -228,9 +228,11 @@ describe('the shipwright gear', () => {
       kit: false,
       rod: false,
       lionnet: false,
+      tank: false,
     });
     s.gear.mesh = true;
     s.gear.suit = true;
+    s.gear.tank = true;
     expect(parseSave(serializeSave(s), bounds).gear).toEqual({
       mesh: true,
       strongbox: false,
@@ -238,6 +240,7 @@ describe('the shipwright gear', () => {
       kit: false,
       rod: false,
       lionnet: false,
+      tank: true,
     });
   });
 
@@ -249,6 +252,7 @@ describe('the shipwright gear', () => {
       kit: false,
       rod: false,
       lionnet: false,
+      tank: false,
     });
     // A save from before the chemistry suit and the mending kit has neither.
     expect(parseSave(JSON.stringify({ gear: { mesh: 1, hat: true } }), bounds).gear).toEqual({
@@ -258,6 +262,7 @@ describe('the shipwright gear', () => {
       kit: false,
       rod: false,
       lionnet: false,
+      tank: false,
     });
   });
 });
