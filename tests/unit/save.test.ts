@@ -4,6 +4,7 @@ import {
   type Bounds,
   DEFAULT_ORDER,
   defaultSave,
+  HERON_STAGES,
   ISLE3_STAGES,
   ISLE4_STAGES,
   ISLE5_STAGES,
@@ -554,5 +555,16 @@ describe('islands 8 and 9', () => {
     expect(s.isle8Seen).toBe(false);
     s.isle8Seen = true;
     expect(parseSave(serializeSave(s), bounds).isle8Seen).toBe(true);
+  });
+
+  it('keep where the Heron is: unmet in an old save, and his stage kept, within its range', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.heronStage).toBe(0);
+    s.heronStage = 1;
+    expect(parseSave(serializeSave(s), bounds).heronStage).toBe(1);
+    expect(parseSave(JSON.stringify({ ...s, heronStage: 9 }), bounds).heronStage).toBe(
+      HERON_STAGES,
+    );
+    expect(parseSave(JSON.stringify({ ...s, heronStage: -3 }), bounds).heronStage).toBe(0);
   });
 });

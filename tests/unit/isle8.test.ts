@@ -56,6 +56,8 @@ function reachable(step = 4): Set<string> {
   return seen;
 }
 
+const BARRED = { barred8: true, barred9: true, flag8: null };
+
 describe('islands 8 and 9, the twins', () => {
   it('sit out in the far deep east of home, the side nothing else is on, short of its end', () => {
     for (const isle of [ISLE8, ISLE9]) {
@@ -149,7 +151,7 @@ describe('islands 8 and 9, the twins', () => {
     f.v.onScreen = () => true;
     drawIsle8Sea(f.v);
     drawIsle8Flat(f.v);
-    const solids = isle8Solids(f.v, { barred: true });
+    const solids = isle8Solids(f.v, BARRED);
     for (const s of solids) s.f();
     // The post, both towers, both camps' fires, and everything else that stands there.
     expect(solids).toHaveLength(
@@ -159,6 +161,6 @@ describe('islands 8 and 9, the twins', () => {
     isle8Glow(f.v);
     expect(f.calls.glow ?? 0).toBeGreaterThan(0);
     f.v.onScreen = () => false;
-    expect(isle8Solids(f.v, { barred: true })).toHaveLength(0);
+    expect(isle8Solids(f.v, BARRED)).toHaveLength(0);
   });
 });

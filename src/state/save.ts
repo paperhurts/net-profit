@@ -42,6 +42,8 @@ export const ISLE6_STAGES = 2;
  * in Gigantis; 3, his bones have given the key to the door behind his throne; 4, the Old One beaten in the ruins.
  */
 export const ISLE7_STAGES = 4;
+/** The Heron's stages: 1, beaten on island 8's tower roof, flown to his nest; 2, beaten for good on island 9's. */
+export const HERON_STAGES = 2;
 
 export type SaveData = {
   coins: number;
@@ -106,6 +108,8 @@ export type SaveData = {
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
   isle8Seen: boolean;
+  /** The Heron: 0 not met, 1 beaten on island 8's tower and flown to his nest, 2 beaten for good on island 9's. */
+  heronStage: number;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
@@ -207,6 +211,7 @@ export function defaultSave(b: Bounds): SaveData {
     aquarium: false,
     nagaFree: false,
     isle8Seen: false,
+    heronStage: 0,
     spear: 0,
     armour: 0,
     sailed: '',
@@ -305,6 +310,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.aquarium = !!o.aquarium;
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
+  d.heronStage = Math.max(0, Math.min(HERON_STAGES, int(o.heronStage)));
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
@@ -397,6 +403,7 @@ export function serializeSave(d: SaveData): string {
     aquarium: d.aquarium,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
+    heronStage: d.heronStage,
     spear: d.spear,
     armour: d.armour,
     sailed: d.sailed,
