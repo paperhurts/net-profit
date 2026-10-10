@@ -37,6 +37,7 @@ type Np = {
   bases: Record<string, number>;
   BASES: { spit: { x: number; y: number }; dock: { x: number; y: number; r: number } }[];
   seine: { state: string };
+  pots: { x: number; y: number; crabs: number }[];
   haulLeft: number;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
@@ -783,6 +784,68 @@ test("seining: island 2's gear shed puts a seine aboard, and a loop round a scho
   await page.waitForFunction(() => window.__np.haulLeft === 0 && window.__np.hold >= 10, null, {
     timeout: 4000,
   });
+  expect(errors).toEqual([]);
+});
+
+test("crab pots: island 3's crab shed puts three aboard; one dropped in home water fills with spider crabs that come aboard", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 4000,
+    wood: 60,
+    isle2Seen: true,
+    isle3Seen: true,
+    bases: { isle2: 0, isle3: 1 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -600 + 322, y: -600 + 154, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  const card = page.locator('#baseBtn');
+  await expect(card).toContainText('Build a crab shed here');
+  await card.click();
+  await expect(card).toContainText('Your base on island 3');
+  // Home water, stopped: the crab button drops a pot astern.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 3500;
+    b.y = 2300;
+    b.h = 0;
+    b.v = 0;
+  });
+  const button = page.locator('#potBtn');
+  await expect(button).toBeVisible();
+  await expect(page.locator('#potN')).toHaveText('3');
+  await button.click();
+  await page.waitForFunction(() => window.__np.pots.length === 1, null, { timeout: 2000 });
+  await expect(page.locator('#potN')).toHaveText('\u2191');
+  // Away, and the crabs climb in; back past it, they come aboard.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 3800;
+    b.y = 2000;
+    const p = window.__np.pots[0];
+    if (p) p.crabs = 4;
+  });
+  await expect(page.locator('#potN')).toHaveText('2');
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    const p = window.__np.pots[0];
+    if (!p) return;
+    b.x = p.x + 20;
+    b.y = p.y;
+  });
+  await page.waitForFunction(() => window.__np.hold >= 4, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.pots[0]?.crabs)).toBe(0);
+  // Past the buoys, no pots.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 5100;
+    b.y = 2300;
+  });
+  await button.click();
+  await expect(page.locator('#toast')).toContainText('No crab pots past the buoys');
+  expect(await page.evaluate(() => window.__np.pots.length)).toBe(1);
   expect(errors).toEqual([]);
 });
 

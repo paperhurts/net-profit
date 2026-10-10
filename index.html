@@ -190,6 +190,13 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
 #seineBtn[hidden]{display:none}
 #seineBtn.out{background:radial-gradient(circle,#2F8A78 0 66%,transparent 67%),conic-gradient(#F2C14E calc(var(--left,1)*1turn),rgba(20,30,35,.55) 0)}
 #seineBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+/* The crab pots' button, over the seine's: the badge says how many pots are on the boat, or an arrow to lift the one alongside. */
+#potBtn{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(326px + env(safe-area-inset-bottom));z-index:3;width:60px;height:60px;border-radius:50%;
+  background:#2F8A78;display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#potBtn[hidden]{display:none}
+#potBtn.empty{opacity:.7}
+#potBtn b{position:absolute;right:-4px;top:-4px;min-width:22px;height:22px;padding:2px 5px 0;border-radius:11px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:13px;line-height:20px;text-align:center;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#potBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #throw.harpoon{background:#2B5A73}
 #throw.wait{opacity:.55}
 #throw:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
@@ -280,6 +287,7 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
 <button class="pill" id="aboard" hidden>Back aboard</button>
 <button class="pill" id="climb" hidden>Climb the tower</button>
 <button class="pill" id="leave" hidden>Leave the tower</button>
+<button id="potBtn" hidden aria-label="Drop a crab pot"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M12 14 L6 9 L2 19" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 17 L6 13 L2 23" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 20 L6 17 L2 27" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 14 L28 9 L32 19" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 17 L28 13 L32 23" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 20 L28 17 L32 27" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="17" cy="18" rx="6.5" ry="5.6" fill="#E8604C"/><circle cx="14.5" cy="17" r="1.3" fill="#7A4FC9"/><circle cx="19.5" cy="19.5" r="1.1" fill="#7A4FC9"/><circle cx="15" cy="12.6" r="1" fill="#14222A"/><circle cx="19" cy="12.6" r="1" fill="#14222A"/></svg><b id="potN">3</b></button>
 <button id="seineBtn" hidden aria-label="Drop the seine"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M8 25 C2 17 6 6 17 6 C28 6 32 17 26 25" fill="none" stroke="#F2C14E" stroke-width="2.4" stroke-dasharray="0.1 4.4" stroke-linecap="round"/><path d="M17 26 L17 13" stroke="#FFF6E5" stroke-width="1.8"/><path d="M17 13 L24 15.5 L17 18 Z" fill="#FFF6E5"/><circle cx="17" cy="26" r="5.5" fill="#E4572E"/><rect x="11.5" y="25" width="11" height="2.2" fill="#FFF6E5"/></svg></button>
 <button id="throw" hidden aria-label="Throw the spear"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M5 29 L25 9" stroke="#FFF6E5" stroke-width="3.2" stroke-linecap="round"/><path d="M22 6 L30 4 L28 12 Z" fill="#FFF6E5"/></svg></button>
 

@@ -140,6 +140,32 @@ describe('bases', () => {
     expect(walkable(x, y + half + 10, 0)).toBe(true);
   });
 
+  it("puts island 3's crab shed on the base raft beside the hut, clear of its flagpole, with the way in open", () => {
+    const sh = isle3.shed;
+    if (!sh) throw new Error('no crab shed on island 3');
+    expect(sh.keeps).toBe('pots');
+    expect(sh.x - sh.half).toBeGreaterThan(BASE_RAFT.x0);
+    expect(sh.x + sh.half).toBeLessThan(BASE_RAFT.x1);
+    expect(sh.y - sh.half).toBeGreaterThan(BASE_RAFT.y0);
+    expect(sh.y + sh.half).toBeLessThan(BASE_RAFT.y1 - 10);
+    const { hut } = isle3;
+    expect(Math.abs(sh.x - hut.x)).toBeGreaterThan(sh.half + hut.half + 4);
+    const p = polePoint(isle3);
+    expect(p.x < sh.x - sh.half - 2 || p.y < sh.y - sh.half - 2).toBe(true);
+    expect(walkable(sh.x, sh.y, 0)).toBe(false);
+    // From the walk out to the raft, round in front of both.
+    expect(walkable(BASE_RAFT.x0 + 52, BASE_RAFT.y1 - 6, 0)).toBe(true);
+    expect(walkable(hut.x, hut.y + hut.half + 8, 0)).toBe(true);
+    expect(nextStage(isle3, { isle2: 0, isle3: 1 })?.name).toBe('crab shed');
+  });
+
+  it('draws the crab shed with crab pots stacked by it', () => {
+    const shed = fakeView();
+    drawBaseShed(shed.v, isle3, true, '#2C4A7C');
+    // The walls, the roof, and three pots.
+    expect(shed.calls.box).toBe(5);
+  });
+
   it("brings the boat back up off island 3's jetty, facing it, when that is the nearest built base", () => {
     const { x, y, h } = isle3.spit;
     expect(Math.hypot(x - DOCK3.x, y - DOCK3.y)).toBeCloseTo(SPIT_OFF, 6);

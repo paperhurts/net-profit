@@ -11,6 +11,7 @@
 import { rgba, shade } from '../core/color';
 import { clamp, rng } from '../core/math';
 import type { Species } from '../data/tuning';
+import { drawSideCrab } from './crab';
 
 /** The tank's width in its own units; its height follows the screen. */
 export const TANK_W = 300;
@@ -39,7 +40,8 @@ export type Shape =
   | 'snook'
   | 'tuna'
   | 'grouper'
-  | 'parrot';
+  | 'parrot'
+  | 'crab';
 
 /** How one kind looks side on, and where in the water it likes to be. */
 export type Look = {
@@ -93,6 +95,8 @@ const BAND = {
   top: [0.08, 0.5],
   mid: [0.25, 0.7],
   low: [0.55, 0.92],
+  /** On the sand: the crabs walk it. */
+  floor: [0.99, 1],
 } as const;
 
 /** The species a side-on shape draws, by name; the rest are plain fish. */
@@ -106,6 +110,7 @@ const SHAPES: Record<string, Shape> = {
   tuna: 'tuna',
   grouper: 'grouper',
   parrotfish: 'parrot',
+  'spider crab': 'crab',
 };
 const LOW = new Set(['pufferfish', 'dusk ray', 'grouper', 'parrotfish']);
 const MID = new Set(['shark', 'marlin', 'mahi-mahi', 'sunrise koi', 'tuna', 'snapper']);
@@ -133,7 +138,7 @@ export function speciesLook(S: Species, i: number): Look {
     tail: S.tail,
     ...(S.glow ? { glow: true } : {}),
     ...(S.rare || S.name === 'goldfin' ? { sparkle: true } : {}),
-    band: LOW.has(S.name) ? BAND.low : MID.has(S.name) ? BAND.mid : BAND.top,
+    band: S.crab ? BAND.floor : LOW.has(S.name) ? BAND.low : MID.has(S.name) ? BAND.mid : BAND.top,
   };
 }
 
@@ -704,6 +709,7 @@ export class Tank {
 
 /** How quickly a fish of this look wanders, in tank units a second. */
 export function cruise(look: Look): number {
+  if (look.shape === 'crab') return 9;
   return 14 + look.len * 0.45;
 }
 
@@ -762,6 +768,9 @@ export function drawSideFish(
       break;
     case 'ray':
       ray(ctx, look, L, H, ph, T);
+      break;
+    case 'crab':
+      drawSideCrab(ctx, L, H, H * 0.5 + 2, ph);
       break;
     default:
       body(ctx, look, L, H, beat, dark);
