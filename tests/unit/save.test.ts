@@ -572,9 +572,9 @@ describe('the otter', () => {
 describe('bases', () => {
   it('have nothing built in a save from before them, and keep each stage once built', () => {
     const s = parseSave(legacy, bounds);
-    expect(s.bases).toEqual({ isle2: 0 });
+    expect(s.bases).toEqual({ isle2: 0, isle3: 0 });
     s.bases.isle2 = 1;
-    expect(parseSave(serializeSave(s), bounds).bases).toEqual({ isle2: 1 });
+    expect(parseSave(serializeSave(s), bounds).bases).toEqual({ isle2: 1, isle3: 0 });
   });
 });
 

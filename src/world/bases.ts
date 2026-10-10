@@ -7,7 +7,8 @@
  * home's. The next stage, a gear shed, opens the island's own way of fishing:
  * island 2's is seining (fishing/seine.ts), and the seine goes everywhere with
  * the boat from then on. Island 2 is the first; the floating town on island 3
- * (crab pots) and the big island, island 6 (charters), come after it.
+ * has a raft kept for its base, and crab pots come with its second stage; the
+ * big island, island 6 (charters), comes after them.
  *
  * Later, the kid wants companions to be given jobs at a base. Nothing waits at
  * one yet; a base's stage is one number in the save, and a job would sit beside
@@ -15,9 +16,10 @@
  */
 
 import { DOCK2, ISLE2 } from './isle2';
+import { DOCK3, ISLE3, PLANK_Z } from './isle3';
 
-export type BaseId = 'isle2';
-export const BASE_IDS: readonly BaseId[] = ['isle2'];
+export type BaseId = 'isle2' | 'isle3';
+export const BASE_IDS: readonly BaseId[] = ['isle2', 'isle3'];
 
 /** One stage of a base: what it is called, what it costs, and what the shop says before and after. */
 export type BaseStage = { name: string; wood: number; coins: number; blurb: string; built: string };
@@ -30,8 +32,10 @@ export type Base = {
   dock: { x: number; y: number; r: number };
   /** The hut: its centre, the half width of its footprint, and the height of its walls. */
   hut: { x: number; y: number; half: number; wall: number };
-  /** The gear shed, the same way. */
-  shed: { x: number; y: number; half: number; wall: number };
+  /** Its second building, the same way, once the base has one. */
+  shed?: { x: number; y: number; half: number; wall: number };
+  /** What they stand on is this high: the sand, or a raft's planks. */
+  z: number;
   /** What the shop says of it once every stage is built. */
   done: string;
   /** Where the boat comes back up when this is the nearest home port: off the dock, facing it. */
@@ -42,8 +46,21 @@ export type Base = {
 /** How far off its dock's centre the boat comes back up: as far as home's spot is off home's. */
 export const SPIT_OFF = 177;
 
-/** Island 2's way home, the way its dock faces. */
-const OUT2 = { x: Math.SQRT1_2, y: -Math.SQRT1_2 };
+/** Off a dock along the way it faces, facing back into it. */
+function spitOff(dock: { x: number; y: number }, ox: number, oy: number): Base['spit'] {
+  return { x: dock.x + ox * SPIT_OFF, y: dock.y + oy * SPIT_OFF, h: Math.atan2(-oy, -ox) };
+}
+
+/** Every base's first stage: the hut, and what it makes the island. */
+function hutStage(island: string): BaseStage {
+  return {
+    name: 'hut',
+    wood: 30,
+    coins: 1500,
+    blurb: 'A home port: if your boat goes down nearer here than home, it comes back here.',
+    built: `Built your hut on ${island}. It is a home port now: if your boat goes down nearer here than home, it comes back up off this dock.`,
+  };
+}
 
 export const BASES: readonly Base[] = [
   {
@@ -54,21 +71,12 @@ export const BASES: readonly Base[] = [
     hut: { x: ISLE2.x + 40, y: ISLE2.y - 150, half: 14, wall: 18 },
     // Between the hut and the tower, clear of the way round either.
     shed: { x: ISLE2.x - 5, y: ISLE2.y - 102, half: 12, wall: 15 },
+    z: 0,
     done: 'A home port, and the gear shed that keeps your seine.',
-    spit: {
-      x: DOCK2.x + OUT2.x * SPIT_OFF,
-      y: DOCK2.y + OUT2.y * SPIT_OFF,
-      h: Math.atan2(-OUT2.y, -OUT2.x),
-    },
+    // Its dock faces home, up and to the right.
+    spit: spitOff(DOCK2, Math.SQRT1_2, -Math.SQRT1_2),
     stages: [
-      {
-        name: 'hut',
-        wood: 30,
-        coins: 1500,
-        blurb: 'A home port: if your boat goes down nearer here than home, it comes back here.',
-        built:
-          'Built your hut on island 2. It is a home port now: if your boat goes down nearer here than home, it comes back up off this dock.',
-      },
+      hutStage('island 2'),
       {
         name: 'gear shed',
         wood: 50,
@@ -78,6 +86,18 @@ export const BASES: readonly Base[] = [
           'Built the gear shed on island 2. Your boat carries a seine now: at sea, tap the buoy button to drop it, drive a loop round a school, and come back to the buoy to close it.',
       },
     ],
+  },
+  {
+    id: 'isle3',
+    island: 'island 3',
+    dock: DOCK3,
+    // On the base raft (world/isle3.ts), at its far end from the walk out to it.
+    hut: { x: ISLE3.x + 120, y: ISLE3.y - 120, half: 12, wall: 16 },
+    z: PLANK_Z,
+    done: 'A home port on the floating town.',
+    // Its jetty points along x.
+    spit: spitOff(DOCK3, 1, 0),
+    stages: [hutStage('island 3')],
   },
 ];
 
@@ -93,7 +113,7 @@ export function hasSeine(bases: Bases): boolean {
 export type Bases = Record<BaseId, number>;
 
 export function noBases(): Bases {
-  return { isle2: 0 };
+  return { isle2: 0, isle3: 0 };
 }
 
 /** The stages from a save, each missing or broken one read as nothing built, and none past the last. */

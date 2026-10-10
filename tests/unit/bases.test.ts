@@ -14,19 +14,22 @@ import {
 } from '../../src/world/bases';
 import { DOCK, pastBuoys } from '../../src/world/island';
 import { CAMP, DOCK2, ISLE2, LANDING2, PALMS2, POST, TOWER } from '../../src/world/isle2';
+import { BASE_RAFT, DOCK3, ISLE3, onPlanks, PLANK_Z, SHACKS } from '../../src/world/isle3';
 import { fakeView } from './helpers/view';
 
 const isle2 = BASES.find((b) => b.id === 'isle2');
 if (!isle2) throw new Error('no base on island 2');
+const isle3 = BASES.find((b) => b.id === 'isle3');
+if (!isle3) throw new Error('no base on island 3');
 
 describe('bases', () => {
   it('reads nothing built from an old save, a broken one, or one from the future', () => {
-    expect(parseBases(undefined)).toEqual({ isle2: 0 });
-    expect(parseBases('hut')).toEqual({ isle2: 0 });
-    expect(parseBases({ isle2: -2, nowhere: 4 })).toEqual({ isle2: 0 });
-    expect(parseBases({ isle2: Number.NaN })).toEqual({ isle2: 0 });
-    expect(parseBases({ isle2: 1.7 })).toEqual({ isle2: 1 });
-    expect(parseBases({ isle2: 99 })).toEqual({ isle2: isle2.stages.length });
+    expect(parseBases(undefined)).toEqual({ isle2: 0, isle3: 0 });
+    expect(parseBases('hut')).toEqual({ isle2: 0, isle3: 0 });
+    expect(parseBases({ isle2: -2, nowhere: 4 })).toEqual({ isle2: 0, isle3: 0 });
+    expect(parseBases({ isle2: Number.NaN })).toEqual({ isle2: 0, isle3: 0 });
+    expect(parseBases({ isle2: 1.7, isle3: 1 })).toEqual({ isle2: 1, isle3: 1 });
+    expect(parseBases({ isle2: 99 })).toEqual({ isle2: isle2.stages.length, isle3: 0 });
   });
 
   it('builds island 2 a stage at a time, the hut first and then the gear shed, which brings the seine', () => {
@@ -97,6 +100,7 @@ describe('bases', () => {
 
   it("puts island 2's gear shed between the hut and the tower, clear of both and of the way round", () => {
     const sh = isle2.shed;
+    if (!sh) throw new Error('no gear shed on island 2');
     const { hut } = isle2;
     expect(Math.hypot(sh.x - ISLE2.x, sh.y - ISLE2.y) + sh.half * Math.SQRT2).toBeLessThan(
       ISLE2.r - 30,
@@ -118,6 +122,55 @@ describe('bases', () => {
     const shed = fakeView();
     drawBaseShed(shed.v, isle2, true, '#2C4A7C');
     expect(shed.calls.box).toBe(2); // the walls and the roof
+  });
+
+  it("puts island 3's hut on the base raft, up on its planks, with room to walk in front of it", () => {
+    const { x, y, half } = isle3.hut;
+    const m = 6;
+    expect(x - half).toBeGreaterThan(BASE_RAFT.x0 + m);
+    expect(x + half).toBeLessThan(BASE_RAFT.x1 - m);
+    expect(y - half).toBeGreaterThan(BASE_RAFT.y0 + m);
+    expect(y + half).toBeLessThan(BASE_RAFT.y1 - 20);
+    expect(isle3.z).toBe(PLANK_Z);
+    const p = polePoint(isle3);
+    expect(onPlanks(p.x, p.y)).toBe(true);
+    for (const sh of SHACKS)
+      expect(x + half < sh.x0 || y + half < sh.y0 || x - half > sh.x1).toBe(true);
+    expect(walkable(x, y, 0)).toBe(false);
+    expect(walkable(x, y + half + 10, 0)).toBe(true);
+  });
+
+  it("brings the boat back up off island 3's jetty, facing it, when that is the nearest built base", () => {
+    const { x, y, h } = isle3.spit;
+    expect(Math.hypot(x - DOCK3.x, y - DOCK3.y)).toBeCloseTo(SPIT_OFF, 6);
+    expect(baseAtDock(x, y)).toBeNull();
+    expect(onPlanks(x, y)).toBe(false);
+    expect(pastBuoys(x, y)).toBe(true);
+    expect(Math.cos(h - Math.atan2(DOCK3.y - y, DOCK3.x - x))).toBeGreaterThan(0.999);
+    expect(baseAtDock(DOCK3.x, DOCK3.y)).toBe(isle3);
+    const both = { isle2: 1, isle3: 1 };
+    expect(homePort(both, ISLE3.x + 700, ISLE3.y + 200, DOCK)).toBe(isle3);
+    expect(homePort(both, ISLE2.x + 600, ISLE2.y - 600, DOCK)).toBe(isle2);
+    expect(homePort({ isle2: 1, isle3: 0 }, ISLE3.x + 700, ISLE3.y + 200, DOCK)).not.toBe(isle3);
+  });
+
+  it('draws a base on a raft up on its planks', () => {
+    const ground = fakeView();
+    const raised: number[] = [];
+    const flat: number[] = [];
+    const watch =
+      (out: number[]) =>
+      (_x: number, _y: number, z = 0) => {
+        out.push(z);
+        return 0;
+      };
+    ground.v.py = watch(flat);
+    drawBaseHut(ground.v, isle2, true, '#2C4A7C', null);
+    const up = fakeView();
+    up.v.py = watch(raised);
+    drawBaseHut(up.v, isle3, true, '#2C4A7C', null);
+    expect(Math.min(...flat)).toBe(0);
+    expect(Math.min(...raised)).toBe(PLANK_Z);
   });
 
   it('draws its plot until it is built, then the hut, its flag and a light at night', () => {

@@ -379,18 +379,22 @@ export const PROPS: readonly Prop[] = [
     const { x, y, half } = b.hut;
     const p = polePoint(b);
     const sh = b.shed;
-    return [
+    const out = [
       prop(x - half, y - half, x + half, y + half, x + y + half),
       post([p.x, p.y], 2, x + y + half),
-      // The shed's spare buoy stands off its front corner.
-      prop(
-        sh.x - sh.half,
-        sh.y - sh.half,
-        sh.x + sh.half + 6,
-        sh.y + sh.half + 4,
-        sh.x + sh.y + sh.half,
-      ),
     ];
+    // The shed's spare buoy stands off its front corner.
+    if (sh)
+      out.push(
+        prop(
+          sh.x - sh.half,
+          sh.y - sh.half,
+          sh.x + sh.half + 6,
+          sh.y + sh.half + 4,
+          sh.x + sh.y + sh.half,
+        ),
+      );
+    return out;
   }),
   // The monkey camp: three huts, the totem and the chest.
   ...HUTS.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),

@@ -23,6 +23,18 @@ const EAVE = 3;
 /** The flagpole's height. */
 export const POLE = 46;
 
+/** The view raised by z: a base on a raft stands on its planks, not in the water. */
+function lift(v: DrawView, z: number): DrawView {
+  if (!z) return v;
+  return {
+    ...v,
+    py: (x, y, h = 0) => v.py(x, y, h + z),
+    isoEllipse: (x, y, r, h = 0) => v.isoEllipse(x, y, r, h + z),
+    box: (x, y, w, d, z0, z1, side, top) => v.box(x, y, w, d, z0 + z, z1 + z, side, top),
+    extrude: (pts, z0, z1, side, top) => v.extrude(pts, z0 + z, z1 + z, side, top),
+  };
+}
+
 /** A flat quad on a vertical face, from a to b along the ground, between two heights. */
 function face(
   v: DrawView,
@@ -45,12 +57,13 @@ function face(
  * player's flag with its hoist at a screen point, or is null for none.
  */
 export function drawBaseHut(
-  v: DrawView,
+  view: DrawView,
   b: Base,
   built: boolean,
   roof: string,
   flag: ((sx: number, sy: number) => void) | null,
 ): void {
+  const v = lift(view, b.z);
   const { ctx, px, py } = v;
   const Z = v.zoom;
   const { x, y, half, wall } = b.hut;
@@ -213,7 +226,9 @@ function sign(
  * inside to dry with its corks along the bottom, a flat roof in the boat's roof paint, and a spare
  * buoy by the door.
  */
-export function drawBaseShed(v: DrawView, b: Base, built: boolean, roof: string): void {
+export function drawBaseShed(view: DrawView, b: Base, built: boolean, roof: string): void {
+  if (!b.shed) return;
+  const v = lift(view, b.z);
   const { ctx, px, py } = v;
   const Z = v.zoom;
   const { x, y, half, wall } = b.shed;
@@ -264,5 +279,5 @@ export function drawBaseShed(v: DrawView, b: Base, built: boolean, roof: string)
 /** The hut's lantern and window, punched into the night. */
 export function baseHutLight(v: DrawView, b: Base, built: boolean): void {
   if (!built) return;
-  v.light(b.hut.x, b.hut.y + b.hut.half, 12, 150, 0.9);
+  v.light(b.hut.x, b.hut.y + b.hut.half, b.z + 12, 150, 0.9);
 }
