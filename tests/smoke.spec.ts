@@ -784,8 +784,9 @@ test('charters: at island 6 passengers board, see the whales, and pay at the nex
   const card = page.locator('#charterBtn');
   await expect(card).toBeVisible();
   await expect(card).toContainText('Take a charter');
-  // One passenger, who wants the whales.
+  // One passenger, who wants the whales; and Star, who haunts island 6, off on a long flight.
   await page.evaluate(() => {
+    window.__np.serpent.state = 'away';
     const o = window.__np.charterOffer;
     if (!o) return;
     o.wants = ['whales'];
@@ -818,10 +819,12 @@ test('charters: at island 6 passengers board, see the whales, and pay at the nex
     np.boat.v = 0;
   });
   await page.waitForFunction(() => window.__np.charter === null, null, { timeout: 3000 });
-  expect(await page.evaluate(() => [window.__np.coins, window.__np.chartersRun])).toEqual([
-    scared ? 300 : 600,
-    1,
-  ]);
+  // The fare, said as they step off. The purse may hold a little more: the net can sweep a fish on the way
+  // out to the whales, and tying up sells it.
+  const paid = scared ? 300 : 600;
+  await expect(page.locator('#toast')).toContainText(`+${paid} coins`);
+  expect(await page.evaluate(() => window.__np.chartersRun)).toBe(1);
+  expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(paid);
   await expect(page.locator('#charter')).toBeHidden();
   expect(errors).toEqual([]);
 });

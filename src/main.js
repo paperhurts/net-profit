@@ -2122,7 +2122,8 @@ function update(dt){
   /* dock */
   const dk = dockAt(boat.x, boat.y), inDock = !!dk; if (dk) dockHere = dk;
   if (inDock !== docked){ docked = inDock; if (!docked && charter && !charter.left){ charter.left = true; save(); }
-    if (docked){ if (charter && charter.left) endCharter(); refreshShop(); toasts.clear(); renderToast(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
+    // The dock clears what was being said, then the charter's passengers pay, so their word is the one that shows.
+    if (docked){ refreshShop(); toasts.clear(); renderToast(); if (charter && charter.left) endCharter(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
     if (jellies.inNet){ const n = jellies.shakeOut(); toast(n === 1 ? 'Shook a jellyfish out of the net.' : `Shook ${n} jellyfish out of the net.`, 2400); sfx.jelliesOut(); } } }
   // The shop is the dock while aboard; ashore it folds away so the stick has the screen.
   { const open = docked && walker.aboard && !cine && !kingDying(); if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
