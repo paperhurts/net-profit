@@ -4,8 +4,9 @@
  * driftwood and coins as the palace is at home. The first stage is a hut, and
  * a hut makes the island a home port: when the boat goes down nearer to it than
  * to home, whatever swallowed it spits it out off that island's dock instead of
- * home's. The next stage opens the island's own way of fishing (island 2's is
- * seining, still to come). Island 2 is the first; the floating town on island 3
+ * home's. The next stage, a gear shed, opens the island's own way of fishing:
+ * island 2's is seining (fishing/seine.ts), and the seine goes everywhere with
+ * the boat from then on. Island 2 is the first; the floating town on island 3
  * (crab pots) and the big island, island 6 (charters), come after it.
  *
  * Later, the kid wants companions to be given jobs at a base. Nothing waits at
@@ -29,6 +30,10 @@ export type Base = {
   dock: { x: number; y: number; r: number };
   /** The hut: its centre, the half width of its footprint, and the height of its walls. */
   hut: { x: number; y: number; half: number; wall: number };
+  /** The gear shed, the same way. */
+  shed: { x: number; y: number; half: number; wall: number };
+  /** What the shop says of it once every stage is built. */
+  done: string;
   /** Where the boat comes back up when this is the nearest home port: off the dock, facing it. */
   spit: { x: number; y: number; h: number };
   stages: readonly BaseStage[];
@@ -47,6 +52,9 @@ export const BASES: readonly Base[] = [
     dock: DOCK2,
     // On the open sand beside the tower, on the way up from the landing: in sight from the dock.
     hut: { x: ISLE2.x + 40, y: ISLE2.y - 150, half: 14, wall: 18 },
+    // Between the hut and the tower, clear of the way round either.
+    shed: { x: ISLE2.x - 5, y: ISLE2.y - 102, half: 12, wall: 15 },
+    done: 'A home port, and the gear shed that keeps your seine.',
     spit: {
       x: DOCK2.x + OUT2.x * SPIT_OFF,
       y: DOCK2.y + OUT2.y * SPIT_OFF,
@@ -61,9 +69,25 @@ export const BASES: readonly Base[] = [
         built:
           'Built your hut on island 2. It is a home port now: if your boat goes down nearer here than home, it comes back up off this dock.',
       },
+      {
+        name: 'gear shed',
+        wood: 50,
+        coins: 3000,
+        blurb: 'Opens seining: a seine and a buoy for your boat, to loop round a whole school.',
+        built:
+          'Built the gear shed on island 2. Your boat carries a seine now: at sea, tap the buoy button to drop it, drive a loop round a school, and come back to the buoy to close it.',
+      },
     ],
   },
 ];
+
+/** Island 2's stage that opens seining. */
+export const SEINE_STAGE = 2;
+
+/** Whether the boat has a seine: island 2's gear shed is built. */
+export function hasSeine(bases: Bases): boolean {
+  return bases.isle2 >= SEINE_STAGE;
+}
 
 /** How far each base is built: 0 for nothing yet, then a stage at a time. */
 export type Bases = Record<BaseId, number>;

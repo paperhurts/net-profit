@@ -15,7 +15,7 @@ import { type BrowserContext, expect, type Page, test } from '@playwright/test';
 type Np = {
   boat: { x: number; y: number; h: number; v: number };
   keys: 'drive' | 'point';
-  schools: { cx: number; cy: number }[];
+  schools: { cx: number; cy: number; sp: number; r: number }[];
   DOCK: { x: number; y: number };
   rare: { on: boolean };
   hold: number;
@@ -36,6 +36,8 @@ type Np = {
   swallow(by: string): void;
   bases: Record<string, number>;
   BASES: { spit: { x: number; y: number }; dock: { x: number; y: number; r: number } }[];
+  seine: { state: string };
+  haulLeft: number;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
   masks: number;
@@ -684,7 +686,8 @@ test('bases: build a hut on island 2 from its dock, and the boat comes back up t
   await expect(card).toBeVisible();
   await expect(card).toContainText('Build a hut here');
   await card.click();
-  await expect(card).toContainText('Your hut on island 2');
+  // Built, the card goes on to the base's next stage.
+  await expect(card).toContainText('Build a gear shed here');
   expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle2])).toEqual([500, 1]);
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').bases),
@@ -707,6 +710,75 @@ test('bases: build a hut on island 2 from its dock, and the boat comes back up t
     'not off island 2',
   ).toBeLessThan(40);
   await expect(page.locator('#toast')).toContainText('your hut on island 2');
+  expect(errors).toEqual([]);
+});
+
+test("seining: island 2's gear shed puts a seine aboard, and a loop round a school hauls it in", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 4000,
+    wood: 60,
+    isle2Seen: true,
+    bases: { isle2: 1 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  const card = page.locator('#baseBtn');
+  await expect(card).toContainText('Build a gear shed here');
+  await card.click();
+  await expect(card).toContainText('Your base on island 2');
+  expect(await page.evaluate(() => window.__np.bases.isle2)).toBe(2);
+  // Out to the parrotfish school farthest from the dock, the boat on a circle round it, going round.
+  const sc = await page.evaluate(() => {
+    const d = window.__np.BASES[0]?.dock ?? { x: 0, y: 0 };
+    let best = { cx: 0, cy: 0, r: 0 };
+    let bd = -1;
+    for (const s of window.__np.schools) {
+      const k = Math.hypot(s.cx - d.x, s.cy - d.y);
+      if (s.sp === 13 && k > bd) {
+        bd = k;
+        best = { cx: s.cx, cy: s.cy, r: s.r };
+      }
+    }
+    return best;
+  });
+  const R = sc.r + 40;
+  const at = (a: number) =>
+    page.evaluate(
+      ([cx, cy, r, a]) => {
+        const b = window.__np.boat;
+        b.x = cx + Math.cos(a) * r;
+        b.y = cy + Math.sin(a) * r;
+        b.h = a + Math.PI / 2;
+        b.v = 0;
+      },
+      [sc.cx, sc.cy, R, a] as const,
+    );
+  await at(0);
+  const button = page.locator('#seineBtn');
+  await expect(button).toBeVisible();
+  await button.click();
+  expect(await page.evaluate(() => window.__np.seine.state)).toBe('out');
+  await expect(button).toHaveAttribute('aria-label', 'Haul the seine in');
+  for (let i = 1; i <= 140; i++) {
+    if ((await page.evaluate(() => window.__np.seine.state)) !== 'out') break;
+    await at((i / 120) * Math.PI * 2);
+    await page.waitForTimeout(30);
+  }
+  expect(await page.evaluate(() => window.__np.seine.state)).toBe('stowed');
+  await expect(page.locator('#toast')).toContainText('Seine closed round');
+  await page.waitForFunction(() => window.__np.haulLeft === 0 && window.__np.hold >= 10, null, {
+    timeout: 4000,
+  });
   expect(errors).toEqual([]);
 });
 
