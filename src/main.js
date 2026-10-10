@@ -971,13 +971,14 @@ warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
   toast(isle3Stage >= 2 ? 'Down at the tower\'s foot again. The portal is still turning.' : 'Down to the foot of the tower, under the sea.', 3000, 1); }
 function intoDemons(){ sfx.portal(); redFlash = 1; shake = Math.max(shake, .6); toRoom(DEMON); walker.diving = false; demonMonkeys.reset(); for (const d of demons) d.reset(); applyStage(); }
-function toRoom(i){ floor = i; allies.clear(); const e = entry(i); walker.x = e.x; walker.y = e.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); if (i === RUINS) intoRuins(); }
+// Inside a room the boat's bubbles (the order, the hold, the hull, the market, the driftwood) are put away: only coins and hearts matter in there.
+function toRoom(i){ floor = i; document.body.classList.add('inside'); allies.clear(); const e = entry(i); walker.x = e.x; walker.y = e.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); if (i === RUINS) intoRuins(); }
 function resetTowers(){ for (const fl of camps) fl.reset(); for (const h of HORDES) h.reset(); forgotten.reset(); lancers.reset(); oldOne.reset(); oldScene = null; oldWinT = 0; bonesRun = null; allies.clear(); bonesJoined = false; merlockT = 1; boss.reset(); boss3.reset(); boss7.reset(); heron.reset(); if (heronStage >= 1) heron.away(); roofMonkeys.reset(); swordsman.reset(); for (const d of demons) d.reset(); demonMonkeys.reset(); pullT = 0; cageOpen = 0; }
 function enterTower(t){ resetTowers(); towerWon = false; tower = t; toRoom(t.first);
   toast(!spear ? 'Inside the tower, and you have no spear! Leave, and buy one from the shipwright.'
     : t.boss === boss3 ? 'Inside the sunken tower. It drips. Beat the monkeys to open the stairs.' : t.boss === boss7 ? 'Inside island 7\'s tower. More monkeys this time: beat them to open the stairs.'
     : t.boss === heron ? (heronStage >= 1 ? 'Inside island 8\'s tower. He has hired more men to hold it.' : 'Inside the Heron\'s tower. His hired men hold the floors: beat them to open the stairs.') : 'Inside the tower. Beat the monkeys to open the stairs.', 3200, 1); }
-function leaveTower(out = true){ if (floor < 0) return; floor = -1; resetTowers(); walker.diving = false;
+function leaveTower(out = true){ if (floor < 0) return; floor = -1; document.body.classList.remove('inside'); resetTowers(); walker.diving = false;
   if (out && walker.state === 'ashore' && tower){ walker.x = tower.door.x; walker.y = tower.door.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; }
   tower = null; }
 // What the climb button would do now: in at a door, up the open stairs, or nothing.

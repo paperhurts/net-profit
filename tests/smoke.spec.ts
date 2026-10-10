@@ -959,8 +959,12 @@ test('tower: in at the door, up both floors, beat the sorcerer, and the tower is
     window.__np.walker.y = 5410 + 46 * Math.SQRT1_2;
   });
   await expect(page.locator('#climb')).toHaveText('Climb the tower');
+  await expect(page.locator('#order')).toBeVisible();
   await page.click('#climb');
   await page.waitForFunction(() => window.__np.floor === 0);
+  // Inside, the boat's bubbles are put away; the hearts stay.
+  for (const id of ['#order', '#holdPill', '#hull', '#wood']) await expect(page.locator(id)).toBeHidden();
+  await expect(page.locator('#hearts')).toBeVisible();
   for (const f of [0, 1]) {
     // Beat the floor, step onto its stairs, climb.
     await page.evaluate((i) => {
@@ -980,6 +984,8 @@ test('tower: in at the door, up both floors, beat the sorcerer, and the tower is
   await expect(page.locator('#leave')).toHaveText('Back to the boat');
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.walker.state === 'aboard');
+  await expect(page.locator('#order')).toBeVisible();
+  await expect(page.locator('#holdPill')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
