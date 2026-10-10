@@ -730,7 +730,8 @@ test('flag: design one in the shop and the boat flies it', async ({ context, pag
   const flag = await page.evaluate(
     () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').flag,
   );
-  expect(flag).toEqual({ field: 8, accent: 1, pattern: 0, emblem: 3 });
+  // Black with a skull, the second colour still the first flag's navy.
+  expect(flag).toEqual({ field: 8, accent: 3, pattern: 0, emblem: 3 });
   expect(errors).toEqual([]);
 });
 

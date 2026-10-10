@@ -6,7 +6,7 @@
  */
 
 import { ARMOUR_MAX } from '../data/armour';
-import { type Flag, parseFlag } from '../data/flag';
+import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
 
@@ -303,6 +303,9 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle7Stage = Math.max(0, Math.min(ISLE7_STAGES, int(o.isle7Stage)));
   d.isle5Stage = Math.max(0, Math.min(ISLE5_STAGES, int(o.isle5Stage)));
   d.flag = parseFlag(o.flag);
+  // The old first flag, which the designer saved the moment it opened: back to none, so the new first flag
+  // shows. A player who meant it can pick it again in a tap.
+  if (d.flag && sameFlag(d.flag, OLD_START_FLAG)) d.flag = null;
   d.gulperSeen = !!o.gulperSeen;
   d.meteorSeen = !!o.meteorSeen;
   d.lionSeen = !!o.lionSeen;
