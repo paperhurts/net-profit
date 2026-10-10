@@ -83,7 +83,8 @@ export function drawIsle7Flat(v: DrawView): void {
   ctx.fill();
 }
 
-function drawPalm7(v: DrawView, x: number, y: number, i: number): void {
+/** A palm, leaning one way or the other by its number. */
+export function drawPalm7(v: DrawView, x: number, y: number, i: number): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
   const lean = (i % 2 ? 1 : -1) * (6 + (i % 3) * 2);

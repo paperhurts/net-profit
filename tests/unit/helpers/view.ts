@@ -48,6 +48,9 @@ export function fakeView(): FakeView {
     restore: count('restore'),
     rect: count('rect'),
     clip: count('clip'),
+    translate: count('translate'),
+    rotate: count('rotate'),
+    scale: count('scale'),
   } as unknown as CanvasRenderingContext2D;
   const fake: FakeView = {
     calls,
