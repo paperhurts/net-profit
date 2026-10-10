@@ -61,6 +61,9 @@ type Np = {
   diveAim: { si: number } | null;
   trenchSeen: boolean;
   trenchDeep: number;
+  trenchLoot: number;
+  pearlDay: number;
+  TRENCH_LOOT: { kind: string; x: number; y: number }[];
   haulLeft: number;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
@@ -990,6 +993,55 @@ test('spearfishing: down in the trench with a spear, a glow squid in reach is ai
   await put();
   await page.click('#throw');
   await page.waitForFunction(() => window.__np.hold >= 1, null, { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('trench treasure: swim up to the chest on the floor and it is yours, once; the clam has a pearl', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    trenchSeen: true,
+    trenchDeep: 900,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 60, y: -620 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await page.click('#diveBtn');
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  const at = (kind: string) =>
+    page.evaluate((k) => {
+      const np = window.__np;
+      const l = np.TRENCH_LOOT.find((t) => t.kind === k);
+      if (!l) return;
+      np.diver.x = l.x;
+      np.diver.y = l.y - 14;
+      np.diver.vx = 0;
+      np.diver.vy = 0;
+    }, kind);
+  await at('chest');
+  await page.waitForFunction(() => window.__np.trenchLoot !== 0, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('treasure chest');
+  const after = await page.evaluate(() => window.__np.coins);
+  expect(after).toBe(600);
+  // Not twice.
+  await at('chest');
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(600);
+  // The giant clam's pearl.
+  await at('clam');
+  await page.waitForFunction(() => window.__np.pearlDay > 0, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(750);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').trenchLoot),
+  ).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 

@@ -5,12 +5,14 @@
  * garden of glowing things on the walls and the floor, shoals going by, and the
  * diver in the brass helmet with its tank and flippers, bubbles going up. Below
  * the sunlit water the dark closes in round the diver's lamp, and what glows is
- * drawn over the dark so it shines. The air left and the depth are shown at the
- * top. One view, drawn to the game's canvas in place of the sea while diving.
+ * drawn over the dark so it shines, as does the glint of treasure not yet found.
+ * The air left and the depth are shown at the top. One view, drawn to the
+ * game's canvas in place of the sea while diving.
  */
 
 import type { Diver } from '../entities/diver';
 import { AIR_LOW } from '../entities/diver';
+import type { Loot } from '../world/loot';
 import {
   ENTRY,
   fishIn,
@@ -24,6 +26,7 @@ import {
   TWILIGHT,
   wallIn,
 } from '../world/trench';
+import { drawLoot, drawLootGlint } from './loot';
 
 /** How much of the trench shows across the screen. */
 export const VIEW_W = 420;
@@ -75,6 +78,10 @@ export type DiveScene = {
   spears?: readonly { x: number; y: number; vx: number; vy: number }[];
   aim?: { x: number; y: number } | null;
   texts?: readonly { x: number; y: number; t: number; msg: string; c: string }[];
+  /** Treasure lying about, which of it has been found, and whether the giant clam has a pearl in. */
+  loot?: readonly Loot[];
+  found?: (i: number) => boolean;
+  pearl?: boolean;
 };
 
 /** The camera: the scene point at the screen's middle, and the scale. */
@@ -145,6 +152,11 @@ export function drawDive(
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
     if (!p.glow && p.y > top - 140 && p.y < bottom + 140) drawPlant(ctx, X, Y, s, p, T, false);
+  const loot = sc.loot ?? [];
+  const found = sc.found ?? (() => false);
+  loot.forEach((l, i) => {
+    if (l.y > top - 40 && l.y < bottom + 40) drawLoot(ctx, X, Y, s, l, T, found(i), !!sc.pearl);
+  });
   const here = sc.here ?? (() => true);
   sc.shoals.forEach((sh, si) => {
     if (!sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom, (i) => here(si, i));
@@ -172,6 +184,10 @@ export function drawDive(
     if (p.glow && p.y > top - 140 && p.y < bottom + 140) drawPlant(ctx, X, Y, s, p, T, true);
   sc.shoals.forEach((sh, si) => {
     if (sh.glow) drawShoal(ctx, X, Y, s, sh, T, top, bottom, (i) => here(si, i));
+  });
+  loot.forEach((l, i) => {
+    if (l.y > top - 40 && l.y < bottom + 40)
+      drawLootGlint(ctx, X, Y, s, l, i, T, found(i), !!sc.pearl);
   });
   // The spears in flight, a ring round what the next throw goes for, and what was caught.
   ctx.strokeStyle = '#E8E2D0';
