@@ -2,15 +2,20 @@ import { describe, expect, it } from 'vitest';
 import type { World } from '../../src/entities/entity';
 import {
   BONES_HP,
+  drawNagaCage,
+  drawSwimming,
   HEAL_DELAY,
   HEALS,
   MAX_HEALS,
+  nagaSwims,
   PAL_BLINK,
   PAL_HEEL,
   PAL_HP,
   Pal,
   POWER,
   RAISE_EVERY,
+  REACH,
+  SWIM_SIDE,
   SWING_EVERY,
 } from '../../src/entities/pals';
 import { LANDING, WALK_SPEED, walkable } from '../../src/entities/walker';
@@ -188,5 +193,74 @@ describe("the Forgotten One's bones, on your side", () => {
     p.drawAboard(f.v, { x: 0, y: 0, h: 0 }, 1);
     expect(f.calls.fill ?? 0).toBeGreaterThan(4);
     expect(f.calls.stroke ?? 0).toBeGreaterThan(6);
+  });
+});
+
+describe('the naga, freed from the monkey camp', () => {
+  it('fights ashore with the longest reach of them, for two', () => {
+    const p = new Pal('naga');
+    expect(p.hp).toBe(PAL_HP);
+    expect(REACH.naga).toBeGreaterThan(Math.max(REACH.cat, REACH.warrior, REACH.bones));
+    expect(POWER.naga).toBe(2);
+    const f = figureAt(LANDING.x - 60, LANDING.y);
+    const w: World = baseWorld({ figure: f });
+    p.come(f.x + 10, f.y);
+    expect(p.shown).toBe(true);
+    let dealt = 0;
+    // Just inside his reach: he strikes from where he stands.
+    const foe = { x: p.x - (REACH.naga - 2), y: p.y, hit: (n: number) => (dealt += n) };
+    p.findTarget = (x, y, r) => (Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null);
+    const at = [p.x, p.y];
+    for (let i = 0; i < (SWING_EVERY.naga * 2 + 0.2) / DT; i++) p.update(DT, w);
+    expect(dealt).toBeGreaterThanOrEqual(POWER.naga * 2);
+    expect(Math.hypot(p.x - (at[0] ?? 0), p.y - (at[1] ?? 0))).toBeLessThan(1);
+  });
+
+  it('swims beside the boat at sea rather than riding it, keeping up at full speed', () => {
+    const p = new Pal('naga');
+    p.come(LANDING.x, LANDING.y);
+    const w: World = baseWorld({ figure: null, hullScale: 1.6 });
+    w.boat.v = 350;
+    for (let i = 0; i < 6 / DT; i++) {
+      w.boat.h += 0.2 * DT;
+      w.boat.x += Math.cos(w.boat.h) * w.boat.v * DT;
+      w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
+      p.update(DT, w);
+      expect(nagaSwims(p)).toBe(true);
+      if (i > 30) expect(Math.hypot(p.x - w.boat.x, p.y - w.boat.y)).toBeLessThan(70);
+    }
+    // Off the hull, not on it.
+    expect(Math.hypot(p.x - w.boat.x, p.y - w.boat.y)).toBeGreaterThan(SWIM_SIDE);
+    // Worn out, he rests in the water beside it too.
+    p.state = 'resting';
+    p.update(DT, w);
+    expect(nagaSwims(p)).toBe(true);
+  });
+
+  it('keeps to the side of the boat nearer the viewer, so the hull never hides him', () => {
+    const p = new Pal('naga');
+    p.free = true;
+    const w: World = baseWorld({ figure: null });
+    for (const h of [0, Math.PI / 2, Math.PI, -Math.PI / 2, 0.3, 2.2]) {
+      w.boat.h = h;
+      for (let i = 0; i < 3 / DT; i++) p.update(DT, w);
+      // In front of the boat on screen: further down the screen's x+y.
+      expect(p.x + p.y, `heading ${h}`).toBeGreaterThan(w.boat.x + w.boat.y);
+    }
+  });
+
+  it('draws ashore, swimming, and in his cage open or shut', () => {
+    const p = new Pal('naga');
+    const f = fakeView();
+    p.come(LANDING.x, LANDING.y);
+    p.drawBody(f.v);
+    const ashore = f.calls.fill ?? 0;
+    expect(ashore).toBeGreaterThan(10);
+    p.update(DT, baseWorld({ figure: null }));
+    drawSwimming(f.v, p);
+    expect(f.calls.fill ?? 0).toBeGreaterThan(ashore + 10);
+    drawNagaCage(f.v, 0, 0, 11, 0, true);
+    drawNagaCage(f.v, 0, 0, 11, 1, false);
+    expect(f.calls.stroke ?? 0).toBeGreaterThan(20);
   });
 });

@@ -54,6 +54,7 @@ import {
   HUTS,
   ISLE2,
   LANDING2,
+  NAGA_CAGE,
   PALMS2,
   POST,
   TOTEM,
@@ -346,6 +347,8 @@ export const PROPS: readonly Prop[] = [
   // The monkey camp: three huts, the totem and the chest.
   ...HUTS.map((h) => prop(h[0] - 11, h[1] - 11, h[0] + 11, h[1] + 11, h[0] + h[1] + 11)),
   post([TOTEM.x, TOTEM.y], 2.5, TOTEM.x + TOTEM.y),
+  // The naga's cage, open or shut.
+  post([NAGA_CAGE.x, NAGA_CAGE.y], NAGA_CAGE.r, NAGA_CAGE.x + NAGA_CAGE.y),
   prop(CHEST.x - 7, CHEST.y - 5, CHEST.x + 7, CHEST.y + 5, CHEST.x + CHEST.y + 5, 0, 1.5),
   // Island 3: the tower in its seaweed, the three shacks and the lamps.
   prop(
