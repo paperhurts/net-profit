@@ -13,9 +13,9 @@
 import type { Diver } from '../entities/diver';
 import { AIR_LOW } from '../entities/diver';
 import type { Lurker } from '../entities/lurker';
+import { type DiveSite, TRENCH_SITE } from '../world/divesite';
 import type { Loot } from '../world/loot';
 import {
-  ENTRY,
   fishIn,
   floorAt,
   type Plant,
@@ -29,9 +29,10 @@ import {
 } from '../world/trench';
 import { drawLoot, drawLootGlint } from './loot';
 import { drawLurker, drawLurkerGlow } from './lurker';
+import { drawWreckScene } from './wreck';
 
-/** How much of the trench shows across the screen. */
-export const VIEW_W = 420;
+/** How much of the trench shows across the screen (each site says its own). */
+export const VIEW_W = TRENCH_SITE.view;
 /** The diver drawn bigger than life, so a small player finds it on a phone. */
 const DIVER_SIZE = 1.5;
 
@@ -86,18 +87,27 @@ export type DiveScene = {
   pearl?: boolean;
   /** The thing in the dark, if there is one. */
   lurker?: Lurker;
+  /** Where the dive is: the trench unless said. */
+  site?: DiveSite;
+  /** Anything else to draw in the water before the dark, and over it: the wreck's sharks. */
+  under?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
 };
 
 /** The camera: the scene point at the screen's middle, and the scale. */
-export function diveCamera(d: { x: number; y: number }, W: number, H: number) {
-  const s = W / VIEW_W;
+export function diveCamera(
+  d: { x: number; y: number },
+  W: number,
+  H: number,
+  site: DiveSite = TRENCH_SITE,
+) {
+  const s = W / site.view;
   const hw = W / 2 / s;
   const hh = H / 2 / s;
   return {
     s,
-    x: Math.max(hw, Math.min(TW - hw, d.x)),
+    x: Math.max(hw, Math.min(site.w - hw, d.x)),
     // At the top, the surface sits a quarter of the way down the screen: a little sky, the boat, then water.
-    y: Math.max(hh * 0.5, Math.min(TD + 40 - hh, d.y)),
+    y: Math.max(hh * 0.5, Math.min(site.d + 40 - hh, d.y)),
   };
 }
 
@@ -110,7 +120,8 @@ export function drawDive(
   sc: DiveScene,
 ): void {
   const d = sc.diver;
-  const cam = diveCamera(d, W, H);
+  const site = sc.site ?? TRENCH_SITE;
+  const cam = diveCamera(d, W, H, site);
   const { s } = cam;
   const X = (x: number) => (x - cam.x) * s + W / 2;
   const Y = (y: number) => (y - cam.y) * s + H / 2;
@@ -129,7 +140,7 @@ export function drawDive(
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 6; i++) {
-      const x0 = (i / 6) * TW + Math.sin(T * 0.3 + i) * 20;
+      const x0 = (i / 6) * site.w + Math.sin(T * 0.3 + i) * 20;
       const fade = ctx.createLinearGradient(0, Y(0), 0, Y(SUNLIT));
       fade.addColorStop(0, 'rgba(255,255,230,.16)');
       fade.addColorStop(1, 'rgba(255,255,230,0)');
@@ -147,12 +158,13 @@ export function drawDive(
   // Marine snow drifting down, all the way.
   ctx.fillStyle = 'rgba(220,240,255,.35)';
   for (let i = 0; i < 60; i++) {
-    const sx = (i * 173.3) % TW;
-    const sy = (((i * 97.1 + T * 6) % (TD + 100)) + TD + 100) % (TD + 100);
+    const sx = (i * 173.3) % site.w;
+    const sy = (((i * 97.1 + T * 6) % (site.d + 100)) + site.d + 100) % (site.d + 100);
     if (sy < top - 5 || sy > bottom + 5) continue;
     ctx.fillRect(X(sx), Y(sy), 1.4 * s, 1.4 * s);
   }
-  drawRock(ctx, X, Y, s, top, bottom);
+  if (site.id === 'wreck') drawWreckScene(ctx, X, Y, s, T);
+  else drawRock(ctx, X, Y, s, top, bottom);
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
     if (!p.glow && p.y > top - 140 && p.y < bottom + 140) drawPlant(ctx, X, Y, s, p, T, false);
@@ -167,8 +179,9 @@ export function drawDive(
   });
   // The lurker's body, under the dark: only the lamp shows its shape.
   if (sc.lurker) drawLurker(ctx, X, Y, s, sc.lurker, T);
+  sc.under?.(ctx, X, Y, s);
   // The boat overhead, the diver, and the bubbles.
-  if (top < 30) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T);
+  if (top < 30) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
   drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T);
   ctx.fillStyle = 'rgba(230,248,255,.7)';
   for (const b of sc.bubbles) {
@@ -487,10 +500,26 @@ function drawShoal(
         ctx.stroke();
       }
     } else {
-      // A fish: a body and a tail, with a light along its side if it is a lanternfish.
+      // A fish: a body and a tail, with a light along its side if it is a lanternfish; a grouper is fat and mottled.
+      const grouper = sh.kind === 'grouper';
       ctx.beginPath();
-      ctx.ellipse(fx, fy, z, z * 0.38, 0, 0, Math.PI * 2);
+      ctx.ellipse(fx, fy, z, z * (grouper ? 0.55 : 0.38), 0, 0, Math.PI * 2);
       ctx.fill();
+      if (grouper) {
+        ctx.fillStyle = '#C9A57A';
+        for (let t = 0; t < 4; t++) {
+          ctx.beginPath();
+          ctx.arc(
+            fx + (t - 1.5) * z * 0.38,
+            fy + ((t % 2) - 0.5) * z * 0.22,
+            z * 0.11,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        }
+        ctx.fillStyle = sh.c;
+      }
       ctx.beginPath();
       ctx.moveTo(fx - dir * z * 0.8, fy);
       ctx.lineTo(fx - dir * z * 1.45, fy - z * 0.38);
@@ -580,19 +609,20 @@ function drawHullBelow(
   hull: string,
   trim: string,
   T: number,
+  site: DiveSite,
 ): void {
   const bob = Math.sin(T * 2.1) * 1.5 * s;
   // The waterline, catching the light.
   ctx.strokeStyle = 'rgba(255,255,255,.55)';
   ctx.lineWidth = 2 * s;
   ctx.beginPath();
-  for (let x = 0; x <= TW; x += 20) {
+  for (let x = 0; x <= site.w; x += 20) {
     const yy = Y(Math.sin(x * 0.05 + T * 2) * 2);
     if (x === 0) ctx.moveTo(X(x), yy);
     else ctx.lineTo(X(x), yy);
   }
   ctx.stroke();
-  const cx = X(ENTRY);
+  const cx = X(site.entry);
   const cy = Y(0) + bob;
   ctx.fillStyle = hull;
   ctx.beginPath();

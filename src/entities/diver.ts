@@ -8,7 +8,7 @@
  * does the same on purpose. The shipwright's big air tank holds more.
  */
 
-import { ENTRY, keepInWater } from '../world/trench';
+import { type DiveSite, TRENCH_SITE } from '../world/divesite';
 
 /** Seconds of air in the tank, and the share left when the game warns. */
 export const AIR_MAX = 75;
@@ -29,7 +29,9 @@ export const BODY = 12;
 export type DiverEvent = 'surfaced' | 'low' | 'out' | null;
 
 export class Diver {
-  x = ENTRY;
+  /** Where it is diving: the trench, or the wreck. */
+  site: DiveSite = TRENCH_SITE;
+  x = TRENCH_SITE.entry;
   y = TOP + 6;
   vx = 0;
   vy = 0;
@@ -45,10 +47,11 @@ export class Diver {
   deepest = 0;
   private warned = false;
 
-  /** Back in at the top under the boat, a full tank of the size given. */
-  reset(airMax = AIR_MAX): void {
+  /** Back in at the top under the boat, at a site, with a full tank of the size given. */
+  reset(airMax = AIR_MAX, site: DiveSite = TRENCH_SITE): void {
+    this.site = site;
     this.airMax = airMax;
-    this.x = ENTRY;
+    this.x = site.entry;
     this.y = TOP + 6;
     this.vx = 0;
     this.vy = 0;
@@ -80,7 +83,7 @@ export class Diver {
     }
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    keepInWater(this, BODY);
+    this.site.keep(this, BODY);
     this.kick += dt * (3 + Math.hypot(this.vx, this.vy) / 14);
     this.deepest = Math.max(this.deepest, this.y);
     if (this.y <= TOP) {

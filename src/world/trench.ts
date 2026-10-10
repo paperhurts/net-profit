@@ -141,7 +141,7 @@ export function trenchPlants(seed = 31): Plant[] {
   return out;
 }
 
-export type DiveFishKind = 'silver' | 'jelly' | 'lantern' | 'squid' | 'dragon';
+export type DiveFishKind = 'silver' | 'jelly' | 'lantern' | 'squid' | 'dragon' | 'grouper';
 /** A shoal in the trench: what kind, how many, where it ranges, and how big each is. */
 export type Shoal = {
   kind: DiveFishKind;
