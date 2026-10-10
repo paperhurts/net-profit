@@ -18,6 +18,7 @@ import {
   TRIDENT,
   TRIDENT_FLIGHT,
 } from '../../src/entities/sharkking';
+import { SPEAR_SPEED } from '../../src/entities/spears';
 import { ISLE5 } from '../../src/world/isle5';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
@@ -174,11 +175,17 @@ const DODGE = 0.9;
 /**
  * A person at the wheel of a flagship: sails round the reef, a little off it, and makes for him
  * whenever he is up out of the water; a reaction time after the water churns, turns hard off his line; a reaction time after a ring shows, steers out of it
- * (or minds neither, with no reaction); fires the harpoon whenever he is out of the water in reach,
- * a third of a second late. Wins out of 30, the boat's health it costs on average, and how long a
- * win takes. Eaten is a loss.
+ * (or minds neither, with no reaction); taps the harpoon a while after he comes up out of the water
+ * in reach (tap), and again each time it has reloaded and a third of a second more. The harpoon flies
+ * its real time, up to most of a second; fired: whether one fired while he was up counts when it
+ * lands, as the game has it, or only if he is still up then, as it had it until 2026-10-10. Wins out
+ * of 30, the boat's health it costs on average, and how long a win takes. Eaten is a loss.
  */
-function fights(react: number | null): { wins: number; lost: number; secs: number } {
+function fights(
+  react: number | null,
+  tap = 0.5,
+  fired = true,
+): { wins: number; lost: number; secs: number } {
   const r = rng(31 + (react ?? 9) * 100);
   let wins = 0;
   let lost = 0;
@@ -197,6 +204,7 @@ function fights(react: number | null): { wins: number; lost: number; secs: numbe
     });
     let hp = 100;
     let ready = 0;
+    let upAt = -1;
     let warnAt = -1;
     let ringAt = -1;
     let dodge: { x: number; y: number } | null = null;
@@ -255,17 +263,20 @@ function fights(react: number | null): { wins: number; lost: number; secs: numbe
         }
       }
       steerBoat(b, ...stick(dx, dy), SPEED[5], DT);
-      // Fire when he is up and in reach of the bow.
+      // A while after he comes up in reach of the bow, tap; the harpoon flies its real time.
       const m = k.mark();
+      if (m && upAt < 0) upAt = t;
+      if (!m) upAt = -1;
       const bow = { x: b.x + Math.cos(b.h) * 38, y: b.y + Math.sin(b.h) * 38 };
-      if (m && t >= ready && Math.hypot(m.x - bow.x, m.y - bow.y) < HARPOON_RANGE) {
+      const reach = m ? Math.hypot(m.x - bow.x, m.y - bow.y) : Number.POSITIVE_INFINITY;
+      if (m && t - upAt >= tap && t >= ready && reach < HARPOON_RANGE) {
         ready = t + HARPOON_RELOAD + 1 / 3;
-        pending.push({ at: t + 0.25 });
+        pending.push({ at: t + Math.max(0.12, reach / SPEAR_SPEED) });
       }
       for (let i = pending.length - 1; i >= 0; i--) {
         if (t >= (pending[i] as { at: number }).at) {
           pending.splice(i, 1);
-          k.harpoon(HARPOON_POWER);
+          k.harpoon(HARPOON_POWER, null, fired);
         }
       }
       k.update(DT, w);
@@ -293,6 +304,17 @@ describe('fighting the Skeleton Shark King', () => {
     const quick = fights(REACT).lost;
     expect(fights(0.6).lost).toBeGreaterThan(quick);
     expect(fights(null).lost).toBeGreaterThan(50);
+  });
+
+  it('is won by a thumb that taps most of a second after he comes up: a harpoon fired while he is up counts', () => {
+    for (const tap of [0.5, 0.7, 0.9]) {
+      const f = fights(REACT, tap);
+      expect(f.wins, `tapping ${tap} s after he is up`).toBeGreaterThanOrEqual(27);
+      expect(f.secs, `tapping ${tap} s after he is up`).toBeLessThan(60);
+    }
+    // Counted only if he was still up when it landed, that same thumb hardly ever won, and a quick one took minutes.
+    expect(fights(REACT, 0.7, false).wins).toBeLessThan(5);
+    expect(fights(REACT, 0.33, false).secs).toBeGreaterThan(90);
   });
 
   it('warns longer than it takes to turn', () => {

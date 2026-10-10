@@ -154,9 +154,13 @@ export class SharkKing implements Entity {
     return (this.state === 'leap' || this.state === 'raise') && this.up > 0.4 ? this : null;
   }
 
-  /** A harpoon struck him. Returns whether that beat him. */
-  harpoon(power: number): boolean {
-    if (!this.mark()) return false;
+  /**
+   * A harpoon struck him. Returns whether that beat him. fired: it was fired while he was up, so it
+   * counts though he has gone back under by the time it lands (it flies for up to most of a second,
+   * and he is only up for one or so: a hand that taps when it sees him would otherwise mostly miss).
+   */
+  harpoon(power: number, _at: unknown = null, fired = false): boolean {
+    if (!this.mark() && !(fired && this.fighting)) return false;
     this.resolve = Math.max(0, this.resolve - power);
     this.flash = 1;
     if (this.resolve > 0) return false;
