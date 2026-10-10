@@ -51,6 +51,7 @@ export function fakeView(): FakeView {
     translate: count('translate'),
     rotate: count('rotate'),
     scale: count('scale'),
+    setLineDash: count('setLineDash'),
   } as unknown as CanvasRenderingContext2D;
   const fake: FakeView = {
     calls,

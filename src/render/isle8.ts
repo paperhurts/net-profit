@@ -3,9 +3,10 @@
  * island 8's green and island 9's darker marsh grass, reeds at the shores,
  * island 8's trading post, palms and tower flying the Heron's banner, and
  * island 9's dead trees, rocks and the Heron's own tower: dark stone banded with
- * alien metal, crowned with a great nest of sticks under a purple light. Both
- * doors are barred with planks for now. Stand-in shapes, in island 7's style,
- * until the kid draws them.
+ * alien metal, crowned with a great nest of sticks under a purple light. Island
+ * 9's door is barred with planks; island 8's too, until island 7's sorcerer has
+ * failed, and once the Heron is beaten on its roof it flies the player's flag.
+ * Stand-in shapes, in island 7's style, until the kid draws them.
  */
 import { rgba } from '../core/color';
 import type { DrawView } from '../entities/entity';
@@ -27,8 +28,13 @@ import {
 import { drawPalm7 } from './isle7';
 import type { Solid } from './layers';
 
-/** What changes on the twins: whether the towers are barred. */
-export type Isle8Look = { barred: boolean };
+/** What changes on the twins: whether each tower is barred, and who flies a flag on island 8's. */
+export type Isle8Look = {
+  barred8: boolean;
+  barred9: boolean;
+  /** Draws the player's flag at a screen point, or null while the Heron holds island 8's tower. */
+  flag8: ((sx: number, sy: number) => void) | null;
+};
 
 const MID = { x: ISLE8.x, y: (ISLE8.y + ISLE9.y) / 2 } as const;
 const SPAN = ISLE9.y - ISLE8.y + ISLE8.r * 2;
@@ -252,12 +258,24 @@ function drawTower8(v: DrawView, look: Isle8Look): void {
   const pts = octagon(t);
   v.extrude(pts, 0, t.h, '#7F8A92', '#A9B2B9');
   face(v, t, 7, 0, 24, '#3A2E28');
-  if (look.barred) bar(v, t);
-  for (const z of [60, 100, 136]) face(v, t, 2, z, z + 11, v.dark > 0.3 ? '#B98AFF' : '#2B2F31');
+  if (look.barred8) bar(v, t);
+  for (const z of [60, 100, 136])
+    face(v, t, 2, z, z + 11, v.dark > 0.3 && !look.flag8 ? '#B98AFF' : '#2B2F31');
   const top = [...pts].sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
   for (const p of top) v.box(p[0] - 4, p[1] - 4, 8, 8, t.h, t.h + 9, '#7F8A92', '#B3BBC1');
   const bx = px(t.x, t.y);
   const by = py(t.x, t.y, t.h);
+  if (look.flag8) {
+    // Taken: the player's flag flies there now.
+    ctx.strokeStyle = '#8A6A43';
+    ctx.lineWidth = 2 * Z;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx, by - 40 * Z);
+    ctx.stroke();
+    look.flag8(bx, by - 40 * Z);
+    return;
+  }
   ctx.strokeStyle = '#8A6A43';
   ctx.lineWidth = 2 * Z;
   ctx.beginPath();
@@ -322,7 +340,7 @@ function drawTower9(v: DrawView, look: Isle8Look): void {
     z0 = z + 7;
   }
   face(v, t, 8, 0, 28, '#2A2430');
-  if (look.barred) bar(v, t);
+  if (look.barred9) bar(v, t);
   for (const z of [110, 182]) face(v, t, 2.4, z, z + 12, '#B98AFF');
   const top = [...pts].sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
   for (const p of top) v.box(p[0] - 4.5, p[1] - 4.5, 9, 9, t.h, t.h + 10, '#5C5866', '#86829A');
