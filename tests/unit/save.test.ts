@@ -538,3 +538,12 @@ describe('the aquarium', () => {
     expect(parseSave(JSON.stringify(bad), bounds).aquarium).toBe(false);
   });
 });
+
+describe('the naga', () => {
+  it('is still in his cage in a save from before him, and stays free once freed', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.nagaFree).toBe(false);
+    s.nagaFree = true;
+    expect(parseSave(serializeSave(s), bounds).nagaFree).toBe(true);
+  });
+});

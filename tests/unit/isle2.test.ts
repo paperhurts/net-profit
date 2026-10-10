@@ -13,7 +13,18 @@ import {
   walkable,
 } from '../../src/entities/walker';
 import { DEEP, pastBuoys, WS } from '../../src/world/island';
-import { berth2, DOCK2, ISLE2, LANDING2, PALMS2, POST, TOWER } from '../../src/world/isle2';
+import {
+  berth2,
+  CAMP,
+  DOCK2,
+  HUTS,
+  ISLE2,
+  LANDING2,
+  NAGA_CAGE,
+  PALMS2,
+  POST,
+  TOWER,
+} from '../../src/world/isle2';
 import { createIsle2Schools } from '../../src/world/schools';
 import { baseWorld } from './helpers/world';
 
@@ -118,5 +129,17 @@ describe('island 2', () => {
       const [x, y] = lurkAt(r);
       expect(Math.hypot(x - ISLE2.x, y - ISLE2.y)).toBeGreaterThan(ISLE2.r + 400);
     }
+  });
+});
+
+describe("the naga's cage at the monkey camp", () => {
+  it('stands on the island by the camp, clear of its huts, and is in the way', () => {
+    const { x, y, r } = NAGA_CAGE;
+    expect(Math.hypot(x - ISLE2.x, y - ISLE2.y)).toBeLessThan(ISLE2.r - r - 20);
+    expect(Math.hypot(x - CAMP.x, y - CAMP.y)).toBeLessThan(70);
+    for (const [hx, hy] of HUTS) expect(Math.hypot(x - hx, y - hy)).toBeGreaterThan(r + 11 + 8);
+    expect(walkable(x, y, 0)).toBe(false);
+    // The figure can walk right up to it, as to everything at the camp.
+    expect(walkable(x + r + 8, y + r + 8, 0)).toBe(true);
   });
 });

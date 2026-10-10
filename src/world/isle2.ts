@@ -73,3 +73,5 @@ export const HUTS: readonly [number, number][] = [
 export const FIRE = { x: CAMP.x, y: CAMP.y } as const;
 export const TOTEM = { x: CAMP.x + 28, y: CAMP.y - 18 } as const;
 export const CHEST = { x: CAMP.x - 14, y: CAMP.y + 10 } as const;
+/** The cage at the camp where the monkeys keep the naga, the kid's blue sea-warrior, until the camp is beaten. */
+export const NAGA_CAGE = { x: CAMP.x + 42, y: CAMP.y + 24, r: 11 } as const;

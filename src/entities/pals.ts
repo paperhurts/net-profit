@@ -15,28 +15,50 @@
  * the hold (tap it on the boat, at sea, with fish aboard) it has another heal,
  * up to five, kept for the fights to come. Tap it otherwise to pet it. The game finds what they fight, as for the
  * warlock, and says what hurts them.
+ *
+ * And the naga, the kid's blue sea-warrior: a fish-headed fighter with a snake's tail for legs, red spines down
+ * his back and a long pole with a great orange fin-blade on it, kept in a cage at island 2's monkey camp until
+ * the camp is beaten. Ashore he is one of these, with the longest reach of them and five hit points; at sea he
+ * does not ride the boat but swims beside it, keeping up however fast it goes, and rests there when worn out.
  */
 
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkable, walkStep } from './walker';
 
-export type PalKind = 'cat' | 'warrior' | 'bones';
+export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga';
 
 export const PAL_HP = 5;
 export const BONES_HP = 4;
 export const PAL_SPEED = 100;
 /** How close each keeps behind the figure, and how far off it pops over. */
-export const PAL_HEEL: Readonly<Record<PalKind, number>> = { cat: 24, warrior: 30, bones: 36 };
+export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
+  cat: 24,
+  warrior: 30,
+  bones: 36,
+  naga: 34,
+};
 export const PAL_BLINK = 200;
 /** Something this close to the figure is fought; each hits from this close, this often, this hard. */
 export const FIGHT_FROM = 130;
-export const REACH: Readonly<Record<PalKind, number>> = { cat: 20, warrior: 26, bones: 28 };
+export const REACH: Readonly<Record<PalKind, number>> = {
+  cat: 20,
+  warrior: 26,
+  bones: 28,
+  naga: 36,
+};
 export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   cat: 1.1,
   warrior: 1.4,
   bones: 1.5,
+  naga: 1.3,
 };
-export const POWER: Readonly<Record<PalKind, number>> = { cat: 1, warrior: 2, bones: 2 };
+export const POWER: Readonly<Record<PalKind, number>> = { cat: 1, warrior: 2, bones: 2, naga: 2 };
+/**
+ * Where the naga swims at sea, in the hull's units: this far off the boat's right side, this far ahead of
+ * amidships, alongside the cabin and clear of the net's lines off the stern.
+ */
+export const SWIM_SIDE = 28;
+export const SWIM_AHEAD = 6;
 /** The bones raise their ghost and skeleton once a fight is on, and again this long after, if those are gone. */
 export const RAISE_EVERY = 12;
 /** Blinking this long after a hit; worn out, resting this long. */
@@ -70,6 +92,9 @@ export class Pal implements Entity {
   private rest = 0;
   private swingCd = 0;
   private hadFigure = false;
+  /** The naga is in the water beside the boat, on this side of it: 1 its right, -1 its left. */
+  swimming = false;
+  side = 1;
   private readonly trail: { x: number; y: number }[] = [];
   /** What it can fight, nearest, within reach of a point; the game knows. */
   findTarget: ((x: number, y: number, range: number) => PalTarget | null) | null = null;
@@ -108,6 +133,7 @@ export class Pal implements Entity {
     this.y = y;
     this.trail.length = 0;
     this.hadFigure = true;
+    this.swimming = false;
   }
 
   /** A hit on it. Returns whether it hurt. */
@@ -158,7 +184,14 @@ export class Pal implements Entity {
   private arrive(f: { x: number; y: number }): void {
     this.x = f.x;
     this.y = f.y;
-    const off = this.kind === 'cat' ? [16, 12] : this.kind === 'warrior' ? [-16, 14] : [14, -16];
+    const off =
+      this.kind === 'cat'
+        ? [16, 12]
+        : this.kind === 'warrior'
+          ? [-16, 14]
+          : this.kind === 'naga'
+            ? [-14, -18]
+            : [14, -16];
     for (const [dx, dy] of [
       off,
       [-(off[0] as number), off[1] as number],
@@ -193,17 +226,22 @@ export class Pal implements Entity {
     if (this.state === 'resting') {
       this.rest -= dt;
       if (landed) this.rest = 0;
-      if (this.rest > 0) return;
+      if (this.rest > 0) {
+        this.swim(dt, w);
+        return;
+      }
       this.state = 'away';
       this.hp = this.maxHp;
     }
     if (!f) {
       if (this.state === 'with') this.state = 'away';
       this.hp = this.maxHp;
+      this.swim(dt, w);
       return;
     }
     if (this.state === 'away' || Math.hypot(f.x - this.x, f.y - this.y) > PAL_BLINK) {
       this.state = 'with';
+      this.swimming = false;
       this.arrive(f);
       return;
     }
@@ -252,6 +290,42 @@ export class Pal implements Entity {
     } else this.h = Math.atan2(f.y - this.y, f.x - this.x);
   }
 
+  /**
+   * The naga at sea: beside the boat on the side nearer the viewer, so the hull never hides him, ducking
+   * under to the other side once a turn has clearly put him behind it; keeping up; over at once if far behind.
+   */
+  private swim(dt: number, w: World): void {
+    if (this.kind !== 'naga') return;
+    const b = w.boat;
+    const k = w.hullScale;
+    const c = Math.cos(b.h);
+    const s = Math.sin(b.h);
+    // The boat's right side faces the viewer when it points down the screen's +x+y.
+    const near = c - s;
+    if (near > 0.35) this.side = 1;
+    else if (near < -0.35) this.side = -1;
+    const tx = b.x + c * SWIM_AHEAD * k - s * SWIM_SIDE * k * this.side;
+    const ty = b.y + s * SWIM_AHEAD * k + c * SWIM_SIDE * k * this.side;
+    const dx = tx - this.x;
+    const dy = ty - this.y;
+    const d = Math.hypot(dx, dy);
+    if (!this.swimming || d > PAL_BLINK) {
+      this.swimming = true;
+      this.x = tx;
+      this.y = ty;
+      this.h = b.h;
+      return;
+    }
+    // As fast as the boat and more, so he keeps his place beside it rather than trailing into the net.
+    const sp = Math.min(d * 8, Math.abs(b.v) * 1.3 + 120);
+    if (d > 0.5) {
+      this.x += (dx / d) * sp * dt;
+      this.y += (dy / d) * sp * dt;
+    }
+    if (Math.abs(b.v) > 12) this.h = b.v > 0 ? b.h : b.h + Math.PI;
+    this.ph += dt * (2.5 + Math.abs(b.v) / 30);
+  }
+
   private step(ux: number, uy: number, sp: number, dt: number): void {
     const moved = walkStep(this, ux * sp * dt, uy * sp * dt, 99);
     if (moved > 0) {
@@ -272,6 +346,8 @@ export class Pal implements Entity {
     if (this.kind === 'cat') drawCat(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.25, 1);
     else if (this.kind === 'warrior')
       drawWarrior(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
+    else if (this.kind === 'naga')
+      drawNaga(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1, false);
     else drawBones(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
     this.drawOver(v, sx, sy);
   }
@@ -280,7 +356,10 @@ export class Pal implements Entity {
   private drawOver(v: DrawView, sx: number, sy: number): void {
     const { ctx } = v;
     const Z = v.zoom;
-    const top = sy - (this.kind === 'cat' ? 20 : this.kind === 'warrior' ? 30 : 40) * Z;
+    const top =
+      sy -
+      (this.kind === 'cat' ? 20 : this.kind === 'warrior' ? 30 : this.kind === 'naga' ? 36 : 40) *
+        Z;
     const max = this.maxHp;
     if (this.hp < max) {
       for (let i = 0; i < max; i++) {
@@ -315,7 +394,7 @@ export class Pal implements Entity {
 
   /** Riding along on a boat of this hull scale while the figure is aboard. */
   drawAboard(v: DrawView, b: { x: number; y: number; h: number }, k: number): void {
-    if (!this.free || this.state === 'with') return;
+    if (!this.free || this.state === 'with' || this.kind === 'naga') return;
     if (this.kind === 'cat') {
       // On the cabin roof, curled up.
       const p = this.seat(b, k);
@@ -329,6 +408,34 @@ export class Pal implements Entity {
       draw(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, 0, false, 0.8);
     }
   }
+}
+
+/** The naga can be drawn swimming: free and not ashore with the figure. */
+export function nagaSwims(p: Pal): boolean {
+  return p.kind === 'naga' && p.free && p.state !== 'with' && p.swimming;
+}
+
+/** The naga in the water beside the boat: his tail under the surface, a ripple round him. */
+export function drawSwimming(v: DrawView, p: Pal): void {
+  if (!nagaSwims(p)) return;
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sx = v.px(p.x, p.y);
+  const sy = v.py(p.x, p.y, 0);
+  ctx.strokeStyle = 'rgba(255,255,255,.45)';
+  ctx.lineWidth = 1.2 * Z;
+  ctx.beginPath();
+  ctx.ellipse(
+    sx,
+    sy,
+    (10 + Math.sin(v.T * 3) * 1.5) * Z,
+    (5 + Math.sin(v.T * 3) * 0.7) * Z,
+    0,
+    0,
+    Math.PI * 2,
+  );
+  ctx.stroke();
+  drawNaga(v, sx, sy, p.h, p.ph, 1, false, 1, true);
 }
 
 /**
@@ -576,4 +683,319 @@ export function drawWarrior(
     ctx.arc(gx + (e * 2 + dir) * Z, gy - 0.5 * Z, 1 * Z, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+const NAGA = {
+  blue: '#3A78C8',
+  dark: '#24508F',
+  spot: '#1B3A6B',
+  pale: '#8FC4F0',
+  fin: '#8A4FC9',
+  spine: '#C8323C',
+  orange: '#E07A2E',
+  blade: '#F08A3A',
+  edge: '#B5521E',
+} as const;
+
+/**
+ * The naga, the kid's blue sea-warrior: a fish head with its jaws open, an orange crest with red spines, orange
+ * shoulder plates, a blue body on a long spotted snake's tail that ends in a purple fin, and a long pole with a
+ * great serrated orange fin-blade, held up and brought down as he strikes. In the water his tail is under the
+ * surface and only his top half shows.
+ */
+export function drawNaga(
+  v: DrawView,
+  x: number,
+  y: number,
+  h: number,
+  ph: number,
+  gait: number,
+  swing: boolean,
+  size: number,
+  inWater: boolean,
+): void {
+  const { ctx, T } = v;
+  const Z = v.zoom * size;
+  const dir = Math.cos(h) - Math.sin(h) >= 0 ? 1 : -1;
+  const X = (dx: number) => x + dx * dir * Z;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // The tail: curled on the ground behind him ashore, stretched out under the surface at sea.
+  const wave = (i: number) => Math.sin(ph * 2 + i * 1.3) * (inWater ? 1.6 : 1.1 * gait);
+  const tail: [number, number][] = inWater
+    ? [
+        [0, 0],
+        [-7, 1],
+        [-15, 1],
+        [-23, 0],
+        [-30, -1],
+      ]
+    : [
+        [0, -8],
+        [-6, -1],
+        [-14, 0],
+        [-20, -3],
+        [-22, -10],
+      ];
+  const pts = tail.map(([tx, ty], i): [number, number] => [X(tx), y + (ty + wave(i)) * Z]);
+  ctx.globalAlpha = inWater ? 0.45 : 1;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i] as [number, number];
+    const b = pts[i + 1] as [number, number];
+    ctx.strokeStyle = NAGA.blue;
+    ctx.lineWidth = (6.2 - i * 1.1) * Z;
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]);
+    ctx.lineTo(b[0], b[1]);
+    ctx.stroke();
+    ctx.fillStyle = NAGA.spot;
+    ctx.beginPath();
+    ctx.arc((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 0.6 * Z, 0.8 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    if (!inWater) {
+      // Red spines along the top of the tail.
+      ctx.strokeStyle = NAGA.spine;
+      ctx.lineWidth = 0.8 * Z;
+      ctx.beginPath();
+      ctx.moveTo((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 - (2.6 - i * 0.4) * Z);
+      ctx.lineTo((a[0] + b[0]) / 2 - dir * 1.5 * Z, (a[1] + b[1]) / 2 - (5.4 - i * 0.6) * Z);
+      ctx.stroke();
+    }
+  }
+  // The purple fin at its end.
+  const end = pts[pts.length - 1] as [number, number];
+  const fx = end[0];
+  const fy = end[1];
+  ctx.fillStyle = NAGA.fin;
+  ctx.beginPath();
+  ctx.moveTo(fx, fy);
+  ctx.lineTo(fx - dir * 5 * Z, fy - 4.5 * Z);
+  ctx.lineTo(fx - dir * 3.5 * Z, fy);
+  ctx.lineTo(fx - dir * 5 * Z, fy + 3.5 * Z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  // Above the water, or standing on his tail: he bobs a little at sea.
+  const by = inWater ? y + Math.sin(T * 2.2) * 0.8 * Z - 2 * Z : y - 8 * Z;
+  if (inWater) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - 40 * Z, y - 70 * Z, 80 * Z, 70 * Z + 0.5);
+    ctx.clip();
+  }
+  const Y = (dy: number) => by + dy * Z;
+  // The pole, held behind him first so the far arm and the body go over it.
+  const a = swing ? -0.2 : -1.2;
+  const ux = Math.cos(a) * dir;
+  const uy = Math.sin(a);
+  const hx = X(4);
+  const hy = Y(-7);
+  const back = [hx - ux * 11 * Z, hy - uy * 11 * Z] as const;
+  const front = [hx + ux * 19 * Z, hy + uy * 19 * Z] as const;
+  ctx.strokeStyle = '#3A2E28';
+  ctx.lineWidth = 1.6 * Z;
+  ctx.beginPath();
+  ctx.moveTo(back[0], back[1]);
+  ctx.lineTo(front[0], front[1]);
+  ctx.stroke();
+  // A spike on its back end, and the great serrated fin-blade on the front.
+  ctx.fillStyle = NAGA.blade;
+  ctx.beginPath();
+  ctx.moveTo(back[0] - ux * 3.5 * Z, back[1] - uy * 3.5 * Z);
+  ctx.lineTo(back[0] - uy * 1.2 * Z * dir, back[1] + ux * 1.2 * Z * dir);
+  ctx.lineTo(back[0] + uy * 1.2 * Z * dir, back[1] - ux * 1.2 * Z * dir);
+  ctx.closePath();
+  ctx.fill();
+  // Across the pole, on the side away from him.
+  const nx = uy * dir;
+  const ny = -ux * dir;
+  const side = ny > 0 ? 1 : -1;
+  const at = (t: number, w: number): [number, number] => [
+    front[0] + ux * t * Z + nx * side * w * Z,
+    front[1] + uy * t * Z + ny * side * w * Z,
+  ];
+  const blade: [number, number][] = [
+    at(-3, 0),
+    at(10, 0),
+    at(8, 3.2),
+    at(6, 2.2),
+    at(4, 4.6),
+    at(2, 3.2),
+    at(0, 5.2),
+    at(-2, 3.4),
+  ];
+  ctx.beginPath();
+  for (const [i, [bx, by]] of blade.entries()) {
+    if (i) ctx.lineTo(bx, by);
+    else ctx.moveTo(bx, by);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = NAGA.edge;
+  ctx.lineWidth = 0.7 * Z;
+  ctx.stroke();
+  // The far arm, onto the pole behind his hand.
+  ctx.strokeStyle = NAGA.dark;
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(X(-3), Y(-11));
+  ctx.lineTo(hx - ux * 5 * Z, hy - uy * 5 * Z);
+  ctx.stroke();
+  // His body, its belly paler, and red spines down his back.
+  ctx.fillStyle = NAGA.blue;
+  ctx.beginPath();
+  ctx.ellipse(x, Y(-6), 4.6 * Z, 7 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = NAGA.pale;
+  ctx.beginPath();
+  ctx.ellipse(X(1.6), Y(-5), 2.2 * Z, 5 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = NAGA.spine;
+  ctx.lineWidth = 0.8 * Z;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(X(-4), Y(-11 + i * 3));
+    ctx.lineTo(X(-7.5), Y(-12.5 + i * 3));
+    ctx.stroke();
+  }
+  // Orange shoulder plates, a red swirl on the near one.
+  ctx.fillStyle = NAGA.orange;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(X(s * 4.2), Y(-11.5), 2.8 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = NAGA.spine;
+  ctx.beginPath();
+  ctx.arc(X(4.2), Y(-11.5), 1.2 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  // The near arm, a grey bracer at the wrist, onto the pole.
+  ctx.strokeStyle = NAGA.blue;
+  ctx.lineWidth = 2.2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(X(4.2), Y(-11));
+  ctx.lineTo(hx, hy);
+  ctx.stroke();
+  ctx.strokeStyle = '#B8BEC6';
+  ctx.lineWidth = 2.6 * Z;
+  ctx.beginPath();
+  ctx.moveTo(hx + (X(4.2) - hx) * 0.35, hy + (Y(-11) - hy) * 0.35);
+  ctx.lineTo(hx + (X(4.2) - hx) * 0.15, hy + (Y(-11) - hy) * 0.15);
+  ctx.stroke();
+  // The orange crest behind his head, with red spines fanning back.
+  ctx.fillStyle = NAGA.orange;
+  ctx.beginPath();
+  ctx.moveTo(X(1), Y(-21));
+  ctx.lineTo(X(-6), Y(-24));
+  ctx.lineTo(X(-7), Y(-16));
+  ctx.lineTo(X(-1), Y(-15));
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = NAGA.spine;
+  ctx.lineWidth = 0.9 * Z;
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.moveTo(X(1.5 - i * 1.6), Y(-20.5 + i * 0.6));
+    ctx.lineTo(X(-0.5 - i * 2.3), Y(-27 + i * 1.6));
+    ctx.stroke();
+  }
+  // The fish head, its jaws open on little teeth, a yellow eye.
+  ctx.fillStyle = NAGA.blue;
+  ctx.beginPath();
+  ctx.ellipse(X(1.5), Y(-17.5), 4.6 * Z, 4 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(X(5.5), Y(-16.5), 3 * Z, 2.3 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#16233A';
+  ctx.beginPath();
+  ctx.moveTo(X(8.6), Y(-16));
+  ctx.lineTo(X(3.5), Y(-15.6));
+  ctx.lineTo(X(8.2), Y(-14));
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#FFFFFF';
+  for (const t of [5, 7]) {
+    ctx.beginPath();
+    ctx.moveTo(X(t), Y(-15.9));
+    ctx.lineTo(X(t + 0.6), Y(-15.1));
+    ctx.lineTo(X(t + 1.2), Y(-15.9));
+    ctx.fill();
+  }
+  ctx.fillStyle = '#F2D04A';
+  ctx.beginPath();
+  ctx.arc(X(3.4), Y(-19), 1.3 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#14222A';
+  ctx.beginPath();
+  ctx.arc(X(3.7), Y(-19), 0.6 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  if (inWater) ctx.restore();
+}
+
+/** The cage at the monkey camp: bamboo bars lashed with rope under a thatch, the naga in it until he is freed. */
+export function drawNagaCage(
+  v: DrawView,
+  x: number,
+  y: number,
+  r: number,
+  open: number,
+  nagaIn: boolean,
+): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const H = 36;
+  v.box(x - r, y - r, r * 2, r * 2, 0, 2, '#6B5136', '#7E6040');
+  const bars = (front: boolean) => {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const bx = x + Math.cos(a) * r;
+      const by = y + Math.sin(a) * r;
+      if (Math.cos(a) + Math.sin(a) > 0 !== front) continue;
+      const lift = open * (H - 6);
+      ctx.strokeStyle = '#9C7A3E';
+      ctx.lineWidth = 1.8 * Z;
+      ctx.beginPath();
+      ctx.moveTo(px(bx, by), py(bx, by, 2 + lift));
+      ctx.lineTo(px(bx, by), py(bx, by, H));
+      ctx.stroke();
+    }
+    // Rope lashings round the bars.
+    ctx.strokeStyle = '#D8C38E';
+    ctx.lineWidth = 1 * Z;
+    for (const z of [H * 0.35, H * 0.75]) {
+      if (z < 2 + open * (H - 6)) continue;
+      ctx.beginPath();
+      ctx.ellipse(
+        px(x, y),
+        py(x, y, z),
+        r * Z,
+        r * Z * 0.5,
+        0,
+        front ? 0 : Math.PI,
+        front ? Math.PI : Math.PI * 2,
+      );
+      ctx.stroke();
+    }
+  };
+  bars(false);
+  if (nagaIn) drawNaga(v, px(x, y), py(x, y, 2), Math.PI / 4, 0, 0, false, 0.85, false);
+  bars(true);
+  // A thatch over it.
+  ctx.fillStyle = '#B4934F';
+  ctx.beginPath();
+  ctx.moveTo(px(x - r - 3, y), py(x - r - 3, y, H));
+  ctx.lineTo(px(x, y - r - 3), py(x, y - r - 3, H));
+  ctx.lineTo(px(x + r + 3, y), py(x + r + 3, y, H));
+  ctx.lineTo(px(x, y + r + 3), py(x, y + r + 3, H));
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#C9A960';
+  ctx.beginPath();
+  ctx.moveTo(px(x - r - 3, y), py(x - r - 3, y, H));
+  ctx.lineTo(px(x, y), py(x, y, H + 9));
+  ctx.lineTo(px(x + r + 3, y), py(x + r + 3, y, H));
+  ctx.lineTo(px(x, y + r + 3), py(x, y + r + 3, H));
+  ctx.closePath();
+  ctx.fill();
 }

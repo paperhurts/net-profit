@@ -102,6 +102,8 @@ export type SaveData = {
   lionCaught: number;
   /** The aquarium on the home island is built. */
   aquarium: boolean;
+  /** The naga, freed from the monkeys' cage on island 2, is yours. */
+  nagaFree: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
@@ -201,6 +203,7 @@ export function defaultSave(b: Bounds): SaveData {
     lionSeen: false,
     lionCaught: 0,
     aquarium: false,
+    nagaFree: false,
     spear: 0,
     armour: 0,
     sailed: '',
@@ -297,6 +300,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.lionSeen = !!o.lionSeen;
   d.lionCaught = Math.max(0, int(o.lionCaught));
   d.aquarium = !!o.aquarium;
+  d.nagaFree = !!o.nagaFree;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
@@ -387,6 +391,7 @@ export function serializeSave(d: SaveData): string {
     lionSeen: d.lionSeen,
     lionCaught: d.lionCaught,
     aquarium: d.aquarium,
+    nagaFree: d.nagaFree,
     spear: d.spear,
     armour: d.armour,
     sailed: d.sailed,

@@ -66,6 +66,9 @@ type Np = {
   mending: boolean;
   lionCaught: number;
   aquarium: boolean;
+  nagaFree: boolean;
+  NAGA_CAGE: { x: number; y: number; r: number };
+  naga: { shown: boolean; swimming: boolean; x: number; y: number };
   AQUARIUM: { x0: number; y0: number; x1: number; y1: number };
   tankView: { fish: unknown[]; eaten: number };
   rod: { state: string };
@@ -83,6 +86,7 @@ type Np = {
   isle7Stage: number;
   portalOpen: number;
   monkeys7: { list: { state: string }[] };
+  monkeys: { list: unknown[]; hit(m: unknown, power: number, fx: number, fy: number): void };
   boss7: { up: boolean; hp: number; hit(power: number): void };
   roofMonkeys: { list: { state: string }[] };
   hordes: Record<
@@ -862,6 +866,53 @@ test('monkeys: a barbed spear beats a skull-mask monkey and its mask is kept', a
   await expect(page.locator('#throw')).toBeVisible();
   await page.click('#throw');
   await page.waitForFunction(() => window.__np.masks > 0, null, { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('the naga: beat the monkey camp and his cage opens; he fights beside you, and swims beside the boat', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.nagaFree)).toBe(false);
+  // Beat the whole camp.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const C = window.__np.NAGA_CAGE;
+    w.x = C.x + 30;
+    w.y = C.y + 30;
+    const M = window.__np.monkeys;
+    for (const m of M.list) M.hit(m, 9, w.x, w.y);
+  });
+  await page.waitForFunction(() => window.__np.nagaFree, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('naga');
+  await page.waitForFunction(() => window.__np.naga.shown, null, { timeout: 2000 });
+  // It is kept: a reload finds him free.
+  await page.waitForTimeout(5200);
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => window.__np.nagaFree)).toBe(true);
+  // Back aboard at the berth, he is in the water beside the boat.
+  await page.waitForFunction(() => window.__np.naga.swimming, null, { timeout: 3000 });
+  await page.waitForTimeout(800);
+  const gap = await page.evaluate(() =>
+    Math.hypot(window.__np.naga.x - window.__np.boat.x, window.__np.naga.y - window.__np.boat.y),
+  );
+  expect(gap).toBeLessThan(80);
   expect(errors).toEqual([]);
 });
 
