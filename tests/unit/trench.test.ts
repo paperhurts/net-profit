@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AIR_LOW, AIR_MAX, Diver, DRIFT, TOP } from '../../src/entities/diver';
+import { GEAR, GEAR_IDS } from '../../src/data/gear';
+import { AIR_LOW, AIR_MAX, Diver, DRIFT, TANK_AIR, TOP } from '../../src/entities/diver';
 import { darkAt, diveCamera, drawDive, VIEW_W, waterAt } from '../../src/render/dive';
 import { pastBuoys, pastFar } from '../../src/world/island';
 import { ISLE2 } from '../../src/world/isle2';
@@ -138,6 +139,27 @@ describe('the diver', () => {
     e.y = 900;
     e.surface();
     expect(run(e, 20)).toEqual(['surfaced']);
+  });
+
+  it("goes longer on the shipwright's big air tank, and warns and fills by that tank", () => {
+    expect(GEAR_IDS).toContain('tank');
+    expect(GEAR.tank.cost).toBeGreaterThan(0);
+    expect(TANK_AIR).toBeGreaterThan(AIR_MAX * 1.4);
+    const small = new Diver();
+    const big = new Diver();
+    big.reset(TANK_AIR);
+    expect(big.air).toBe(TANK_AIR);
+    for (const d of [small, big]) d.y = 600;
+    // Past the small tank's last breath, the big tank still has air and has not warned.
+    const a = run(small, AIR_MAX + 1, 0, 0.12);
+    const b = run(big, AIR_MAX + 1, 0, 0.12);
+    expect(a).toContain('out');
+    expect(b).not.toContain('out');
+    expect(b).not.toContain('low');
+    expect(big.air).toBeGreaterThan(TANK_AIR - AIR_MAX - 2);
+    // A plain reset is the scuba gear's own tank again.
+    big.reset();
+    expect(big.airMax).toBe(AIR_MAX);
   });
 });
 

@@ -51,7 +51,7 @@ import { BASES, baseAtDock, hasPots, hasSeine, homePort, nextStage, noBases } fr
 import { canDrop, fillPots, POT_MAX, POT_REACH, POTS, potNear } from './fishing/pots';
 import { drawPot } from './render/pots';
 import { LANTERN, TRENCH, TRENCH_SIGHT, trenchPlants, trenchShoals } from './world/trench';
-import { Diver } from './entities/diver';
+import { AIR_MAX, Diver, TANK_AIR } from './entities/diver';
 import { drawDive } from './render/dive';
 import { aimAt, here as fishHere, noneGone, REACH, spear as spearFish, stepSpear, throwSpear as throwDiveSpear } from './fishing/underwater';
 import { crabSvg, drawSpiderCrab } from './render/crab';
@@ -417,7 +417,7 @@ let diving = false, diveT = 0, diveBubT = 0, diveBubbles = [], diveShown = false
 let diveGone = noneGone(trenchSh), diveSpears = [], diveTexts = [], diveReload = 0, diveAim = null;
 function hasScuba(){ return isle3Stage >= 1; }
 function overTrench(){ return Math.hypot(boat.x - TRENCH.x, boat.y - TRENCH.y) < TRENCH.r; }
-function startDive(){ audio(); if (!diveShown) return; diving = true; diver.reset(); diveBubbles = []; stowSeine(); joy.on = false;
+function startDive(){ audio(); if (!diveShown) return; diving = true; diver.reset(gear.tank ? TANK_AIR : AIR_MAX); diveBubbles = []; stowSeine(); joy.on = false;
   document.body.classList.add('diving'); $('diveBtn').hidden = true; diveShown = false; $('surfaceBtn').hidden = false; sfx.spit(); toasts.clear();
   elThrow.hidden = !spear; throwShown = 'dive'; elThrow.classList.remove('harpoon'); elThrow.setAttribute('aria-label', 'Throw the spear');
   toast((trenchDeep ? 'Back down the trench. Swim with the stick; let go and you drift up.' : 'Down into the trench! Swim with the stick; let go and you drift gently up. The deeper you go, the darker it gets, until only the glowing things light the way.')
@@ -1351,8 +1351,8 @@ function spSvg(S, c){ return S.crab ? crabSvg(c) : FISH_SVG(c); }
 function hudPhase(){ $('phase').innerHTML = `<i style="background:${PHASE_C[phase]}"></i><span>${phase}</span>`; }
 function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>'; }
 function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier());
-  // The chemistry suit is kept back until the tar island has been seen.
-  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => (id !== 'suit' || isle3Stage >= 4 || gear.suit) && (id !== 'kit' || lionSeen || gear.kit) && (id !== 'rod' || lionSeen || gear.rod) && (id !== 'lionnet' || lionSeen || gear.lionnet)).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
+  // The chemistry suit is kept back until the tar island has been seen, the lionfish gear until a lionfish has, and the big air tank until there is scuba gear.
+  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => (id !== 'suit' || isle3Stage >= 4 || gear.suit) && (id !== 'kit' || lionSeen || gear.kit) && (id !== 'rod' || lionSeen || gear.rod) && (id !== 'lionnet' || lionSeen || gear.lionnet) && (id !== 'tank' || hasScuba() || gear.tank)).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
     return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join('')
     // The spear is for island 2's shallows, so the shipwright keeps it back until island 2 has been found.
     + (() => { const n = nextSpear(spear), have = spearAt(spear); if (!isle2Seen && !spear) return '';

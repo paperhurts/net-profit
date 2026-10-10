@@ -10,7 +10,7 @@
  */
 
 import type { Diver } from '../entities/diver';
-import { AIR_LOW, AIR_MAX } from '../entities/diver';
+import { AIR_LOW } from '../entities/diver';
 import {
   ENTRY,
   fishIn,
@@ -597,7 +597,7 @@ function drawGauge(ctx: CanvasRenderingContext2D, d: Diver, W: number): void {
   const x = 16;
   const y = 92;
   const n = 10;
-  const left = d.air / AIR_MAX;
+  const left = d.air / d.airMax;
   const low = left <= AIR_LOW;
   ctx.fillStyle = 'rgba(8,24,36,.55)';
   ctx.beginPath();

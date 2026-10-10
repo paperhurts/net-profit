@@ -10,10 +10,12 @@
  * the answer to the kid's lionfish, whose spines cut the net: kept back until
  * a lionfish has been seen, it mends a cut net at sea; the fishing rod
  * catches them for a bounty; and the lionfish net, the kid's way to clear
- * them out, sweeps them up without being cut.
+ * them out, sweeps them up without being cut. The big air tank is for the
+ * diver in the trench: kept back until the scuba gear has been found, it holds
+ * more air, so a dive goes deeper and longer and takes more bites.
  */
 
-export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit' | 'rod' | 'lionnet';
+export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit' | 'rod' | 'lionnet' | 'tank';
 
 export type Gear = {
   name: string;
@@ -64,10 +66,25 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
       'A lionfish net, with a guard their spines cannot cut. Tow it through them and each one pays the bounty.',
     cost: 4500,
   },
+  tank: {
+    name: 'Big air tank',
+    blurb: 'More air for diving: longer, deeper dives.',
+    fitted:
+      'A big air tank. Your dives last longer now: watch the air bubbles, there are more of them.',
+    cost: 3500,
+  },
 };
 
 /** The shelf, in the order it is shown. */
-export const GEAR_IDS: readonly GearId[] = ['mesh', 'strongbox', 'kit', 'rod', 'lionnet', 'suit'];
+export const GEAR_IDS: readonly GearId[] = [
+  'mesh',
+  'strongbox',
+  'kit',
+  'rod',
+  'lionnet',
+  'suit',
+  'tank',
+];
 
 /** The shipwright takes an interest once the boat is this tier: a cutter. */
 export const SHIPWRIGHT_TIER = 2;
@@ -79,7 +96,15 @@ export const STRONGBOX_SHARE = 0.25;
 export type Owned = Record<GearId, boolean>;
 
 export function noGear(): Owned {
-  return { mesh: false, strongbox: false, suit: false, kit: false, rod: false, lionnet: false };
+  return {
+    mesh: false,
+    strongbox: false,
+    suit: false,
+    kit: false,
+    rod: false,
+    lionnet: false,
+    tank: false,
+  };
 }
 
 export function shipwrightOpen(tier: number): boolean {
