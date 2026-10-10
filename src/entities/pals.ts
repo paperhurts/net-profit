@@ -20,15 +20,22 @@
  * his back and a long pole with a great orange fin-blade on it, kept in a cage at island 2's monkey camp until
  * the camp is beaten. Ashore he is one of these, with the longest reach of them and five hit points; at sea he
  * does not ride the boat but swims beside it, keeping up however fast it goes, and rests there when worn out.
+ *
+ * And the necromancer, chained to the Heron's orb of power until the kid's hero broke his chain: once the Heron
+ * is beaten for good he comes along too, riding the boat amidships. He does not fight up close. He keeps back at
+ * the figure's heel, four hit points, and when a fight is on he raises his skeleton hamster to fight for you (the
+ * game calls it up), and raises it again a while after it falls.
  */
 
 import type { DrawView, Entity, Layer, World } from './entity';
+import { drawNecromancer } from './nest';
 import { walkable, walkStep } from './walker';
 
-export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga';
+export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga' | 'necro';
 
 export const PAL_HP = 5;
 export const BONES_HP = 4;
+export const NECRO_HP = 4;
 export const PAL_SPEED = 100;
 /** How close each keeps behind the figure, and how far off it pops over. */
 export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
@@ -36,6 +43,7 @@ export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
   warrior: 30,
   bones: 36,
   naga: 34,
+  necro: 42,
 };
 export const PAL_BLINK = 200;
 /** Something this close to the figure is fought; each hits from this close, this often, this hard. */
@@ -45,14 +53,22 @@ export const REACH: Readonly<Record<PalKind, number>> = {
   warrior: 26,
   bones: 28,
   naga: 36,
+  necro: 0,
 };
 export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   cat: 1.1,
   warrior: 1.4,
   bones: 1.5,
   naga: 1.3,
+  necro: 0,
 };
-export const POWER: Readonly<Record<PalKind, number>> = { cat: 1, warrior: 2, bones: 2, naga: 2 };
+export const POWER: Readonly<Record<PalKind, number>> = {
+  cat: 1,
+  warrior: 2,
+  bones: 2,
+  naga: 2,
+  necro: 0,
+};
 /**
  * Where the naga swims at sea, in the hull's units: this far off the boat's right side, this far ahead of
  * amidships, alongside the cabin and clear of the net's lines off the stern.
@@ -61,6 +77,8 @@ export const SWIM_SIDE = 28;
 export const SWIM_AHEAD = 6;
 /** The bones raise their ghost and skeleton once a fight is on, and again this long after, if those are gone. */
 export const RAISE_EVERY = 12;
+/** The necromancer raises his hamster once a fight is on, and again this long after, if it has fallen. */
+export const HAMSTER_EVERY = 10;
 /** Blinking this long after a hit; worn out, resting this long. */
 export const PAL_INVULN = 1;
 export const PAL_REST = 40;
@@ -104,9 +122,9 @@ export class Pal implements Entity {
   onHurt: ((out: boolean) => void) | null = null;
   /** The cat gives the figure a heart back. */
   onHeal: (() => void) | null = null;
-  /** The bones raise a ghost and a skeleton here; the game calls them up. */
+  /** The bones raise a ghost and a skeleton here, or the necromancer his hamster; the game calls them up. */
   onRaise: ((x: number, y: number) => void) | null = null;
-  /** Whether the bones may raise them now: the game says whether the last ones are gone. */
+  /** Whether they may raise now: the game says whether the last ones are gone. */
   canRaise: (() => boolean) | null = null;
   private raiseCd = 0;
 
@@ -121,7 +139,7 @@ export class Pal implements Entity {
 
   /** Its hit points when whole. */
   get maxHp(): number {
-    return this.kind === 'bones' ? BONES_HP : PAL_HP;
+    return this.kind === 'bones' ? BONES_HP : this.kind === 'necro' ? NECRO_HP : PAL_HP;
   }
 
   /** Out of the temple at a point, as Cthulhu crumbles: free, and beside the figure. */
@@ -191,7 +209,9 @@ export class Pal implements Entity {
           ? [-16, 14]
           : this.kind === 'naga'
             ? [-14, -18]
-            : [14, -16];
+            : this.kind === 'necro'
+              ? [-20, -6]
+              : [14, -16];
     for (const [dx, dy] of [
       off,
       [-(off[0] as number), off[1] as number],
@@ -249,11 +269,14 @@ export class Pal implements Entity {
     // Something to fight, near the figure?
     const foe = this.findTarget?.(f.x, f.y, FIGHT_FROM) ?? null;
     this.swingCd -= dt;
-    if (foe) {
-      if (this.kind === 'bones' && this.raiseCd <= 0 && (this.canRaise?.() ?? true)) {
-        this.raiseCd = RAISE_EVERY;
-        this.onRaise?.(this.x, this.y);
-      }
+    const raiser = this.kind === 'bones' || this.kind === 'necro';
+    if (foe && raiser && this.raiseCd <= 0 && (this.canRaise?.() ?? true)) {
+      this.raiseCd = this.kind === 'necro' ? HAMSTER_EVERY : RAISE_EVERY;
+      this.swingT = 0;
+      this.onRaise?.(this.x, this.y);
+    }
+    // The necromancer keeps back and lets his hamster fight; the rest go in.
+    if (foe && this.kind !== 'necro') {
       const dx = foe.x - this.x;
       const dy = foe.y - this.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -343,7 +366,10 @@ export class Pal implements Entity {
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2) return;
     const sx = v.px(this.x, this.y);
     const sy = v.py(this.x, this.y, Math.abs(Math.sin(this.ph)) * 2 * this.gait);
-    if (this.kind === 'cat') drawCat(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.25, 1);
+    if (this.kind === 'necro')
+      drawNecromancer(v, this.x, this.y, this.ph, { raising: this.swingT < 0.6 });
+    else if (this.kind === 'cat')
+      drawCat(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.25, 1);
     else if (this.kind === 'warrior')
       drawWarrior(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
     else if (this.kind === 'naga')
@@ -358,7 +384,15 @@ export class Pal implements Entity {
     const Z = v.zoom;
     const top =
       sy -
-      (this.kind === 'cat' ? 20 : this.kind === 'warrior' ? 30 : this.kind === 'naga' ? 36 : 40) *
+      (this.kind === 'cat'
+        ? 20
+        : this.kind === 'warrior'
+          ? 30
+          : this.kind === 'naga'
+            ? 36
+            : this.kind === 'necro'
+              ? 50
+              : 40) *
         Z;
     const max = this.maxHp;
     if (this.hp < max) {
@@ -383,12 +417,18 @@ export class Pal implements Entity {
     }
   }
 
-  /** Where it rides on a boat of this hull scale: the cat on the cabin roof, the warrior at the stern, the bones at the bow. */
+  /**
+   * Where it rides on a boat of this hull scale: the cat on the cabin roof, the warrior at the stern, the bones at
+   * the bow, the necromancer amidships.
+   */
   seat(b: { x: number; y: number; h: number }, k: number): { x: number; y: number; z: number } {
     const c = Math.cos(b.h);
     const s = Math.sin(b.h);
     if (this.kind === 'cat') return { x: b.x - c * 4 * k, y: b.y - s * 4 * k, z: 26 * k };
     if (this.kind === 'bones') return { x: b.x + c * 20 * k, y: b.y + s * 20 * k, z: 9 * k + 1 };
+    // The necromancer amidships, on the side away from the warrior.
+    if (this.kind === 'necro')
+      return { x: b.x + c * 6 * k + s * 7 * k, y: b.y + s * 6 * k - c * 7 * k, z: 9 * k + 1 };
     return { x: b.x - c * 22 * k - s * 5 * k, y: b.y - s * 22 * k + c * 5 * k, z: 9 * k + 1 };
   }
 
@@ -402,6 +442,9 @@ export class Pal implements Entity {
       const sy = v.py(p.x, p.y, p.z);
       drawCat(v, sx, sy, b.h, 0, 0, false, 0.8);
       this.drawOver(v, sx, sy);
+    } else if (this.kind === 'necro') {
+      const p = this.seat(b, k);
+      drawNecromancer(v, p.x, p.y, 0, { z: p.z, size: 0.8 });
     } else {
       const p = this.seat(b, k);
       const draw = this.kind === 'warrior' ? drawWarrior : drawBones;

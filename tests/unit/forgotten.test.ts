@@ -209,10 +209,34 @@ describe("allies: the warlock's merlocks, and the ghost and skeleton the bones r
     expect(WISP_T).toBeLessThan(ALLY.ghost.every);
   });
 
+  it("the necromancer's skeleton hamster bites for one, close in, and takes twelve hits to put down", () => {
+    const m = new Allies();
+    const w: World = baseWorld({ figure: at(-60, -60) });
+    let dealt = 0;
+    const foe = { x: room.x, y: room.y, hit: (n: number) => (dealt += n) };
+    m.findTarget = (x: number, y: number, r: number) =>
+      Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null;
+    const h = m.call(room.x - 90, room.y, 'hamster');
+    expect(h.hp).toBe(12);
+    for (let i = 0; i < (ALLY_RISE + 4) / DT; i++) m.update(DT, w);
+    expect(dealt).toBeGreaterThanOrEqual(2);
+    expect(Math.hypot(h.x - foe.x, h.y - foe.y)).toBeLessThan(ALLY.hamster.reach + 2);
+    expect(m.count('hamster')).toBe(1);
+    for (let i = 0; i < ALLY.hamster.hp - 1; i++) {
+      h.invuln = 0;
+      m.hurt(h);
+    }
+    expect(h.state).toBe('fight');
+    h.invuln = 0;
+    m.hurt(h);
+    expect(h.state).toBe('sink');
+    expect(m.count('hamster')).toBe(0);
+  });
+
   it('draws each kind coming, fighting and going, and the wisps', () => {
     const m = new Allies();
     const f = fakeView();
-    for (const kind of ['merlock', 'ghost', 'skeleton'] as const) {
+    for (const kind of ['merlock', 'ghost', 'skeleton', 'hamster'] as const) {
       const q = m.call(room.x, room.y, kind);
       q.wisp = { x: room.x, y: room.y, tx: room.x + 40, ty: room.y, t: 0.1 };
       for (const st of ['rise', 'fight', 'sink'] as const) {

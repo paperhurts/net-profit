@@ -113,7 +113,17 @@ describe("the Heron's nest", () => {
     expect(freed).toBe(1);
   });
 
-  it('starts over when the figure leaves, and stays free once the Heron is beaten for good', () => {
+  it('lets him go with the figure once the Heron is beaten for good', () => {
+    const { n } = nest();
+    n.hit(NECRO9_HP);
+    n.join();
+    expect(n.state).toBe('gone');
+    expect(n.lit).toBe(false);
+    expect(n.up).toBe(false);
+    expect(n.solids(fakeView().v)).toHaveLength(1);
+  });
+
+  it('starts over when the figure leaves, and is empty once the Heron is beaten for good', () => {
     const { n, w } = nest();
     n.hit(3);
     w.figure = null;
@@ -121,6 +131,9 @@ describe("the Heron's nest", () => {
     expect(n.state).toBe('wait');
     expect(n.hp).toBe(NECRO9_HP);
     n.freed();
+    expect(n.state).toBe('gone');
+    // He has gone with the figure: the nest is left with the dark orb.
+    expect(n.solids(fakeView().v)).toHaveLength(1);
     let woke = 0;
     n.onWake = () => woke++;
     run(n, baseWorld({ figure: { x: R.x, y: R.y, vx: 0, vy: 0 } }), 2);

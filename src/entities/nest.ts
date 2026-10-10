@@ -7,8 +7,9 @@
  * Heron: nothing hurts him. The necromancer fights for him as he must, raising
  * skeletons out of the sticks, one at a time, two at most. Beat him and his
  * chain snaps: the orb goes dark, the shield goes with it, and he kneels where
- * he was, free. The game owns the skeletons (they are a horde like Gigantis's)
- * and what freeing him means, through callbacks.
+ * he was, free; once the Heron is beaten for good he comes away with the
+ * figure, and the nest is empty after. The game owns the skeletons (they are a
+ * horde like Gigantis's) and what freeing him means, through callbacks.
  */
 
 import { clamp } from '../core/math';
@@ -27,7 +28,8 @@ export const ORB_R = 16;
 /** Seconds the chain takes to snap and fall. */
 export const SNAP_T = 1.2;
 
-export type NestState = 'wait' | 'chained' | 'snap' | 'free';
+/** Gone: he has come away with the figure, and is not in the nest any more. */
+export type NestState = 'wait' | 'chained' | 'snap' | 'free' | 'gone';
 
 type Room = { x: number; y: number; r: number };
 
@@ -117,10 +119,16 @@ export class Nest implements Entity {
     this.stunT = 0;
   }
 
-  /** Already free, as once the Heron is beaten for good: the orb dark, the necromancer kneeling. */
+  /** He comes away with the figure, as the Heron is beaten for good: the nest is left with the dark orb. */
+  join(): void {
+    this.state = 'gone';
+    this.raising = 0;
+  }
+
+  /** Already gone with the figure, as once the Heron is beaten for good: the orb dark, the nest empty. */
   freed(): void {
     this.reset();
-    this.state = 'free';
+    this.state = 'gone';
   }
 
   hit(power: number): void {
@@ -182,10 +190,9 @@ export class Nest implements Entity {
 
   /** The orb and its chains, and the necromancer, for the room's depth-sorted actors. */
   solids(v: DrawView): Solid[] {
-    return [
-      { d: this.orb.x + this.orb.y, f: () => this.drawOrb(v) },
-      { d: this.necro.x + this.necro.y, f: () => this.drawNecro(v) },
-    ];
+    const orb: Solid = { d: this.orb.x + this.orb.y, f: () => this.drawOrb(v) };
+    if (this.state === 'gone') return [orb];
+    return [orb, { d: this.necro.x + this.necro.y, f: () => this.drawNecro(v) }];
   }
 
   draw(v: DrawView, layer: Layer): void {
@@ -268,18 +275,26 @@ export class Nest implements Entity {
   }
 }
 
-type NecroLook = { flash?: boolean; raising?: boolean; kneel?: boolean; chained?: boolean };
+type NecroLook = {
+  flash?: boolean;
+  raising?: boolean;
+  kneel?: boolean;
+  chained?: boolean;
+  /** How high he stands, as on a boat's deck, and how big, against the figure. */
+  z?: number;
+  size?: number;
+};
 
 /**
  * The necromancer, as the kid drew him in pink: a pointed hat, a pale face with dark eyes, a pink robe, and a
  * purple cape that flares at his sides like little wings. Chained, an iron cuff on his wrist; raising one, both
- * arms up and green light in his hands; freed, kneeling.
+ * arms up and green light in his hands; freed, kneeling. With you, he rides the boat a little smaller.
  */
 export function drawNecromancer(v: DrawView, x: number, y: number, ph: number, o: NecroLook): void {
   const { ctx, px, py } = v;
-  const Z = v.zoom;
+  const Z = v.zoom * (o.size ?? 1);
   const sx = px(x, y);
-  const sy = py(x, y, 0);
+  const sy = py(x, y, o.z ?? 0);
   const drop = o.kneel ? 7 : 0;
   const Y = (dy: number) => sy + (dy + drop) * Z;
   const sway = o.kneel ? 0 : Math.sin(ph * 2) * 0.8;
@@ -288,9 +303,11 @@ export function drawNecromancer(v: DrawView, x: number, y: number, ph: number, o
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.fillStyle = 'rgba(0,0,0,.22)';
-  v.isoEllipse(x, y, 9);
-  ctx.fill();
+  if (!o.z) {
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    v.isoEllipse(x, y, 9);
+    ctx.fill();
+  }
   // The cape, flaring out at his sides.
   ctx.fillStyle = o.flash ? '#FFFFFF' : '#6E3A8E';
   for (const side of [-1, 1]) {

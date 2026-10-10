@@ -2,9 +2,11 @@
  * Allies called up to fight beside the figure, the kid's: in Gigantis's throne
  * room the warlock calls merlocks, fish-men with great bone blades, up out of a
  * puddle of sea; and once the Forgotten One's bones are yours, they raise a
- * ghost and a skeleton of their own out of the ground in any fight. Each goes
- * for the nearest foe and hits it for 1: a merlock chops and the skeleton slashes
- * close in, the ghost keeps off and sends a wisp. With nothing to fight they
+ * ghost and a skeleton of their own out of the ground in any fight; and the
+ * necromancer, freed from the Heron's orb, raises his skeleton hamster, little
+ * and quick and very hard to put down. Each goes for the nearest foe and hits it
+ * for 1: a merlock chops, the skeleton slashes and the hamster bites close in,
+ * the ghost keeps off and sends a wisp. With nothing to fight they
  * keep near the figure; the raised ones crumble back after a few quiet seconds.
  * Hurt to none, one goes back where it came from. The game finds what they
  * fight, and says what hurts them.
@@ -15,7 +17,7 @@ import type { DrawView, Entity, Layer, World } from './entity';
 import type { PalTarget } from './pals';
 import { walkStep } from './walker';
 
-export type AllyKind = 'merlock' | 'ghost' | 'skeleton';
+export type AllyKind = 'merlock' | 'ghost' | 'skeleton' | 'hamster';
 
 /** Hit points, walking speed, reach and how often it hits, and how far off a ranged one keeps. */
 export type AllySpec = { hp: number; speed: number; reach: number; every: number; keep: number };
@@ -24,6 +26,8 @@ export const ALLY: Readonly<Record<AllyKind, AllySpec>> = {
   merlock: { hp: 3, speed: 80, reach: 22, every: 1.2, keep: 0 },
   skeleton: { hp: 3, speed: 72, reach: 24, every: 1.3, keep: 0 },
   ghost: { hp: 2, speed: 60, reach: 110, every: 2.4, keep: 80 },
+  // The kid's skeleton hamster: only 1 a bite, but it takes twelve hits to put down.
+  hamster: { hp: 12, speed: 96, reach: 16, every: 1, keep: 0 },
 };
 /** It goes for foes this near it, and each hit is this hard. */
 export const ALLY_SEEK = 240;
@@ -234,6 +238,7 @@ export class Allies implements Entity {
     const stride = a.state === 'fight' ? Math.sin(a.ph * 9) * 2 * k : 0;
     if (a.kind === 'merlock') drawMerlock(v, a, sx, base, k, face, stride);
     else if (a.kind === 'skeleton') drawSkeleton(v, a, sx, base, k, face, stride);
+    else if (a.kind === 'hamster') drawHamster(v, a, sx, base, k, face, stride);
     else drawGhost(v, a, sx, base, k, face);
     ctx.globalAlpha = 1;
     if (clip) ctx.restore();
@@ -406,6 +411,94 @@ function drawMerlock(
 }
 
 /** A raised skeleton on your side: pale bones with a green glint in its eyes, and a sword it swings down. */
+/**
+ * The skeleton hamster: a little round ribcage on four short legs, a big round skull with two round ears, green
+ * light in its eye and two long front teeth, and a thin tail of bones. It lunges forward as it bites.
+ */
+function drawHamster(
+  v: DrawView,
+  a: Ally,
+  sx: number,
+  base: number,
+  k0: number,
+  face: number,
+  stride: number,
+): void {
+  const { ctx, T } = v;
+  const k = k0 * 1.45;
+  const bone = '#EDE8DA';
+  const line = '#9E9684';
+  const x = sx + (a.hitT < 0.25 ? face * 3 * k : 0);
+  const hop = Math.abs(stride) * 0.6;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // The tail, a curl of little bones behind.
+  ctx.fillStyle = bone;
+  for (let i = 0; i < 5; i++) {
+    const tx = x - face * (8 + i * 2.2) * k;
+    const ty = base - (5 + Math.sin(T * 6 + i) * 0.8 + i * 0.6) * k;
+    ctx.beginPath();
+    ctx.arc(tx, ty, (1.2 - i * 0.12) * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Four short legs, scurrying.
+  ctx.strokeStyle = bone;
+  ctx.lineWidth = 1.3 * k;
+  for (const [lx, s] of [
+    [-4, 1],
+    [-2, -1],
+    [3, 1],
+    [5, -1],
+  ] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x + face * lx * k, base - 4 * k);
+    ctx.lineTo(x + face * (lx + s * stride * 0.4) * k, base);
+    ctx.stroke();
+  }
+  // The ribcage: a round body, ribs across it.
+  ctx.fillStyle = bone;
+  ctx.beginPath();
+  ctx.ellipse(x, base - 7 * k - hop, 7 * k, 5 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 0.8 * k;
+  for (const r of [-3, 0, 3]) {
+    ctx.beginPath();
+    ctx.moveTo(x + r * k, base - 11 * k - hop);
+    ctx.lineTo(x + r * k, base - 3 * k - hop);
+    ctx.stroke();
+  }
+  // The skull, ears, eye and teeth.
+  const hx = x + face * 7 * k;
+  const hy = base - 10 * k - hop;
+  ctx.fillStyle = bone;
+  ctx.beginPath();
+  ctx.arc(hx, hy, 4.4 * k, 0, Math.PI * 2);
+  ctx.fill();
+  for (const e of [-1.6, 1.6]) {
+    ctx.beginPath();
+    ctx.arc(hx + e * k - face * 0.8 * k, hy - 4.4 * k, 1.8 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#1E2A22';
+  ctx.beginPath();
+  ctx.arc(hx + face * 1.2 * k, hy - 0.8 * k, 1.5 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8CFFA8';
+  ctx.beginPath();
+  ctx.arc(hx + face * 1.2 * k, hy - 0.8 * k, 0.7 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 0.5 * k;
+  for (const t of [0, 1.3]) {
+    ctx.beginPath();
+    ctx.rect(hx + face * (3 + t) * k - 0.6 * k, hy + 2.4 * k, 1.2 * k, 2.8 * k);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
 function drawSkeleton(
   v: DrawView,
   a: Ally,
