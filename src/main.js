@@ -680,7 +680,7 @@ heron9.onBlock = (x, y) => { sfx.clang(); addText(x, y, 60, 'Shielded!', '#FFB0E
 heron9.onBeaten = () => { const prize = HERON9_PRIZE; coins += prize; earned += prize; heronStage = 2; towerWon = true;
   burst(heron9); addText(heron9.home.x, heron9.home.y, 60, '+' + prize, C.coin, 26, 2.6); toasts.clear();
   nest.join(); necroPal.come(nest.x, nest.y); necroTold = true;
-  toast(`You beat the Heron for good! He flaps off over the sea, and he is not coming back. The necromancer is free, and he is coming with you: in a fight he raises his skeleton hamster. +${prize} coins.`, 7000, 2); hud(); refreshShop(); save(); };
+  toast(`You beat the Heron for good! He flaps off over the sea, and he is not coming back, and his hired boats sail home. The necromancer is free, and he is coming with you: in a fight he raises his skeleton hamster. +${prize} coins.`, 7000, 2); hud(); refreshShop(); save(); };
 nest.onWake = () => { toasts.clear(); toast('The Heron\'s nest, and the orb of power! While the necromancer is chained to it, the Heron is shielded. Spear the necromancer first.', 4400, 2); };
 nest.standing = () => nestHorde.list.filter(u => u.state !== 'fall' && u.state !== 'gone').length;
 nest.onRaise = (x, y) => { sfx.tentacle(); const u = nestHorde.raise(x, y, 'skeleton'); addText(u.x, u.y, 34, 'Rise!', '#8CFFA8', 18, 1.1); };
@@ -1906,7 +1906,7 @@ function update(dt){
   otter.reason = otterReason(); otterSeenT -= dt;
   if (!otter.free && !otterSeenTold && walker.aboard && Math.hypot(boat.x - OTTER_HOME.x, boat.y - OTTER_HOME.y) < 320){ otterSeenTold = true;
     toast('An otter, floating on his back off the dock! Stop beside him and tap him to toss him a fish from your hold.', 4200, 1); }
-  naga.free = nagaFree; hiredBoats.here = isle7Stage >= 1 && farOpen(); hiredSpotT -= dt; if (nagaFree && nagaCage < 1) nagaCage = Math.min(1, nagaCage + dt);
+  naga.free = nagaFree; hiredBoats.here = isle7Stage >= 1 && farOpen() && heronStage < 2; // beaten for good, his boats go home; his camps stay hiredSpotT -= dt; if (nagaFree && nagaCage < 1) nagaCage = Math.min(1, nagaCage + dt);
   // Island 8's tower is barred until the Heron's war has begun, and island 9's until he has fled to it: at a barred door, say so.
   barredT -= dt;
   if (barredT <= 0 && floor < 0 && walker.state === 'ashore' && walker.dock === ISLE8_DOCK){

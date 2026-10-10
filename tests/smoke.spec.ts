@@ -73,7 +73,11 @@ type Np = {
   aquarium: boolean;
   nagaFree: boolean;
   isle8Seen: boolean;
-  hiredBoats: { chasing: boolean; boats: { x: number; y: number; state: string }[] };
+  hiredBoats: {
+    here: boolean;
+    chasing: boolean;
+    boats: { x: number; y: number; state: string }[];
+  };
   hired8: {
     home: { x: number; y: number };
     list: unknown[];
@@ -1687,6 +1691,26 @@ test("islands 8 and 9: sight the twins, tie up at island 8, walk the sandbar, an
   // After the landing's own message, which is still up.
   await expect(page.locator('#toast')).toContainText('Barred', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Islands 8 and 9 found');
+  expect(errors).toEqual([]);
+});
+
+test("the Heron's hired boats go home once he is beaten for good", async ({ context, page }) => {
+  // The same water as above, a flagship sitting in it, but the Heron beaten on island 9.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 6300, y: 2070, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__np.hiredBoats.here)).toBe(false);
+  expect(await page.evaluate(() => window.__np.hiredBoats.chasing)).toBe(false);
+  expect(await page.evaluate(() => window.__np.hp)).toBe(100);
   expect(errors).toEqual([]);
 });
 
