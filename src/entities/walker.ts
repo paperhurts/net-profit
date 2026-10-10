@@ -374,13 +374,22 @@ export const PROPS: readonly Prop[] = [
     TOWER.x + TOWER.y,
   ),
   ...PALMS2.map((p) => post(p, 4, p[0] + p[1])),
-  // The bases' huts, or their plots until they are built, and their flagpoles.
+  // The bases' huts and gear sheds, or their plots until they are built, and the huts' flagpoles.
   ...BASES.flatMap((b) => {
     const { x, y, half } = b.hut;
     const p = polePoint(b);
+    const sh = b.shed;
     return [
       prop(x - half, y - half, x + half, y + half, x + y + half),
       post([p.x, p.y], 2, x + y + half),
+      // The shed's spare buoy stands off its front corner.
+      prop(
+        sh.x - sh.half,
+        sh.y - sh.half,
+        sh.x + sh.half + 6,
+        sh.y + sh.half + 4,
+        sh.x + sh.y + sh.half,
+      ),
     ];
   }),
   // The monkey camp: three huts, the totem and the chest.

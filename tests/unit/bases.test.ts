@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { walkable } from '../../src/entities/walker';
-import { baseHutLight, drawBaseHut } from '../../src/render/base';
+import { baseHutLight, drawBaseHut, drawBaseShed } from '../../src/render/base';
 import {
   BASES,
   baseAtDock,
+  hasSeine,
   homePort,
   nextStage,
   noBases,
@@ -28,9 +29,15 @@ describe('bases', () => {
     expect(parseBases({ isle2: 99 })).toEqual({ isle2: isle2.stages.length });
   });
 
-  it('builds island 2 a stage at a time, the hut first', () => {
+  it('builds island 2 a stage at a time, the hut first and then the gear shed, which brings the seine', () => {
     const b = noBases();
     expect(nextStage(isle2, b)?.name).toBe('hut');
+    expect(hasSeine(b)).toBe(false);
+    b.isle2 = 1;
+    expect(nextStage(isle2, b)?.name).toBe('gear shed');
+    expect(hasSeine(b)).toBe(false);
+    b.isle2 = 2;
+    expect(hasSeine(b)).toBe(true);
     b.isle2 = isle2.stages.length;
     expect(nextStage(isle2, b)).toBeNull();
     for (const s of isle2.stages) {
@@ -86,6 +93,31 @@ describe('bases', () => {
     expect(walkable(p.x, p.y, 0)).toBe(false);
     expect(walkable(x, y + half + 10, 0)).toBe(true);
     expect(walkable(x - half - 10, y, 0)).toBe(true);
+  });
+
+  it("puts island 2's gear shed between the hut and the tower, clear of both and of the way round", () => {
+    const sh = isle2.shed;
+    const { hut } = isle2;
+    expect(Math.hypot(sh.x - ISLE2.x, sh.y - ISLE2.y) + sh.half * Math.SQRT2).toBeLessThan(
+      ISLE2.r - 30,
+    );
+    expect(Math.hypot(sh.x - TOWER.x, sh.y - TOWER.y)).toBeGreaterThan(TOWER.r + sh.half * 2 + 20);
+    expect(Math.hypot(sh.x - hut.x, sh.y - hut.y)).toBeGreaterThan(hut.half + sh.half + 20);
+    for (const p of PALMS2)
+      expect(Math.hypot(sh.x - p[0], sh.y - p[1])).toBeGreaterThan(sh.half * 2 + 10);
+    expect(walkable(sh.x, sh.y, 0)).toBe(false);
+    // The sand between it and the hut, and between it and the tower, can still be walked.
+    expect(walkable((sh.x + hut.x) / 2 + 4, (sh.y + hut.y) / 2 - 4, 0)).toBe(true);
+    expect(walkable((sh.x + TOWER.x) / 2, (sh.y + TOWER.y) / 2, 0)).toBe(true);
+  });
+
+  it("draws the gear shed's plot until it is built, then the shed", () => {
+    const plot = fakeView();
+    drawBaseShed(plot.v, isle2, false, '#2C4A7C');
+    expect(plot.calls.box).toBe(1); // the sign's board
+    const shed = fakeView();
+    drawBaseShed(shed.v, isle2, true, '#2C4A7C');
+    expect(shed.calls.box).toBe(2); // the walls and the roof
   });
 
   it('draws its plot until it is built, then the hut, its flag and a light at night', () => {

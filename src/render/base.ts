@@ -3,7 +3,8 @@
  * round them and a sign with a little hut on it. Then a plank hut with a pitched
  * roof in the boat's roof paint, a door and a lantern on the side toward the
  * viewer, a window on the other, and a pole beside it flying the player's flag.
- * The window and the lantern are lit at night.
+ * The window and the lantern are lit at night. The gear shed stands beside it,
+ * or its plot does.
  */
 import { shade } from '../core/color';
 import type { DrawView } from '../entities/entity';
@@ -13,6 +14,9 @@ const WALL = '#C89B6A';
 const WALL_TOP = '#DDB585';
 const STAKE = '#7A5634';
 const DOOR = '#6B4A2C';
+const CORK = '#F2C14E';
+/** The shed's planks, a shade darker than the hut's; the box shades each face from it, so it must be hex. */
+const SHED_WALL = '#AD845A';
 /** How high the ridge stands over the walls, and how far the roof hangs over them. */
 const RIDGE = 13;
 const EAVE = 3;
@@ -55,32 +59,8 @@ export function drawBaseHut(
   const y0 = y - half;
   const y1 = y + half;
   if (!built) {
-    const corners: [number, number][] = [
-      [x0, y0],
-      [x1, y0],
-      [x1, y1],
-      [x0, y1],
-    ];
-    ctx.strokeStyle = 'rgba(255,246,229,.8)';
-    ctx.lineWidth = Z;
-    ctx.beginPath();
-    corners.forEach((c, i) => {
-      const X = px(c[0], c[1]);
-      const Y = py(c[0], c[1], 5);
-      if (i) ctx.lineTo(X, Y);
-      else ctx.moveTo(X, Y);
-    });
-    ctx.closePath();
-    ctx.stroke();
-    ctx.strokeStyle = STAKE;
-    ctx.lineWidth = 2 * Z;
-    for (const c of corners) {
-      ctx.beginPath();
-      ctx.moveTo(px(c[0], c[1]), py(c[0], c[1], 0));
-      ctx.lineTo(px(c[0], c[1]), py(c[0], c[1], 8));
-      ctx.stroke();
-    }
-    sign(v, x, y1);
+    plot(v, x0, y0, x1, y1);
+    sign(v, x, y1, hutIcon);
     return;
   }
   // The flagpole first, behind the hut.
@@ -146,8 +126,74 @@ export function drawBaseHut(
   ctx.stroke();
 }
 
-/** The plot's sign, on two legs at the near edge: a board with a little hut on it. */
-function sign(v: DrawView, x: number, y: number): void {
+/** A plot: a stake at each corner and a rope round them. */
+function plot(v: DrawView, x0: number, y0: number, x1: number, y1: number): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const corners: [number, number][] = [
+    [x0, y0],
+    [x1, y0],
+    [x1, y1],
+    [x0, y1],
+  ];
+  ctx.strokeStyle = 'rgba(255,246,229,.8)';
+  ctx.lineWidth = Z;
+  ctx.beginPath();
+  corners.forEach((c, i) => {
+    const X = px(c[0], c[1]);
+    const Y = py(c[0], c[1], 5);
+    if (i) ctx.lineTo(X, Y);
+    else ctx.moveTo(X, Y);
+  });
+  ctx.closePath();
+  ctx.stroke();
+  ctx.strokeStyle = STAKE;
+  ctx.lineWidth = 2 * Z;
+  for (const c of corners) {
+    ctx.beginPath();
+    ctx.moveTo(px(c[0], c[1]), py(c[0], c[1], 0));
+    ctx.lineTo(px(c[0], c[1]), py(c[0], c[1], 8));
+    ctx.stroke();
+  }
+}
+
+/** A little hut, for the hut's sign, at a screen point. */
+function hutIcon(ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: number): void {
+  ctx.fillStyle = '#6B4A2C';
+  ctx.fillRect(sx - 3 * Z, sy - 1 * Z, 6 * Z, 4 * Z);
+  ctx.beginPath();
+  ctx.moveTo(sx - 4.5 * Z, sy - 0.6 * Z);
+  ctx.lineTo(sx, sy - 4.5 * Z);
+  ctx.lineTo(sx + 4.5 * Z, sy - 0.6 * Z);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A float on a scrap of net, for the gear shed's sign. */
+function netIcon(ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: number): void {
+  ctx.strokeStyle = '#2C4A7C';
+  ctx.lineWidth = 0.8 * Z;
+  for (const o of [-3, 0, 3]) {
+    ctx.beginPath();
+    ctx.moveTo(sx + o * Z - 2 * Z, sy - 3 * Z);
+    ctx.lineTo(sx + o * Z + 2 * Z, sy + 3 * Z);
+    ctx.moveTo(sx + o * Z + 2 * Z, sy - 3 * Z);
+    ctx.lineTo(sx + o * Z - 2 * Z, sy + 3 * Z);
+    ctx.stroke();
+  }
+  ctx.fillStyle = CORK;
+  ctx.beginPath();
+  ctx.arc(sx, sy - 3 * Z, 1.8 * Z, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** The plot's sign, on two legs at the near edge: a board with what goes there on it. */
+function sign(
+  v: DrawView,
+  x: number,
+  y: number,
+  icon: (ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: number) => void,
+): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
   ctx.strokeStyle = STAKE;
@@ -159,16 +205,60 @@ function sign(v: DrawView, x: number, y: number): void {
     ctx.stroke();
   }
   v.box(x - 10, y - 1, 20, 2, 5, 14, '#C98B4E', '#E6B877');
-  const sx = px(x, y + 1);
-  const sy = py(x, y + 1, 9.5);
-  ctx.fillStyle = '#6B4A2C';
-  ctx.fillRect(sx - 3 * Z, sy - 1 * Z, 6 * Z, 4 * Z);
-  ctx.beginPath();
-  ctx.moveTo(sx - 4.5 * Z, sy - 0.6 * Z);
-  ctx.lineTo(sx, sy - 4.5 * Z);
-  ctx.lineTo(sx + 4.5 * Z, sy - 0.6 * Z);
-  ctx.closePath();
+  icon(ctx, px(x, y + 1), py(x, y + 1, 9.5), Z);
+}
+
+/**
+ * The gear shed, or its plot until it is built: open on the side toward the viewer, a seine hung up
+ * inside to dry with its corks along the bottom, a flat roof in the boat's roof paint, and a spare
+ * buoy by the door.
+ */
+export function drawBaseShed(v: DrawView, b: Base, built: boolean, roof: string): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const { x, y, half, wall } = b.shed;
+  const x0 = x - half;
+  const x1 = x + half;
+  const y0 = y - half;
+  const y1 = y + half;
+  if (!built) {
+    plot(v, x0, y0, x1, y1);
+    sign(v, x, y1, netIcon);
+    return;
+  }
+  v.box(x0, y0, x1 - x0, y1 - y0, 0, wall, SHED_WALL, WALL_TOP);
+  // The open front: dark inside, the net hung across it, the corks along its foot.
+  ctx.fillStyle = '#4A3828';
+  face(v, [x0 + 2, y1], [x1 - 2, y1], 0, wall - 2);
   ctx.fill();
+  ctx.strokeStyle = 'rgba(214,228,230,.75)';
+  ctx.lineWidth = 0.8 * Z;
+  for (let i = 0; i <= 6; i++) {
+    const a = x0 + 3 + ((x1 - x0 - 6) * i) / 6;
+    ctx.beginPath();
+    ctx.moveTo(px(a, y1), py(a, y1, wall - 3));
+    ctx.lineTo(px(a + 4, y1), py(a + 4, y1, 3));
+    ctx.moveTo(px(a + 4, y1), py(a + 4, y1, wall - 3));
+    ctx.lineTo(px(a, y1), py(a, y1, 3));
+    ctx.stroke();
+  }
+  ctx.fillStyle = CORK;
+  for (let i = 0; i < 5; i++) {
+    const a = x0 + 4 + ((x1 - x0 - 8) * i) / 4;
+    ctx.beginPath();
+    ctx.arc(px(a, y1), py(a, y1, 3), 1.6 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  v.box(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4, wall, wall + 3, roof, roof);
+  // The spare buoy, by the front corner.
+  const bx = px(x1 + 4, y1 + 2);
+  const by = py(x1 + 4, y1 + 2, 5);
+  ctx.fillStyle = '#E4572E';
+  ctx.beginPath();
+  ctx.arc(bx, by, 4.5 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFF6E5';
+  ctx.fillRect(bx - 4.5 * Z, by - 0.8 * Z, 9 * Z, 1.6 * Z);
 }
 
 /** The hut's lantern and window, punched into the night. */

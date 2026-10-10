@@ -184,6 +184,12 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
 #throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;
   background:var(--buoy);display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #throw[hidden]{display:none}
+/* The seine's button, over the throw button: a ring round it shows how much seine is left once it is out. */
+#seineBtn{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(252px + env(safe-area-inset-bottom));z-index:3;width:60px;height:60px;border-radius:50%;
+  background:#2F8A78;display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#seineBtn[hidden]{display:none}
+#seineBtn.out{background:radial-gradient(circle,#2F8A78 0 66%,transparent 67%),conic-gradient(#F2C14E calc(var(--left,1)*1turn),rgba(20,30,35,.55) 0)}
+#seineBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #throw.harpoon{background:#2B5A73}
 #throw.wait{opacity:.55}
 #throw:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
@@ -274,6 +280,7 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
 <button class="pill" id="aboard" hidden>Back aboard</button>
 <button class="pill" id="climb" hidden>Climb the tower</button>
 <button class="pill" id="leave" hidden>Leave the tower</button>
+<button id="seineBtn" hidden aria-label="Drop the seine"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M8 25 C2 17 6 6 17 6 C28 6 32 17 26 25" fill="none" stroke="#F2C14E" stroke-width="2.4" stroke-dasharray="0.1 4.4" stroke-linecap="round"/><path d="M17 26 L17 13" stroke="#FFF6E5" stroke-width="1.8"/><path d="M17 13 L24 15.5 L17 18 Z" fill="#FFF6E5"/><circle cx="17" cy="26" r="5.5" fill="#E4572E"/><rect x="11.5" y="25" width="11" height="2.2" fill="#FFF6E5"/></svg></button>
 <button id="throw" hidden aria-label="Throw the spear"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M5 29 L25 9" stroke="#FFF6E5" stroke-width="3.2" stroke-linecap="round"/><path d="M22 6 L30 4 L28 12 Z" fill="#FFF6E5"/></svg></button>
 
 <section id="shop" aria-hidden="true" aria-label="Upgrades">
