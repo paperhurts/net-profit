@@ -53,8 +53,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 
-body.cine .hud,body.cine #order,body.cine #rchips,body.cine #toast{opacity:0;transition:opacity .4s}
-body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,body.inside #wood{display:none}
+body.cine .hud,body.cine #order,body.cine #charter,body.cine #rchips,body.cine #toast{opacity:0;transition:opacity .4s}
+body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,body.inside #market,body.inside #wood{display:none}
 .hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;pointer-events:none;
   padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left))}
 .pill{pointer-events:auto;background:var(--pill-bg);color:var(--pill-fg);border-radius:999px;height:40px;padding:0 14px;
@@ -184,7 +184,7 @@ body.inside #order,body.inside #holdPill,body.inside #hull,body.inside #market,b
 #diveBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #surfaceBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
 /* Diving, the sea's own buttons and bubbles stand down: the dive draws its own air and depth. The hold stays, for what is speared, and so does the throw button. */
-body.diving #order,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast{display:none}
+body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast{display:none}
 #leave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;font-size:14px;height:38px;padding:3px 14px 0}
 /* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
 #throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;
@@ -221,7 +221,14 @@ body.diving #order,body.diving #hull,body.diving #market,body.diving #wood,body.
 #mapCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;background:#0B1C24;touch-action:auto;cursor:default}
 #mapNote,#tankNote{margin:8px 4px 2px;font-size:13px;font-weight:700;text-align:center}
 #tankCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;border:3px solid #3B4A4F;box-sizing:content-box;background:#3C9DB8;touch-action:none;cursor:pointer}
-#aquaBtn[hidden],#baseBtn[hidden]{display:none}
+#aquaBtn[hidden],#baseBtn[hidden],#charterBtn[hidden],#charter[hidden]{display:none}
+#charter{position:fixed;left:calc(12px + env(safe-area-inset-left));top:calc(104px + env(safe-area-inset-top));pointer-events:none;
+  background:var(--pill-bg);color:var(--pill-fg);border-radius:12px;padding:6px 10px 4px;font-size:12.5px;font-weight:700;line-height:1.2;
+  display:flex;flex-wrap:wrap;gap:3px 8px;align-items:baseline;box-shadow:0 2px 0 var(--pill-shadow);max-width:calc(100vw - 198px)}
+#charter b{font-weight:800;color:var(--buoy)}
+#charter span{opacity:.75}
+#charter span.seen{opacity:1;color:#2E8B57}
+#charter i{font-style:normal;color:#C0392B}
 #mapBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center}
 #mapBtn[hidden]{display:none}
 #mapPill{position:absolute;left:10px;top:-52px;font-size:16px;height:42px;padding:3px 16px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -284,6 +291,7 @@ body.diving #order,body.diving #hull,body.diving #market,body.diving #wood,body.
 </div>
 
 <div id="order" aria-live="polite"></div>
+<div id="charter" aria-live="polite" hidden></div>
 <div id="rchips"><div id="hearts" title="Your hearts" hidden></div><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
 <div id="toast" role="status"></div>
 <button class="pill icon" id="mapBtn" aria-label="Sea map" title="Sea map"><svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true"><path d="M2 4l6-2 8 3 6-2v15l-6 2-8-3-6 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 2v15M16 5v15" stroke="currentColor" stroke-width="2"/></svg></button>
@@ -311,6 +319,7 @@ body.diving #order,body.diving #hull,body.diving #market,body.diving #wood,body.
     </div>
     <div class="gearrow" id="gear" hidden></div>
     <button class="build" id="baseBtn" hidden></button>
+    <button class="build" id="charterBtn" hidden></button>
     <button class="build" id="build"></button>
     <button class="build" id="aquaBtn" hidden></button>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>

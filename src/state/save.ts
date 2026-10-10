@@ -9,6 +9,7 @@ import { ARMOUR_MAX } from '../data/armour';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
+import { type Charter, parseCharter } from '../fishing/charter';
 import { type Pot, parsePots } from '../fishing/pots';
 import { type Bases, noBases, parseBases } from '../world/bases';
 import { LOOT_ALL } from '../world/loot';
@@ -123,6 +124,9 @@ export type SaveData = {
   /** The lurker in the trench's dark has been met, and how many times a spear has stung it off. */
   lurkerSeen: boolean;
   lurkerStung: number;
+  /** Charter passengers aboard, if any, and how many charters have paid. */
+  charter: Charter | null;
+  chartersRun: number;
   /** The naga, freed from the monkeys' cage on island 2, is yours. */
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
@@ -239,6 +243,8 @@ export function defaultSave(b: Bounds): SaveData {
     pearlDay: 0,
     lurkerSeen: false,
     lurkerStung: 0,
+    charter: null,
+    chartersRun: 0,
     nagaFree: false,
     isle8Seen: false,
     otterFed: 0,
@@ -358,6 +364,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.pearlDay = Math.max(0, int(o.pearlDay));
   d.lurkerSeen = !!o.lurkerSeen;
   d.lurkerStung = Math.max(0, int(o.lurkerStung));
+  d.charter = parseCharter(o.charter);
+  d.chartersRun = Math.max(0, int(o.chartersRun));
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
@@ -461,6 +469,8 @@ export function serializeSave(d: SaveData): string {
     pearlDay: d.pearlDay,
     lurkerSeen: d.lurkerSeen,
     lurkerStung: d.lurkerStung,
+    charter: d.charter,
+    chartersRun: d.chartersRun,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,

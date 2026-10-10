@@ -67,6 +67,10 @@ type Np = {
   lurker: { x: number; y: number; a: number; state: string; t: number; wait: number };
   lurkerSeen: boolean;
   lurkerStung: number;
+  charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
+  charterOffer: { wants: string[]; shirts: number[] } | null;
+  chartersRun: number;
+  whales: { mother: { x: number; y: number; up: number } };
   haulLeft: number;
   hp: number;
   shallows: { fish: { x: number; y: number }[] };
@@ -746,8 +750,72 @@ test("bases: island 6's hut is built from its pier, a home port out in the far d
   await expect(card).toBeVisible();
   await expect(card).toContainText('Build a hut here');
   await card.click();
-  await expect(card).toContainText('Your base on island 6');
+  // Built, the card goes on to its next stage: the charter office.
+  await expect(card).toContainText('Build a charter office here');
   expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle6])).toEqual([500, 1]);
+  expect(errors).toEqual([]);
+});
+
+test('charters: at island 6 passengers board, see the whales, and pay at the next dock', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    bases: { isle2: 0, isle3: 0, isle6: 2 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: -1322 + 40, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  const card = page.locator('#charterBtn');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Take a charter');
+  // One passenger, who wants the whales.
+  await page.evaluate(() => {
+    const o = window.__np.charterOffer;
+    if (!o) return;
+    o.wants = ['whales'];
+    o.shirts = [1];
+  });
+  await card.click();
+  await page.waitForFunction(() => window.__np.charter !== null, null, { timeout: 2000 });
+  await expect(page.locator('#charter')).toBeVisible();
+  await expect(page.locator('#charter')).toContainText('the whales');
+  // Out to the whales, and one comes up beside the boat.
+  await page.evaluate(() => {
+    const np = window.__np;
+    const m = np.whales.mother;
+    np.boat.x = m.x + 200;
+    np.boat.y = m.y;
+    np.boat.v = 0;
+    m.up = 3;
+  });
+  await page.waitForFunction(() => window.__np.charter?.seen.includes('whales'), null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#charter')).toContainText('\u2713');
+  // Back at island 6's pier: they pay, the trip, the whales and a tip for seeing it all; half that if a
+  // shark circling a school by the whales happened to charge close and frighten them.
+  const scared = await page.evaluate(() => !!(window.__np.charter as { scared?: boolean }).scared);
+  await page.evaluate(() => {
+    const np = window.__np;
+    np.boat.x = 2400;
+    np.boat.y = -1322 + 40;
+    np.boat.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.charter === null, null, { timeout: 3000 });
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.chartersRun])).toEqual([
+    scared ? 300 : 600,
+    1,
+  ]);
+  await expect(page.locator('#charter')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

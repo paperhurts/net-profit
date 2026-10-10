@@ -215,6 +215,39 @@ function potIcon(ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: numbe
   ctx.fill();
 }
 
+/** A whale's tail, for the charter office's sign. */
+function tailIcon(ctx: CanvasRenderingContext2D, sx: number, sy: number, Z: number): void {
+  ctx.fillStyle = '#2C4A7C';
+  ctx.beginPath();
+  ctx.moveTo(sx - 0.9 * Z, sy + 3 * Z);
+  ctx.lineTo(sx - 0.7 * Z, sy - 0.6 * Z);
+  ctx.quadraticCurveTo(sx - 3.8 * Z, sy - 0.8 * Z, sx - 4.6 * Z, sy - 3.6 * Z);
+  ctx.quadraticCurveTo(sx - 2 * Z, sy - 2.2 * Z, sx, sy - 1.6 * Z);
+  ctx.quadraticCurveTo(sx + 2 * Z, sy - 2.2 * Z, sx + 4.6 * Z, sy - 3.6 * Z);
+  ctx.quadraticCurveTo(sx + 3.8 * Z, sy - 0.8 * Z, sx + 0.7 * Z, sy - 0.6 * Z);
+  ctx.lineTo(sx + 0.9 * Z, sy + 3 * Z);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A striped awning out over a front from x0 to x1 at y, from the top of a wall this high, sloping down. */
+function awning(v: DrawView, x0: number, x1: number, y: number, wall: number): void {
+  const { ctx, px, py } = v;
+  const n = 6;
+  for (let i = 0; i < n; i++) {
+    const a = x0 + ((x1 - x0) * i) / n;
+    const b = x0 + ((x1 - x0) * (i + 1)) / n;
+    ctx.fillStyle = i % 2 ? '#FFF6E5' : '#E4572E';
+    ctx.beginPath();
+    ctx.moveTo(px(a, y), py(a, y, wall));
+    ctx.lineTo(px(b, y), py(b, y, wall));
+    ctx.lineTo(px(b, y + 7), py(b, y + 7, wall - 4));
+    ctx.lineTo(px(a, y + 7), py(a, y + 7, wall - 4));
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
 /** A crab pot stood on the planks at (x, y), from height z: a squat cage of mesh on a frame. */
 function cage(v: DrawView, x: number, y: number, z: number): void {
   const { ctx, px, py } = v;
@@ -266,9 +299,10 @@ export function drawBaseShed(view: DrawView, b: Base, built: boolean, roof: stri
   const y0 = y - half;
   const y1 = y + half;
   const pots = b.shed.keeps === 'pots';
+  const charters = b.shed.keeps === 'charters';
   if (!built) {
     plot(v, x0, y0, x1, y1);
-    sign(v, x, y1, pots ? potIcon : netIcon);
+    sign(v, x, y1, pots ? potIcon : charters ? tailIcon : netIcon);
     return;
   }
   v.box(x0, y0, x1 - x0, y1 - y0, 0, wall, SHED_WALL, WALL_TOP);
@@ -276,6 +310,15 @@ export function drawBaseShed(view: DrawView, b: Base, built: boolean, roof: stri
   ctx.fillStyle = '#4A3828';
   face(v, [x0 + 2, y1], [x1 - 2, y1], 0, wall - 2);
   ctx.fill();
+  if (charters) {
+    // A counter across the open front, a striped awning over it, the roof, and a board with a whale's tail.
+    v.box(x0 + 2, y1 - 3, x1 - x0 - 4, 3, 0, 6, '#C98B4E', '#E6B877');
+    awning(v, x0 - 1, x1 + 1, y1, wall);
+    v.box(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4, wall, wall + 3, roof, roof);
+    v.box(x - 9, y1 - 1, 18, 2, wall + 3, wall + 12, '#C98B4E', '#E6B877');
+    tailIcon(ctx, px(x, y1 + 1), py(x, y1 + 1, wall + 7.5), Z);
+    return;
+  }
   if (pots) {
     // A crab pot inside, the roof, and two more stacked by the front corner.
     cage(v, x, y1 - 4, 0);
