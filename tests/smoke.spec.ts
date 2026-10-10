@@ -695,7 +695,7 @@ test('bases: build a hut on island 2 from its dock, and the boat comes back up t
   expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle2])).toEqual([500, 1]);
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').bases),
-  ).toEqual({ isle2: 1 });
+  ).toEqual({ isle2: 1, isle3: 0 });
   // Out past island 2's dock, nearer it than home, the boat goes down; it comes back up off that dock.
   await page.evaluate(() => {
     const b = window.__np.boat;

@@ -35,11 +35,14 @@ export const TOWER3 = { x: ISLE3.x, y: ISLE3.y, r: 30, h: 190 } as const;
 /** The seaweed gathered round its foot, thick enough to stand on. */
 export const MAT = { x: ISLE3.x, y: ISLE3.y, r: 82 } as const;
 
-/** The rafts: the net loft, the trader's at the corner, and the bait shack. */
+/** The base raft, lashed on north of the bait shack's, kept clear for a hut of the player's own (world/bases.ts). */
+export const BASE_RAFT = box(100, -150, 168, -82);
+/** The rafts: the net loft, the trader's at the corner, the bait shack, and the base raft. */
 export const RAFTS: readonly Box[] = [
   box(-36, 96, 36, 158),
   box(90, 90, 172, 172),
   box(96, -36, 158, 36),
+  BASE_RAFT,
 ];
 /** Plank walks from the seaweed to the rafts and between them, each lapping what it joins. */
 export const WALKS: readonly Box[] = [
@@ -47,6 +50,8 @@ export const WALKS: readonly Box[] = [
   box(56, 6, 104, 22),
   box(30, 140, 98, 156),
   box(140, 30, 156, 98),
+  // Out to the base raft, past the bait shack's back corner.
+  box(140, -90, 156, -30),
 ];
 /** The jetty, out from the trader's raft toward home. The boat ties up at its end. */
 export const JETTY = box(164, 134, 276, 154);

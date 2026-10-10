@@ -2448,7 +2448,7 @@ function drawWorldObjects(){
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   if (build >= AQUARIUM_FROM && onScreen(AQUARIUM_MID.x, AQUARIUM_MID.y, 80*Z)) list.push({d: AQUARIUM_MID.x+AQUARIUM_MID.y, f: drawAquarium});
   for (const b of BASES) if (onScreen(b.hut.x, b.hut.y, 120*Z)){ const built = bases[b.id] >= 1;
-    list.push({d: b.shed.x+b.shed.y+b.shed.half, f: () => drawBaseShed(drawView, b, bases[b.id] >= 2, PAINTS[paint].roof)});
+    if (b.shed) list.push({d: b.shed.x+b.shed.y+b.shed.half, f: () => drawBaseShed(drawView, b, bases[b.id] >= 2, PAINTS[paint].roof)});
     list.push({d: b.hut.x+b.hut.y+b.hut.half, f: () => drawBaseHut(drawView, b, built, PAINTS[paint].roof, built ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null)}); }
   list.push(...scene.solids(drawView), ...bushSolids(drawView));
   walker.armour = armourAt(armour)?.look ?? null;
