@@ -10,19 +10,23 @@
  * has a raft kept for its base, and crab pots come with its second stage; the
  * big island, island 6, has its hut on the beach at the root of its pier, across
  * from the trading post, and its second stage, the charter office, takes
- * passengers out to see the sea's creatures (fishing/charter.ts).
+ * passengers out to see the sea's creatures (fishing/charter.ts). The ice floe
+ * in the far deep, the kid's, has an igloo for its base: built from the boat
+ * alongside it, not from a dock, it is a home port, and sleeping in it skips to
+ * the next morning, when the fish are back under its hole.
  *
  * Later, the kid wants companions to be given jobs at a base. Nothing waits at
  * one yet; a base's stage is one number in the save, and a job would sit beside
  * it there.
  */
 
+import { FLOE_REACH, ICE_FLOE, ICE_HOLE } from './icefloe';
 import { DOCK2, ISLE2 } from './isle2';
 import { DOCK3, ISLE3, PLANK_Z } from './isle3';
 import { DOCK6, ISLE6, PIER6 } from './isle6';
 
-export type BaseId = 'isle2' | 'isle3' | 'isle6';
-export const BASE_IDS: readonly BaseId[] = ['isle2', 'isle3', 'isle6'];
+export type BaseId = 'isle2' | 'isle3' | 'isle6' | 'floe';
+export const BASE_IDS: readonly BaseId[] = ['isle2', 'isle3', 'isle6', 'floe'];
 
 /** One stage of a base: what it is called, what it costs, and what the shop says before and after. */
 export type BaseStage = { name: string; wood: number; coins: number; blurb: string; built: string };
@@ -37,8 +41,10 @@ export type Base = {
   hut: { x: number; y: number; half: number; wall: number };
   /** Its second building, the same way, and what it keeps: island 2's seine, island 3's crab pots, island 6's charters. */
   shed?: { x: number; y: number; half: number; wall: number; keeps: 'seine' | 'pots' | 'charters' };
-  /** What they stand on is this high: the sand, or a raft's planks. */
+  /** What they stand on is this high: the sand, a raft's planks, or the ice. */
   z: number;
+  /** An igloo, not a hut: built from the boat alongside, not from a dock. */
+  igloo?: boolean;
   /** What the shop says of it once every stage is built. */
   done: string;
   /** Where the boat comes back up when this is the nearest home port: off the dock, facing it. */
@@ -64,6 +70,39 @@ function hutStage(island: string): BaseStage {
     built: `Built your hut on ${island}. It is a home port now: if your boat goes down nearer here than home, it comes back up off this dock.`,
   };
 }
+
+/** The ice floe's base: its igloo, a little way in from the hole, toward the middle. */
+export const FLOE_BASE: Base = {
+  id: 'floe',
+  island: 'the ice floe',
+  // Not a dock: the stretch of water alongside the floe by its hole, where the boat stops to fish.
+  dock: {
+    x: ICE_FLOE.x + (ICE_FLOE.r + FLOE_REACH * 0.6) * Math.SQRT1_2,
+    y: ICE_FLOE.y + (ICE_FLOE.r + FLOE_REACH * 0.6) * Math.SQRT1_2,
+    r: FLOE_REACH,
+  },
+  hut: { x: ICE_HOLE.x - 64, y: ICE_HOLE.y - 56, half: 20, wall: 18 },
+  z: 7,
+  igloo: true,
+  done: 'An igloo on the ice floe: a home port out in the far deep. Sleep in it till morning.',
+  // Off the floe toward home, facing it.
+  spit: {
+    x: ICE_FLOE.x + (ICE_FLOE.r + 200) * Math.SQRT1_2,
+    y: ICE_FLOE.y + (ICE_FLOE.r + 200) * Math.SQRT1_2,
+    h: Math.atan2(-1, -1),
+  },
+  stages: [
+    {
+      name: 'igloo',
+      wood: 30,
+      coins: 1500,
+      blurb:
+        'A home port out in the far deep, and somewhere warm to sleep: sleep till morning and the fish are back under the hole.',
+      built:
+        'Built an igloo on the ice floe! It is a home port now, and somewhere to sleep: stop alongside and tap Sleep till morning, and the fish are back under the hole.',
+    },
+  ],
+};
 
 export const BASES: readonly Base[] = [
   {
@@ -140,6 +179,7 @@ export const BASES: readonly Base[] = [
       },
     ],
   },
+  FLOE_BASE,
 ];
 
 /** Island 2's stage that opens seining. */
@@ -170,7 +210,7 @@ export function hasCharters(bases: Bases): boolean {
 export type Bases = Record<BaseId, number>;
 
 export function noBases(): Bases {
-  return { isle2: 0, isle3: 0, isle6: 0 };
+  return { isle2: 0, isle3: 0, isle6: 0, floe: 0 };
 }
 
 /** The stages from a save, each missing or broken one read as nothing built, and none past the last. */

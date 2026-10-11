@@ -13,6 +13,7 @@ import {
   polePoint,
   SPIT_OFF,
 } from '../../src/world/bases';
+import { FLOE_MAX, ICE_FLOE, ICE_HOLE, SEALS } from '../../src/world/icefloe';
 import { DOCK, pastBuoys } from '../../src/world/island';
 import { CAMP, DOCK2, ISLE2, LANDING2, PALMS2, POST, TOWER } from '../../src/world/isle2';
 import { BASE_RAFT, DOCK3, ISLE3, onPlanks, PLANK_Z, SHACKS } from '../../src/world/isle3';
@@ -36,12 +37,22 @@ if (!isle3) throw new Error('no base on island 3');
 
 describe('bases', () => {
   it('reads nothing built from an old save, a broken one, or one from the future', () => {
-    expect(parseBases(undefined)).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
-    expect(parseBases('hut')).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
-    expect(parseBases({ isle2: -2, nowhere: 4 })).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
-    expect(parseBases({ isle2: Number.NaN })).toEqual({ isle2: 0, isle3: 0, isle6: 0 });
-    expect(parseBases({ isle2: 1.7, isle3: 1 })).toEqual({ isle2: 1, isle3: 1, isle6: 0 });
-    expect(parseBases({ isle2: 99 })).toEqual({ isle2: isle2.stages.length, isle3: 0, isle6: 0 });
+    expect(parseBases(undefined)).toEqual({ isle2: 0, isle3: 0, isle6: 0, floe: 0 });
+    expect(parseBases('hut')).toEqual({ isle2: 0, isle3: 0, isle6: 0, floe: 0 });
+    expect(parseBases({ isle2: -2, nowhere: 4 })).toEqual({
+      isle2: 0,
+      isle3: 0,
+      isle6: 0,
+      floe: 0,
+    });
+    expect(parseBases({ isle2: Number.NaN })).toEqual({ isle2: 0, isle3: 0, isle6: 0, floe: 0 });
+    expect(parseBases({ isle2: 1.7, isle3: 1 })).toEqual({ isle2: 1, isle3: 1, isle6: 0, floe: 0 });
+    expect(parseBases({ isle2: 99 })).toEqual({
+      isle2: isle2.stages.length,
+      isle3: 0,
+      isle6: 0,
+      floe: 0,
+    });
   });
 
   it('builds island 2 a stage at a time, the hut first and then the gear shed, which brings the seine', () => {
@@ -168,7 +179,7 @@ describe('bases', () => {
     // From the walk out to the raft, round in front of both.
     expect(walkable(BASE_RAFT.x0 + 52, BASE_RAFT.y1 - 6, 0)).toBe(true);
     expect(walkable(hut.x, hut.y + hut.half + 8, 0)).toBe(true);
-    expect(nextStage(isle3, { isle2: 0, isle3: 1, isle6: 0 })?.name).toBe('crab shed');
+    expect(nextStage(isle3, { isle2: 0, isle3: 1, isle6: 0, floe: 0 })?.name).toBe('crab shed');
   });
 
   it('draws the crab shed with crab pots stacked by it', () => {
@@ -186,12 +197,12 @@ describe('bases', () => {
     expect(pastBuoys(x, y)).toBe(true);
     expect(Math.cos(h - Math.atan2(DOCK3.y - y, DOCK3.x - x))).toBeGreaterThan(0.999);
     expect(baseAtDock(DOCK3.x, DOCK3.y)).toBe(isle3);
-    const both = { isle2: 1, isle3: 1, isle6: 0 };
+    const both = { isle2: 1, isle3: 1, isle6: 0, floe: 0 };
     expect(homePort(both, ISLE3.x + 700, ISLE3.y + 200, DOCK)).toBe(isle3);
     expect(homePort(both, ISLE2.x + 600, ISLE2.y - 600, DOCK)).toBe(isle2);
-    expect(homePort({ isle2: 1, isle3: 0, isle6: 0 }, ISLE3.x + 700, ISLE3.y + 200, DOCK)).not.toBe(
-      isle3,
-    );
+    expect(
+      homePort({ isle2: 1, isle3: 0, isle6: 0, floe: 0 }, ISLE3.x + 700, ISLE3.y + 200, DOCK),
+    ).not.toBe(isle3);
   });
 
   it('draws a base on a raft up on its planks', () => {
@@ -295,5 +306,32 @@ describe("island 6's base", () => {
     const built = { ...noBases(), isle2: 1, isle6: 1 };
     expect(homePort(built, ISLE6.x + 300, ISLE6.y + 900, DOCK)).toBe(isle6);
     expect(homePort({ ...built, isle6: 0 }, ISLE6.x + 300, ISLE6.y + 900, DOCK)).not.toBe(isle6);
+  });
+});
+
+describe('the igloo on the ice floe', () => {
+  it('is a base built from the boat alongside, and a home port for a boat lost out by the floe', () => {
+    const igloo = BASES.find((b) => b.id === 'floe');
+    expect(igloo?.igloo).toBe(true);
+    expect(igloo?.stages.length).toBe(1);
+    expect(parseBases({ floe: 1 }).floe).toBe(1);
+    if (!igloo) return;
+    // It stands on the floe; the boat comes back up off it, toward home.
+    expect(Math.hypot(igloo.hut.x - ICE_FLOE.x, igloo.hut.y - ICE_FLOE.y)).toBeLessThan(
+      ICE_FLOE.r * 0.8,
+    );
+    expect(Math.hypot(igloo.spit.x - ICE_FLOE.x, igloo.spit.y - ICE_FLOE.y)).toBeGreaterThan(
+      FLOE_MAX + 40,
+    );
+    // Clear of the hole and the seals hauled out.
+    for (const p of [ICE_HOLE, ...SEALS])
+      expect(Math.hypot(igloo.hut.x - p.x, igloo.hut.y - p.y)).toBeGreaterThan(
+        igloo.hut.half * 1.6 + 30,
+      );
+    const built = { ...noBases(), floe: 1 };
+    expect(homePort(noBases(), ICE_FLOE.x + 400, ICE_FLOE.y, DOCK)).toBeNull();
+    expect(homePort(built, ICE_FLOE.x + 400, ICE_FLOE.y, DOCK)).toBe(igloo);
+    // Lost near home, still home.
+    expect(homePort(built, DOCK.x + 300, DOCK.y, DOCK)).toBeNull();
   });
 });

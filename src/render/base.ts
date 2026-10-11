@@ -71,6 +71,10 @@ export function drawBaseHut(
   const x1 = x + half;
   const y0 = y - half;
   const y1 = y + half;
+  if (b.igloo) {
+    if (built) drawIgloo(v, b, flag);
+    return;
+  }
   if (!built) {
     plot(v, x0, y0, x1, y1);
     sign(v, x, y1, hutIcon);
@@ -356,6 +360,70 @@ export function drawBaseShed(view: DrawView, b: Base, built: boolean, roof: stri
   ctx.fill();
   ctx.fillStyle = '#FFF6E5';
   ctx.fillRect(bx - 4.5 * Z, by - 0.8 * Z, 9 * Z, 1.6 * Z);
+}
+
+/**
+ * An igloo: a dome of snow blocks, rows and seams pressed into it, a tunnel out the front to a dark door,
+ * and the player's flag on top.
+ */
+function drawIgloo(v: DrawView, b: Base, flag: ((sx: number, sy: number) => void) | null): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const { x, y, half } = b.hut;
+  const R = half * 1.6;
+  const sx = px(x, y);
+  const sy = py(x, y, 0);
+  const w = R * Z;
+  const h = R * 0.9 * Z;
+  ctx.fillStyle = 'rgba(90,140,165,.25)';
+  v.isoEllipse(x, y, R * 1.1, 0);
+  ctx.fill();
+  // The dome, and its rows of blocks.
+  ctx.fillStyle = '#F4FAFC';
+  ctx.strokeStyle = '#B9D6E2';
+  ctx.lineWidth = 1.4 * Z;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, w, h, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  for (let i = 1; i < 4; i++) {
+    const k = i / 4;
+    const ry = sy - h * k;
+    const rx = w * Math.sqrt(1 - k * k);
+    ctx.moveTo(sx - rx, ry);
+    ctx.lineTo(sx + rx, ry);
+    for (let j = -2; j <= 2; j++) {
+      const bx = sx + j * rx * 0.4 + (i % 2) * rx * 0.2;
+      if (Math.abs(bx - sx) >= rx) continue;
+      ctx.moveTo(bx, ry);
+      ctx.lineTo(bx, ry + h / 4);
+    }
+  }
+  ctx.stroke();
+  // The tunnel out the front, and its dark door.
+  const tx = sx + w * 0.35;
+  const ty = sy + h * 0.25;
+  ctx.fillStyle = '#EAF4F8';
+  ctx.beginPath();
+  ctx.ellipse(tx, ty, w * 0.42, h * 0.5, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#2B4756';
+  ctx.beginPath();
+  ctx.ellipse(tx + w * 0.08, ty, w * 0.2, h * 0.3, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  // The flag on top.
+  ctx.strokeStyle = '#6B4A2E';
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - h);
+  ctx.lineTo(sx, sy - h - POLE * 0.6 * Z);
+  ctx.stroke();
+  if (flag) flag(sx, sy - h - POLE * 0.6 * Z);
 }
 
 /** The hut's lantern and window, punched into the night. */
