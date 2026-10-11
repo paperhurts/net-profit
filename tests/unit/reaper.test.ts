@@ -26,6 +26,7 @@ import {
   SWEEP_T,
 } from '../../src/entities/reaper';
 import { SPEAR_SPEED } from '../../src/entities/spears';
+import { FLOE_MAX, ICE_FLOE } from '../../src/world/icefloe';
 import { DEEP, FAR, IR, IX, IY, pastBuoys, pastFar, WS } from '../../src/world/island';
 import { ISLE2 } from '../../src/world/isle2';
 import { ISLE3 } from '../../src/world/isle3';
@@ -68,6 +69,7 @@ describe('the Reaper', () => {
       ISLE7,
       ISLE8,
       ISLE9,
+      { x: ICE_FLOE.x, y: ICE_FLOE.y, r: FLOE_MAX },
     ];
     let far = 0;
     let all = 0;
