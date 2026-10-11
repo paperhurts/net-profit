@@ -109,7 +109,14 @@ type Np = {
   harpoonTarget: string | null;
   gulper: { resolve: number };
   serpent: { state: string; resolve: number };
-  reaper: { state: string; hunting: boolean; resolve: number; x: number; y: number };
+  reaper: {
+    state: string;
+    hunting: boolean;
+    resolve: number;
+    x: number;
+    y: number;
+    holdOff: (() => boolean) | null;
+  };
   reaperSeen: boolean;
   icing: boolean;
   iceSeen: boolean;
@@ -1090,6 +1097,8 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
     wood: 60,
     isle2Seen: true,
     isle3Seen: true,
+    // Met already, so his first sighting does not talk over the pots at the buoys.
+    reaperSeen: true,
     bases: { isle2: 0, isle3: 1 },
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: -600 + 322, y: -600 + 154, h: Math.PI, clock: 0.3, hold: [] },
@@ -1133,8 +1142,9 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
   });
   await page.waitForFunction(() => window.__np.pots[0]?.crabs === 0, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.hold)).toBeGreaterThanOrEqual(before + 4);
-  // Past the buoys, no pots.
+  // Past the buoys, no pots. The Reaper roams out there: held off, so his hunt does not talk over it.
   await page.evaluate(() => {
+    window.__np.reaper.holdOff = () => true;
     const b = window.__np.boat;
     b.x = 5100;
     b.y = 2300;
