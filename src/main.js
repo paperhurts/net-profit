@@ -650,8 +650,9 @@ function harpoonTarget(){ if (!hasHarpoon() || walker.state !== 'aboard' || !sta
   return best; }
 function fireHarpoon(){ if (T < harpoonAt) return; const t = harpoonTarget(); if (!t) return;
   harpoonAt = T + HARPOON_RELOAD; sfx.spearThrow(); const z = BEAST_Z[t.k];
+  // Fired at a mark, it counts when it lands, even if what it was fired at has gone back under by then.
   spears.launch(BOW.x, BOW.y, 14, t.m, z, () => { const before = t.e.resolve;
-    if (t.e.harpoon(HARPOON_POWER, t.m)){ if (t.k !== 'king' && t.k !== 'deep' && t.k !== 'hired') driveOff(t.k); }
+    if (t.e.harpoon(HARPOON_POWER, t.m, true)){ if (t.k !== 'king' && t.k !== 'deep' && t.k !== 'hired') driveOff(t.k); }
     else if (t.e.resolve < before){ sfx.spearHit(); shake = Math.max(shake, .2); addText(t.m.x, t.m.y, z + 24, 'Hit!', '#FFF3C4', 18, 1); } }, BOW); }
 function driveOff(k){ const prize = drivePrize(driven[k]); driven[k]++; coins += prize; earned += prize;
   shake = 1; sfx.tierUp(); for (let i=0;i<18;i++) sparks.push({x:boat.x, y:boat.y, vx:(Math.random()-.5)*180, vy:(Math.random()-.5)*180, z:20, vz:50+Math.random()*70, age:0, life:1+Math.random()*.7});

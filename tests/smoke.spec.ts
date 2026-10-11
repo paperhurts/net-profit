@@ -183,7 +183,7 @@ type Np = {
   cat: { shown: boolean; heals: number; x: number; y: number };
   warrior: { shown: boolean };
   catAt: [number, number] | null;
-  king: { fighting: boolean; state: string; resolve: number };
+  king: { fighting: boolean; state: string; t: number; resolve: number };
   fireHarpoon(): void;
 };
 
@@ -2058,6 +2058,23 @@ test('the Skeleton Shark King: he rises at the reef, and harpooned down, dies wi
   });
   await page.waitForFunction(() => window.__np.king.fighting, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('Skeleton Shark King');
+  // A harpoon fired while he is up counts, though he has gone back under by the time it lands.
+  const fired = await page.waitForFunction(
+    () => {
+      const np = window.__np;
+      if (np.harpoonTarget !== 'king') return false;
+      const r = np.king.resolve;
+      np.fireHarpoon();
+      np.king.state = 'dive';
+      np.king.t = 0;
+      return r;
+    },
+    null,
+    { timeout: 30000, polling: 50 },
+  );
+  const r0 = Number(await fired.jsonValue());
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => window.__np.king.resolve)).toBe(r0 - 1);
   // Nearly beaten; then the harpoon, whenever he is up and in reach.
   await page.evaluate(() => {
     window.__np.king.resolve = 1;
