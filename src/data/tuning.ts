@@ -214,6 +214,52 @@ export const SPECIES: readonly Species[] = [
     glow: true,
     light: '#4FC3FF',
   },
+  // Through the hole in the ice floe, on the ice fishing line: a char, pink-bellied and spotted, up in the light;
+  {
+    name: 'arctic char',
+    pl: 'arctic char',
+    v: 18,
+    c: '#D9785F',
+    s: 9,
+    fat: 0.32,
+    tail: 0.85,
+    mark: '#5E7F86',
+    dot: true,
+  },
+  // a polar cod, small and olive, below it;
+  {
+    name: 'polar cod',
+    pl: 'polar cod',
+    v: 28,
+    c: '#9AA88C',
+    s: 9.5,
+    fat: 0.3,
+    tail: 0.8,
+    mark: '#D9DCC8',
+  },
+  // an icefish down deep, nearly see-through, with clear blood, as the real ones have;
+  {
+    name: 'icefish',
+    pl: 'icefish',
+    v: 50,
+    c: '#DCEFF4',
+    s: 11,
+    fat: 0.24,
+    tail: 0.8,
+    mark: '#9FC9D6',
+  },
+  // and a snow crab, long-legged and orange, walking the floor.
+  {
+    name: 'snow crab',
+    pl: 'snow crabs',
+    v: 60,
+    c: '#E8853A',
+    s: 7.5,
+    fat: 0.7,
+    tail: 0,
+    mark: '#F6E2C8',
+    crab: true,
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -221,6 +267,11 @@ export const CRAB = 16;
 /** The trench's own catches, speared on a dive. */
 export const GLOW_SQUID = 17;
 export const DRAGONFISH = 18;
+/** The ice floe's, on the ice fishing line. */
+export const ICE_CHAR = 19;
+export const POLAR_COD = 20;
+export const ICEFISH = 21;
+export const SNOW_CRAB = 22;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;

@@ -26,6 +26,7 @@
 import { angDiff, clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { drawReaperBody, drawReaperFin, drawReaperShadow } from '../render/reaper';
+import { FLOE_MAX, ICE_FLOE } from '../world/icefloe';
 import { DEEP, FAR, IR, IX, IY, pastBuoys, WS } from '../world/island';
 import { ISLE2 } from '../world/isle2';
 import { ISLE3 } from '../world/isle3';
@@ -56,7 +57,18 @@ export const ROUTE: readonly { x: number; y: number }[] = [
 /** How fast he roams it. */
 export const ROAM_SPEED = 150;
 /** Every island he keeps off, and how far. */
-const ISLANDS = [{ x: IX, y: IY, r: IR }, ISLE2, ISLE3, ISLE4, ISLE5, ISLE6, ISLE7, ISLE8, ISLE9];
+const ISLANDS = [
+  { x: IX, y: IY, r: IR },
+  ISLE2,
+  ISLE3,
+  ISLE4,
+  ISLE5,
+  ISLE6,
+  ISLE7,
+  ISLE8,
+  ISLE9,
+  { x: ICE_FLOE.x, y: ICE_FLOE.y, r: FLOE_MAX },
+];
 const SHORE = 90;
 
 /** A boat past the buoys this close is hunted; this far from where he found it, he gives up. */

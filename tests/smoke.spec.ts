@@ -105,6 +105,16 @@ type Np = {
   serpent: { state: string; resolve: number };
   reaper: { state: string; hunting: boolean; resolve: number; x: number; y: number };
   reaperSeen: boolean;
+  icing: boolean;
+  iceSeen: boolean;
+  iceRuns: number;
+  iceRun: {
+    phase: string;
+    x: number;
+    y: number;
+    line: unknown[];
+    pool: { kind: string; x: number; y: number; vx: number; caught: boolean; on: boolean }[];
+  } | null;
   armour: number;
   maxHearts: number;
   sailedShare: number;
@@ -2221,6 +2231,83 @@ test('the Reaper: he hunts a boat out in the deep, sweeps, rears, and harpooned 
   );
   await expect(page.locator('#toast')).toContainText('ice fishing kit', { timeout: 9000 });
   expect(await page.evaluate(() => window.__np.driven.reaper)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test("ice fishing: alongside the floe with the Reaper's kit, drop the line and land what it hooks", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    spear: 4,
+    driven: { reaper: 1 },
+    reaperSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + 340 * Math.SQRT1_2,
+      y: -2244 + 340 * Math.SQRT1_2,
+      h: 3.9,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#iceBtn')).toBeVisible({ timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.iceSeen)).toBe(true);
+  await page.click('#iceBtn');
+  await page.waitForFunction(() => window.__np.icing, null, { timeout: 2000 });
+  await page.click('#iceDrop');
+  // Down to the floor, and on the way up a char swims into the hook.
+  await page.waitForFunction(() => window.__np.iceRun?.phase === 'reel', null, { timeout: 8000 });
+  await page.evaluate(() => {
+    const r = window.__np.iceRun;
+    const f = r?.pool.find((f) => f.kind === 'char' && !f.caught && !f.on);
+    if (r && f) {
+      f.vx = 0;
+      f.x = r.x;
+      f.y = 300;
+    }
+  });
+  await page.waitForFunction(() => window.__np.iceRun?.phase === 'done', null, { timeout: 12000 });
+  expect(await page.evaluate(() => window.__np.iceRuns)).toBe(1);
+  expect(await page.evaluate(() => window.__np.hold)).toBeGreaterThanOrEqual(1);
+  await expect(page.locator('#toast')).toContainText('arctic char');
+  await page.click('#iceLeave');
+  await page.waitForFunction(() => !window.__np.icing, null, { timeout: 2000 });
+  expect(errors).toEqual([]);
+});
+
+test('ice fishing: without the kit there is no fishing the floe, and the game says who has one', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + 340 * Math.SQRT1_2,
+      y: -2244 + 340 * Math.SQRT1_2,
+      h: 3.9,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('Reaper', { timeout: 4000 });
+  await expect(page.locator('#iceBtn')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

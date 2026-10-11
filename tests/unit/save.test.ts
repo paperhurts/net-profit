@@ -523,6 +523,21 @@ describe('the leviathans driven off', () => {
     expect(back.driven.reaper).toBe(1);
     expect(back.reaperSeen).toBe(true);
   });
+
+  it('keep the ice floe found and the drops through its hole, as nothing in a save from before them', () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    delete old.iceSeen;
+    delete old.iceRuns;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect([s.iceSeen, s.iceRuns]).toEqual([false, 0]);
+    s.iceSeen = true;
+    s.iceRuns = 7;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.iceSeen, back.iceRuns]).toEqual([true, 7]);
+    const bad = JSON.parse(serializeSave(s));
+    bad.iceRuns = 'lots';
+    expect(parseSave(JSON.stringify(bad), bounds).iceRuns).toBe(0);
+  });
 });
 
 describe('armour', () => {

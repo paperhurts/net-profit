@@ -107,6 +107,9 @@ export type SaveData = {
   meteorSeen: boolean;
   /** The Reaper, the kid's leviathan with legs, has been sighted in the deep. */
   reaperSeen: boolean;
+  /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
+  iceSeen: boolean;
+  iceRuns: number;
   /** Lionfish have been seen in the outer sea. */
   lionSeen: boolean;
   /** Lionfish caught on the rod, for the bounty. */
@@ -240,6 +243,8 @@ export function defaultSave(b: Bounds): SaveData {
     gulperSeen: false,
     meteorSeen: false,
     reaperSeen: false,
+    iceSeen: false,
+    iceRuns: 0,
     lionSeen: false,
     lionCaught: 0,
     aquarium: false,
@@ -365,6 +370,11 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.gulperSeen = !!o.gulperSeen;
   d.meteorSeen = !!o.meteorSeen;
   d.reaperSeen = !!o.reaperSeen;
+  d.iceSeen = !!o.iceSeen;
+  d.iceRuns =
+    typeof o.iceRuns === 'number' && Number.isFinite(o.iceRuns) && o.iceRuns > 0
+      ? Math.floor(o.iceRuns)
+      : 0;
   d.lionSeen = !!o.lionSeen;
   d.lionCaught = Math.max(0, int(o.lionCaught));
   d.aquarium = !!o.aquarium;
@@ -474,6 +484,8 @@ export function serializeSave(d: SaveData): string {
     gulperSeen: d.gulperSeen,
     meteorSeen: d.meteorSeen,
     reaperSeen: d.reaperSeen,
+    iceSeen: d.iceSeen,
+    iceRuns: d.iceRuns,
     lionSeen: d.lionSeen,
     lionCaught: d.lionCaught,
     aquarium: d.aquarium,

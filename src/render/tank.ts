@@ -117,9 +117,25 @@ const SHAPES: Record<string, Shape> = {
   'spider crab': 'crab',
   'glow squid': 'squid',
   'neon dragonfish': 'dragon',
+  'snow crab': 'crab',
 };
-const LOW = new Set(['pufferfish', 'dusk ray', 'grouper', 'parrotfish', 'neon dragonfish']);
-const MID = new Set(['shark', 'marlin', 'mahi-mahi', 'sunrise koi', 'tuna', 'snapper']);
+const LOW = new Set([
+  'pufferfish',
+  'dusk ray',
+  'grouper',
+  'parrotfish',
+  'neon dragonfish',
+  'icefish',
+]);
+const MID = new Set([
+  'shark',
+  'marlin',
+  'mahi-mahi',
+  'sunrise koi',
+  'tuna',
+  'snapper',
+  'polar cod',
+]);
 
 /** Tank units per world unit of a fish's length. */
 const SCALE = 2.4;
