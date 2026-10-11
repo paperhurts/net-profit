@@ -4,7 +4,9 @@
  * phone held upright has room for it. The sea you know, the deep and the far
  * deep in their blues with their buoys; each island where it is; fog over
  * everywhere the boat has not sailed, soft at its edges; and the boat, pointing
- * the way it is going. Islands are named once they have been found.
+ * the way it is going. Islands are named once they have been found. Places to
+ * go back to that are not islands, the trench to dive, are marked over the fog
+ * with their names, so they can be found again.
  */
 
 import {
@@ -29,10 +31,15 @@ export type MapIsle = {
   top: string;
 };
 
+/** A place to go back to that is not an island: where, and its name on the map. */
+export type MapMark = { x: number; y: number; name: string };
+
 export type MapView = {
   sailed: Sailed;
   boat: { x: number; y: number; h: number };
   isles: readonly MapIsle[];
+  /** Marked over the fog, with their names. */
+  marks?: readonly MapMark[];
   /** Seconds, for the boat's pulse. */
   T: number;
 };
@@ -72,6 +79,42 @@ function square(
   ctx.lineTo(p.x(x1, y1), p.y(x1, y1));
   ctx.lineTo(p.x(x0, y1), p.y(x0, y1));
   ctx.closePath();
+}
+
+/** A dive mark: dark water in a pale ring with bubbles coming up out of it, and its name under it. */
+export function drawMapMark(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  k: number,
+  name: string,
+): void {
+  ctx.fillStyle = '#071A22';
+  ctx.strokeStyle = '#9FE3F0';
+  ctx.lineWidth = 2 * k;
+  ctx.beginPath();
+  ctx.arc(x, y, 6 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#CFF4FA';
+  for (const [dx, dy, r] of [
+    [2, -9, 1.8],
+    [5, -14, 1.4],
+    [1, -18, 1.1],
+  ] as const) {
+    ctx.beginPath();
+    ctx.arc(x + dx * k, y + dy * k, r * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.font = `800 ${Math.round(10 * k)}px Grandstander, ui-rounded, system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3 * k;
+  ctx.strokeStyle = 'rgba(8,24,32,.85)';
+  ctx.strokeText(name, x, y + 9 * k);
+  ctx.fillStyle = '#9FE3F0';
+  ctx.fillText(name, x, y + 9 * k);
 }
 
 export class SeaMap {
@@ -135,6 +178,7 @@ export class SeaMap {
       ctx.fillStyle = '#FFF6E5';
       ctx.fillText(isle.name, x, y);
     }
+    for (const m of v.marks ?? []) drawMapMark(ctx, p.x(m.x, m.y), p.y(m.x, m.y), k, m.name);
     // The boat: a pulse round it and an arrow the way it points.
     const bx = p.x(v.boat.x, v.boat.y);
     const by = p.y(v.boat.x, v.boat.y);

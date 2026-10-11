@@ -119,6 +119,7 @@ type Np = {
   maxHearts: number;
   sailedShare: number;
   mapOpen: boolean;
+  mapMarks(): { x: number; y: number; name: string }[];
   lionSeen: boolean;
   netCut: boolean;
   mending: boolean;
@@ -568,6 +569,8 @@ test('the sea map: sailing opens the fog, the map shows it, and the game waits w
   await page.waitForTimeout(1500);
   const after = await page.evaluate(() => window.__np.sailedShare);
   expect(after).toBeGreaterThan(before);
+  // No scuba gear and no trench found: nothing marked yet.
+  expect(await page.evaluate(() => window.__np.mapMarks())).toEqual([]);
   await page.locator('#mapBtn').click();
   await expect(page.locator('#seamap')).toBeVisible();
   await expect(page.locator('#mapNote')).toContainText('of the sea');
@@ -577,6 +580,27 @@ test('the sea map: sailing opens the fog, the map shows it, and the game waits w
   expect(await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y])).toEqual(at);
   await page.locator('#mapClose').click();
   await expect(page.locator('#seamap')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the sea map: with scuba gear the trench is marked to dive, and not before', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 4000, y: 2400, h: 0, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.mapMarks())).toEqual([
+    { x: 1250, y: -620, name: 'Trench: dive here' },
+  ]);
+  await page.locator('#mapBtn').click();
+  await expect(page.locator('#seamap')).toBeVisible();
+  await page.locator('#mapClose').click();
   expect(errors).toEqual([]);
 });
 
