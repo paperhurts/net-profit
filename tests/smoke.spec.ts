@@ -3576,3 +3576,40 @@ test('another device: the shop copies a link to the game, and opened elsewhere i
   await other.close();
   expect(errors).toEqual([]);
 });
+
+test('installable: a manifest with its icons, a service worker, and with no signal the game still opens', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true, coins: 777 });
+  const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(href).toBeTruthy();
+  const app = await page.evaluate(async (h) => {
+    const m = await (await fetch(h as string)).json();
+    const sizes: string[] = [];
+    for (const i of m.icons)
+      if ((await fetch(new URL(i.src, new URL(h as string, location.href)))).ok)
+        sizes.push(i.sizes);
+    return { name: m.name, display: m.display, start: m.start_url, sizes };
+  }, href);
+  expect(app).toMatchObject({ name: 'Net Profit', display: 'standalone', start: './' });
+  expect(app.sizes).toEqual(expect.arrayContaining(['192x192', '512x512']));
+  // The service worker takes over and keeps the page and its script.
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  await page.waitForFunction(
+    async () => {
+      const keys = await (await caches.open('netprofit')).keys();
+      return keys.some((r) => r.url.includes('/assets/')) && keys.some((r) => r.url.endsWith('/'));
+    },
+    null,
+    { timeout: 5000, polling: 200 },
+  );
+  // No signal: the game opens from what was kept, the save with it.
+  await context.setOffline(true);
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  await page.waitForFunction(() => window.__np?.coins === 777, null, { timeout: 3000 });
+  await context.setOffline(false);
+  expect(errors).toEqual([]);
+});

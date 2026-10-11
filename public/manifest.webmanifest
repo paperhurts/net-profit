@@ -1,0 +1,22 @@
+{
+  "name": "Net Profit",
+  "short_name": "Net Profit",
+  "description": "A cosy isometric fishing tycoon. Tow the net, haul the catch, build up the boat.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1B6676",
+  "theme_color": "#2B8A99",
+  "icons": [
+    { "src": "favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
