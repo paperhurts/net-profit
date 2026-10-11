@@ -1068,6 +1068,37 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
   expect(errors).toEqual([]);
 });
 
+test('the trench: the Dive button shows anywhere on its dark water, and a boat still under way is told to stop', async ({
+  context,
+  page,
+}) => {
+  // Reported from the owner's phone: stopped on the bubbles, no Dive button. The dark patch is drawn out to 180 from
+  // the trench's middle, and the button used to want 150 and a boat all but stopped.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    trenchSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 1250 + 165, y: -620, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#diveBtn')).toBeVisible();
+  // Under way over it: no button yet, and how to dive here.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 1250 - 120;
+    b.y = -620;
+    b.h = 0;
+    b.v = 300;
+  });
+  await expect(page.locator('#toast')).toContainText('Let go of the stick');
+  expect(errors).toEqual([]);
+});
+
 test('the trench: stopped over it with scuba gear, dive; down in the dark, then swim back up to the boat', async ({
   context,
   page,
