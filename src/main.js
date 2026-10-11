@@ -999,8 +999,10 @@ anchorer.onBeaten = () => { const first = isle4Stage < 1; isle4Stage = 1; burst(
   if (first){ coins += TAR_PRIZE; earned += TAR_PRIZE; addText(anchorer.x, anchorer.y, 60, '+' + TAR_PRIZE, C.coin, 24, 2.4); }
   // What is left of it climbs out onto the sand beside the figure.
   tarling.come(walker.x + 14, walker.y + 10); sfx.yip();
-  toasts.clear(); toast(`You beat the Tar Anchorer! A tarling climbed out of the tar, and it is coming with you. +${TAR_PRIZE} coins.`, 5000, 2);
-  if (first) toast('Far out at the deep\'s end, its anchor chain sinks between the far buoys. The far deep is open.', 4600, 1);
+  // The first time, the far deep opening is said in the same toast: a second one queued behind a toast this long
+  // waits past the queue's MAX_WAIT and is dropped before it is ever shown.
+  const far = first ? ' Far out at the deep\'s end, its anchor chain sinks between the far buoys: the far deep is open.' : '';
+  toasts.clear(); toast(`You beat the Tar Anchorer! A tarling climbed out of the tar, and it is coming with you.${far} +${TAR_PRIZE} coins.`, first ? 7000 : 5000, 2);
   hud(); refreshShop(); save(); };
 tarling.findTarget = (x, y, range) => warlock.findTarget(x, y, range);
 tarling.onSpit = () => sfx.spit();
