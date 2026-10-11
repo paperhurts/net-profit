@@ -19,17 +19,18 @@ export const AWAY = 120;
 export const DRIVE_PRIZE = 1000;
 export const DRIVE_AGAIN = 200;
 
-export const BEASTS = ['guard', 'cthulu', 'angler', 'gulper', 'meteor'] as const;
+export const BEASTS = ['guard', 'cthulu', 'angler', 'gulper', 'meteor', 'reaper'] as const;
 export type Beast = (typeof BEASTS)[number];
 
 /** Harpoon hits to drive each one off. */
-/** The kid gave Star, his meteor serpent, four lives. */
+/** The kid gave Star, his meteor serpent, four lives. The Reaper, a boss for his ice fishing gear, has five. */
 export const RESOLVE: Record<Beast, number> = {
   guard: 3,
   cthulu: 3,
   angler: 3,
   gulper: 4,
   meteor: 4,
+  reaper: 5,
 };
 
 /** What each leaves behind, and what the game says when it goes. */
@@ -54,13 +55,17 @@ export const TROPHY: Record<Beast, { name: string; told: string }> = {
     name: 'Meteor shard',
     told: 'You drove Star off! It flies up and away over island 6, and a shard of its meteor head floats in the water.',
   },
+  reaper: {
+    name: 'Reaper fin-spine',
+    told: 'You drove the Reaper off! He dives for the deep, and a yellow spine from his fin floats up.',
+  },
 };
 
 /** How many times each has been driven off. */
 export type Driven = Record<Beast, number>;
 
 export function noDriven(): Driven {
-  return { guard: 0, cthulu: 0, angler: 0, gulper: 0, meteor: 0 };
+  return { guard: 0, cthulu: 0, angler: 0, gulper: 0, meteor: 0, reaper: 0 };
 }
 
 /** The counts from a save, each missing or broken one read as none. */

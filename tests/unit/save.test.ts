@@ -469,7 +469,7 @@ describe('the turtles', () => {
 describe('the leviathans driven off', () => {
   it('are none in a save from before the harpoon, survive a round trip, and shrug off junk', () => {
     const s = parseSave(legacy, bounds);
-    expect(s.driven).toEqual({ guard: 0, cthulu: 0, angler: 0, gulper: 0, meteor: 0 });
+    expect(s.driven).toEqual({ guard: 0, cthulu: 0, angler: 0, gulper: 0, meteor: 0, reaper: 0 });
     expect(s.meteorSeen).toBe(false);
     s.driven.gulper = 2;
     s.driven.angler = 1;
@@ -479,6 +479,7 @@ describe('the leviathans driven off', () => {
       angler: 1,
       gulper: 2,
       meteor: 0,
+      reaper: 0,
     });
     const bad = JSON.parse(serializeSave(s));
     bad.driven = { gulper: 'lots', cthulu: -3, guard: 2.7, kraken: 9 };
@@ -488,6 +489,7 @@ describe('the leviathans driven off', () => {
       angler: 0,
       gulper: 0,
       meteor: 0,
+      reaper: 0,
     });
     bad.driven = 'nope';
     expect(parseSave(JSON.stringify(bad), bounds).driven.gulper).toBe(0);
@@ -498,13 +500,28 @@ describe('the leviathans driven off', () => {
     old.driven = { guard: 1, cthulu: 0, angler: 2, gulper: 0 };
     delete old.meteorSeen;
     const s = parseSave(JSON.stringify(old), bounds);
-    expect(s.driven).toEqual({ guard: 1, cthulu: 0, angler: 2, gulper: 0, meteor: 0 });
+    expect(s.driven).toEqual({ guard: 1, cthulu: 0, angler: 2, gulper: 0, meteor: 0, reaper: 0 });
     expect(s.meteorSeen).toBe(false);
     s.driven.meteor = 3;
     s.meteorSeen = true;
     const back = parseSave(serializeSave(s), bounds);
     expect(back.driven.meteor).toBe(3);
     expect(back.meteorSeen).toBe(true);
+  });
+
+  it('count the Reaper too, as none in a save from before him, and keep him sighted', () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    old.driven = { guard: 1, cthulu: 0, angler: 0, gulper: 0, meteor: 2 };
+    delete old.reaperSeen;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect(s.driven.reaper).toBe(0);
+    expect(s.driven.meteor).toBe(2);
+    expect(s.reaperSeen).toBe(false);
+    s.driven.reaper = 1;
+    s.reaperSeen = true;
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.driven.reaper).toBe(1);
+    expect(back.reaperSeen).toBe(true);
   });
 });
 

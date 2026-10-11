@@ -103,6 +103,8 @@ type Np = {
   harpoonTarget: string | null;
   gulper: { resolve: number };
   serpent: { state: string; resolve: number };
+  reaper: { state: string; hunting: boolean; resolve: number; x: number; y: number };
+  reaperSeen: boolean;
   armour: number;
   maxHearts: number;
   sailedShare: number;
@@ -2092,6 +2094,45 @@ test('the Skeleton Shark King: he rises at the reef, and harpooned down, dies wi
   await page.mouse.click(200, 400);
   await page.waitForFunction(() => window.__np.isle5Stage === 1, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Reaper: he hunts a boat out in the deep, sweeps, rears, and harpooned off leaves his ice fishing kit', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 5500, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  // Out in the deep south of home, by day, away from the gulper and the anglerfish; he swims up from the south.
+  await page.evaluate(() => {
+    window.__np.reaper.x = 2400;
+    window.__np.reaper.y = 5900;
+  });
+  await page.waitForFunction(() => window.__np.reaper.hunting, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Reaper');
+  expect(await page.evaluate(() => window.__np.reaperSeen)).toBe(true);
+  // Nearly beaten; then the harpoon, whenever he is reared up and in reach.
+  await page.evaluate(() => {
+    window.__np.reaper.resolve = 1;
+  });
+  await page.waitForFunction(
+    () => {
+      window.__np.fireHarpoon();
+      return window.__np.reaper.state === 'away';
+    },
+    null,
+    { timeout: 30000, polling: 100 },
+  );
+  await expect(page.locator('#toast')).toContainText('ice fishing kit', { timeout: 9000 });
+  expect(await page.evaluate(() => window.__np.driven.reaper)).toBe(1);
   expect(errors).toEqual([]);
 });
 
