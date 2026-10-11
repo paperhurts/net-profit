@@ -52,6 +52,7 @@ import { CAGE, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, NEST9, ROOF, ROOF
 import { Spears } from './entities/spears';
 import { armourAt, nextArmour, heartsFor } from './data/armour';
 import { decodeSailed, encodeSailed, noSailed, sail, sailedCount, sailedShare, seedSailed } from './state/sailed';
+import { skipTo, STEPS, stepsDone, TESTER_KEY, testerFromHash } from './ui/tester';
 import { SeaMap } from './render/seamap';
 import { Tank, TANK_W, tankKinds } from './render/tank';
 import { BASES, baseAtDock, FLOE_BASE, hasCharters, hasPots, hasSeine, homePort, nextStage, noBases } from './world/bases';
@@ -1888,6 +1889,36 @@ function renderGuide(){
 function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
 function closeGuide(){ elGuide.hidden = true; sfx.click(); }
 $('guideBtn').addEventListener('click', openGuide);
+// The tester panel, the owner's: #tester at the end of the link turns it on for this device (#tester-off puts it
+// away), and a Tester button in the shop opens it. A story step marks everything up to it beaten; the game saves
+// and starts again from the save, so all that hangs off the story fits. The extras need no restart.
+// The #… is read on load and again when it changes, since typing it onto a page already open does not reload it.
+let tester = false;
+function testerHash(){ const said = testerFromHash(location.hash);
+  try { if (said === 'on') localStorage.setItem(TESTER_KEY, '1'); else if (said === 'off') localStorage.removeItem(TESTER_KEY);
+    tester = localStorage.getItem(TESTER_KEY) === '1'; } catch { if (said) tester = said === 'on'; }
+  if (said){ history.replaceState(null, '', location.pathname + location.search); if (started) toast(tester ? 'Tester on: open it from the shop.' : 'Tester off.', 2400); }
+  $('testerBtn').hidden = !tester; }
+testerHash();
+window.addEventListener('hashchange', testerHash);
+function story(){ return {isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage}; }
+function openTester(){ audio(); sfx.click(); const done = stepsDone(story());
+  $('testerSteps').innerHTML = STEPS.map((st, i) => `<button class="tstep${i < done ? ' done' : ''}" data-step="${i}"><span>${st.label}</span><span class="tk">${i < done ? 'Done' : 'Skip to here'}</span></button>`).join('');
+  $('testerExtras').innerHTML = [['coins', '+10,000 coins'], ['wood', '+100 driftwood'], ['kit', "The Reaper's ice fishing kit"], ['mend', 'Mend the boat, fill the hearts']]
+    .map(([k, l]) => `<button class="tstep" data-extra="${k}"><span>${l}</span><span class="tk">Add</span></button>`).join('');
+  $('tester').hidden = false; }
+$('testerBtn').addEventListener('click', openTester);
+$('testerClose').addEventListener('click', () => { sfx.click(); $('tester').hidden = true; });
+$('testerSteps').addEventListener('click', (e) => { const b = e.target.closest('[data-step]'); if (!b) return;
+  const s = story(); skipTo(s, +b.dataset.step);
+  ({isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage} = s);
+  save(); location.reload(); });
+$('testerExtras').addEventListener('click', (e) => { const b = e.target.closest('[data-extra]'); if (!b) return; const k = b.dataset.extra;
+  if (k === 'coins'){ coins += 10000; hud(); }
+  else if (k === 'wood'){ wood += 100; hudWood(); }
+  else if (k === 'kit'){ driven.reaper = Math.max(1, driven.reaper); reaperSeen = true; }
+  else if (k === 'mend'){ hp = HP_MAX; hearts = maxHearts(); hudHull(); hudHearts(); }
+  sfx.upgrade(); save(); refreshShop(); toast('Done.', 1200); });
 // The sea map, the kid's: the whole sea, fogged where the boat has not been. Open, the game waits.
 const elMap = $('seamap'), elMapBtn = $('mapBtn'), mapCanvas = $('mapCanvas'), seaMap = new SeaMap();
 let mapOpen = false;

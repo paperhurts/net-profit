@@ -224,7 +224,12 @@ const ISLAND = 2400;
 const DINGHY_RANGE = 1150;
 
 /** Seed a save, load the game, press Go, and return the page-error log. */
-async function boot(context: BrowserContext, page: Page, save: Record<string, unknown>) {
+async function boot(
+  context: BrowserContext,
+  page: Page,
+  save: Record<string, unknown>,
+  path = './',
+) {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await context.addInitScript((s: string) => {
@@ -235,7 +240,7 @@ async function boot(context: BrowserContext, page: Page, save: Record<string, un
       // Storage can be unavailable in some contexts; the game copes.
     }
   }, JSON.stringify(save));
-  await page.goto('./');
+  await page.goto(path);
   await page.waitForTimeout(400);
   await page.click('#go');
   return errors;
@@ -3454,5 +3459,53 @@ test('the healer cat and the Cthulhu warrior: the cat eats a fish aboard for a h
   await page.waitForFunction(() => window.__np.cat.shown && window.__np.warrior.shown, null, {
     timeout: 5000,
   });
+  expect(errors).toEqual([]);
+});
+
+test('tester: the #tester link shows a Tester button in the shop, and skipping to the Shark King marks him and all before him beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true, coins: 300 }, './#tester');
+  // The link's end is tidied away, and the button is there from now on.
+  expect(new URL(page.url()).hash).toBe('');
+  expect(await page.evaluate(() => document.getElementById('testerBtn')?.hidden)).toBe(false);
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#tester')).toBeVisible();
+  await expect(page.locator('#testerSteps .tstep.done')).toHaveCount(0);
+  // An extra: coins, straight away.
+  await page.locator('#testerExtras [data-extra="coins"]').click();
+  expect(await page.evaluate(() => window.__np.coins)).toBe(10300);
+  // A step: the game saves and starts again, past the Shark King.
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.locator('#testerSteps .tstep', { hasText: 'Skeleton Shark King' }).click(),
+  ]);
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(
+    await page.evaluate(() => {
+      const n = window.__np;
+      return [n.isle3Stage, n.isle4Stage, n.isle5Seen, n.isle5Stage, n.isle6Stage, n.coins];
+    }),
+  ).toEqual([4, 1, true, 1, 0, 10300]);
+  expect(await page.evaluate(() => document.getElementById('testerBtn')?.hidden)).toBe(false);
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#testerSteps .tstep.done')).toHaveCount(3);
+  // And #tester-off, typed onto the page already open, puts it away again.
+  await page.locator('#testerClose').click();
+  await page.evaluate(() => {
+    location.hash = 'tester-off';
+  });
+  await page.waitForFunction(() => document.getElementById('testerBtn')?.hidden === true, null, {
+    timeout: 2000,
+  });
+  expect(new URL(page.url()).hash).toBe('');
+  expect(errors).toEqual([]);
+});
+
+test('tester: without the link there is no Tester button', async ({ context, page }) => {
+  const errors = await boot(context, page, { muted: true, coins: 300 });
+  expect(await page.evaluate(() => document.getElementById('testerBtn')?.hidden)).toBe(true);
   expect(errors).toEqual([]);
 });
