@@ -13,10 +13,21 @@
  * them out, sweeps them up without being cut. The big air tank is for the
  * diver in the trench: kept back until the scuba gear has been found, it holds
  * more air, so a dive goes deeper and longer and takes more bites. Ballast,
- * kept back until a storm has been met, steadies the boat in one.
+ * kept back until a storm has been met, steadies the boat in one. The white
+ * scuba suit, the owner's, kept back until the ice floe has been found and
+ * there is scuba gear, keeps a diver warm under the ice.
  */
 
-export type GearId = 'mesh' | 'strongbox' | 'suit' | 'kit' | 'rod' | 'lionnet' | 'tank' | 'ballast';
+export type GearId =
+  | 'mesh'
+  | 'strongbox'
+  | 'suit'
+  | 'kit'
+  | 'rod'
+  | 'lionnet'
+  | 'tank'
+  | 'ballast'
+  | 'white';
 
 export type Gear = {
   name: string;
@@ -81,6 +92,13 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
       'Ballast fitted, low in the hull. In a storm your boat keeps nearly its full speed and turns nearly as tight.',
     cost: 2500,
   },
+  white: {
+    name: 'White scuba suit',
+    blurb: 'All white and warm: dive under the ice and stay down.',
+    fitted:
+      'An all-white scuba suit, warm as toast. Stop beside the ice floe and tap Dive under the ice.',
+    cost: 6000,
+  },
 };
 
 /** The shelf, in the order it is shown. */
@@ -93,6 +111,7 @@ export const GEAR_IDS: readonly GearId[] = [
   'suit',
   'tank',
   'ballast',
+  'white',
 ];
 
 /** The shipwright takes an interest once the boat is this tier: a cutter. */
@@ -114,6 +133,7 @@ export function noGear(): Owned {
     lionnet: false,
     tank: false,
     ballast: false,
+    white: false,
   };
 }
 

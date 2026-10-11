@@ -231,10 +231,12 @@ describe('the shipwright gear', () => {
       lionnet: false,
       tank: false,
       ballast: false,
+      white: false,
     });
     s.gear.mesh = true;
     s.gear.suit = true;
     s.gear.tank = true;
+    s.gear.white = true;
     expect(parseSave(serializeSave(s), bounds).gear).toEqual({
       mesh: true,
       strongbox: false,
@@ -244,6 +246,7 @@ describe('the shipwright gear', () => {
       lionnet: false,
       tank: true,
       ballast: false,
+      white: true,
     });
   });
 
@@ -257,6 +260,7 @@ describe('the shipwright gear', () => {
       lionnet: false,
       tank: false,
       ballast: false,
+      white: false,
     });
     // A save from before the chemistry suit and the mending kit has neither.
     expect(parseSave(JSON.stringify({ gear: { mesh: 1, hat: true } }), bounds).gear).toEqual({
@@ -268,6 +272,7 @@ describe('the shipwright gear', () => {
       lionnet: false,
       tank: false,
       ballast: false,
+      white: false,
     });
   });
 });
@@ -609,6 +614,17 @@ describe('the otter', () => {
     s.otterFed = 2;
     expect(parseSave(serializeSave(s), bounds).otterFed).toBe(2);
     expect(parseSave(JSON.stringify({ ...s, otterFed: 50 }), bounds).otterFed).toBe(OTTER_FEEDS);
+  });
+});
+
+describe('the things frozen in the ice', () => {
+  it('are all still there in a save from before them, and stay found once chipped out', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.iceLoot).toBe(0);
+    s.iceLoot = 0b10011;
+    expect(parseSave(serializeSave(s), bounds).iceLoot).toBe(0b10011);
+    // Bits past the last one mean nothing.
+    expect(parseSave(JSON.stringify({ ...s, iceLoot: 0xff }), bounds).iceLoot).toBe(0b11111);
   });
 });
 
