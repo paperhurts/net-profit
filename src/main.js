@@ -428,11 +428,15 @@ function diveSh(){ return diveSite === 'wreck' ? wreckSh : trenchSh; }
 // Spearfishing down there: which fish are speared and when they are back, spears in flight, words off a catch, the aim.
 let diveGone = noneGone(trenchSh), diveSpears = [], diveTexts = [], diveReload = 0, diveAim = null;
 function hasScuba(){ return isle3Stage >= 1; }
-function overTrench(){ return Math.hypot(boat.x - TRENCH.x, boat.y - TRENCH.y) < TRENCH.r; }
+// Over the trench is over its dark water, as far out as the patch drawn on the surface (it was a ring inside it,
+// so a boat stopped on the bubbles could find no Dive button). The boat dives once it has all but stopped: this slow.
+function overTrench(){ return Math.hypot(boat.x - TRENCH.x, boat.y - TRENCH.y) < TRENCH.r * 1.2; }
+const DIVE_SLOW = 90;
+let diveHintT = 0;
 /** Stopped this near the wreck on island 5's rocks, the boat can dive to it. */
 const WRECK_DIVE_R = 150;
 function overWreck(){ return isle5Seen && Math.hypot(boat.x - WRECK.x, boat.y - WRECK.y) < WRECK_DIVE_R; }
-function startDive(){ audio(); if (!diveShown) return; diveSite = diveShown; diving = true;
+function startDive(){ audio(); if (!diveShown) return; diveSite = diveShown; diving = true; boat.v = 0;
   diver.reset(gear.tank ? TANK_AIR : AIR_MAX, diveSite === 'wreck' ? WRECK_SITE : TRENCH_SITE); diveGone = noneGone(diveSh()); lurker.reset(); boneSharks.forEach((b, i) => b.reset(i * Math.PI)); sharkTold = false;
   diveBubbles = []; stowSeine(); joy.on = false;
   document.body.classList.add('diving'); $('diveBtn').hidden = true; diveShown = null; $('surfaceBtn').hidden = false; sfx.spit(); toasts.clear();
@@ -532,7 +536,11 @@ function updateTrench(dt){ trenchToastT -= dt;
   const near = Math.hypot(boat.x - TRENCH.x, boat.y - TRENCH.y) < TRENCH.r + TRENCH_SIGHT;
   if (near && walker.aboard && !trenchSeen){ trenchSeen = true; save(); refreshShop(); trenchToastT = 30;
     toast(hasScuba() ? 'A trench! The water here goes down and down, and bubbles come up from the dark. Stop over the bubbles to dive.' : 'A trench! The water here goes down and down, and bubbles come up from the dark. You need scuba gear to dive: it is in island 3\'s tower.', 4600, 1); sfx.tierUp(); }
-  const can = started && walker.aboard && !docked && swallowT <= 0 && !cine && hasScuba() && boat.v < 40;
+  const can = started && walker.aboard && !docked && swallowT <= 0 && !cine && hasScuba() && boat.v < DIVE_SLOW;
+  // Over a place to dive but still under way: how to dive there, now and then.
+  diveHintT -= dt;
+  if (started && walker.aboard && !docked && !cine && hasScuba() && boat.v >= DIVE_SLOW && (overTrench() || overWreck()) && diveHintT <= 0){ diveHintT = 15;
+    toast('Let go of the stick and let the boat slow down here: then tap Dive.', 2800); }
   const show = can ? (overTrench() ? 'trench' : overWreck() ? 'wreck' : null) : null;
   if (show !== diveShown){ diveShown = show; const el = $('diveBtn'); el.hidden = !show; if (show) el.textContent = show === 'wreck' ? 'Dive to the wreck' : 'Dive into the trench'; }
   // Near the wreck on island 5's rocks with its treasure still in it, the game says it can be dived.
