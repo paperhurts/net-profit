@@ -1958,6 +1958,10 @@ function onHash(){ const said = testerFromHash(location.hash), code = said ? nul
   testerSay(said); if (code) carryAsk(code); }
 onHash();
 window.addEventListener('hashchange', onHash);
+// Installed as an app, it plays with no signal: the service worker keeps the page and its scripts (public/sw.js).
+// Not in dev, where it would hold on to old code between edits.
+if (import.meta.env.PROD && 'serviceWorker' in navigator)
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 // The sea map, the kid's: the whole sea, fogged where the boat has not been. Open, the game waits.
 const elMap = $('seamap'), elMapBtn = $('mapBtn'), mapCanvas = $('mapCanvas'), seaMap = new SeaMap();
 let mapOpen = false;
