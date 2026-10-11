@@ -36,6 +36,8 @@ type Np = {
   swallow(by: string): void;
   bases: Record<string, number>;
   BASES: { spit: { x: number; y: number }; dock: { x: number; y: number; r: number } }[];
+  FLOE_BASE: { spit: { x: number; y: number } };
+  day: number;
   seine: { state: string };
   pots: { x: number; y: number; crabs: number }[];
   diving: boolean;
@@ -951,7 +953,7 @@ test('bases: build a hut on island 2 from its dock, and the boat comes back up t
   expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.isle2])).toEqual([500, 1]);
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').bases),
-  ).toEqual({ isle2: 1, isle3: 0, isle6: 0 });
+  ).toEqual({ isle2: 1, isle3: 0, isle6: 0, floe: 0 });
   // Out past island 2's dock, nearer it than home, the boat goes down; it comes back up off that dock.
   await page.evaluate(() => {
     const b = window.__np.boat;
@@ -2356,6 +2358,67 @@ test('ice fishing: without the kit there is no fishing the floe, and the game sa
   });
   await expect(page.locator('#toast')).toContainText('Reaper', { timeout: 4000 });
   await expect(page.locator('#iceBtn')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the igloo: built from the boat alongside the floe, a bed till morning, and a home port', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 2000,
+    wood: 40,
+    day: 3,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    iceSeen: true,
+    driven: { reaper: 1 },
+    reaperSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + 340 * Math.SQRT1_2,
+      y: -2244 + 340 * Math.SQRT1_2,
+      h: 3.9,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  const btn = page.locator('#iglooBtn');
+  await expect(btn).toHaveText('Build an igloo', { timeout: 4000 });
+  await btn.click();
+  await expect(btn).toHaveText('Sleep till morning');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.bases.floe])).toEqual([500, 1]);
+  await expect(page.locator('#toast')).toContainText('Built an igloo');
+  // A night in it: the next morning.
+  await btn.click();
+  await page.waitForFunction(() => window.__np.day === 4, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.phase)).toBe('Dawn');
+  await expect(page.locator('#toast')).toContainText('A night in the igloo');
+  // Not again while it is morning.
+  await expect(btn).toBeHidden();
+  // Lost out by the floe, the boat comes back up off it.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = -2244 + 600;
+    b.y = -2244 + 200;
+    b.v = 0;
+  });
+  await page.evaluate(() => window.__np.swallow('log'));
+  await page.waitForFunction(() => !window.__np.swallowing, null, { timeout: 4000 });
+  const [at, spit] = await page.evaluate(() => [
+    [window.__np.boat.x, window.__np.boat.y],
+    window.__np.FLOE_BASE.spit,
+  ]);
+  expect(Math.hypot((at?.[0] ?? 0) - (spit?.x ?? 0), (at?.[1] ?? 0) - (spit?.y ?? 0))).toBeLessThan(
+    40,
+  );
+  await expect(page.locator('#toast')).toContainText('your igloo on the ice floe');
   expect(errors).toEqual([]);
 });
 
