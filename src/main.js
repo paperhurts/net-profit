@@ -1472,7 +1472,7 @@ function refreshShop(){
   $('paints').innerHTML = PAINTS.map((p,i) => `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${i>=open?' (locked)':''}" aria-disabled="${i>=open}" style="background:${p.hull};border-color:${p.trim}"></button>`).join('');
   // A fully grown boat has nothing left to buy here, so the three maxed cards fold away and the panel stays short.
   elShop.querySelector('.row').hidden = lv.net >= MAXLV && lv.hold >= MAXLV && lv.engine >= MAXLV;
-  refreshBase(); refreshCharter(); refreshBuild(); refreshAquarium(); refreshMarket(); refreshGear(); $('flagMini').innerHTML = flagSvg(flag || START_FLAG, 30, 20);
+  refreshBase(); refreshCharter(); refreshBuild(); refreshAquarium(); refreshMarket(); refreshGear(); refreshYours(); $('flagMini').innerHTML = flagSvg(flag || START_FLAG, 30, 20);
   $('log').innerHTML = SPECIES.map((S,i) => `<span class="chip${log[i]?'':' unk'}${S.rare&&log[i]?' gold':''}" title="${log[i]?S.name:'Not caught yet'}">${spSvg(S, log[i]?S.c:'currentColor')}${log[i]||'?'}</span>`).join('')
     + `<span class="chip${levSeen?' gold':' unk'}">${levSeen?'Leviathan sighted':'Something bigger?'}</span>`
     + `<span class="chip${whaleSeen?' gold':' unk'}">${whaleSeen?'Whales sighted':'A song, far out?'}</span>`
@@ -1516,22 +1516,34 @@ const LOG_SVG = '<svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="tr
 function spSvg(S, c){ return S.crab ? crabSvg(c) : FISH_SVG(c); }
 function hudPhase(){ $('phase').innerHTML = `<i style="background:${PHASE_C[phase]}"></i><span>${phase}</span>`; }
 function hudWood(){ $('wood').innerHTML = LOG_SVG + '<span>' + wood + '</span>'; }
+// What is fitted, owned or worn is in the Yours row (refreshYours); the shelf shows what is still to buy.
 function refreshGear(){ const el = $('gear'); el.hidden = !shipwrightOpen(tier());
   // The chemistry suit is kept back until the tar island has been seen, the lionfish gear until a lionfish has, and the big air tank until there is scuba gear.
-  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => (id !== 'suit' || isle3Stage >= 4 || gear.suit) && (id !== 'kit' || lionSeen || gear.kit) && (id !== 'rod' || lionSeen || gear.rod) && (id !== 'lionnet' || lionSeen || gear.lionnet) && (id !== 'tank' || hasScuba() || gear.tank) && (id !== 'ballast' || stormSeen || gear.ballast)).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
+  el.innerHTML = '<span class="gearhead">Shipwright</span>' + GEAR_IDS.filter(id => (id !== 'suit' || isle3Stage >= 4 || gear.suit) && (id !== 'kit' || lionSeen || gear.kit) && (id !== 'rod' || lionSeen || gear.rod) && (id !== 'lionnet' || lionSeen || gear.lionnet) && (id !== 'tank' || hasScuba() || gear.tank) && (id !== 'ballast' || stormSeen || gear.ballast)).filter(id => !gear[id]).map(id => { const g = GEAR[id], no = refusal(id, gear, coins);
     return `<button class="gear" data-g="${id}" aria-disabled="${no ? 'true' : 'false'}"><b>${g.name}</b><span class="buy">${no === 'fitted' ? 'Fitted' : g.cost}</span><small>${g.blurb}</small></button>`; }).join('')
     // The spear is for island 2's shallows, so the shipwright keeps it back until island 2 has been found.
     + (() => { const n = nextSpear(spear), have = spearAt(spear); if (!isle2Seen && !spear) return '';
-      return n ? `<button class="gear" data-s="1" aria-disabled="${coins < n.cost ? 'true' : 'false'}"><b>${n.name}</b><span class="buy">${n.cost}</span><small>${n.blurb}</small></button>`
-        : `<button class="gear" data-s="1" aria-disabled="true"><b>${have.name}</b><span class="buy">Owned</span><small>On the bow. Past the buoys, fire it at a leviathan.</small></button>`; })()
+      return n ? `<button class="gear" data-s="1" aria-disabled="${coins < n.cost ? 'true' : 'false'}"><b>${n.name}</b><span class="buy">${n.cost}</span><small>${n.blurb}</small></button>` : ''; })()
     // Armour, the kid's, once there is a spear to fight with: a level at a time, space armour once the portal is awake.
     + (() => { if (!spear && !armour) return ''; const n = nextArmour(armour, isle7Stage >= 1), have = armourAt(armour);
-      return n ? `<button class="gear" data-a="1" aria-disabled="${coins < n.cost ? 'true' : 'false'}"><b>${n.name}</b><span class="buy">${n.cost}</span><small>${n.blurb}</small></button>`
-        : `<button class="gear" data-a="1" aria-disabled="true"><b>${have.name}</b><span class="buy">Worn</span><small>${have.hearts} hearts ashore.</small></button>`; })(); }
+      return n ? `<button class="gear" data-a="1" aria-disabled="${coins < n.cost ? 'true' : 'false'}"><b>${n.name}</b><span class="buy">${n.cost}</span><small>${n.blurb}</small></button>` : ''; })();
+  // Nothing left on the shelf: no shelf.
+  if (!el.querySelector('button')) el.hidden = true; }
+// Bought and done, in one short row of chips: fitted gear, the top spear owned and the top armour worn, the palace
+// finished, and the base at this dock built. The cards above are for what is still to buy.
+function refreshYours(){ const el = $('yours'), chips = [];
+  for (const id of GEAR_IDS) if (gear[id]) chips.push(GEAR[id].name);
+  if (spear && !nextSpear(spear)) chips.push(spearAt(spear).name);
+  if (armour && !nextArmour(armour, isle7Stage >= 1)) chips.push(`${armourAt(armour).name}, ${armourAt(armour).hearts} hearts`);
+  if (build >= STAGES.length) chips.push(`Palace: fish sell for ${Math.round(build*15)}% more`);
+  const b = docked ? baseAtDock(boat.x, boat.y) : null;
+  if (b && !nextStage(b, bases)) chips.push(`Your base on ${b.island}`);
+  el.hidden = !chips.length;
+  el.innerHTML = '<span class="yh">Yours</span>' + chips.map(c => `<span class="chip">${c}</span>`).join(''); }
 function refreshBuild(){
   const b = $('build'), mult = Math.round(build*15);
-  if (build >= STAGES.length){ b.setAttribute('aria-disabled','true');
-    b.innerHTML = `<span><b>Your palace is finished</b><small>All fish sell for ${mult}% more. The fishmonger and the smokehouse are open.</small></span>`; return; }
+  // Finished: it is a chip in the Yours row.
+  b.hidden = build >= STAGES.length; if (b.hidden) return;
   const S = STAGES[build], ok = wood >= S.wood && coins >= S.coins;
   const note = wood < S.wood ? `You have ${wood} of ${S.wood} driftwood.` : coins < S.coins ? `You need ${S.coins - coins} more coins.` : `Fish sell for ${mult+15}% more${build < 3 ? '. Unlocks the next upgrade level' : build === FISHMONGER_STAGE-1 ? '. Opens the fishmonger, who pays double for his pick of the day' : build === SMOKEHOUSE_STAGE-1 ? '. Opens the smokehouse: tuna, goldfin and shark sell for half again' : ''}.`;
   b.setAttribute('aria-disabled', ok ? 'false' : 'true');
@@ -1540,8 +1552,8 @@ function refreshBuild(){
 // A base's card, docked at its island: the next stage to build, or what it is once finished.
 function refreshBase(){ const el = $('baseBtn'), b = docked ? baseAtDock(boat.x, boat.y) : null; el.hidden = !b; if (!b) return;
   const S = nextStage(b, bases);
-  if (!S){ el.setAttribute('aria-disabled', 'true');
-    el.innerHTML = `<span><b>Your base on ${b.island}</b><small>${b.done}</small></span>`; return; }
+  // Built: it is a chip in the Yours row.
+  if (!S){ el.hidden = true; return; }
   const ok = wood >= S.wood && coins >= S.coins;
   const note = wood < S.wood ? `You have ${wood} of ${S.wood} driftwood.` : coins < S.coins ? `You need ${S.coins - coins} more coins.` : S.blurb;
   el.setAttribute('aria-disabled', ok ? 'false' : 'true');

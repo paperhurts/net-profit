@@ -518,7 +518,9 @@ test('shop: once there is scuba gear the shipwright sells a big air tank', async
   await card.dispatchEvent('click');
   await page.waitForFunction(() => window.__np.gear.tank, null, { timeout: 2000 });
   expect(await page.evaluate(() => window.__np.coins)).toBe(500);
-  await expect(card).toContainText('Fitted');
+  // Bought, it leaves the shelf for the Yours row.
+  await expect(card).toHaveCount(0);
+  await expect(page.locator('#yours')).toContainText('Big air tank');
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').gear.tank),
   ).toBe(true);
@@ -751,7 +753,9 @@ test('island 2: with a late-game shop, Step ashore is still on the screen, and t
   context,
   page,
 }) => {
-  // Everything bought: a shop taller than a phone, which once grew off the top and took Step ashore with it.
+  // Everything bought, on a short phone: a shop taller than the screen, which once grew off the top and took
+  // Step ashore with it.
+  await page.setViewportSize({ width: 390, height: 440 });
   const errors = await boot(context, page, {
     muted: true,
     coins: 29474,
@@ -967,7 +971,9 @@ test("seining: island 2's gear shed puts a seine aboard, and a loop round a scho
   const card = page.locator('#baseBtn');
   await expect(card).toContainText('Build a gear shed here');
   await card.click();
-  await expect(card).toContainText('Your base on island 2');
+  // Built, the base is a chip in the Yours row.
+  await expect(card).toBeHidden();
+  await expect(page.locator('#yours')).toContainText('Your base on island 2');
   expect(await page.evaluate(() => window.__np.bases.isle2)).toBe(2);
   // Out to the parrotfish school farthest from the dock, the boat on a circle round it, going round.
   const sc = await page.evaluate(() => {
@@ -1031,7 +1037,8 @@ test("crab pots: island 3's crab shed puts three aboard; one dropped in home wat
   const card = page.locator('#baseBtn');
   await expect(card).toContainText('Build a crab shed here');
   await card.click();
-  await expect(card).toContainText('Your base on island 3');
+  await expect(card).toBeHidden();
+  await expect(page.locator('#yours')).toContainText('Your base on island 3');
   // Home water, stopped: the crab button drops a pot astern.
   await page.evaluate(() => {
     const b = window.__np.boat;

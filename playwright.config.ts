@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+// The config runs in Node, but the project's types are the browser's, not Node's.
+declare const process: { env: Record<string, string | undefined> };
+
 // Not Vite's default 4173: that port is shared by every Vite project on the
 // machine, and a smoke test that quietly drives the wrong app is worse than
 // one that fails to start.
@@ -15,7 +18,10 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // On CI a failure is also an annotation on the check, which can be read where the job's log cannot.
+  reporter: process.env.CI
+    ? [['list'], ['github'], ['html', { open: 'never' }]]
+    : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: URL,
     // Phone first: everything is verified at 390x780 portrait.
