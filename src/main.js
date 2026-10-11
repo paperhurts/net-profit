@@ -2069,9 +2069,15 @@ elLeave.addEventListener('click', () => { audio(); if (floor < 0) return;
   else if (tower === DEPTHS){ leaveTower(); toast('Up through the gap in the seaweed.', 2200); }
   else if (tower === TEMPLE_DEEP){ leaveTower(); toast('Up out of the temple. It waits below.', 2200); }
   else { leaveTower(); toast('Out of the tower. Come back with more spears.', 2200); } });
-elThrow.addEventListener('click', () => { audio(); if (diving) diveThrow(); else if (walker.state === 'ashore') throwSpear(); else fireHarpoon(); });
+// It throws on the press, not the click: on a phone the other thumb is on the stick, and an iPhone makes no click of a
+// tap while another finger is down, so a diver swimming and throwing threw nothing. A click with no press behind it
+// (the keyboard's, detail 0) still throws; a tap's own click after its press does not throw twice.
+function throwNow(){ audio(); if (diving) diveThrow(); else if (walker.state === 'ashore') throwSpear(); else fireHarpoon(); }
+elThrow.addEventListener('pointerdown', e => { if (e.button > 0) return; throwNow(); });
+elThrow.addEventListener('click', e => { if (e.detail === 0) throwNow(); });
 window.addEventListener('keydown', e => { if (e.key !== ' ') return;
-  if (walker.state === 'ashore'){ e.preventDefault(); throwSpear(); } else if (harpoonTarget()){ e.preventDefault(); fireHarpoon(); } });
+  if (diving){ e.preventDefault(); diveThrow(); }
+  else if (walker.state === 'ashore'){ e.preventDefault(); throwSpear(); } else if (harpoonTarget()){ e.preventDefault(); fireHarpoon(); } });
 // A tap, not a drag: ashore, a tap on the dog pats it, if the figure is near enough to reach.
 let tapFrom = null;
 cv.addEventListener('pointerdown', e => { tapFrom = {x: e.clientX, y: e.clientY, t: performance.now()}; });

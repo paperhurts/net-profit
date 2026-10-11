@@ -1230,6 +1230,23 @@ test('spearfishing: down in the trench with a spear, a glow squid in reach is ai
   await put();
   await page.click('#throw');
   await page.waitForFunction(() => window.__np.hold >= 1, null, { timeout: 3000 });
+  // On a phone the other thumb is on the stick, and an iPhone makes no click of the tap: the press alone throws.
+  await page.waitForFunction(
+    () => !document.getElementById('throw')?.classList.contains('wait'),
+    null,
+    {
+      timeout: 3000,
+    },
+  );
+  await put();
+  await page.waitForFunction((si) => window.__np.diveAim?.si === si, squid, { timeout: 2000 });
+  await put();
+  await page.dispatchEvent('#throw', 'pointerdown', {
+    button: 0,
+    pointerType: 'touch',
+    isPrimary: false,
+  });
+  await page.waitForFunction(() => window.__np.hold >= 2, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 
