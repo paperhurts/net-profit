@@ -107,14 +107,20 @@ export function bindJoystick(surface: JoystickSurface, joy: Joystick, onInput: (
 export type ThroughPointer = PointerLike & { target: unknown };
 
 export type ThroughPanel = {
-  addEventListener(type: string, listener: (e: ThroughPointer) => void): void;
+  addEventListener(
+    type: string,
+    listener: (e: ThroughPointer) => void,
+    options?: { passive?: boolean },
+  ): void;
 };
 
 /**
  * Let a press on a panel that covers the water steer anyway. The shop sits
  * where the thumb lives; dragging on its wood starts the stick as if the
  * press had landed on the canvas, and the canvas takes the pointer from
- * there. Buttons and scrolling rows are excluded by the steerable test.
+ * there. Buttons and scrolling rows are excluded by the steerable test, and
+ * a long panel scrolls under a drag that starts on them; where a drag steers,
+ * the panel must not scroll as well, so its touch is held from the browser.
  */
 export function bindJoystickThrough(
   panel: ThroughPanel,
@@ -129,4 +135,11 @@ export function bindJoystickThrough(
     begin(joy, e, surface);
     joy.through = true;
   });
+  panel.addEventListener(
+    'touchstart',
+    (e) => {
+      if (steerable(e.target)) e.preventDefault();
+    },
+    { passive: false },
+  );
 }

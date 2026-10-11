@@ -737,6 +737,61 @@ test('island 2: sell at the trading post and step ashore on its sand', async ({
   expect(errors).toEqual([]);
 });
 
+test('island 2: with a late-game shop, Step ashore is still on the screen, and the long shop scrolls', async ({
+  context,
+  page,
+}) => {
+  // Everything bought: a shop taller than a phone, which once grew off the top and took Step ashore with it.
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 29474,
+    build: 5,
+    aquarium: true,
+    lionSeen: true,
+    gear: {
+      mesh: true,
+      strongbox: true,
+      kit: true,
+      rod: true,
+      lionnet: true,
+      suit: true,
+      tank: true,
+    },
+    spear: 4,
+    armour: 3,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    bases: { isle2: 2 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -600 + 330 * Math.SQRT1_2,
+      y: 5400 - 330 * Math.SQRT1_2,
+      h: 2.36,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.waitForTimeout(500);
+  // Visible is not enough: off the top of the screen counts as visible. On the screen, above the shop, which scrolls.
+  const [pill, planks] = await page.evaluate(() => {
+    const a = (document.getElementById('ashore') as HTMLElement).getBoundingClientRect();
+    const p = document.querySelector('#shop .planks') as HTMLElement;
+    return [
+      { top: a.top, bottom: a.bottom },
+      { top: p.getBoundingClientRect().top, more: p.scrollHeight - p.clientHeight },
+    ];
+  });
+  expect(pill.top, 'Step ashore is off the top of the screen').toBeGreaterThanOrEqual(0);
+  expect(pill.bottom).toBeLessThanOrEqual(planks.top);
+  expect(planks.more, 'the shop is too short to test this').toBeGreaterThan(0);
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  expect(errors).toEqual([]);
+});
+
 test("bases: island 6's hut is built from its pier, a home port out in the far deep", async ({
   context,
   page,
