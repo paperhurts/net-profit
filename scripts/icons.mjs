@@ -1,139 +1,107 @@
 /**
- * The app icon, drawn here and written out at every size the game needs: a fishing boat riding
- * the waves at night under a full moon, a buoy beside it, its cabin lit, and a big cream fish in
- * the deep below, in the sea chart's colours. The owner picked the night one of three (dusk, day,
- * night) on 2026-10-11; it is already dark, so a phone's dark icon look changes it least.
+ * The app icon, cut to every size the game needs from the picture the owner and her kid made for
+ * it together (art/app-icon-source.png, 2026-10-11): a white and red boat on bright blue waves, a
+ * buoy beside it, and three fish in the deep below.
  *
- * The icons fill the square, with no transparent corners: the phone rounds them itself, and fills
- * anything see-through with black. A browser tab gets a simpler, closer crop (`public/icon.svg`
- * and the 32px PNG), since the whole scene is mush at 16px.
+ * The picture draws its own rounded tile on white. A phone rounds an icon's corners itself and
+ * fills anything see-through with black, so the icons here are the tile cut square, its corners
+ * filled with the blue just inside each one. The maskable icon is the same: the boat and the fish
+ * sit well inside Android's crop circle, and the tightest crop takes only a sliver of the buoy's
+ * ripple. (Mirroring the edges out to pad it copied half the buoy onto the rim.)
  *
- * Run `node scripts/icons.mjs` after changing the drawing; it rewrites the files in public/. It
- * draws with Playwright's Chromium; CHROMIUM=/path/to/chrome points it at another.
+ * Run `node scripts/icons.mjs` after changing the picture; it rewrites the icons in public/. It
+ * works in Playwright's Chromium; CHROMIUM=/path/to/chrome points it at another.
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
-const W = 1024;
-/** The waterline. */
-const SEA = 520;
-
-const INK = '#12303A';
-const CREAM = '#FFF6E5';
-const BUOY = '#E4572E';
-const BUOY_DARK = '#A3332A';
-const COIN = '#FFC53D';
-const FOAM = '#CFE8EC';
-const FISH_SIDE = '#E8D8BC';
-
-/** A row of rounded waves across the icon: crest at y, amplitude a, wavelength l, shifted by s. */
-function waves(y, a, l, s, bottom) {
-  let d = `M ${-l + s} ${bottom} L ${-l + s} ${y}`;
-  for (let x = -l + s; x < W + l; x += l)
-    d += ` Q ${x + l / 4} ${y - a} ${x + l / 2} ${y} Q ${x + (3 * l) / 4} ${y + a} ${x + l} ${y}`;
-  return `${d} L ${W + l} ${bottom} Z`;
-}
-
-const STARS = [
-  [150, 120, 5],
-  [300, 70, 7],
-  [820, 110, 9],
-  [900, 250, 5],
-  [700, 60, 7],
-  [220, 260, 9],
-  [620, 190, 5],
+const SOURCE = new URL('../art/app-icon-source.png', import.meta.url);
+const PUBLIC = new URL('../public/', import.meta.url);
+/** Each icon: its file and its size. */
+const ICONS = [
+  ['apple-touch-icon.png', 180],
+  ['favicon-192.png', 192],
+  ['icon-512.png', 512],
+  ['icon-maskable-512.png', 512],
+  ['favicon-32.png', 32],
 ];
 
-/** The icon as SVG; small: the closer, plainer crop for a browser tab. */
-export function icon(small = false) {
-  const full = !small;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${small ? '150 140 760 760' : `0 0 ${W} ${W}`}" width="${W}" height="${W}">
-  <title>Net Profit</title>
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B2F3B"/><stop offset=".55" stop-color="#134A57"/><stop offset="1" stop-color="#1B6676"/></linearGradient>
-    <linearGradient id="sea" x1="0" y1="${SEA}" x2="0" y2="${W}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#155868"/><stop offset=".2" stop-color="#0F4A59"/><stop offset=".65" stop-color="#0B2F3B"/><stop offset="1" stop-color="#041820"/></linearGradient>
-    <radialGradient id="glow"><stop offset="0" stop-color="rgba(255,197,61,.35)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
-    <clipPath id="top"><rect x="0" y="0" width="${W}" height="${SEA + 24}"/></clipPath>
-    <clipPath id="hull"><path d="M -300 -96 L 330 -140 Q 322 -30 236 40 L -226 40 Q -296 22 -300 -96 Z"/></clipPath>
-  </defs>
-  <rect width="${W}" height="${W}" fill="#041820"/>
-  <rect width="${W}" height="${SEA + 40}" fill="url(#sky)"/>
-  ${full ? STARS.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${CREAM}" opacity=".8"/>`).join('') : ''}
-  <circle cx="790" cy="370" r="140" fill="#F4F7E8"/>
-  <path d="${waves(SEA - 18, 14, 170, 40, SEA + 60)}" fill="#1B6676"/>
-  ${
-    full
-      ? `<g transform="translate(118 ${SEA - 20}) rotate(-8)">
-    <rect x="-6" y="-150" width="12" height="40" fill="${INK}"/>
-    <circle cx="0" cy="-156" r="14" fill="${COIN}"/>
-    <path d="M -34 0 L -22 -116 L 22 -116 L 34 0 Z" fill="${BUOY}"/>
-    <path d="M -28 -54 L -25 -80 L 25 -80 L 28 -54 Z" fill="${CREAM}"/>
-    <rect x="-44" y="-8" width="88" height="22" rx="11" fill="${BUOY_DARK}"/>
-  </g>`
-      : ''
-  }
-  <g transform="translate(500 ${SEA - 4}) rotate(-3)">
-    <rect x="40" y="-340" width="14" height="260" rx="7" fill="${INK}"/>
-    <path d="M 54 -336 Q 120 -330 182 -300 Q 120 -276 54 -262 Z" fill="${COIN}"/>
-    <path d="M 88 -300 q 18 -13 38 0 q -20 13 -38 0 Z M 126 -300 l 16 -10 l 0 20 Z" fill="#1B6676"/>
-    <rect x="-170" y="-214" width="200" height="140" rx="16" fill="${CREAM}"/>
-    <rect x="-188" y="-238" width="236" height="36" rx="12" fill="${INK}"/>
-    <rect x="-144" y="-182" width="58" height="54" rx="10" fill="${COIN}"/>
-    <rect x="-64" y="-182" width="58" height="54" rx="10" fill="${COIN}"/>
-    <g clip-path="url(#hull)">
-      <rect x="-320" y="-200" width="680" height="260" fill="${BUOY}"/>
-      <path d="M -320 -64 L 360 -112 L 360 -80 L -320 -32 Z" fill="${CREAM}"/>
-      <path d="M -320 6 L 360 -42 L 360 80 L -320 80 Z" fill="${BUOY_DARK}"/>
-    </g>
-    <path d="M -304 -96 L 334 -140" stroke="${INK}" stroke-width="24" stroke-linecap="round"/>
-  </g>
-  <path d="${waves(SEA, 18, 200, 0, W + 20)}" fill="url(#sea)"/>
-  <path d="${waves(SEA, 18, 200, 0, W + 20)}" fill="none" stroke="${FOAM}" stroke-width="14" stroke-linejoin="round" clip-path="url(#top)"/>
-  ${full ? `<path d="M 380 560 L 470 560 L 330 1024 L 180 1024 Z M 560 560 L 610 560 L 560 1024 L 470 1024 Z M 700 560 L 780 560 L 900 1024 L 760 1024 Z" fill="rgba(207,232,236,.06)"/>` : ''}
-  <ellipse cx="500" cy="790" rx="300" ry="150" fill="url(#glow)"/>
-  <g transform="translate(500 790)">
-    <path d="M -250 0 Q -140 -118 40 -96 Q 140 -84 190 -30 L 300 -110 Q 270 0 300 110 L 190 30 Q 140 84 40 96 Q -140 118 -250 0 Z" fill="${CREAM}"/>
-    <path d="M -250 0 Q -140 118 40 96 Q 140 84 190 30 Q 120 54 20 50 Q -150 44 -250 0 Z" fill="${FISH_SIDE}"/>
-    <path d="M -40 -96 Q 20 -150 110 -130 Q 80 -110 70 -88 Z" fill="${FISH_SIDE}"/>
-    <circle cx="-150" cy="-22" r="30" fill="${INK}"/>
-    <circle cx="-140" cy="-32" r="10" fill="${CREAM}"/>
-    <circle cx="-10" cy="-48" r="24" fill="${COIN}"/>
-    <circle cx="70" cy="-10" r="19" fill="${COIN}"/>
-    <circle cx="10" cy="30" r="14" fill="${COIN}"/>
-    <path d="M -100 -60 Q -78 0 -100 60" fill="none" stroke="${FISH_SIDE}" stroke-width="10" stroke-linecap="round"/>
-  </g>
-  ${
-    full
-      ? `<circle cx="232" cy="742" r="16" fill="none" stroke="${FOAM}" stroke-width="7" opacity=".7"/>
-  <circle cx="196" cy="672" r="10" fill="none" stroke="${FOAM}" stroke-width="6" opacity=".6"/>
-  <circle cx="214" cy="616" r="6" fill="${FOAM}" opacity=".5"/>`
-      : ''
-  }
-</svg>
-`;
-}
-
-/** Each file in public/: its size, and whether it is the tab's crop. */
-const PNGS = [
-  ['apple-touch-icon.png', 180, false],
-  ['favicon-192.png', 192, false],
-  ['icon-512.png', 512, false],
-  ['icon-maskable-512.png', 512, false],
-  ['favicon-32.png', 32, true],
-];
-
-const dir = new URL('../public/', import.meta.url);
-writeFileSync(new URL('icon.svg', dir), icon(true));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const page = await browser.newPage();
-for (const [name, size, small] of PNGS) {
-  await page.setViewportSize({ width: size, height: size });
-  await page.setContent(
-    `<html><body style="margin:0">${icon(small).replace(`width="${W}" height="${W}"`, `width="${size}" height="${size}"`)}</body></html>`,
-  );
-  await page.screenshot({
-    path: new URL(name, dir).pathname,
-    clip: { x: 0, y: 0, width: size, height: size },
-  });
-}
+const out = await page.evaluate(
+  async ({ src, icons }) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0);
+    const all = x.getImageData(0, 0, c.width, c.height).data;
+    const at = (i, j) => (j * c.width + i) * 4;
+    const tile = (i, j) => all[at(i, j)] < 90; // the tile is all blues, its ground white
+    // The tile's square, two pixels in from its edges to leave their soft white rim behind.
+    const my = c.height >> 1;
+    const mx = c.width >> 1;
+    let l = 0;
+    let t = 0;
+    let r = c.width - 1;
+    let b = c.height - 1;
+    while (!tile(l, my)) l++;
+    while (!tile(r, my)) r--;
+    while (!tile(mx, t)) t++;
+    while (!tile(mx, b)) b--;
+    const n = Math.min(r - l, b - t) - 4;
+    const sq = document.createElement('canvas');
+    sq.width = sq.height = n;
+    const s = sq.getContext('2d', { willReadFrequently: true });
+    s.drawImage(c, l + 2, t + 2, n, n, 0, 0, n, n);
+    // Each row's corners, outside the drawn curve, take the colour just inside it.
+    const im = s.getImageData(0, 0, n, n);
+    const d = im.data;
+    const blue = (i, j) => d[(j * n + i) * 4] < 90;
+    const copy = (from, to) => {
+      for (let k = 0; k < 4; k++) d[to + k] = d[from + k];
+    };
+    for (let j = 0; j < n; j++) {
+      let a = 0;
+      while (a < n && !blue(a, j)) a++;
+      if (a === n) continue;
+      let z = n - 1;
+      while (!blue(z, j)) z--;
+      const left = (j * n + Math.min(a + 3, z)) * 4;
+      const right = (j * n + Math.max(z - 3, a)) * 4;
+      for (let i = 0; i < a + 3 && i < n; i++) copy(left, (j * n + i) * 4);
+      for (let i = n - 1; i > z - 3 && i >= 0; i--) copy(right, (j * n + i) * 4);
+    }
+    s.putImageData(im, 0, 0);
+    // Then each size, drawn down in halves so the small ones stay crisp.
+    const result = {};
+    for (const [name, size] of icons) {
+      let from = sq;
+      while (from.width / 2 >= size * 1.5) {
+        const h = document.createElement('canvas');
+        h.width = h.height = Math.round(from.width / 2);
+        const hx = h.getContext('2d');
+        hx.imageSmoothingQuality = 'high';
+        hx.drawImage(from, 0, 0, h.width, h.height);
+        from = h;
+      }
+      const o = document.createElement('canvas');
+      o.width = o.height = size;
+      const ox = o.getContext('2d');
+      ox.imageSmoothingQuality = 'high';
+      ox.drawImage(from, 0, 0, size, size);
+      result[name] = o.toDataURL('image/png').split(',')[1];
+    }
+    return result;
+  },
+  {
+    src: `data:image/png;base64,${readFileSync(SOURCE).toString('base64')}`,
+    icons: ICONS,
+  },
+);
 await browser.close();
+for (const [name, b64] of Object.entries(out))
+  writeFileSync(new URL(name, PUBLIC), Buffer.from(b64, 'base64'));
