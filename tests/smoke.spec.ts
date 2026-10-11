@@ -1972,6 +1972,8 @@ test('the Tar Anchorer: it rises when the figure reaches the sand, and beaten, l
   await expect(page.locator('#throw')).toBeVisible({ timeout: 4000 });
   await page.evaluate(() => window.__np.anchorer.hit(200));
   await page.waitForFunction(() => window.__np.isle4Stage === 1, null, { timeout: 4000 });
+  // The far deep opening is said, the first time.
+  await expect(page.locator('#toast')).toContainText('far deep is open');
   await page.waitForFunction(() => window.__np.tarling.with, null, { timeout: 2000 });
   // Back aboard, it rides along.
   await page.evaluate(() => {
