@@ -25,8 +25,8 @@ export type Story = {
   heronStage: number;
 };
 
-/** A step of the story: what the panel calls it, and what marking it beaten sets (never lowers). */
-export type Step = { id: string; label: string; apply(s: Story): void };
+/** A step of the story: what the panel calls it, what a game past it is past, and what marking it beaten sets (never lowers). */
+export type Step = { id: string; label: string; short: string; apply(s: Story): void };
 
 const atLeast = (s: Story, k: keyof Story, v: number): void => {
   (s[k] as number) = Math.max(s[k] as number, v);
@@ -35,6 +35,7 @@ const atLeast = (s: Story, k: keyof Story, v: number): void => {
 export const STEPS: readonly Step[] = [
   {
     id: 'isle3',
+    short: 'island 3',
     label: 'Island 3: its tower, the swordsman, the warlock freed, and the tar',
     apply: (s) => {
       s.isle3Seen = true;
@@ -43,11 +44,13 @@ export const STEPS: readonly Step[] = [
   },
   {
     id: 'anchorer',
+    short: 'the Tar Anchorer',
     label: 'The Tar Anchorer beaten: the far deep opens',
     apply: (s) => atLeast(s, 'isle4Stage', 1),
   },
   {
     id: 'king',
+    short: 'the Skeleton Shark King',
     label: 'The Skeleton Shark King beaten',
     apply: (s) => {
       s.isle5Seen = true;
@@ -56,6 +59,7 @@ export const STEPS: readonly Step[] = [
   },
   {
     id: 'cthulhu',
+    short: 'Cthulhu',
     label: 'The Deep One and Cthulhu beaten on island 6',
     apply: (s) => {
       s.isle6Seen = true;
@@ -64,6 +68,7 @@ export const STEPS: readonly Step[] = [
   },
   {
     id: 'sorcerer',
+    short: "island 7's sorcerer",
     label: "Island 7's sorcerer beaten: the portal wakes",
     apply: (s) => {
       s.isle7Seen = true;
@@ -72,11 +77,13 @@ export const STEPS: readonly Step[] = [
   },
   {
     id: 'forgotten',
+    short: 'the Forgotten One',
     label: 'The Forgotten One beaten',
     apply: (s) => atLeast(s, 'isle7Stage', 2),
   },
   {
     id: 'oldone',
+    short: 'the Old One',
     label: 'The Old One beaten, and the soul armour',
     apply: (s) => {
       atLeast(s, 'isle7Stage', 4);
@@ -85,6 +92,7 @@ export const STEPS: readonly Step[] = [
   },
   {
     id: 'heron',
+    short: 'the Heron',
     label: 'The Heron beaten for good',
     apply: (s) => {
       s.isle8Seen = true;

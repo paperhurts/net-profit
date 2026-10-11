@@ -52,6 +52,7 @@ import { CAGE, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, NEST9, ROOF, ROOF
 import { Spears } from './entities/spears';
 import { armourAt, nextArmour, heartsFor } from './data/armour';
 import { decodeSailed, encodeSailed, noSailed, sail, sailedCount, sailedShare, seedSailed } from './state/sailed';
+import { gameCode, gameLink, gameSummary, looksLikeSave, packGame, unpackGame } from './state/share';
 import { skipTo, STEPS, stepsDone, TESTER_KEY, testerFromHash } from './ui/tester';
 import { SeaMap } from './render/seamap';
 import { Tank, TANK_W, tankKinds } from './render/tank';
@@ -150,7 +151,7 @@ const snook = {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}; // the f
 let fight = null, pullSmooth = 0, slipT = 0, slipShow = 9, castShown = false; // the line: a Fight while one is out
 function noteFirst(sp){ if (!first[sp]) first[sp] = day; }
 const SAVE_BOUNDS = {maxLevel: MAXLV, paints: PAINTS.length, stages: STAGES.length, species: SPECIES.length, worldSize: WS, deep: DEEP + FAR, holdCaps: HOLD};
-let savedTrip = null;
+let savedTrip = null, saveOff = false; // saveOff: another game has been put in the save, and this one must not write over it as the page goes
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
@@ -158,7 +159,7 @@ let savedTrip = null;
 setMuted(muted);
 // A save from before the sea map: open the water such a player must know, round home and each island found.
 if (earned > 0 && sailedCount(sailed) === 0) seedSailed(sailed, [[isle2Seen, ISLE2], [isle3Seen, ISLE3], [isle3Stage >= 4, ISLE4], [isle5Seen, ISLE5], [isle6Seen, ISLE6], [isle7Seen, ISLE7], [isle8Seen, ISLE8], [isle8Seen, ISLE9]].filter(([f]) => f).map(([, i]) => i));
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, chests6, isle6Stage, isle7Seen, soulArmour, isle7Stage, flag, gulperSeen, meteorSeen, reaperSeen, iceSeen, iceRuns, lionSeen, lionCaught, aquarium, bases, pots, trenchSeen, trenchDeep: Math.round(trenchDeep), trenchLoot, iceLoot, pearlDay, wreckChest, stormSeen, lurkerSeen, lurkerStung, charter, chartersRun, nagaFree, isle8Seen, heronStage, otterFed: otter.fed, neilFed: neil.fed, spear, armour, sailed: encodeSailed(sailed), masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ if (saveOff) return; try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, chests6, isle6Stage, isle7Seen, soulArmour, isle7Stage, flag, gulperSeen, meteorSeen, reaperSeen, iceSeen, iceRuns, lionSeen, lionCaught, aquarium, bases, pots, trenchSeen, trenchDeep: Math.round(trenchDeep), trenchLoot, iceLoot, pearlDay, wreckChest, stormSeen, lurkerSeen, lurkerStung, charter, chartersRun, nagaFree, isle8Seen, heronStage, otterFed: otter.fed, neilFed: neil.fed, spear, armour, sailed: encodeSailed(sailed), masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -1892,15 +1893,12 @@ $('guideBtn').addEventListener('click', openGuide);
 // The tester panel, the owner's: #tester at the end of the link turns it on for this device (#tester-off puts it
 // away), and a Tester button in the shop opens it. A story step marks everything up to it beaten; the game saves
 // and starts again from the save, so all that hangs off the story fits. The extras need no restart.
-// The #… is read on load and again when it changes, since typing it onto a page already open does not reload it.
 let tester = false;
-function testerHash(){ const said = testerFromHash(location.hash);
+function testerSay(said){
   try { if (said === 'on') localStorage.setItem(TESTER_KEY, '1'); else if (said === 'off') localStorage.removeItem(TESTER_KEY);
     tester = localStorage.getItem(TESTER_KEY) === '1'; } catch { if (said) tester = said === 'on'; }
-  if (said){ history.replaceState(null, '', location.pathname + location.search); if (started) toast(tester ? 'Tester on: open it from the shop.' : 'Tester off.', 2400); }
+  if (said && started) toast(tester ? 'Tester on: open it from the shop.' : 'Tester off.', 2400);
   $('testerBtn').hidden = !tester; }
-testerHash();
-window.addEventListener('hashchange', testerHash);
 function story(){ return {isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage}; }
 function openTester(){ audio(); sfx.click(); const done = stepsDone(story());
   $('testerSteps').innerHTML = STEPS.map((st, i) => `<button class="tstep${i < done ? ' done' : ''}" data-step="${i}"><span>${st.label}</span><span class="tk">${i < done ? 'Done' : 'Skip to here'}</span></button>`).join('');
@@ -1919,6 +1917,47 @@ $('testerExtras').addEventListener('click', (e) => { const b = e.target.closest(
   else if (k === 'kit'){ driven.reaper = Math.max(1, driven.reaper); reaperSeen = true; }
   else if (k === 'mend'){ hp = HP_MAX; hearts = maxHearts(); hudHull(); hudHearts(); }
   sfx.upgrade(); save(); refreshShop(); toast('Done.', 1200); });
+// Your game on another device, for the owner's dad: no accounts, so the game travels in a link, #game=… on the end,
+// the save squeezed small. Opened, it asks before it takes the place of the game here. The panel copies the link,
+// and takes one pasted in, for a phone's home-screen game, which keeps a game of its own and opens no links.
+const elCarry = $('carry'), elAsk = $('carryAsk'), elCarryLink = $('carryLink'), elCarryIn = $('carryIn');
+let carryJson = null;
+function here(){ return gameSummary({isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage, day, coins}); }
+async function openCarry(){ audio(); sfx.click(); save(); elCarryIn.value = ''; elCarryLink.value = ''; elCarry.hidden = false;
+  let json = null; try { json = localStorage.getItem(SAVE_KEY); } catch (e) {}
+  elCarryLink.value = json ? gameLink(location.href, await packGame(json)) : 'This browser is not keeping the game, so there is nothing to copy.'; }
+function carryCopied(ok){ if (ok){ sfx.upgrade(); toast('Copied. Open it on the other device.', 2600); }
+  else { elCarryLink.focus(); elCarryLink.select(); toast('Hold on the link to copy it.', 2600); } }
+$('carryBtn').addEventListener('click', openCarry);
+$('carryClose').addEventListener('click', () => { sfx.click(); elCarry.hidden = true; });
+$('carryCopy').addEventListener('click', () => { const t = elCarryLink.value; if (!t.includes('#')) return;
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(() => carryCopied(true), () => carryCopied(false)); else carryCopied(false); });
+// On a phone, its share sheet: to a laptop, a message to yourself, AirDrop.
+if (navigator.share) $('carrySend').hidden = false;
+$('carrySend').addEventListener('click', () => { const t = elCarryLink.value; if (!t.includes('#')) return;
+  navigator.share({title: 'Net Profit', text: 'My Net Profit game', url: t}).catch(() => {}); });
+// A game from a link or the paste box: read it, and ask.
+async function carryAsk(code){ const got = await unpackGame(code);
+  if (!('json' in got) || !looksLikeSave(got.json)){
+    toast(got.fault === 'old' ? 'This browser is too old to open that game link. Try another browser.' : 'That link has no game in it. Copy it again, all of it.', 4200); return; }
+  carryJson = got.json; const d = parseSave(got.json, SAVE_BOUNDS);
+  $('carryThere').textContent = gameSummary(d); $('carryHere').textContent = here();
+  elCarry.hidden = true; elAsk.hidden = false; }
+$('carryNo').addEventListener('click', () => { sfx.click(); carryJson = null; elAsk.hidden = true; });
+$('carryYes').addEventListener('click', () => { if (!carryJson) return;
+  try { localStorage.setItem(SAVE_KEY, carryJson); } catch (e) { toast('This browser will not keep a game, so it cannot load one.', 4200); return; }
+  saveOff = true; location.reload(); });
+$('carryLoad').addEventListener('click', () => { const t = elCarryIn.value.trim(), said = testerFromHash(t.slice(t.indexOf('#')));
+  if (t.includes('#') && said){ testerSay(said); elCarry.hidden = true; return; }
+  const code = gameCode(t); if (!code){ toast('That is not a game link. Copy it again, all of it.', 3200); return; }
+  carryAsk(code); });
+// The #… on the end of the link, read on load and again when it changes, since typing it onto a page already open
+// does not reload it: #tester and #tester-off, and #game=…. Read, it is tidied away.
+function onHash(){ const said = testerFromHash(location.hash), code = said ? null : gameCode(location.hash);
+  if (said || code) history.replaceState(null, '', location.pathname + location.search);
+  testerSay(said); if (code) carryAsk(code); }
+onHash();
+window.addEventListener('hashchange', onHash);
 // The sea map, the kid's: the whole sea, fogged where the boat has not been. Open, the game waits.
 const elMap = $('seamap'), elMapBtn = $('mapBtn'), mapCanvas = $('mapCanvas'), seaMap = new SeaMap();
 let mapOpen = false;

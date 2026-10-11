@@ -3519,3 +3519,60 @@ test('tester: without the link there is no Tester button', async ({ context, pag
   expect(await page.evaluate(() => document.getElementById('testerBtn')?.hidden)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('another device: the shop copies a link to the game, and opened elsewhere it asks, then loads it', async ({
+  browser,
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 4321,
+    day: 7,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    lv: { net: 3, hold: 2, engine: 2 },
+  });
+  await page.locator('#carryBtn').dispatchEvent('click');
+  await expect(page.locator('#carry')).toBeVisible();
+  await expect(page.locator('#carryLink')).toHaveValue(/#game=z/);
+  const link = await page.locator('#carryLink').inputValue();
+  expect(link.length).toBeLessThan(2000);
+
+  // The other device, with a game of its own.
+  const other = await browser.newContext({ viewport: { width: 390, height: 780 } });
+  await other.addInitScript(
+    (s: string) => {
+      if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
+    },
+    JSON.stringify({ muted: true, coins: 50, day: 2 }),
+  );
+  const p2 = await other.newPage();
+  p2.on('pageerror', (e) => errors.push(String(e)));
+  await p2.goto(link);
+  await expect(p2.locator('#carryAsk')).toBeVisible();
+  await expect(p2.locator('#carryThere')).toHaveText('day 7, 4,321 coins, past island 3');
+  await expect(p2.locator('#carryHere')).toHaveText('day 2, 50 coins');
+  expect(new URL(p2.url()).hash).toBe('');
+  await Promise.all([p2.waitForEvent('load'), p2.locator('#carryYes').click()]);
+  await p2.waitForTimeout(400);
+  await p2.click('#go');
+  expect(
+    await p2.evaluate(() => [window.__np.coins, window.__np.day, window.__np.isle3Stage]),
+  ).toEqual([4321, 7, 4]);
+
+  // Pasted in, it asks too; kept, nothing changes.
+  await p2.locator('#carryBtn').dispatchEvent('click');
+  await p2.locator('#carryIn').fill(link.replace(/#game=.*/, '#game=zNOTAGAMEATALL'));
+  await p2.locator('#carryLoad').click();
+  await expect(p2.locator('#carryAsk')).toBeHidden();
+  await p2.locator('#carryIn').fill(`  ${link}\n`);
+  await p2.locator('#carryLoad').click();
+  await expect(p2.locator('#carryAsk')).toBeVisible();
+  await p2.locator('#carryNo').click();
+  await expect(p2.locator('#carryAsk')).toBeHidden();
+  expect(await p2.evaluate(() => window.__np.coins)).toBe(4321);
+  await other.close();
+  expect(errors).toEqual([]);
+});
