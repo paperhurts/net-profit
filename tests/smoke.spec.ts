@@ -49,7 +49,11 @@ type Np = {
     air: number;
     airMax: number;
     face: number;
+    cold: number;
+    chill: number;
+    state: string;
   };
+  iceLoot: number;
   trenchSh: {
     kind: string;
     cx: number;
@@ -165,7 +169,7 @@ type Np = {
   AQUARIUM: { x0: number; y0: number; x1: number; y1: number };
   tankView: { fish: unknown[]; eaten: number };
   rod: { state: string };
-  gear: { mesh: boolean; strongbox: boolean; suit: boolean; tank: boolean };
+  gear: { mesh: boolean; strongbox: boolean; suit: boolean; tank: boolean; white: boolean };
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarling: { with: boolean; free: boolean };
   isle4Stage: number;
@@ -530,6 +534,28 @@ test('shop: once there is scuba gear the shipwright sells a big air tank', async
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').gear.tank),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('shop: once the ice floe is found, with scuba gear, the shipwright sells a white scuba suit', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 7000,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 1,
+    iceSeen: true,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  const card = page.locator('#gear [data-g="white"]');
+  await expect(card).toContainText('White scuba suit');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.gear.white, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
+  await expect(page.locator('#yours')).toContainText('White scuba suit');
   expect(errors).toEqual([]);
 });
 
@@ -2461,6 +2487,100 @@ test('Neil ice fishing: he sits by the hole, goes in after a fish, and it goes i
   expect(await page.evaluate(() => window.__np.iceSeal?.phase)).toBe('sit');
   await page.click('#iceLeave');
   await page.waitForFunction(() => !window.__np.icing, null, { timeout: 2000 });
+  expect(errors).toEqual([]);
+});
+
+test('under the ice without the white suit: a dive through the hole gets too cold, and the rope pulls you back up', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    iceSeen: true,
+    driven: { reaper: 1 },
+    reaperSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + 340 * Math.SQRT1_2,
+      y: -2244 + 340 * Math.SQRT1_2,
+      h: 3.9,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  const btn = page.locator('#diveBtn');
+  await expect(btn).toHaveText('Dive under the ice', { timeout: 4000 });
+  await btn.click();
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('freezing');
+  expect(await page.evaluate(() => window.__np.diver.chill)).toBeGreaterThan(0);
+  // Down under the ice, all but too cold: it tips over, and the rope pulls the diver back up the hole.
+  await page.evaluate(() => {
+    const d = window.__np.diver;
+    d.x = 200;
+    d.y = 300;
+    d.cold = 0.97;
+  });
+  await expect(page.locator('#toast')).toContainText('Too cold', { timeout: 3000 });
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 6000 });
+  await expect(page.locator('#toast')).toContainText('Up through the hole');
+  expect(errors).toEqual([]);
+});
+
+test('under the ice in the white suit: warm, and a thing frozen in the ice is chipped out for coins', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    coins: 0,
+    gear: { white: true },
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    iceSeen: true,
+    driven: { reaper: 1 },
+    reaperSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + 340 * Math.SQRT1_2,
+      y: -2244 + 340 * Math.SQRT1_2,
+      h: 3.9,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive under the ice', { timeout: 4000 });
+  await page.click('#diveBtn');
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.diver.chill)).toBe(0);
+  // Just under the explorer's spyglass, frozen in the ice by the hole.
+  await page.evaluate(() => {
+    const d = window.__np.diver;
+    d.x = 345;
+    d.y = 50;
+  });
+  await page.waitForFunction(() => window.__np.iceLoot === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(200);
+  await expect(page.locator('#toast')).toContainText('out of the ice');
+  await page.click('#surfaceBtn');
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 6000 });
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').iceLoot),
+  ).toBe(1);
   expect(errors).toEqual([]);
 });
 

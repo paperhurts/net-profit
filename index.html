@@ -197,9 +197,12 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 #iglooBtn{position:fixed;left:50%;bottom:calc(162px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;font-size:15px;height:40px;padding:3px 16px 0;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #iglooBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #iceLeave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
-body.icing #order,body.icing #charter,body.icing #hull,body.icing #market,body.icing #wood,body.icing #mapBtn,body.icing #seineBtn,body.icing #potBtn,body.icing #mend,body.icing #rodcast,body.icing #cast,body.icing #throw,body.icing #iglooBtn{display:none}
+body.icing #order,body.icing #charter,body.icing #hull,body.icing #market,body.icing #wood,body.icing #mapBtn,body.icing #seineBtn,body.icing #potBtn,body.icing #mend,body.icing #rodcast,body.icing #cast,body.icing #throw,body.icing #iglooBtn,body.icing #diveBtn{display:none}
+/* Alongside the ice floe with scuba gear: Ice fish, then Dive under the ice, then the igloo's button, one over the other. */
+body.floedive #diveBtn{bottom:calc(162px + env(safe-area-inset-bottom))}
+body.floedive #iglooBtn{bottom:calc(220px + env(safe-area-inset-bottom))}
 /* Diving, the sea's own buttons and bubbles stand down: the dive draws its own air and depth. The hold stays, for what is speared, and so does the throw button. */
-body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast{display:none}
+body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast,body.diving #iceBtn,body.diving #iglooBtn{display:none}
 #leave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;font-size:14px;height:38px;padding:3px 14px 0}
 /* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
 #throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;

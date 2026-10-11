@@ -11,7 +11,7 @@
  */
 
 import type { Diver } from '../entities/diver';
-import { AIR_LOW } from '../entities/diver';
+import { AIR_LOW, CHILLY } from '../entities/diver';
 import type { Lurker } from '../entities/lurker';
 import { type DiveSite, TRENCH_SITE } from '../world/divesite';
 import type { Loot } from '../world/loot';
@@ -27,6 +27,7 @@ import {
   TWILIGHT,
   wallIn,
 } from '../world/trench';
+import { drawIceDiveScene } from './icedive';
 import { drawLoot, drawLootGlint } from './loot';
 import { drawLurker, drawLurkerGlow } from './lurker';
 import { drawWreckScene } from './wreck';
@@ -91,6 +92,8 @@ export type DiveScene = {
   site?: DiveSite;
   /** Anything else to draw in the water before the dark, and over it: the wreck's sharks. */
   under?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
+  /** The diver in the white scuba suit, for under the ice. */
+  white?: boolean;
 };
 
 /** The camera: the scene point at the screen's middle, and the scale. */
@@ -135,8 +138,8 @@ export function drawDive(
   }
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  // Light shafts down from the surface, gone by the end of the sunlit water.
-  if (top < SUNLIT) {
+  // Light shafts down from the surface, gone by the end of the sunlit water (under the ice, only through the hole).
+  if (top < SUNLIT && !site.ceiling) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 6; i++) {
@@ -164,6 +167,7 @@ export function drawDive(
     ctx.fillRect(X(sx), Y(sy), 1.4 * s, 1.4 * s);
   }
   if (site.id === 'wreck') drawWreckScene(ctx, X, Y, s, T);
+  else if (site.id === 'ice') drawIceDiveScene(ctx, X, Y, s, T);
   else drawRock(ctx, X, Y, s, top, bottom);
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
@@ -181,8 +185,8 @@ export function drawDive(
   if (sc.lurker) drawLurker(ctx, X, Y, s, sc.lurker, T);
   sc.under?.(ctx, X, Y, s);
   // The boat overhead, the diver, and the bubbles.
-  if (top < 30) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
-  drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T);
+  if (top < 30 && !site.ceiling) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
+  drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T, !!sc.white);
   ctx.fillStyle = 'rgba(230,248,255,.7)';
   for (const b of sc.bubbles) {
     ctx.beginPath();
@@ -543,7 +547,10 @@ function drawDiver(
   s: number,
   d: Diver,
   T: number,
+  white = false,
 ): void {
+  const suit = white ? '#F2F6F8' : '#3A5F86';
+  const legs = white ? '#DCE4E8' : '#2B3E58';
   const pitch = Math.max(-0.9, Math.min(0.9, Math.atan2(d.vy, Math.abs(d.vx) + 20)));
   ctx.save();
   ctx.translate(x, y);
@@ -553,7 +560,7 @@ function drawDiver(
   const k = s;
   const kick = Math.sin(d.kick * 2);
   // Legs and flippers, behind.
-  ctx.strokeStyle = '#2B3E58';
+  ctx.strokeStyle = legs;
   ctx.lineWidth = 4 * k;
   for (const off of [kick, -kick]) {
     ctx.beginPath();
@@ -574,12 +581,12 @@ function drawDiver(
   ctx.ellipse(-3 * k, -6 * k, 8 * k, 3 * k, 0, 0, Math.PI * 2);
   ctx.fill();
   // The body.
-  ctx.fillStyle = '#3A5F86';
+  ctx.fillStyle = suit;
   ctx.beginPath();
   ctx.ellipse(-1 * k, 0, 9 * k, 4.6 * k, 0, 0, Math.PI * 2);
   ctx.fill();
   // An arm out ahead.
-  ctx.strokeStyle = '#3A5F86';
+  ctx.strokeStyle = suit;
   ctx.lineWidth = 3 * k;
   ctx.beginPath();
   ctx.moveTo(4 * k, 1 * k);
@@ -672,4 +679,27 @@ function drawGauge(ctx: CanvasRenderingContext2D, d: Diver, W: number): void {
   ctx.textAlign = 'right';
   ctx.fillText(depth, Math.min(W - 16, x + GAP * n + 134), y + 1);
   ctx.textAlign = 'left';
+  // Under the ice without the white suit, how cold the diver is getting: snowflakes fill as it does.
+  if (d.chill <= 0 && d.cold <= 0) return;
+  const cy = y + 38;
+  const chilly = d.cold >= CHILLY;
+  ctx.fillStyle = 'rgba(8,24,36,.55)';
+  ctx.beginPath();
+  ctx.roundRect(x - 8, cy - 16, GAP * n + 56, 32, 16);
+  ctx.fill();
+  ctx.fillStyle = chilly ? '#FF8A7A' : '#FFF6E5';
+  ctx.fillText('Cold', x, cy + 1);
+  for (let i = 0; i < n; i++) {
+    const on = d.cold * n > i + 0.5;
+    const cx = x + 44 + i * GAP;
+    ctx.strokeStyle = on ? (chilly ? '#FF8A7A' : '#DFF6FF') : 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let a = 0; a < 3; a++) {
+      const r = (a * Math.PI) / 3;
+      ctx.moveTo(cx - Math.cos(r) * 5, cy - Math.sin(r) * 5);
+      ctx.lineTo(cx + Math.cos(r) * 5, cy + Math.sin(r) * 5);
+    }
+    ctx.stroke();
+  }
 }

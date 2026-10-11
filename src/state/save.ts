@@ -12,6 +12,7 @@ import { SPEAR_MAX } from '../data/spear';
 import { type Charter, parseCharter } from '../fishing/charter';
 import { type Pot, parsePots } from '../fishing/pots';
 import { type Bases, noBases, parseBases } from '../world/bases';
+import { ICE_LOOT_ALL } from '../world/icedive';
 import { LOOT_ALL } from '../world/loot';
 import { TD } from '../world/trench';
 
@@ -127,6 +128,8 @@ export type SaveData = {
   trenchDeep: number;
   /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
   trenchLoot: number;
+  /** The things frozen in the ice under the floe that have been chipped out, a bit each. */
+  iceLoot: number;
   pearlDay: number;
   /** The treasure chest in the wreck off island 5 has been found. */
   wreckChest: boolean;
@@ -181,6 +184,8 @@ export type SaveData = {
     lionnet: boolean;
     tank: boolean;
     ballast: boolean;
+    /** The white scuba suit: warm under the ice. */
+    white: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -257,6 +262,7 @@ export function defaultSave(b: Bounds): SaveData {
     trenchSeen: false,
     trenchDeep: 0,
     trenchLoot: 0,
+    iceLoot: 0,
     pearlDay: 0,
     wreckChest: false,
     stormSeen: false,
@@ -288,6 +294,7 @@ export function defaultSave(b: Bounds): SaveData {
       lionnet: false,
       tank: false,
       ballast: false,
+      white: false,
     },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -388,6 +395,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.trenchSeen = !!o.trenchSeen;
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
+  d.iceLoot = int(o.iceLoot) & ICE_LOOT_ALL;
   d.pearlDay = Math.max(0, int(o.pearlDay));
   d.wreckChest = !!o.wreckChest;
   d.stormSeen = !!o.stormSeen;
@@ -421,6 +429,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       lionnet: !!g.lionnet,
       tank: !!g.tank,
       ballast: !!g.ballast,
+      white: !!g.white,
     };
   }
   if (o.snook && typeof o.snook === 'object') {
@@ -500,6 +509,7 @@ export function serializeSave(d: SaveData): string {
     trenchSeen: d.trenchSeen,
     trenchDeep: d.trenchDeep,
     trenchLoot: d.trenchLoot,
+    iceLoot: d.iceLoot,
     pearlDay: d.pearlDay,
     wreckChest: d.wreckChest,
     stormSeen: d.stormSeen,
