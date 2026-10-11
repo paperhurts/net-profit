@@ -51,6 +51,8 @@ export const ISLE7_STAGES = 4;
 export const HERON_STAGES = 2;
 /** Fish that make the otter yours. */
 export const OTTER_FEEDS = 3;
+/** Ice fish that make Neil, the seal on the ice floe, yours. */
+export const NEIL_FEEDS = 3;
 
 export type SaveData = {
   coins: number;
@@ -142,6 +144,8 @@ export type SaveData = {
   isle8Seen: boolean;
   /** Fish tossed to the otter off the home dock: three make him yours. */
   otterFed: number;
+  /** Ice fish tossed to Neil, the seal at the ice floe's edge: three make him yours. */
+  neilFed: number;
   /** The Heron: 0 not met, 1 beaten on island 8's tower and flown to his nest, 2 beaten for good on island 9's. */
   heronStage: number;
   /** The spear's level from the shipwright: 0 for none. */
@@ -263,6 +267,7 @@ export function defaultSave(b: Bounds): SaveData {
     nagaFree: false,
     isle8Seen: false,
     otterFed: 0,
+    neilFed: 0,
     heronStage: 0,
     spear: 0,
     armour: 0,
@@ -393,6 +398,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
+  d.neilFed = Math.max(0, Math.min(NEIL_FEEDS, int(o.neilFed)));
   d.heronStage = Math.max(0, Math.min(HERON_STAGES, int(o.heronStage)));
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
@@ -504,6 +510,7 @@ export function serializeSave(d: SaveData): string {
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,
+    neilFed: d.neilFed,
     heronStage: d.heronStage,
     spear: d.spear,
     armour: d.armour,

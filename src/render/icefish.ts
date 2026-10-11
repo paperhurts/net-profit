@@ -8,6 +8,7 @@
  */
 
 import { SPECIES } from '../data/tuning';
+import { drawSealDive, drawSealLie } from '../entities/seal';
 import {
   HOLE_X,
   ICE_D,
@@ -15,6 +16,7 @@ import {
   ICE_W,
   type IceFish,
   type IceRun,
+  type IceSeal,
   LINE_MAX,
 } from '../fishing/icefish';
 
@@ -44,6 +46,7 @@ export function drawIceScene(
   run: IceRun,
   T: number,
   left: number,
+  seal: IceSeal | null = null,
 ): void {
   const want = iceCamera(run, W, H);
   const s = want.s;
@@ -60,12 +63,13 @@ export function drawIceScene(
   sky.addColorStop(1, '#EAF4F8');
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, Math.max(0, Y(0)));
-  const sea = ctx.createLinearGradient(0, Y(ICE_TOP), 0, Y(ICE_D));
+  // From the ice's top, so the water in the hole is painted afresh each frame too.
+  const sea = ctx.createLinearGradient(0, Y(0), 0, Y(ICE_D));
   sea.addColorStop(0, '#6DB9CF');
   sea.addColorStop(0.35, '#2F7C98');
   sea.addColorStop(1, '#0C2436');
   ctx.fillStyle = sea;
-  ctx.fillRect(0, Math.max(0, Y(ICE_TOP)), W, H);
+  ctx.fillRect(0, Math.max(0, Y(0)), W, H);
   // Light down through the hole.
   ctx.save();
   ctx.globalAlpha = 0.12;
@@ -112,6 +116,11 @@ export function drawIceScene(
   ctx.lineTo(X(run.x), Y(run.y));
   ctx.stroke();
   for (const f of run.line) drawIceFish(ctx, X(f.x), Y(f.y), s, f, T, true);
+  // Neil, if he is with you, swimming down there, with a fish in his mouth on the way back.
+  const neilIn = seal && seal.y > 0;
+  if (seal?.has && seal.prey)
+    drawIceFish(ctx, X(seal.prey.x), Y(seal.prey.y), s, seal.prey, T, true);
+  if (seal && neilIn) drawSealDive(ctx, X(seal.x), Y(seal.y), seal.dir, T, 1.15 * s);
   ctx.strokeStyle = '#C9D3DA';
   ctx.lineWidth = 2 * s;
   ctx.beginPath();
@@ -161,6 +170,20 @@ export function drawIceScene(
   ctx.lineTo(X(HOLE_X + 38), Y(-26));
   ctx.closePath();
   ctx.fill();
+  // Neil on the ice, by the bucket, or climbing out of the hole.
+  if (seal && !neilIn) {
+    if (seal.has && seal.prey)
+      drawIceFish(ctx, X(seal.prey.x), Y(seal.prey.y), s, seal.prey, T, true);
+    drawSealLie(
+      ctx,
+      X(seal.x),
+      Y(seal.y),
+      seal.dir,
+      T,
+      seal.phase === 'sit' ? Math.max(0, Math.sin(T * 0.9)) * 3 : 0,
+      1.2 * s,
+    );
+  }
   // Snow, drifting down past the ice.
   ctx.fillStyle = 'rgba(255,255,255,.85)';
   for (let i = 0; i < 26; i++) {

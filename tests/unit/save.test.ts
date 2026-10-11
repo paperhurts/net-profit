@@ -11,6 +11,7 @@ import {
   ISLE5_STAGES,
   ISLE6_STAGES,
   ISLE7_STAGES,
+  NEIL_FEEDS,
   OTTER_FEEDS,
   parseSave,
   SAVE_KEY,
@@ -608,6 +609,17 @@ describe('the otter', () => {
     s.otterFed = 2;
     expect(parseSave(serializeSave(s), bounds).otterFed).toBe(2);
     expect(parseSave(JSON.stringify({ ...s, otterFed: 50 }), bounds).otterFed).toBe(OTTER_FEEDS);
+  });
+});
+
+describe('Neil the seal', () => {
+  it('is wild in a save from before him, and keeps how many ice fish he has had, within reason', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.neilFed).toBe(0);
+    s.neilFed = 2;
+    expect(parseSave(serializeSave(s), bounds).neilFed).toBe(2);
+    expect(parseSave(JSON.stringify({ ...s, neilFed: 9 }), bounds).neilFed).toBe(NEIL_FEEDS);
+    expect(parseSave(JSON.stringify({ ...s, neilFed: -3 }), bounds).neilFed).toBe(0);
   });
 });
 

@@ -150,6 +150,9 @@ type Np = {
   necroPal: { shown: boolean; free: boolean };
   otter: { state: string; fed: number; free: boolean; reason: string | null };
   tapOtter(): void;
+  neil: { state: string; fed: number; free: boolean; aboard: boolean };
+  neilAt: [number, number] | null;
+  iceSeal: { phase: string; dive(pool: unknown[]): boolean } | null;
   heron: {
     up: boolean;
     hp: number;
@@ -2358,6 +2361,106 @@ test('ice fishing: without the kit there is no fishing the floe, and the game sa
   });
   await expect(page.locator('#toast')).toContainText('Reaper', { timeout: 4000 });
   await expect(page.locator('#iceBtn')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('Neil: three ice fish tossed to the seal at the floe make him yours, and he swims along with the boat', async ({
+  context,
+  page,
+}) => {
+  const hold = new Array(23).fill(0);
+  hold[20] = 3;
+  const a = 0.5;
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    iceSeen: true,
+    driven: { reaper: 1 },
+    reaperSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + Math.cos(a) * 316,
+      y: -2244 + Math.sin(a) * 316,
+      h: a + Math.PI / 2,
+      clock: 0.3,
+      hold,
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('looks like a Neil', { timeout: 4000 });
+  // A tap on him, three times: each tosses him a polar cod from the hold.
+  for (let i = 1; i <= 3; i++) {
+    const at = await page.evaluate(() => window.__np.neilAt);
+    expect(at, 'Neil is not on the screen').not.toBeNull();
+    await page.mouse.click(at?.[0] ?? 0, at?.[1] ?? 0);
+    await page.waitForFunction((n) => window.__np.neil.fed === n, i, { timeout: 2000 });
+  }
+  expect(await page.evaluate(() => [window.__np.neil.free, window.__np.hold])).toEqual([true, 0]);
+  await expect(page.locator('#toast')).toContainText('his name is Neil');
+  // Off the ice and into the water by the boat; under way he keeps up.
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await page.waitForFunction(() => window.__np.neil.state === 'swim', null, { timeout: 3000 });
+  await page.waitForTimeout(1500);
+  const d = await page.evaluate(() => {
+    const { boat, neil } = window.__np as unknown as {
+      boat: { x: number; y: number };
+      neil: { x: number; y: number };
+    };
+    return Math.hypot(neil.x - boat.x, neil.y - boat.y);
+  });
+  expect(d).toBeLessThan(80);
+  expect(errors).toEqual([]);
+});
+
+test('Neil ice fishing: he sits by the hole, goes in after a fish, and it goes in the hold', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    iceSeen: true,
+    neilFed: 3,
+    driven: { reaper: 1 },
+    reaperSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: {
+      x: -2244 + 340 * Math.SQRT1_2,
+      y: -2244 + 340 * Math.SQRT1_2,
+      h: 3.9,
+      clock: 0.3,
+      hold: [],
+    },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#iceBtn')).toBeVisible({ timeout: 4000 });
+  await page.click('#iceBtn');
+  await page.waitForFunction(() => window.__np.icing, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.iceSeal?.phase)).toBe('sit');
+  // He goes in after one (the game sends him now and then; here, at once).
+  expect(
+    await page.evaluate(() => {
+      const np = window.__np;
+      return np.iceSeal?.dive(np.iceRun?.pool ?? []) ?? false;
+    }),
+  ).toBe(true);
+  await page.waitForFunction(() => window.__np.hold >= 1, null, { timeout: 15000 });
+  await expect(page.locator('#toast')).toContainText('Neil caught');
+  expect(await page.evaluate(() => window.__np.iceSeal?.phase)).toBe('sit');
+  await page.click('#iceLeave');
+  await page.waitForFunction(() => !window.__np.icing, null, { timeout: 2000 });
   expect(errors).toEqual([]);
 });
 

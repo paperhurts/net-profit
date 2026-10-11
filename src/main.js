@@ -3,7 +3,7 @@
 // then it is not linted or type-checked, and legacy/net-profit.html stays the
 // behavioural reference.
 import { baseZoom, dirToWorld, onScreen as isoOnScreen, screenX, screenY } from './core/iso';
-import { COST, DAY_LEN, HOLD, MAXLV, NETW, PAINTS, PARROT, PIRATE_SPEED, PIRATE_UNLOCK, RING_R, SHARK, CRAB, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
+import { COST, DAY_LEN, HOLD, ICE_CHAR, ICEFISH, MAXLV, NETW, PAINTS, PARROT, PIRATE_SPEED, PIRATE_UNLOCK, POLAR_COD, RING_R, SHARK, CRAB, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
 import { angDiff, clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
@@ -37,7 +37,8 @@ import { Anglerfish } from './entities/anglerfish';
 import { Gulper } from './entities/gulper';
 import { DIVE_HIT, MeteorSerpent } from './entities/meteor';
 import { Reaper, SWEEP_HIT as REAPER_HIT } from './entities/reaper';
-import { IceRun, icePool, leftToCatch } from './fishing/icefish';
+import { IceRun, IceSeal, icePool, leftToCatch, SEAL_CHANCE } from './fishing/icefish';
+import { FLOE_TOP, NEIL_FEEDS, Neil, nearNeil } from './entities/seal';
 import { drawIceScene } from './render/icefish';
 import { drawFloe } from './render/icefloe';
 import { alongsideFloe, FLOE_MAX, ICE_FLOE } from './world/icefloe';
@@ -132,7 +133,7 @@ const C = {
 const HULL = [[34,0],[18,11],[-24,11],[-28,6],[-28,-6],[-24,-11],[18,-11]];
 
 /* ---------- state ---------- */
-let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, isle5Seen = false, isle5Stage = 0, isle6Seen = false, chests6 = 0, isle6Stage = 0, isle7Seen = false, soulArmour = false, isle7Stage = 0, flag = null, gulperSeen = false, meteorSeen = false, reaperSeen = false, iceSeen = false, iceRuns = 0, lionSeen = false, lionCaught = 0, aquarium = false, aquaKinds = [], bases = noBases(), pots = [], trenchSeen = false, trenchDeep = 0, trenchLoot = 0, pearlDay = 0, wreckChest = false, stormSeen = false, lurkerSeen = false, lurkerStung = 0, charter = null, chartersRun = 0, nagaFree = false, nagaCage = 0, isle8Seen = false, heronStage = 0, otterFed0 = 0, barredT = 0, spear = 0, armour = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
+let coins = 0, earned = 0, muted = false, paint = 0, wood = 0, build = 0, carry = 0, levSeen = false, whaleSeen = false, mantaSeen = false, cthuluSeen = false, anglerSeen = false, petted = false, isle2Seen = false, isle3Seen = false, isle3Stage = 0, isle4Stage = 0, isle5Seen = false, isle5Stage = 0, isle6Seen = false, chests6 = 0, isle6Stage = 0, isle7Seen = false, soulArmour = false, isle7Stage = 0, flag = null, gulperSeen = false, meteorSeen = false, reaperSeen = false, iceSeen = false, iceRuns = 0, lionSeen = false, lionCaught = 0, aquarium = false, aquaKinds = [], bases = noBases(), pots = [], trenchSeen = false, trenchDeep = 0, trenchLoot = 0, pearlDay = 0, wreckChest = false, stormSeen = false, lurkerSeen = false, lurkerStung = 0, charter = null, chartersRun = 0, nagaFree = false, nagaCage = 0, isle8Seen = false, heronStage = 0, otterFed0 = 0, neilFed0 = 0, barredT = 0, spear = 0, armour = 0, masks = 0, towerTaken = false, turtleSeen = false, turtleSwims = 0, keyMode = 'drive';
 let hp = HP_MAX, swallowT = 0, irisT = 0, hpShown = -1; // the boat's health in the deep, and being swallowed
 let clock = .13, dark = 0, warm = 0, phase = 'Day', lastPhase = 'Day', rangeToastT = 0, deepToastT = 0, wasDeep = false, farToastT = 0, wasFar = false;
 const lv = {net:0, hold:0, engine:0};
@@ -150,11 +151,11 @@ let savedTrip = null;
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; isle5Stage = s.isle5Stage; isle6Seen = s.isle6Seen; chests6 = s.chests6; isle6Stage = s.isle6Stage; isle7Seen = s.isle7Seen; soulArmour = s.soulArmour; isle7Stage = s.isle7Stage; flag = s.flag; gulperSeen = s.gulperSeen; meteorSeen = s.meteorSeen; reaperSeen = s.reaperSeen; iceSeen = s.iceSeen; iceRuns = s.iceRuns; lionSeen = s.lionSeen; lionCaught = s.lionCaught; aquarium = s.aquarium; bases = s.bases; pots = s.pots; trenchSeen = s.trenchSeen; trenchDeep = s.trenchDeep; trenchLoot = s.trenchLoot; pearlDay = s.pearlDay; wreckChest = s.wreckChest; stormSeen = s.stormSeen; lurkerSeen = s.lurkerSeen; lurkerStung = s.lurkerStung; charter = s.charter; chartersRun = s.chartersRun; nagaFree = s.nagaFree; isle8Seen = s.isle8Seen; heronStage = s.heronStage; otterFed0 = s.otterFed; nagaCage = nagaFree ? 1 : 0; spear = s.spear; armour = s.armour; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; sailed.set(decodeSailed(s.sailed)); }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; isle5Stage = s.isle5Stage; isle6Seen = s.isle6Seen; chests6 = s.chests6; isle6Stage = s.isle6Stage; isle7Seen = s.isle7Seen; soulArmour = s.soulArmour; isle7Stage = s.isle7Stage; flag = s.flag; gulperSeen = s.gulperSeen; meteorSeen = s.meteorSeen; reaperSeen = s.reaperSeen; iceSeen = s.iceSeen; iceRuns = s.iceRuns; lionSeen = s.lionSeen; lionCaught = s.lionCaught; aquarium = s.aquarium; bases = s.bases; pots = s.pots; trenchSeen = s.trenchSeen; trenchDeep = s.trenchDeep; trenchLoot = s.trenchLoot; pearlDay = s.pearlDay; wreckChest = s.wreckChest; stormSeen = s.stormSeen; lurkerSeen = s.lurkerSeen; lurkerStung = s.lurkerStung; charter = s.charter; chartersRun = s.chartersRun; nagaFree = s.nagaFree; isle8Seen = s.isle8Seen; heronStage = s.heronStage; otterFed0 = s.otterFed; neilFed0 = s.neilFed; nagaCage = nagaFree ? 1 : 0; spear = s.spear; armour = s.armour; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; sailed.set(decodeSailed(s.sailed)); }
 setMuted(muted);
 // A save from before the sea map: open the water such a player must know, round home and each island found.
 if (earned > 0 && sailedCount(sailed) === 0) seedSailed(sailed, [[isle2Seen, ISLE2], [isle3Seen, ISLE3], [isle3Stage >= 4, ISLE4], [isle5Seen, ISLE5], [isle6Seen, ISLE6], [isle7Seen, ISLE7], [isle8Seen, ISLE8], [isle8Seen, ISLE9]].filter(([f]) => f).map(([, i]) => i));
-function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, chests6, isle6Stage, isle7Seen, soulArmour, isle7Stage, flag, gulperSeen, meteorSeen, reaperSeen, iceSeen, iceRuns, lionSeen, lionCaught, aquarium, bases, pots, trenchSeen, trenchDeep: Math.round(trenchDeep), trenchLoot, pearlDay, wreckChest, stormSeen, lurkerSeen, lurkerStung, charter, chartersRun, nagaFree, isle8Seen, heronStage, otterFed: otter.fed, spear, armour, sailed: encodeSailed(sailed), masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, serializeSave({coins, earned, muted, lv, paint, log, order, wood, build, market, day, first, levSeen, whaleSeen, mantaSeen, cthuluSeen, anglerSeen, petted, isle2Seen, isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, chests6, isle6Stage, isle7Seen, soulArmour, isle7Stage, flag, gulperSeen, meteorSeen, reaperSeen, iceSeen, iceRuns, lionSeen, lionCaught, aquarium, bases, pots, trenchSeen, trenchDeep: Math.round(trenchDeep), trenchLoot, pearlDay, wreckChest, stormSeen, lurkerSeen, lurkerStung, charter, chartersRun, nagaFree, isle8Seen, heronStage, otterFed: otter.fed, neilFed: neil.fed, spear, armour, sailed: encodeSailed(sailed), masks, towerTaken, driven, turtleSeen, turtleSwims, gear, snook, trip: tripSnapshot() || null, keys: keyMode})); } catch (e) {} }
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ return started ? {x: Math.round(boat.x), y: Math.round(boat.y), h: +boat.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
@@ -318,11 +319,13 @@ otter.onClimb = (why) => { sfx.yip();
 // What would have him aboard now: the deep past the buoys, or something in the water near the boat.
 function otterReason(){ if (!otter.free || swallowT > 0) return null;
   if (pastBuoys(boat.x, boat.y)) return 'deep';
-  const near = (x, y) => Math.hypot(x - boat.x, y - boat.y) < OTTER_WARY;
-  if (sharks.some(sh => near(sh.x, sh.y))) return 'danger';
-  if (lionfish.here){ const n = lionfish.nearest(boat.x, boat.y); if (n && n.d < OTTER_WARY) return 'danger'; }
-  for (const [, , m] of beasts()) if (m && near(m.x, m.y)) return 'danger';
-  return null; }
+  return dangerNear() ? 'danger' : null; }
+// Something in the water near the boat: a shark, the lionfish, or one of the beasts.
+function dangerNear(){ const near = (x, y) => Math.hypot(x - boat.x, y - boat.y) < OTTER_WARY;
+  if (sharks.some(sh => near(sh.x, sh.y))) return true;
+  if (lionfish.here){ const n = lionfish.nearest(boat.x, boat.y); if (n && n.d < OTTER_WARY) return true; }
+  for (const [, , m] of beasts()) if (m && near(m.x, m.y)) return true;
+  return false; }
 // Tapped: wild, the boat beside him and fish aboard, he is tossed one, the commonest; otherwise he is petted.
 function tapOtter(){ audio();
   if (otter.free){ otter.pet(); sfx.yip(); return; }
@@ -336,6 +339,38 @@ function tapOtter(){ audio();
 // Where to tap him on the screen, if he is on it.
 function otterAt(){ if (otter.aboard){ if (!walker.aboard) return null; const p = otter.seat(boat, bk()); return [px(p.x, p.y), py(p.x, p.y, p.z + 8)]; }
   return onScreen(otter.x, otter.y, 40) ? [px(otter.x, otter.y), py(otter.x, otter.y, 4)] : null; }
+// Neil, the owner's seal, hauled out at the ice floe's edge by the hole: three ice fish tossed from the boat make him
+// yours. Then he swims beside the boat, flops up on deck when it stops a while or something is in the water, and
+// comes ice fishing, sitting by the hole and now and then going in after a fish for the hold.
+const neil = new Neil(), ICE_FISH = [ICE_CHAR, POLAR_COD, ICEFISH];
+neil.set(neilFed0);
+let neilTold = false, iceSeal = null;
+const neilFlopTold = {rest: false, danger: false};
+neil.onFlop = (why) => { sfx.yip();
+  if (why === 'danger'){ addText(boat.x, boat.y, 40, 'Arf!', '#FFE38A', 16, 1);
+    if (!neilFlopTold.danger){ neilFlopTold.danger = true; toast('Neil flops up on deck: something is in the water near the boat!', 3200, 2); } }
+  else if (!neilFlopTold.rest){ neilFlopTold.rest = true; toast('The boat has stopped, so Neil flops up on deck for a rest. He slips back in when you go.', 3400, 1); } };
+// Tapped: wild, the boat beside him and an ice fish aboard, he is tossed one; otherwise he is petted.
+function tapNeil(){ audio();
+  if (neil.free){ neil.pet(); sfx.yip(); return; }
+  if (!walker.aboard || !nearNeil(boat.x, boat.y)){ toast('Bring the boat right up beside the seal to toss him a fish.', 2400, 1); return; }
+  const sp = ICE_FISH.find(k => hold[k] > 0);
+  if (sp === undefined){ toast('The seal sniffs at your hold. He only wants ice fish: arctic char, polar cod or icefish, from the hole in the ice.', 3600, 1); return; }
+  hold[sp]--; holdTotal--; hud(); sfx.yip(); toasts.clear();
+  addText(neil.x, neil.y, 30, '+' + SPECIES[sp].name, '#FFE9A8', 14, 1.2);
+  if (neil.feed()) toast('The seal is yours, and his name is Neil! He swims along with the boat, flops up on deck when you stop, and comes ice fishing with you.', 5200, 2);
+  else toast(`The seal gulps down the ${SPECIES[sp].name} and barks for more. ${NEIL_FEEDS - neil.fed} more and he might come with you.`, 3200, 1);
+  refreshShop(); save(); }
+// Where to tap him on the screen, if he is on it.
+function neilAt(){ if (icing) return null;
+  if (neil.aboard){ const p = neil.seat(boat, bk()); return [px(p.x, p.y), py(p.x, p.y, p.z + 8)]; }
+  if (!onScreen(neil.x, neil.y, 40)) return null;
+  return [px(neil.x, neil.y), py(neil.x, neil.y, neil.state === 'wild' ? FLOE_TOP + 10 : 4)]; }
+// What Neil brings up through the hole goes in the hold, if there is room; if not, it goes back down.
+function neilCatch(f){
+  if (holdTotal >= HOLD[lv.hold]){ f.caught = false; toast(`Neil brought up a${'aeiou'.includes(SPECIES[f.sp].name[0]) ? 'n' : ''} ${SPECIES[f.sp].name}, but the hold is full: he lets it go.`, 2800, 1); return; }
+  const sp = f.sp; hold[sp]++; holdTotal++; log[sp]++; noteFirst(sp); sfx.yip(); sfx.fish(1, sp);
+  toast(`Neil caught a${'aeiou'.includes(SPECIES[sp].name[0]) ? 'n' : ''} ${SPECIES[sp].name} for you!`, 2600, 1); hud(); }
 let mendT = 0, mendShown = false;
 function netCut(){ return net.torn > 1e6; }
 lionfish.onSight = () => { if (lionSeen) return; lionSeen = true; save(); refreshShop();
@@ -575,15 +610,17 @@ function updateFloe(dt){ iceToastT -= dt; iceHintT -= dt;
   if (along && walker.aboard && !docked && hasIceKit() && boat.v >= DIVE_SLOW && iceHintT <= 0){ iceHintT = 15; toast('Let go of the stick and let the boat slow down by the ice: then tap Ice fish.', 2800); } }
 function startIce(){ audio(); const pool = poolToday();
   if (!leftToCatch(pool)){ toast('The fish under the hole are all caught today. Come back tomorrow.', 3000, 1); return; }
-  icing = true; iceRun = new IceRun(pool); boat.v = 0; stowSeine(); joy.on = false; sfx.spit(); toasts.clear();
+  icing = true; iceRun = new IceRun(pool); iceSeal = neil.free ? new IceSeal() : null; boat.v = 0; stowSeine(); joy.on = false; sfx.spit(); toasts.clear();
   document.body.classList.add('icing'); $('iceBtn').hidden = true; $('iceDrop').hidden = false; $('iceLeave').hidden = false;
   toast(iceTold ? 'Tap Drop the line.' : 'Drop the line: down, down, down it goes. On the way up, steer it into fish to hook them. Keep off the jellies!', iceTold ? 1800 : 5200, 1);
   iceTold = true; }
 function iceDrop(){ audio(); if (!iceRun) return; iceRun.drop(); $('iceDrop').hidden = true; $('iceLeave').hidden = true; sfx.cast(); }
-function endIce(){ icing = false; iceRun = null; document.body.classList.remove('icing'); $('iceDrop').hidden = true; $('iceLeave').hidden = true; save(); refreshShop(); }
+function endIce(){ const f = iceSeal?.finish(); if (f) neilCatch(f); iceSeal = null; icing = false; iceRun = null; document.body.classList.remove('icing'); $('iceDrop').hidden = true; $('iceLeave').hidden = true; save(); refreshShop(); }
 function updateIce(dt){ let ix = 0;
   if (joy.on) ix = joystickVector(joy)[0]; else ix = keyVector(keys)[0];
   const ev = iceRun.update(dt, iceRun.phase === 'drop' || iceRun.phase === 'reel' ? ix : 0);
+  if (iceSeal){ if (ev === 'bottom' && Math.random() < SEAL_CHANCE) iceSeal.dive(iceRun.pool);
+    const f = iceSeal.update(dt); if (f) neilCatch(f); }
   if (ev === 'bottom') sfx.plip();
   else if (ev === 'hook') sfx.strike();
   else if (ev === 'sting'){ sfx.zap(); toast('A jelly! It stung, and a fish wriggled off the line.', 2000); }
@@ -1414,7 +1451,7 @@ walker.onHop = () => sfx.hop();
 const ashoreTold = new Set(); // each landing explains itself once a visit
 walker.onLand = () => { gapTold = false; const told = walker.dock.tar ? 'tar' : walker.dock; if (!ashoreTold.has(told)){ ashoreTold.add(told);
     toast(walker.dock.tar ? 'Into the tar in your chemistry suit. Swim to the island; the boat waits at the edge.' : walker.dock === HOME_DOCK ? 'Ashore. Walk the island, the pier and the bridge. The boat waits at the end of the pier.' : walker.dock === ISLE3_DOCK ? 'Ashore on the floating town. Walk the planks out to the seaweed round the tower.' : walker.dock === ISLE6_DOCK ? `Ashore on island 6, the big island. ${CHESTS6.length} treasure chests are hidden on it: walk it all to find them.` : walker.dock === ISLE8_DOCK ? (isle7Stage < 1 ? 'Ashore on island 8. Walk across the sandbar to island 9. Both towers are barred shut, for now.' : heronStage >= 2 ? 'Ashore on island 8. Your flags fly on both towers, and the orb over island 9 is dark.' : heronStage >= 1 ? 'Ashore on island 8. Your flag flies on its tower. Across the sandbar, island 9\'s door is open: the Heron waits in his nest.' : 'Ashore on island 8. Its tower door is open: the Heron waits on the roof, behind his hired men.') : walker.dock === ISLE7_DOCK ? 'Ashore on island 7. Monkeys on the far side, a tower in the middle, and a ring of strange metal standing on burnt grass. It is dead quiet.' : (spear ? 'Ashore on island 2. Walk along the sand: when a parrotfish swims close, throw your spear.' : 'Ashore on island 2. Parrotfish swim close to the sand here, and the shipwright sells a spear.'), 3800, 1); } save(); };
-for (const e of [rareEntity, leviathan, cthulu, angler, gulper, serpent, reaper, lionfish, shallows, spears, monkeys, monkeys7, hired8, hired9, hiredBoats, ...camps, roofMonkeys, ...HORDES, forgotten, lancers, allies, boss, boss3, boss7, heron, heron9, nest, swordsman, ...demons, demonMonkeys, warlock, wboat, anchorer, tarling, king, deep, cth, cat, warrior, bonesPal, naga, necroPal, otter, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
+for (const e of [rareEntity, leviathan, cthulu, angler, gulper, serpent, reaper, lionfish, shallows, spears, monkeys, monkeys7, hired8, hired9, hiredBoats, ...camps, roofMonkeys, ...HORDES, forgotten, lancers, allies, boss, boss3, boss7, heron, heron9, nest, swordsman, ...demons, demonMonkeys, warlock, wboat, anchorer, tarling, king, deep, cth, cat, warrior, bonesPal, naga, necroPal, otter, neil, whales, mantas, turtles, pirateEntity, gullsEntity, dolphins, sharksEntity, crates, driftwood, jellies, pets, walker]) scene.add(e);
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -1517,6 +1554,7 @@ function refreshShop(){
     + (isle7Seen ? '<span class="chip gold">Island 7 found</span>' : '')
     + (isle8Seen ? '<span class="chip gold">Islands 8 and 9 found</span>' : '')
     + `<span class="chip${otter.free ? ' gold' : ' unk'}">${otter.free ? 'Otter befriended' : otter.fed ? 'Otter fed ' + otter.fed + ' of ' + OTTER_FEEDS : 'Something off the dock?'}</span>`
+    + (iceSeen ? `<span class="chip${neil.free ? ' gold' : ' unk'}">${neil.free ? 'Neil the seal' : neil.fed ? 'Seal fed ' + neil.fed + ' of ' + NEIL_FEEDS : 'A seal on the ice?'}</span>` : '')
     + (heronStage >= 1 ? `<span class="chip gold">${heronStage >= 2 ? 'Heron beaten for good' : 'Heron driven off'}</span>` : '')
     + (isle7Stage >= 1 ? '<span class="chip gold">Portal awake</span>' : '')
     + (isle7Stage >= 2 ? '<span class="chip gold">Forgotten One beaten</span>' : '')
@@ -1916,7 +1954,7 @@ elRst.addEventListener('click', () => {
   order = {sp:0, n:8, have:0, pay:15}; drawOrder(); market = NO_PICK; refreshMarket(); day = 1; first.fill(0);
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
-  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; isle5Seen = false; isle5Stage = 0; isle6Seen = false; chests6 = 0; isle6Stage = 0; isle7Seen = false; soulArmour = false; isle7Stage = 0; portalOpen = 0; deep.state = 'sleep'; deep.reset(); cth.state = 'wait'; cth.reset(); king.state = 'wait'; king.reset(); anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; meteorSeen = false; reaperSeen = false; iceSeen = false; iceRuns = 0; if (icing) endIce(); reaper.state = 'roam'; reaper.reset(); lionSeen = false; lionCaught = 0; aquarium = false; bases = noBases(); pots = []; potHaul = 0; potTold = false; if (diving) endDive(true); trenchSeen = false; trenchDeep = 0; trenchLoot = 0; pearlDay = 0; wreckChest = false; stormSeen = false; Object.assign(storm, new Storm()); stormE = 0; lurkerSeen = false; lurkerStung = 0; charter = null; charterOffer = null; chartersRun = 0; hudCharter(); if (tankOpen) closeTank(); nagaFree = false; nagaCage = 0; isle8Seen = false; heronStage = 0; otter.set(0); naga.free = false; naga.state = 'away'; necroPal.free = false; necroPal.state = 'away'; lionfish.reset(); stowSeine(); seineTold = false; mendT = 0; rod.stop(); rodAt = null; serpent.state = 'haunt'; serpent.reset(); spear = 0; armour = 0; sailed.fill(0); masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); monkeys7.reset(); hired8.reset(); hired9.reset(); hiredBoats.reset(); hearts = maxHearts(); shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
+  wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; isle5Seen = false; isle5Stage = 0; isle6Seen = false; chests6 = 0; isle6Stage = 0; isle7Seen = false; soulArmour = false; isle7Stage = 0; portalOpen = 0; deep.state = 'sleep'; deep.reset(); cth.state = 'wait'; cth.reset(); king.state = 'wait'; king.reset(); anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; meteorSeen = false; reaperSeen = false; iceSeen = false; iceRuns = 0; if (icing) endIce(); reaper.state = 'roam'; reaper.reset(); lionSeen = false; lionCaught = 0; aquarium = false; bases = noBases(); pots = []; potHaul = 0; potTold = false; if (diving) endDive(true); trenchSeen = false; trenchDeep = 0; trenchLoot = 0; pearlDay = 0; wreckChest = false; stormSeen = false; Object.assign(storm, new Storm()); stormE = 0; lurkerSeen = false; lurkerStung = 0; charter = null; charterOffer = null; chartersRun = 0; hudCharter(); if (tankOpen) closeTank(); nagaFree = false; nagaCage = 0; isle8Seen = false; heronStage = 0; otter.set(0); neil.set(0); neilTold = false; naga.free = false; naga.state = 'away'; necroPal.free = false; necroPal.state = 'away'; lionfish.reset(); stowSeine(); seineTold = false; mendT = 0; rod.stop(); rodAt = null; serpent.state = 'haunt'; serpent.reset(); spear = 0; armour = 0; sailed.fill(0); masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); monkeys7.reset(); hired8.reset(); hired9.reset(); hiredBoats.reset(); hearts = maxHearts(); shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
   pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
@@ -2100,6 +2138,7 @@ cv.addEventListener('pointerup', e => { const q = tapFrom; tapFrom = null;
     const f = shallows.fish.find(f => f.alive && Math.hypot(e.clientX - px(f.x, f.y), e.clientY - py(f.x, f.y)) < 30 && Math.hypot(f.x - walker.x, f.y - walker.y) <= sp.range);
     if (f){ throwSpear(f); return; } }
   { const o = otterAt(); if (o && Math.hypot(e.clientX - o[0], e.clientY - o[1]) < 28){ tapOtter(); return; } }
+  { const n = neilAt(); if (n && Math.hypot(e.clientX - n[0], e.clientY - n[1]) < 32){ tapNeil(); return; } }
   { const c = catAt(); if (c && Math.hypot(e.clientX - c[0], e.clientY - c[1]) < 30){ tapCat(); return; } }
   const d = pets.dog; if (walker.state !== 'ashore' || !d) return;
   if (Math.hypot(e.clientX - px(d.x, d.y), e.clientY - py(d.x, d.y, d.z + 12)) > 36) return;
@@ -2292,6 +2331,9 @@ function update(dt){
   bonesPal.free = isle7Stage >= 2 || bonesJoined;
   necroPal.free = heronStage >= 2;
   otter.reason = otterReason(); otterSeenT -= dt;
+  neil.danger = neil.free && swallowT <= 0 && dangerNear();
+  if (!neil.free && !neilTold && iceSeen && walker.aboard && Math.hypot(boat.x - neil.x, boat.y - neil.y) < 420){ neilTold = true;
+    toast('A seal at the edge of the ice floe, watching your boat. He looks like a Neil. Stop beside him and tap him to toss him an ice fish.', 4800, 1); }
   if (!otter.free && !otterSeenTold && walker.aboard && Math.hypot(boat.x - OTTER_HOME.x, boat.y - OTTER_HOME.y) < 320){ otterSeenTold = true;
     toast('An otter, floating on his back off the dock! Stop beside him and tap him to toss him a fish from your hold.', 4200, 1); }
   naga.free = nagaFree; hiredBoats.here = isle7Stage >= 1 && farOpen() && heronStage < 2; // beaten for good, his boats go home; his camps stay hiredSpotT -= dt; if (nagaFree && nagaCage < 1) nagaCage = Math.min(1, nagaCage + dt);
@@ -2826,6 +2868,8 @@ function drawWorldObjects(){
   // The naga swims beside the boat at sea.
   if (otter.aboard){ if (otter.free) list.push({d: boat.x+boat.y+.7, f: () => otter.drawAboard(drawView, boat, bk())}); }
   else if (onScreen(otter.x, otter.y, 60*Z)) list.push({d: otter.x+otter.y, f: () => otter.drawWater(drawView, boat.v)});
+  if (neil.aboard){ if (neil.free) list.push({d: boat.x+boat.y+.6, f: () => neil.drawAboard(drawView, boat, bk())}); }
+  else if (onScreen(neil.x, neil.y, 80*Z)) list.push({d: neil.x+neil.y, f: () => neil.drawOut(drawView, boat.v)});
   if (floor < 0 && nagaSwims(naga) && onScreen(naga.x, naga.y, 80*Z)) list.push({d: naga.x+naga.y, f: () => drawSwimming(drawView, naga)});
   if (floor < 0) for (const a of allies.list) list.push({d: walkerDepth(a.x, a.y, build, pierD, null), f: () => allies.drawBody(drawView, a)});
   if (anchorer.state !== 'gone' && isle3Stage >= 4) list.push({d: anchorer.x + anchorer.y, f: () => anchorer.drawBody(drawView)});
@@ -2951,7 +2995,7 @@ function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0); placed.length = 0;
   ctx.lineJoin = 'round';
   if (floor >= 0 && walker.shown){ drawRoom(); return; }
-  if (icing){ drawIceScene(ctx, W, H, iceRun, iceRun.T, leftToCatch(iceRun.pool)); drawStick(); return; }
+  if (icing){ drawIceScene(ctx, W, H, iceRun, iceRun.T, leftToCatch(iceRun.pool), iceSeal); drawStick(); return; }
   if (diving){ const P = PAINTS[paint]; drawDive(ctx, W, H, diveT, {diver, plants: trenchPl, shoals: trenchSh, hull: P.hull, trim: P.trim, bubbles: diveBubbles,
     here: (si, i) => fishHere(diveGone, si, i, diveT), spears: diveSpears, aim: diveAim, texts: diveTexts,
     ...(diveSite === 'wreck' ? {site: WRECK_SITE, plants: wreckPl, shoals: wreckSh, loot: [WRECK_CHEST], found: () => wreckChest, pearl: false,
@@ -3097,5 +3141,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, reaper, get reaperSeen(){ return reaperSeen; }, get icing(){ return icing; }, get iceRun(){ return iceRun; }, get iceSeen(){ return iceSeen; }, get iceRuns(){ return iceRuns; }, ICE_FLOE, startIce, iceDrop, FLOE_BASE, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, get bases(){ return bases; }, BASES, get pots(){ return pots; }, get diving(){ return diving; }, diver, startDive, trenchSh, get diveAim(){ return diveAim; }, diveThrow, get diveT(){ return diveT; }, get trenchSeen(){ return trenchSeen; }, get trenchDeep(){ return trenchDeep; }, storm, get stormE(){ return stormE; }, get stormSeen(){ return stormSeen; }, get charter(){ return charter; }, get charterOffer(){ return charterOffer; }, get chartersRun(){ return chartersRun; }, get trenchLoot(){ return trenchLoot; }, get wreckChest(){ return wreckChest; }, get diveSite(){ return diveSite; }, boneSharks, WRECK, WRECK_CHEST, get pearlDay(){ return pearlDay; }, TRENCH_LOOT, lurker, get lurkerSeen(){ return lurkerSeen; }, get lurkerStung(){ return lurkerStung; }, TRENCH, tapPot, swallow, seine, get haulLeft(){ return haul.length; }, toggleSeine, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, necroPal, otter, tapOtter, OTTER_HOME, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, openMap, closeMap, mapMarks, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, reaper, get reaperSeen(){ return reaperSeen; }, get icing(){ return icing; }, get iceRun(){ return iceRun; }, get iceSeen(){ return iceSeen; }, get iceRuns(){ return iceRuns; }, ICE_FLOE, neil, tapNeil, get neilAt(){ return neilAt(); }, get iceSeal(){ return iceSeal; }, startIce, iceDrop, FLOE_BASE, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, get bases(){ return bases; }, BASES, get pots(){ return pots; }, get diving(){ return diving; }, diver, startDive, trenchSh, get diveAim(){ return diveAim; }, diveThrow, get diveT(){ return diveT; }, get trenchSeen(){ return trenchSeen; }, get trenchDeep(){ return trenchDeep; }, storm, get stormE(){ return stormE; }, get stormSeen(){ return stormSeen; }, get charter(){ return charter; }, get charterOffer(){ return charterOffer; }, get chartersRun(){ return chartersRun; }, get trenchLoot(){ return trenchLoot; }, get wreckChest(){ return wreckChest; }, get diveSite(){ return diveSite; }, boneSharks, WRECK, WRECK_CHEST, get pearlDay(){ return pearlDay; }, TRENCH_LOOT, lurker, get lurkerSeen(){ return lurkerSeen; }, get lurkerStung(){ return lurkerStung; }, TRENCH, tapPot, swallow, seine, get haulLeft(){ return haul.length; }, toggleSeine, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, necroPal, otter, tapOtter, OTTER_HOME, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, openMap, closeMap, mapMarks, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();
