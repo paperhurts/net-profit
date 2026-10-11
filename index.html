@@ -105,6 +105,9 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 .gearrow{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 8px;margin-top:8px}
 .gearrow[hidden]{display:none}
 .gearhead{grid-column:1 / -1;font-size:13px;font-weight:800;opacity:.85;margin:0 4px}
+/* What is bought and done, as one short row of chips: the cards are for what is still to buy. */
+.yours{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:9px 2px 0}
+.yours .yh{font-size:13px;font-weight:800;opacity:.85;margin:0 3px 0 2px}
 .gear{background:var(--card);color:var(--card-fg);border-radius:11px;padding:8px 8px 7px;text-align:left;
   display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center;box-shadow:0 3px 0 rgba(0,0,0,.22);min-width:0}
 .gear:active:not([aria-disabled="true"]){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
@@ -231,7 +234,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #mapCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;background:#0B1C24;touch-action:auto;cursor:default}
 #mapNote,#tankNote{margin:8px 4px 2px;font-size:13px;font-weight:700;text-align:center}
 #tankCanvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:10px;border:3px solid #3B4A4F;box-sizing:content-box;background:#3C9DB8;touch-action:none;cursor:pointer}
-#aquaBtn[hidden],#baseBtn[hidden],#charterBtn[hidden],#charter[hidden]{display:none}
+#aquaBtn[hidden],#baseBtn[hidden],#charterBtn[hidden],#charter[hidden],#build[hidden],.yours[hidden]{display:none}
 #charter{position:fixed;left:calc(12px + env(safe-area-inset-left));top:calc(104px + env(safe-area-inset-top));pointer-events:none;
   background:var(--pill-bg);color:var(--pill-fg);border-radius:12px;padding:6px 10px 4px;font-size:12.5px;font-weight:700;line-height:1.2;
   display:flex;flex-wrap:wrap;gap:3px 8px;align-items:baseline;box-shadow:0 2px 0 var(--pill-shadow);max-width:calc(100vw - 198px)}
@@ -337,6 +340,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
     <button class="build" id="charterBtn" hidden></button>
     <button class="build" id="build"></button>
     <button class="build" id="aquaBtn" hidden></button>
+    <div class="yours" id="yours" hidden></div>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>
     <div class="log" id="log" aria-label="Catch log"></div>
     <div class="pair">
