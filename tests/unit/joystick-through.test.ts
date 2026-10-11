@@ -120,4 +120,20 @@ describe('bindJoystickThrough', () => {
     panel.fire('pointerdown', down('wood'));
     expect(joy).toMatchObject({ on: true, through: false, id: 1, sx: 50, sy: 50 });
   });
+
+  it('holds a touch on the wood from the browser, so it steers and does not scroll, and leaves a touch on a card to scroll', () => {
+    const canvas = new Fake();
+    const panel = new Fake();
+    const joy = createJoystick();
+    bindJoystick(canvas, joy, () => {});
+    bindJoystickThrough(
+      panel,
+      joy,
+      canvas,
+      (t) => t === 'wood',
+      () => {},
+    );
+    expect(panel.fire('touchstart', down('wood')).prevented).toBe(true);
+    expect(panel.fire('touchstart', down('card')).prevented).toBe(false);
+  });
 });
