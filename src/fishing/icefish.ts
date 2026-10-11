@@ -208,3 +208,153 @@ export class IceRun {
     }
   }
 }
+
+/**
+ * Neil, the owner's seal (entities/seal.ts), ice fishing with you: he sits on the ice to the right of the
+ * bucket, and now and then, when the line has gone down, slips into the hole after a fish of his own. He goes
+ * for the nearest char, cod or icefish that is not on the line, takes it in his mouth, and brings it up onto
+ * the ice for your hold. One that the hook takes first, he gives up on, and comes back up empty-mouthed.
+ */
+/** Where he sits on the ice; how fast he swims; how near a fish must be to take it; how long he chases. */
+export const SEAL_X = HOLE_X + 92;
+export const SEAL_ICE = -6;
+export const SEAL_SWIM = 230;
+export const SEAL_BITE = 16;
+export const SEAL_CHASE = 6;
+/** He goes in after one about this often when the line reaches the bottom. */
+export const SEAL_CHANCE = 0.4;
+
+export type SealPhase = 'sit' | 'in' | 'chase' | 'back' | 'out';
+
+export class IceSeal {
+  phase: SealPhase = 'sit';
+  x = SEAL_X;
+  y = SEAL_ICE;
+  /** The way he faces: 1 right, -1 left. */
+  dir = -1;
+  /** The fish he is after, or has in his mouth. */
+  prey: IceFish | null = null;
+  /** He has it in his mouth. */
+  has = false;
+  private t = 0;
+
+  /** In after a fish, if he is sitting and there is one to go for. */
+  dive(pool: readonly IceFish[]): boolean {
+    if (this.phase !== 'sit') return false;
+    let best: IceFish | null = null;
+    let bd = Number.POSITIVE_INFINITY;
+    for (const f of pool) {
+      if (f.caught || f.on || f.kind === 'jelly' || f.kind === 'crab') continue;
+      const d = Math.hypot(f.x - HOLE_X, f.y - ICE_TOP);
+      if (d < bd) {
+        bd = d;
+        best = f;
+      }
+    }
+    if (!best) return false;
+    this.prey = best;
+    this.has = false;
+    this.phase = 'in';
+    this.t = 0;
+    return true;
+  }
+
+  /** One step: the fish he has brought up, the moment he is back on the ice with it, else null. */
+  update(dt: number): IceFish | null {
+    this.t += dt;
+    switch (this.phase) {
+      case 'sit':
+        return null;
+      case 'in':
+        // Along the ice to the hole's edge, and down through it.
+        if (this.y < 0 && Math.abs(this.x - (HOLE_X + 6)) > 2)
+          this.toward(HOLE_X + 6, SEAL_ICE, dt, 140);
+        else if (this.toward(HOLE_X, ICE_TOP + 30, dt, SEAL_SWIM)) this.phase = 'chase';
+        return null;
+      case 'chase': {
+        const f = this.prey;
+        if (!f || f.on || f.caught || this.t > SEAL_CHASE) {
+          this.letGo();
+          return null;
+        }
+        this.toward(f.x, f.y, dt, SEAL_SWIM);
+        if (Math.hypot(f.x - this.x, f.y - this.y) <= SEAL_BITE) {
+          f.on = true;
+          this.has = true;
+          this.phase = 'back';
+        }
+        return null;
+      }
+      case 'back':
+        if (this.toward(HOLE_X, ICE_TOP - 4, dt, SEAL_SWIM)) this.phase = 'out';
+        this.carry();
+        return null;
+      case 'out': {
+        // Up out of the hole and back along the ice to where he sits.
+        if (this.y > SEAL_ICE) this.toward(HOLE_X + 8, SEAL_ICE, dt, 160);
+        else if (this.toward(SEAL_X, SEAL_ICE, dt, 120)) {
+          this.phase = 'sit';
+          this.dir = -1;
+          const f = this.prey;
+          this.prey = null;
+          if (f && this.has) {
+            this.has = false;
+            f.on = false;
+            f.caught = true;
+            return f;
+          }
+          return null;
+        }
+        this.carry();
+        return null;
+      }
+    }
+  }
+
+  /** Off the ice for good (the fisher goes back aboard): the fish in his mouth, if any, is his to give. */
+  finish(): IceFish | null {
+    const f = this.has ? this.prey : null;
+    if (f) {
+      f.on = false;
+      f.caught = true;
+    }
+    this.phase = 'sit';
+    this.x = SEAL_X;
+    this.y = SEAL_ICE;
+    this.dir = -1;
+    this.prey = null;
+    this.has = false;
+    return f;
+  }
+
+  private letGo(): void {
+    this.prey = null;
+    this.has = false;
+    this.phase = 'back';
+  }
+
+  /** The fish in his mouth goes where he goes. */
+  private carry(): void {
+    const f = this.prey;
+    if (!f || !this.has) return;
+    // At his mouth: out in front as he swims, up by his raised head on the ice.
+    f.x = this.x + this.dir * 17;
+    f.y = this.y + (this.y < 0 ? -12 : 1);
+  }
+
+  /** A step toward (x, y) at this speed; true once there. */
+  private toward(x: number, y: number, dt: number, speed: number): boolean {
+    const dx = x - this.x;
+    const dy = y - this.y;
+    const d = Math.hypot(dx, dy);
+    if (Math.abs(dx) > 0.5) this.dir = dx > 0 ? 1 : -1;
+    if (d <= speed * dt) {
+      this.x = x;
+      this.y = y;
+      return true;
+    }
+    this.x += (dx / d) * speed * dt;
+    this.y += (dy / d) * speed * dt;
+    return false;
+  }
+}
