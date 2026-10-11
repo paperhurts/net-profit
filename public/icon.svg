@@ -1,10 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 140 760 760" width="1024" height="1024">
   <title>Net Profit</title>
-  <rect width="64" height="64" rx="14" fill="#2B8A99"/>
-  <path d="M8 40 Q20 30 32 40 Q44 50 56 40" fill="none" stroke="#1B6676" stroke-width="3" stroke-linecap="round"/>
-  <path d="M12 32 Q24 18 40 24 L52 16 L48 30 L52 44 L40 36 Q24 42 12 32 Z" fill="#FFF6E5"/>
-  <circle cx="22" cy="29" r="3" fill="#12303A"/>
-  <circle cx="23" cy="28" r="1" fill="#FFF6E5"/>
-  <circle cx="33" cy="24" r="2.5" fill="#FFC53D"/>
-  <circle cx="41" cy="29" r="2" fill="#FFC53D"/>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B2F3B"/><stop offset=".55" stop-color="#134A57"/><stop offset="1" stop-color="#1B6676"/></linearGradient>
+    <linearGradient id="sea" x1="0" y1="520" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#155868"/><stop offset=".2" stop-color="#0F4A59"/><stop offset=".65" stop-color="#0B2F3B"/><stop offset="1" stop-color="#041820"/></linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="rgba(255,197,61,.35)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+    <clipPath id="top"><rect x="0" y="0" width="1024" height="544"/></clipPath>
+    <clipPath id="hull"><path d="M -300 -96 L 330 -140 Q 322 -30 236 40 L -226 40 Q -296 22 -300 -96 Z"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="#041820"/>
+  <rect width="1024" height="560" fill="url(#sky)"/>
+  
+  <circle cx="790" cy="370" r="140" fill="#F4F7E8"/>
+  <path d="M -130 580 L -130 502 Q -87.5 488 -45 502 Q -2.5 516 40 502 Q 82.5 488 125 502 Q 167.5 516 210 502 Q 252.5 488 295 502 Q 337.5 516 380 502 Q 422.5 488 465 502 Q 507.5 516 550 502 Q 592.5 488 635 502 Q 677.5 516 720 502 Q 762.5 488 805 502 Q 847.5 516 890 502 Q 932.5 488 975 502 Q 1017.5 516 1060 502 Q 1102.5 488 1145 502 Q 1187.5 516 1230 502 L 1194 580 Z" fill="#1B6676"/>
+  
+  <g transform="translate(500 516) rotate(-3)">
+    <rect x="40" y="-340" width="14" height="260" rx="7" fill="#12303A"/>
+    <path d="M 54 -336 Q 120 -330 182 -300 Q 120 -276 54 -262 Z" fill="#FFC53D"/>
+    <path d="M 88 -300 q 18 -13 38 0 q -20 13 -38 0 Z M 126 -300 l 16 -10 l 0 20 Z" fill="#1B6676"/>
+    <rect x="-170" y="-214" width="200" height="140" rx="16" fill="#FFF6E5"/>
+    <rect x="-188" y="-238" width="236" height="36" rx="12" fill="#12303A"/>
+    <rect x="-144" y="-182" width="58" height="54" rx="10" fill="#FFC53D"/>
+    <rect x="-64" y="-182" width="58" height="54" rx="10" fill="#FFC53D"/>
+    <g clip-path="url(#hull)">
+      <rect x="-320" y="-200" width="680" height="260" fill="#E4572E"/>
+      <path d="M -320 -64 L 360 -112 L 360 -80 L -320 -32 Z" fill="#FFF6E5"/>
+      <path d="M -320 6 L 360 -42 L 360 80 L -320 80 Z" fill="#A3332A"/>
+    </g>
+    <path d="M -304 -96 L 334 -140" stroke="#12303A" stroke-width="24" stroke-linecap="round"/>
+  </g>
+  <path d="M -200 1044 L -200 520 Q -150 502 -100 520 Q -50 538 0 520 Q 50 502 100 520 Q 150 538 200 520 Q 250 502 300 520 Q 350 538 400 520 Q 450 502 500 520 Q 550 538 600 520 Q 650 502 700 520 Q 750 538 800 520 Q 850 502 900 520 Q 950 538 1000 520 Q 1050 502 1100 520 Q 1150 538 1200 520 Q 1250 502 1300 520 Q 1350 538 1400 520 L 1224 1044 Z" fill="url(#sea)"/>
+  <path d="M -200 1044 L -200 520 Q -150 502 -100 520 Q -50 538 0 520 Q 50 502 100 520 Q 150 538 200 520 Q 250 502 300 520 Q 350 538 400 520 Q 450 502 500 520 Q 550 538 600 520 Q 650 502 700 520 Q 750 538 800 520 Q 850 502 900 520 Q 950 538 1000 520 Q 1050 502 1100 520 Q 1150 538 1200 520 Q 1250 502 1300 520 Q 1350 538 1400 520 L 1224 1044 Z" fill="none" stroke="#CFE8EC" stroke-width="14" stroke-linejoin="round" clip-path="url(#top)"/>
+  
+  <ellipse cx="500" cy="790" rx="300" ry="150" fill="url(#glow)"/>
+  <g transform="translate(500 790)">
+    <path d="M -250 0 Q -140 -118 40 -96 Q 140 -84 190 -30 L 300 -110 Q 270 0 300 110 L 190 30 Q 140 84 40 96 Q -140 118 -250 0 Z" fill="#FFF6E5"/>
+    <path d="M -250 0 Q -140 118 40 96 Q 140 84 190 30 Q 120 54 20 50 Q -150 44 -250 0 Z" fill="#E8D8BC"/>
+    <path d="M -40 -96 Q 20 -150 110 -130 Q 80 -110 70 -88 Z" fill="#E8D8BC"/>
+    <circle cx="-150" cy="-22" r="30" fill="#12303A"/>
+    <circle cx="-140" cy="-32" r="10" fill="#FFF6E5"/>
+    <circle cx="-10" cy="-48" r="24" fill="#FFC53D"/>
+    <circle cx="70" cy="-10" r="19" fill="#FFC53D"/>
+    <circle cx="10" cy="30" r="14" fill="#FFC53D"/>
+    <path d="M -100 -60 Q -78 0 -100 60" fill="none" stroke="#E8D8BC" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  
 </svg>
