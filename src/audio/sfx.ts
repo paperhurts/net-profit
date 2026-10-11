@@ -351,6 +351,16 @@ export const cues = {
     tone(700, 1.5, 'triangle', 0.035, 0.25, 0.05);
     tone(60, 0.5, 'sawtooth', 0.07, 0.6, 1.5);
   },
+  /** The Reaper's fan shows: a long hiss like a blade drawn, rising, over a low swell. */
+  reaperSwing(): void {
+    tone(300, 1, 'sawtooth', 0.025, 3);
+    tone(55, 1.1, 'triangle', 0.08, 1.4);
+  },
+  /** The Reaper rears up out of the water: a deep, rough roar. */
+  reaperRoar(): void {
+    tone(70, 0.7, 'sawtooth', 0.09, 0.7);
+    tone(105, 0.6, 'square', 0.04, 0.6, 0.05);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

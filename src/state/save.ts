@@ -105,6 +105,8 @@ export type SaveData = {
   gulperSeen: boolean;
   /** Star, the meteor serpent, has been sighted over island 6. */
   meteorSeen: boolean;
+  /** The Reaper, the kid's leviathan with legs, has been sighted in the deep. */
+  reaperSeen: boolean;
   /** Lionfish have been seen in the outer sea. */
   lionSeen: boolean;
   /** Lionfish caught on the rod, for the bounty. */
@@ -237,6 +239,7 @@ export function defaultSave(b: Bounds): SaveData {
     flag: null,
     gulperSeen: false,
     meteorSeen: false,
+    reaperSeen: false,
     lionSeen: false,
     lionCaught: 0,
     aquarium: false,
@@ -361,6 +364,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   if (d.flag && sameFlag(d.flag, OLD_START_FLAG)) d.flag = null;
   d.gulperSeen = !!o.gulperSeen;
   d.meteorSeen = !!o.meteorSeen;
+  d.reaperSeen = !!o.reaperSeen;
   d.lionSeen = !!o.lionSeen;
   d.lionCaught = Math.max(0, int(o.lionCaught));
   d.aquarium = !!o.aquarium;
@@ -469,6 +473,7 @@ export function serializeSave(d: SaveData): string {
     flag: d.flag,
     gulperSeen: d.gulperSeen,
     meteorSeen: d.meteorSeen,
+    reaperSeen: d.reaperSeen,
     lionSeen: d.lionSeen,
     lionCaught: d.lionCaught,
     aquarium: d.aquarium,
