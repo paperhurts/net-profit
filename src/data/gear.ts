@@ -17,7 +17,9 @@
  * scuba suit, the owner's, kept back until the ice floe has been found and
  * there is scuba gear, keeps a diver warm under the ice. The radar, the kid's,
  * shows what is out on the water round the boat: fish blue, threats red, the
- * rest grey.
+ * rest grey. The coast guard radio, from the grown-ups' list, calls the coast
+ * guard once a day when pirates come: the pirates' counter that rescues a
+ * catch rather than shrinking the loss, as the strongbox does.
  */
 
 export type GearId =
@@ -30,7 +32,8 @@ export type GearId =
   | 'tank'
   | 'ballast'
   | 'white'
-  | 'radar';
+  | 'radar'
+  | 'radio';
 
 export type Gear = {
   name: string;
@@ -109,12 +112,20 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
       'Radar fitted. The scope in the corner shows what is out on the water round you: fish blue, threats red, everything else grey.',
     cost: 3000,
   },
+  radio: {
+    name: 'Coast guard radio',
+    blurb: 'Once a day, call the coast guard when pirates come.',
+    fitted:
+      'A coast guard radio. When pirates come for you in home water, tap Call the coast guard: their boat races out and the pirates run. One call a day.',
+    cost: 2500,
+  },
 };
 
 /** The shelf, in the order it is shown. */
 export const GEAR_IDS: readonly GearId[] = [
   'mesh',
   'strongbox',
+  'radio',
   'radar',
   'kit',
   'rod',
@@ -146,6 +157,7 @@ export function noGear(): Owned {
     ballast: false,
     white: false,
     radar: false,
+    radio: false,
   };
 }
 

@@ -149,6 +149,8 @@ export type SaveData = {
   otterFed: number;
   /** Ice fish tossed to Neil, the seal at the ice floe's edge: three make him yours. */
   neilFed: number;
+  /** The day the coast guard was last called, 0 for never: one call a day. Missing in old saves and read as never. */
+  radioDay: number;
   /** The Heron: 0 not met, 1 beaten on island 8's tower and flown to his nest, 2 beaten for good on island 9's. */
   heronStage: number;
   /** The spear's level from the shipwright: 0 for none. */
@@ -188,6 +190,8 @@ export type SaveData = {
     white: boolean;
     /** The radar: fish, threats and the rest round the boat; missing in old saves and read as not bought. */
     radar: boolean;
+    /** The coast guard radio; missing in old saves and read as not bought. */
+    radio: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -276,6 +280,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle8Seen: false,
     otterFed: 0,
     neilFed: 0,
+    radioDay: 0,
     heronStage: 0,
     spear: 0,
     armour: 0,
@@ -298,6 +303,7 @@ export function defaultSave(b: Bounds): SaveData {
       ballast: false,
       white: false,
       radar: false,
+      radio: false,
     },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -410,6 +416,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle8Seen = !!o.isle8Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
   d.neilFed = Math.max(0, Math.min(NEIL_FEEDS, int(o.neilFed)));
+  d.radioDay = Math.max(0, int(o.radioDay));
   d.heronStage = Math.max(0, Math.min(HERON_STAGES, int(o.heronStage)));
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
@@ -434,6 +441,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       ballast: !!g.ballast,
       white: !!g.white,
       radar: !!g.radar,
+      radio: !!g.radio,
     };
   }
   if (o.snook && typeof o.snook === 'object') {
@@ -525,6 +533,7 @@ export function serializeSave(d: SaveData): string {
     isle8Seen: d.isle8Seen,
     otterFed: d.otterFed,
     neilFed: d.neilFed,
+    radioDay: d.radioDay,
     heronStage: d.heronStage,
     spear: d.spear,
     armour: d.armour,
