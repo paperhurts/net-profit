@@ -128,6 +128,19 @@ export const CHEST_REACH = 22;
 /** Within this of its shore a boat sees it: a sighting. */
 export const SIGHT6 = 900;
 
+/**
+ * The Reaper on land's cove, on the north-west shore (up and to the left on the screen), the far side of the
+ * hill from the pier and clear of every chest: his nest lies on the sand here, a little up from the water.
+ */
+const COVE_A = (-5 * Math.PI) / 6;
+export const NEST6 = {
+  x: ISLE6.x + Math.cos(COVE_A) * (shoreR(COVE_A) - 46),
+  y: ISLE6.y + Math.sin(COVE_A) * (shoreR(COVE_A) - 46),
+  r: 15,
+} as const;
+/** Out to sea from the nest, the way he goes back into the water. */
+export const COVE_OUT = { x: Math.cos(COVE_A), y: Math.sin(COVE_A) } as const;
+
 /** Further out than this from island 6, nothing needs to know it is there. */
 export function nearIsle6(x: number, y: number, pad: number): boolean {
   return Math.hypot(x - ISLE6.x, y - ISLE6.y) < ISLE6.r + 90 + pad;

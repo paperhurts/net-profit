@@ -5,6 +5,7 @@ import {
   type Bounds,
   DEFAULT_ORDER,
   defaultSave,
+  EGG_STAGES,
   HERON_STAGES,
   ISLE3_STAGES,
   ISLE4_STAGES,
@@ -537,6 +538,22 @@ describe('the leviathans driven off', () => {
     const back = parseSave(serializeSave(s), bounds);
     expect(back.driven.reaper).toBe(1);
     expect(back.reaperSeen).toBe(true);
+  });
+
+  it('keep the Reaper on land sighted and his egg, as neither in a save from before him', () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    delete old.reaperLandSeen;
+    delete old.reaperEgg;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect(s.reaperLandSeen).toBe(false);
+    expect(s.reaperEgg).toBe(0);
+    s.reaperLandSeen = true;
+    s.reaperEgg = 2;
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.reaperLandSeen).toBe(true);
+    expect(back.reaperEgg).toBe(2);
+    expect(parseSave(JSON.stringify({ ...s, reaperEgg: 7 }), bounds).reaperEgg).toBe(EGG_STAGES);
+    expect(parseSave(JSON.stringify({ ...s, reaperEgg: -1 }), bounds).reaperEgg).toBe(0);
   });
 
   it('keep the ice floe found and the drops through its hole, as nothing in a save from before them', () => {

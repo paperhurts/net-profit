@@ -50,6 +50,8 @@ export const ISLE6_STAGES = 2;
 export const ISLE7_STAGES = 4;
 /** The Heron's stages: 1, beaten on island 8's tower roof, flown to his nest; 2, beaten for good on island 9's. */
 export const HERON_STAGES = 2;
+/** The Reaper's egg so far: 1, the Reaper on land beaten and the egg left in his nest; 2, the egg taken, aboard. */
+export const EGG_STAGES = 2;
 /** Fish that make the otter yours. */
 export const OTTER_FEEDS = 3;
 /** Ice fish that make Neil, the seal on the ice floe, yours. */
@@ -110,6 +112,10 @@ export type SaveData = {
   meteorSeen: boolean;
   /** The Reaper, the kid's leviathan with legs, has been sighted in the deep. */
   reaperSeen: boolean;
+  /** The Reaper on land, the second of him, has been sighted asleep by his nest on island 6. */
+  reaperLandSeen: boolean;
+  /** His egg: 0 he is not beaten; 1 beaten, the egg waiting in his nest; 2 the egg is yours, aboard. */
+  reaperEgg: number;
   /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
   iceSeen: boolean;
   iceRuns: number;
@@ -258,6 +264,8 @@ export function defaultSave(b: Bounds): SaveData {
     gulperSeen: false,
     meteorSeen: false,
     reaperSeen: false,
+    reaperLandSeen: false,
+    reaperEgg: 0,
     iceSeen: false,
     iceRuns: 0,
     lionSeen: false,
@@ -391,6 +399,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.gulperSeen = !!o.gulperSeen;
   d.meteorSeen = !!o.meteorSeen;
   d.reaperSeen = !!o.reaperSeen;
+  d.reaperLandSeen = !!o.reaperLandSeen;
+  d.reaperEgg = Math.max(0, Math.min(EGG_STAGES, int(o.reaperEgg)));
   d.iceSeen = !!o.iceSeen;
   d.iceRuns =
     typeof o.iceRuns === 'number' && Number.isFinite(o.iceRuns) && o.iceRuns > 0
@@ -511,6 +521,8 @@ export function serializeSave(d: SaveData): string {
     gulperSeen: d.gulperSeen,
     meteorSeen: d.meteorSeen,
     reaperSeen: d.reaperSeen,
+    reaperLandSeen: d.reaperLandSeen,
+    reaperEgg: d.reaperEgg,
     iceSeen: d.iceSeen,
     iceRuns: d.iceRuns,
     lionSeen: d.lionSeen,
