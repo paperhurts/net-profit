@@ -6,7 +6,7 @@
  * units of the dock, and never follows a boat past the buoys: the deep is the
  * leviathan's, and pirates know it. The game owns the consequences through
  * callbacks: the toast and cue on a chase, and the actual removal of fish on
- * a steal.
+ * a steal. While the coast guard is out (held), it turns tail and stays away.
  */
 
 import { clamp } from '../core/math';
@@ -73,6 +73,10 @@ export class Pirate implements Entity {
   onSteal: ((n: number) => void) | null = null;
   /** It has just sailed in from an edge. The dog hears of it. */
   onProwl: (() => void) | null = null;
+  /** The coast guard is out (the game sets it): a pirate about turns tail for the edge, and one away stays away. */
+  held = false;
+  /** It has turned tail from the coast guard. */
+  onFlee: (() => void) | null = null;
 
   get visible(): boolean {
     return this.ship.state !== 'away';
@@ -93,6 +97,11 @@ export class Pirate implements Entity {
     const boat = w.boat;
     if (w.earned < PIRATE_UNLOCK) return;
     if (p.state === 'away') {
+      // Not while the coast guard is out, and not straight after it heads home.
+      if (this.held) {
+        p.timer = Math.max(p.timer, 10);
+        return;
+      }
       p.timer -= dt;
       if (p.timer > 0) return;
       for (let i = 0; i < 12; i++) {
@@ -120,6 +129,10 @@ export class Pirate implements Entity {
       return;
     }
     p.age += dt;
+    if (this.held && (p.state === 'prowl' || p.state === 'chase')) {
+      p.state = 'leave';
+      this.onFlee?.();
+    }
     const dBoat = Math.hypot(boat.x - p.x, boat.y - p.y);
     const boatSafe =
       Math.hypot(boat.x - DOCK.x, boat.y - DOCK.y) < SAFE_RADIUS || pastBuoys(boat.x, boat.y);

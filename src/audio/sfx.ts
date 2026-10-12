@@ -361,6 +361,10 @@ export const cues = {
     tone(70, 0.7, 'sawtooth', 0.09, 0.7);
     tone(105, 0.6, 'square', 0.04, 0.6, 0.05);
   },
+  /** The coast guard called: a siren, high and low twice over. */
+  siren(): void {
+    for (let i = 0; i < 4; i++) tone(i % 2 ? 620 : 880, 0.26, 'triangle', 0.04, 1, i * 0.28);
+  },
   /** The dog on the pier, barking at the horizon: two short yaps. */
   bark(): void {
     tone(520, 0.06, 'square', 0.05, 1.3);

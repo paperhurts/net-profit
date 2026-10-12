@@ -233,6 +233,7 @@ describe('the shipwright gear', () => {
       ballast: false,
       white: false,
       radar: false,
+      radio: false,
     });
     s.gear.mesh = true;
     s.gear.suit = true;
@@ -250,6 +251,7 @@ describe('the shipwright gear', () => {
       ballast: false,
       white: true,
       radar: true,
+      radio: false,
     });
   });
 
@@ -265,6 +267,7 @@ describe('the shipwright gear', () => {
       ballast: false,
       white: false,
       radar: false,
+      radio: false,
     });
     // A save from before the chemistry suit and the mending kit has neither.
     expect(parseSave(JSON.stringify({ gear: { mesh: 1, hat: true } }), bounds).gear).toEqual({
@@ -278,6 +281,7 @@ describe('the shipwright gear', () => {
       ballast: false,
       white: false,
       radar: false,
+      radio: false,
     });
   });
 });

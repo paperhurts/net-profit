@@ -185,6 +185,8 @@ type Np = {
     radar: boolean;
   };
   pirate: { state: string; x: number; y: number };
+  coastGuard: { out: boolean; ship: { state: string; x: number; y: number }; reset(): void };
+  radioDay: number;
   radarOn: boolean;
   radarBlips(): { x: number; y: number; kind: 'fish' | 'threat' | 'other' }[];
   anchorer: { state: string; up: boolean; hit(power: number): void };
@@ -630,6 +632,66 @@ test('the radar: the shipwright sells it, and at sea it shows the fish and a pir
     n.boat.y = n.DOCK.y;
   });
   await expect(page.locator('#radar')).toBeHidden({ timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('the coast guard: with the radio, a call when pirates come brings their boat out, the pirates run, and the call is spent for the day', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 500,
+    earned: 5000,
+    lv: { net: 2, hold: 2, engine: 2 },
+    gear: { radio: true },
+    trip: { x: 3300, y: 1500, h: 0, clock: 0.3, hold: [6] },
+  });
+  await page.waitForTimeout(300);
+  // No pirate about, no call to make.
+  await page.evaluate(() => {
+    window.__np.pirate.state = 'away';
+  });
+  await expect(page.locator('#radioBtn')).toBeHidden();
+  // A pirate comes for the boat: the button.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.pirate.state = 'chase';
+    n.pirate.x = n.boat.x + 700;
+    n.pirate.y = n.boat.y;
+  });
+  const button = page.locator('#radioBtn');
+  await expect(button).toBeVisible({ timeout: 2000 });
+  await button.click();
+  await page.waitForFunction(() => window.__np.coastGuard.out, null, { timeout: 2000 });
+  // The pirate turns tail, and the call is spent for today, in the save too.
+  await page.waitForFunction(() => ['leave', 'away'].includes(window.__np.pirate.state), null, {
+    timeout: 2000,
+  });
+  const day = await page.evaluate(() => window.__np.day);
+  expect(await page.evaluate(() => window.__np.radioDay)).toBe(day);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').radioDay),
+  ).toBe(day);
+  await expect(button).toBeHidden();
+  // Its boat comes alongside.
+  await page.waitForFunction(() => window.__np.coastGuard.ship.state === 'escort', null, {
+    timeout: 10000,
+  });
+  // Home again, and pirates later the same day: no second call. Tomorrow, there is.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.coastGuard.reset();
+    n.pirate.state = 'chase';
+    n.pirate.x = n.boat.x + 700;
+    n.pirate.y = n.boat.y;
+  });
+  await page.waitForTimeout(400);
+  await expect(button).toBeHidden();
+  await page.evaluate(() => {
+    window.__np.radioDay = 0;
+  });
+  await expect(button).toBeVisible({ timeout: 2000 });
   expect(errors).toEqual([]);
 });
 
