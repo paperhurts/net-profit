@@ -366,6 +366,16 @@ export const cues = {
     tone(70, 0.7, 'sawtooth', 0.09, 0.7);
     tone(105, 0.6, 'square', 0.04, 0.6, 0.05);
   },
+  /** The Reaper's egg cracking: a sharp little tick. */
+  eggCrack(): void {
+    tone(1700, 0.03, 'square', 0.03, 0.6);
+    tone(850, 0.05, 'triangle', 0.03, 0.7, 0.03);
+  },
+  /** The baby Reaper's roar: his father's, high and small. */
+  babyRoar(): void {
+    tone(380, 0.32, 'sawtooth', 0.05, 0.72);
+    tone(560, 0.26, 'square', 0.02, 0.76, 0.04);
+  },
   /** The coast guard called: a siren, high and low twice over. */
   siren(): void {
     for (let i = 0; i < 4; i++) tone(i % 2 ? 620 : 880, 0.26, 'triangle', 0.04, 1, i * 0.28);

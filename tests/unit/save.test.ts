@@ -556,6 +556,21 @@ describe('the leviathans driven off', () => {
     expect(parseSave(JSON.stringify({ ...s, reaperEgg: -1 }), bounds).reaperEgg).toBe(0);
   });
 
+  it('keep the day the egg came aboard, and the baby Reaper hatched, as day 0 in a save from before', () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    delete old.eggDay;
+    old.reaperEgg = 2;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect(s.eggDay).toBe(0);
+    s.eggDay = 12;
+    expect(parseSave(serializeSave(s), bounds).eggDay).toBe(12);
+    s.reaperEgg = 3;
+    expect(EGG_STAGES).toBe(3);
+    expect(parseSave(serializeSave(s), bounds).reaperEgg).toBe(3);
+    expect(parseSave(JSON.stringify({ ...s, eggDay: -4 }), bounds).eggDay).toBe(0);
+    expect(parseSave(JSON.stringify({ ...s, eggDay: 'x' }), bounds).eggDay).toBe(0);
+  });
+
   it('keep the ice floe found and the drops through its hole, as nothing in a save from before them', () => {
     const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
     delete old.iceSeen;

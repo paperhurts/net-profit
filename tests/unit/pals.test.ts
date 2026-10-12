@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { World } from '../../src/entities/entity';
+import { OTTER_AHEAD, OTTER_SIDE } from '../../src/entities/otter';
 import {
+  BABY_AHEAD,
+  BABY_SIDE,
   BONES_HP,
   drawNagaCage,
   drawSwimming,
   HAMSTER_EVERY,
   HEAL_DELAY,
   HEALS,
+  LEAP_EVERY,
+  LEAP_H,
+  LEAP_T,
   MAX_HEALS,
   NECRO_HP,
-  nagaSwims,
   PAL_BLINK,
   PAL_HEEL,
   PAL_HP,
@@ -20,6 +25,7 @@ import {
   STUCK_T,
   SWIM_SIDE,
   SWING_EVERY,
+  swims,
 } from '../../src/entities/pals';
 import { LANDING, WALK_SPEED, walkable } from '../../src/entities/walker';
 import { fakeView } from './helpers/view';
@@ -243,7 +249,7 @@ describe('the naga, freed from the monkey camp', () => {
       w.boat.x += Math.cos(w.boat.h) * w.boat.v * DT;
       w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
       p.update(DT, w);
-      expect(nagaSwims(p)).toBe(true);
+      expect(swims(p)).toBe(true);
       if (i > 30) expect(Math.hypot(p.x - w.boat.x, p.y - w.boat.y)).toBeLessThan(70);
     }
     // Off the hull, not on it.
@@ -251,7 +257,7 @@ describe('the naga, freed from the monkey camp', () => {
     // Worn out, he rests in the water beside it too.
     p.state = 'resting';
     p.update(DT, w);
-    expect(nagaSwims(p)).toBe(true);
+    expect(swims(p)).toBe(true);
   });
 
   it('keeps to the side of the boat nearer the viewer, so the hull never hides him', () => {
@@ -331,5 +337,129 @@ describe('the necromancer, freed from the orb', () => {
     const seat = p.seat({ x: 0, y: 0, h: 0 }, 1);
     expect(Math.hypot(seat.x, seat.y)).toBeLessThan(14);
     expect(seat.z).toBeGreaterThan(0);
+  });
+});
+
+describe('the baby Reaper, out of the egg', () => {
+  /** Where the otter swims, for a boat at the origin with this heading: off the bow on the side nearer the viewer. */
+  const otterSpot = (h: number) => {
+    const c = Math.cos(h);
+    const s = Math.sin(h);
+    const side = c - s >= 0 ? 1 : -1;
+    return {
+      x: c * OTTER_AHEAD - s * OTTER_SIDE * side,
+      y: s * OTTER_AHEAD + c * OTTER_SIDE * side,
+    };
+  };
+
+  it('hatches into the sea beside the boat, leaping out, and swims off the bow on the far side from the otter', () => {
+    const p = new Pal('baby');
+    const w: World = baseWorld({ figure: null });
+    w.boat.x = 0;
+    w.boat.y = 0;
+    p.hatchAt(12, 0);
+    expect(p.free).toBe(true);
+    expect(swims(p)).toBe(true);
+    expect(p.leapT).toBe(0);
+    for (const h of [0, Math.PI / 2, Math.PI, -Math.PI / 2, 0.3, 2.2]) {
+      w.boat.h = h;
+      for (let i = 0; i < 3 / DT; i++) p.update(DT, w);
+      const c = Math.cos(h);
+      const s = Math.sin(h);
+      const ahead = p.x * c + p.y * s;
+      const across = -p.x * s + p.y * c;
+      const near = c - s;
+      expect(ahead, `heading ${h}`).toBeCloseTo(BABY_AHEAD, 0);
+      expect(Math.abs(across), `heading ${h}`).toBeCloseTo(BABY_SIDE, 0);
+      // Away from the viewer where the otter is near it; clear of the otter either way.
+      if (Math.abs(near) > 0.35) expect(Math.sign(across)).toBe(-Math.sign(near));
+      const o = otterSpot(h);
+      expect(Math.hypot(p.x - o.x, p.y - o.y), `heading ${h}`).toBeGreaterThan(20);
+    }
+  });
+
+  it('keeps up at full speed, and leaps clear of the water every few seconds, splashing back in', () => {
+    const p = new Pal('baby');
+    p.hatchAt(0, 0);
+    const w: World = baseWorld({ figure: null, hullScale: 1.6 });
+    w.boat.x = 0;
+    w.boat.y = 0;
+    w.boat.v = 350;
+    const splashes: number[] = [];
+    p.onSplash = () => splashes.push(1);
+    let top = 0;
+    const T = 20;
+    for (let i = 0; i < T / DT; i++) {
+      w.boat.h += 0.2 * DT;
+      w.boat.x += Math.cos(w.boat.h) * w.boat.v * DT;
+      w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
+      p.update(DT, w);
+      top = Math.max(top, p.leapZ);
+      expect(swims(p)).toBe(true);
+      if (i > 30) expect(Math.hypot(p.x - w.boat.x, p.y - w.boat.y)).toBeLessThan(90);
+    }
+    expect(top).toBeGreaterThan(LEAP_H * 0.95);
+    // The one out of the egg, then one each LEAP_EVERY.
+    expect(splashes.length).toBeGreaterThanOrEqual(Math.floor(T / (LEAP_EVERY + LEAP_T)));
+    expect(splashes.length).toBeLessThanOrEqual(Math.ceil(T / LEAP_EVERY) + 1);
+  });
+
+  it('leaps when tapped, but not again mid-leap, and not ashore', () => {
+    const p = new Pal('baby');
+    p.hatchAt(0, 0);
+    const w: World = baseWorld({ figure: null });
+    for (let i = 0; i < (LEAP_T + 0.1) / DT; i++) p.update(DT, w);
+    expect(p.leapT).toBe(-1);
+    expect(p.leap()).toBe(true);
+    expect(p.leap()).toBe(false);
+    p.update(DT, baseWorld({ figure: figureAt(LANDING.x, LANDING.y) }));
+    expect(p.shown).toBe(true);
+    expect(p.leap()).toBe(false);
+  });
+
+  it('walks ashore at the heel and nips whatever the figure fights, for one', () => {
+    const p = new Pal('baby');
+    p.hatchAt(0, 0);
+    const f = figureAt(LANDING.x - 60, LANDING.y);
+    const w: World = baseWorld({ figure: f });
+    p.update(DT, w);
+    expect(p.shown).toBe(true);
+    expect(p.hp).toBe(PAL_HP);
+    expect(Math.hypot(p.x - f.x, p.y - f.y)).toBeLessThan(PAL_BLINK);
+    let dealt = 0;
+    const foe = { x: p.x - (REACH.baby - 2), y: p.y, hit: (n: number) => (dealt += n) };
+    p.findTarget = (x, y, r) => (Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null);
+    for (let i = 0; i < (SWING_EVERY.baby * 3 + 0.2) / DT; i++) p.update(DT, w);
+    expect(POWER.baby).toBe(1);
+    expect(dealt).toBeGreaterThanOrEqual(3);
+    expect(dealt).toBeLessThanOrEqual(4);
+    // Worn out, he goes back to the water by the boat.
+    for (let i = 0; i < PAL_HP; i++) {
+      p.invuln = 0;
+      p.hurt();
+    }
+    expect(p.state).toBe('resting');
+    p.update(DT, baseWorld({ figure: null }));
+    expect(swims(p)).toBe(true);
+  });
+
+  it('never rides the boat, and draws ashore, paddling, mid-leap and hatching out', () => {
+    const p = new Pal('baby');
+    const f = fakeView();
+    p.hatchAt(0, 0);
+    drawSwimming(f.v, p);
+    const leaping = f.calls.fill ?? 0;
+    expect(leaping).toBeGreaterThan(10);
+    const w: World = baseWorld({ figure: null });
+    for (let i = 0; i < (LEAP_T + 0.1) / DT; i++) p.update(DT, w);
+    drawSwimming(f.v, p);
+    expect(f.calls.clip ?? 0).toBeGreaterThan(0);
+    expect(f.calls.fill ?? 0).toBeGreaterThan(leaping + 10);
+    const before = f.calls.fill ?? 0;
+    p.drawAboard(f.v, w.boat, 1);
+    expect(f.calls.fill ?? 0).toBe(before);
+    p.update(DT, baseWorld({ figure: figureAt(LANDING.x, LANDING.y) }));
+    p.drawBody(f.v);
+    expect(f.calls.fill ?? 0).toBeGreaterThan(before + 10);
   });
 });

@@ -211,6 +211,18 @@ type Np = {
   };
   reaperLandSeen: boolean;
   reaperEgg: number;
+  eggDay: number;
+  hatchT: number;
+  baby: {
+    shown: boolean;
+    swimming: boolean;
+    free: boolean;
+    x: number;
+    y: number;
+    leapT: number;
+    love: number;
+  };
+  babyAt: [number, number] | null;
   NEST6: { x: number; y: number; r: number };
   isle7Seen: boolean;
   isle7Stage: number;
@@ -2010,6 +2022,63 @@ test('the naga: beat the monkey camp and his cage opens; he fights beside you, a
     Math.hypot(window.__np.naga.x - window.__np.boat.x, window.__np.naga.y - window.__np.boat.y),
   );
   expect(gap).toBeLessThan(80);
+  expect(errors).toEqual([]);
+});
+
+test("the Reaper's egg hatches at dawn: the baby swims and leaps by the boat, and walks ashore", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    day: 3,
+    reaperLandSeen: true,
+    reaperEgg: 2,
+    eggDay: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  // Taken aboard today: it waits for the morning.
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => [window.__np.reaperEgg, window.__np.hatchT])).toEqual([2, -1]);
+  // A new day: a moment for the dawn, then it rocks, cracks, and he is out.
+  await page.evaluate(() => {
+    window.__np.eggDay = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('hatching', { timeout: 6000 });
+  await page.waitForFunction(() => window.__np.reaperEgg === 3, null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('baby Reaper');
+  await page.waitForFunction(() => window.__np.baby.swimming && window.__np.baby.leapT < 0, null, {
+    timeout: 3000,
+  });
+  const gap = await page.evaluate(() =>
+    Math.hypot(window.__np.baby.x - window.__np.boat.x, window.__np.baby.y - window.__np.boat.y),
+  );
+  expect(gap).toBeLessThan(90);
+  // Tap him: a pat, and a leap.
+  const at = await page.evaluate(() => window.__np.babyAt);
+  expect(at).not.toBeNull();
+  await page.mouse.click(at?.[0] ?? 0, at?.[1] ?? 0);
+  await page.waitForFunction(() => window.__np.baby.love > 0, null, { timeout: 2000 });
+  // Kept: a reload finds him hatched and swimming.
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => window.__np.reaperEgg)).toBe(3);
+  await page.waitForFunction(() => window.__np.baby.swimming, null, { timeout: 3000 });
+  // Ashore at island 2's berth, he walks with the figure.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = -600 + 330 * Math.SQRT1_2;
+    b.y = 5400 - 330 * Math.SQRT1_2;
+    b.h = 2.36;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.baby.shown, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

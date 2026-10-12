@@ -50,8 +50,11 @@ export const ISLE6_STAGES = 2;
 export const ISLE7_STAGES = 4;
 /** The Heron's stages: 1, beaten on island 8's tower roof, flown to his nest; 2, beaten for good on island 9's. */
 export const HERON_STAGES = 2;
-/** The Reaper's egg so far: 1, the Reaper on land beaten and the egg left in his nest; 2, the egg taken, aboard. */
-export const EGG_STAGES = 2;
+/**
+ * The Reaper's egg so far: 1, the Reaper on land beaten and the egg left in his nest; 2, the egg taken, aboard;
+ * 3, hatched, and the baby Reaper is yours.
+ */
+export const EGG_STAGES = 3;
 /** Fish that make the otter yours. */
 export const OTTER_FEEDS = 3;
 /** Ice fish that make Neil, the seal on the ice floe, yours. */
@@ -114,8 +117,10 @@ export type SaveData = {
   reaperSeen: boolean;
   /** The Reaper on land, the second of him, has been sighted asleep by his nest on island 6. */
   reaperLandSeen: boolean;
-  /** His egg: 0 he is not beaten; 1 beaten, the egg waiting in his nest; 2 the egg is yours, aboard. */
+  /** His egg: 0 he is not beaten; 1 beaten, the egg waiting in his nest; 2 the egg is yours, aboard; 3 hatched. */
   reaperEgg: number;
+  /** The day the egg was taken aboard: it hatches at the next dawn. */
+  eggDay: number;
   /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
   iceSeen: boolean;
   iceRuns: number;
@@ -266,6 +271,7 @@ export function defaultSave(b: Bounds): SaveData {
     reaperSeen: false,
     reaperLandSeen: false,
     reaperEgg: 0,
+    eggDay: 0,
     iceSeen: false,
     iceRuns: 0,
     lionSeen: false,
@@ -401,6 +407,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.reaperSeen = !!o.reaperSeen;
   d.reaperLandSeen = !!o.reaperLandSeen;
   d.reaperEgg = Math.max(0, Math.min(EGG_STAGES, int(o.reaperEgg)));
+  // Missing in a save from before the egg could hatch, read as day 0: an egg already aboard hatches at once.
+  d.eggDay = Math.max(0, int(o.eggDay));
   d.iceSeen = !!o.iceSeen;
   d.iceRuns =
     typeof o.iceRuns === 'number' && Number.isFinite(o.iceRuns) && o.iceRuns > 0
@@ -523,6 +531,7 @@ export function serializeSave(d: SaveData): string {
     reaperSeen: d.reaperSeen,
     reaperLandSeen: d.reaperLandSeen,
     reaperEgg: d.reaperEgg,
+    eggDay: d.eggDay,
     iceSeen: d.iceSeen,
     iceRuns: d.iceRuns,
     lionSeen: d.lionSeen,
