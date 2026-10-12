@@ -439,18 +439,31 @@ export class Ambience {
     }
   }
 
-  private voice(pan: number): { g: GainNode; t: number } {
+  private voice(pan: number): { g: GainNode; p: StereoPannerNode; t: number } {
     const g = this.ctx.createGain();
     g.gain.value = 0.0001;
     const p = this.ctx.createStereoPanner();
     p.pan.value = pan;
     g.connect(p).connect(this.master);
-    return { g, t: this.ctx.currentTime };
+    return { g, p, t: this.ctx.currentTime };
+  }
+
+  /**
+   * Unplug a call's nodes once the last of its notes has ended. Safari keeps any node still
+   * connected, and runs it on every block of sound, for good: gulls every few seconds for an hour
+   * add up to thousands of them, enough to weigh down a phone.
+   */
+  private release(last: OscillatorNode, nodes: readonly AudioNode[]): void {
+    last.onended = () => {
+      for (const n of nodes) n.disconnect();
+    };
   }
 
   /** A bell: a sine with one bright partial, long decay. */
   private chime(f: number, vol: number, pan: number): void {
-    const { g, t } = this.voice(pan);
+    const { g, p, t } = this.voice(pan);
+    const made: AudioNode[] = [g, p];
+    let last: OscillatorNode | null = null;
     for (const [mult, amp, dur] of [
       [1, 1, 1.8],
       [2.76, 0.35, 0.9],
@@ -463,7 +476,10 @@ export class Ambience {
       o.connect(og).connect(g);
       o.start(t);
       o.stop(t + dur + 0.05);
+      made.push(o, og);
+      last ??= o; // the fundamental rings longest
     }
+    if (last) this.release(last, made);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
@@ -471,15 +487,20 @@ export class Ambience {
 
   /** A gull: a triangle sliding 1.1 kHz to 700 Hz with a fast tremolo, one to three syllables. */
   private gullCry(pan: number, syllables: number): void {
-    const { g, t } = this.voice(pan);
+    const { g, p, t } = this.voice(pan);
+    const made: AudioNode[] = [g, p];
+    let last: OscillatorNode | null = null;
     let at = t;
     for (let i = 0; i < syllables; i++) {
       const o = this.ctx.createOscillator();
+      made.push(o);
+      last = o;
       o.type = 'triangle';
       o.frequency.setValueAtTime(1100, at);
       o.frequency.exponentialRampToValueAtTime(700, at + 0.25);
       const og = this.ctx.createGain();
       og.gain.value = 0.5;
+      made.push(og);
       o.connect(og).connect(g);
       o.start(at);
       o.stop(at + 0.28);
@@ -487,6 +508,7 @@ export class Ambience {
       for (let k = 0; k < 5; k++) og.gain.setValueAtTime(k % 2 ? 0.25 : 0.5, at + k * 0.05);
       at += 0.32;
     }
+    if (last) this.release(last, made);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
     g.gain.setValueAtTime(0.05, at - 0.32 + 0.2);
@@ -495,8 +517,9 @@ export class Ambience {
 
   /** A dolphin: the whistle's rising sine, shorter and softer, sometimes twice. */
   private chirp(pan: number, double: boolean): void {
-    const { g, t } = this.voice(pan);
-    const one = (at: number, f: number) => {
+    const { g, p, t } = this.voice(pan);
+    const made: AudioNode[] = [g, p];
+    const one = (at: number, f: number): OscillatorNode => {
       const o = this.ctx.createOscillator();
       o.type = 'sine';
       o.frequency.setValueAtTime(f, at);
@@ -504,9 +527,11 @@ export class Ambience {
       o.connect(g);
       o.start(at);
       o.stop(at + 0.1);
+      made.push(o);
+      return o;
     };
-    one(t, 1400);
-    if (double) one(t + 0.14, 1600);
+    const first = one(t, 1400);
+    this.release(double ? one(t + 0.14, 1600) : first, made);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.035, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + (double ? 0.26 : 0.12));
@@ -521,12 +546,14 @@ export class Ambience {
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     g.connect(p).connect(this.whaleBus);
+    const made: AudioNode[] = [g, p];
     const oscs = voice.overtones.map(([mult, amp]) => {
       const o = ctx.createOscillator();
       o.type = 'sine';
       const og = ctx.createGain();
       og.gain.value = amp;
       o.connect(og).connect(g);
+      made.push(o, og);
       return { o, mult };
     });
     let at = t;
@@ -546,5 +573,8 @@ export class Ambience {
       o.start(t);
       o.stop(at);
     }
+    // They all stop together: the first to say so unplugs the lot.
+    const first = oscs[0];
+    if (first) this.release(first.o, made);
   }
 }
