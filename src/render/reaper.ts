@@ -4,7 +4,8 @@
  * yellow eye under an angry brow, a tall rounded fin on his back striped yellow
  * and black, a forked tail, and four legs with claws underneath. In the water
  * only his fin shows, over his dark shape. The same drawing does for him on
- * land, and smaller for a young one.
+ * land, and smaller for his young one, out of the egg: the baby Reaper, with
+ * a big round eye and no frown yet.
  */
 
 import type { DrawView } from '../entities/entity';
@@ -30,7 +31,16 @@ export type ReaperLook = {
   pace?: number;
   /** His eye shut, asleep. */
   asleep?: boolean;
+  /** The baby: a big round eye with a shine in it, and no angry brow. */
+  young?: boolean;
 };
+
+/**
+ * A heading drawn side on, as the kid drew him: toward screen right if the heading goes that way at all, else left.
+ */
+export function sideOn(h: number): number {
+  return Math.cos(h) - Math.sin(h) >= 0 ? -Math.PI / 4 : (3 * Math.PI) / 4;
+}
 
 /** His half-width along him, from -1 at the tail to 1 at the snout, in screen units at size 1. */
 function width(k: number): number {
@@ -308,6 +318,25 @@ export function drawReaperBody(
     ctx.stroke();
     return;
   }
+  if (o.young) {
+    // Big and round, a dark middle with a shine in it; nothing to frown about yet.
+    ctx.fillStyle = YELLOW;
+    ctx.beginPath();
+    ctx.arc(ex, ey, 7 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6 * Z;
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(ex + (sx - ex) * 0.06, ey, 4 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(ex + (sx - ex) * 0.06 - 1.4 * Z, ey - 1.6 * Z, 1.5 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
   ctx.fillStyle = o.angry ? '#FF8A2A' : YELLOW;
   ctx.beginPath();
   ctx.ellipse(ex, ey, 5.6 * Z, 4 * Z, Math.atan2(my1 - my0, mx1 - mx0), 0, Math.PI * 2);
@@ -418,7 +447,8 @@ export function drawReaperFin(
 
 /**
  * His egg, at a screen point, s pixels to a world unit: pale blue, a zigzag band of his blue round it and yellow
- * speckles, as the kid's Reaper is; tipped by wob (radians) when it wobbles.
+ * speckles, as the kid's Reaper is; tipped by wob (radians) when it wobbles, and cracked as far as crack (0 none to
+ * 1 all the way round) when it is hatching.
  */
 export function drawReaperEgg(
   ctx: CanvasRenderingContext2D,
@@ -426,6 +456,7 @@ export function drawReaperEgg(
   y: number,
   s: number,
   wob = 0,
+  crack = 0,
 ): void {
   ctx.save();
   ctx.translate(x, y);
@@ -475,6 +506,30 @@ export function drawReaperEgg(
   ctx.beginPath();
   ctx.ellipse(-w * 0.4, -h * 1.45, w * 0.22, h * 0.3, -0.3, 0, Math.PI * 2);
   ctx.fill();
+  // Hatching: a crack running round it above the band from the middle out, and one more down from the top.
+  const k = Math.max(0, Math.min(1, crack));
+  if (k > 0) {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2 * s;
+    ctx.beginPath();
+    let first = true;
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 4 - 1;
+      if (Math.abs(t) > k + 0.01) continue;
+      const cx = t * w * 1.05;
+      const cy = -h * 1.3 + (i % 2 ? -0.13 : 0.13) * h;
+      if (first) ctx.moveTo(cx, cy);
+      else ctx.lineTo(cx, cy);
+      first = false;
+    }
+    if (k > 0.55) {
+      const d = (k - 0.55) / 0.45;
+      ctx.moveTo(w * 0.1, -2 * h);
+      ctx.lineTo(-w * 0.12, -2 * h + h * 0.3 * d);
+      ctx.lineTo(w * 0.08, -2 * h + h * 0.55 * d);
+    }
+    ctx.stroke();
+  }
   ctx.restore();
   egg();
   ctx.strokeStyle = INK;

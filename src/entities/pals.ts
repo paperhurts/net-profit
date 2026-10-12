@@ -25,13 +25,19 @@
  * is beaten for good he comes along too, riding the boat amidships. He does not fight up close. He keeps back at
  * the figure's heel, four hit points, and when a fight is on he raises his skeleton hamster to fight for you (the
  * game calls it up), and raises it again a while after it falls.
+ *
+ * And the baby Reaper, out of the egg the Reaper on land left: his father small, on four clawed legs, with a big
+ * round eye. Ashore he trots at the figure's heel and nips whatever it fights, for 1. At sea he swims as the naga
+ * does, but off the bow on the side away from the viewer (the otter has the near side), his little striped fin up,
+ * and every few seconds he leaps clear of the water and dives back in. Tap him and he leaps for you.
  */
 
+import { drawReaperBody, sideOn } from '../render/reaper';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { drawNecromancer } from './nest';
 import { walkable, walkStep } from './walker';
 
-export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga' | 'necro';
+export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga' | 'necro' | 'baby';
 
 export const PAL_HP = 5;
 export const BONES_HP = 4;
@@ -44,6 +50,7 @@ export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
   bones: 36,
   naga: 34,
   necro: 42,
+  baby: 28,
 };
 export const PAL_BLINK = 200;
 /** A companion that cannot make any way along the figure's steps for this long pops over beside it. */
@@ -56,6 +63,7 @@ export const REACH: Readonly<Record<PalKind, number>> = {
   bones: 28,
   naga: 36,
   necro: 0,
+  baby: 24,
 };
 export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   cat: 1.1,
@@ -63,6 +71,7 @@ export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   bones: 1.5,
   naga: 1.3,
   necro: 0,
+  baby: 1,
 };
 export const POWER: Readonly<Record<PalKind, number>> = {
   cat: 1,
@@ -70,6 +79,7 @@ export const POWER: Readonly<Record<PalKind, number>> = {
   bones: 2,
   naga: 2,
   necro: 0,
+  baby: 1,
 };
 /**
  * Where the naga swims at sea, in the hull's units: this far off the boat's right side, this far ahead of
@@ -77,6 +87,18 @@ export const POWER: Readonly<Record<PalKind, number>> = {
  */
 export const SWIM_SIDE = 28;
 export const SWIM_AHEAD = 6;
+/**
+ * The baby Reaper: head to tail ashore and at sea, in world units; where he swims, in the hull's units, off the side
+ * away from the viewer and ahead of the bow, the otter's place mirrored; and his leaps, how long one lasts, how
+ * high it goes, and the seconds between them.
+ */
+export const BABY_LEN = 54;
+export const BABY_SEA_LEN = 48;
+export const BABY_SIDE = 18;
+export const BABY_AHEAD = 30;
+export const LEAP_T = 0.8;
+export const LEAP_H = 18;
+export const LEAP_EVERY = 4.5;
 /** The bones raise their ghost and skeleton once a fight is on, and again this long after, if those are gone. */
 export const RAISE_EVERY = 12;
 /** The necromancer raises his hamster once a fight is on, and again this long after, if it has fallen. */
@@ -115,6 +137,11 @@ export class Pal implements Entity {
   /** The naga is in the water beside the boat, on this side of it: 1 its right, -1 its left. */
   swimming = false;
   side = 1;
+  /** The baby Reaper at sea: seconds into a leap (-1 when he is not leaping), and until his next. */
+  leapT = -1;
+  leapCd = LEAP_EVERY;
+  /** The baby Reaper splashed back into the sea, here. */
+  onSplash: ((x: number, y: number) => void) | null = null;
   private readonly trail: { x: number; y: number }[] = [];
   /** What it can fight, nearest, within reach of a point; the game knows. */
   findTarget: ((x: number, y: number, range: number) => PalTarget | null) | null = null;
@@ -156,6 +183,32 @@ export class Pal implements Entity {
     this.trail.length = 0;
     this.hadFigure = true;
     this.swimming = false;
+  }
+
+  /** The baby Reaper, out of his egg at sea at this point: he leaps from it into the water beside the boat. */
+  hatchAt(x: number, y: number): void {
+    this.free = true;
+    this.state = 'away';
+    this.hp = this.maxHp;
+    this.x = x;
+    this.y = y;
+    this.swimming = true;
+    this.leapT = 0;
+    this.leapCd = LEAP_EVERY;
+  }
+
+  /** The baby Reaper leaps clear of the water, if he is swimming and not leaping already. Returns whether he did. */
+  leap(): boolean {
+    if (this.kind !== 'baby' || !this.swimming || this.state === 'with' || this.leapT >= 0)
+      return false;
+    this.leapT = 0;
+    this.leapCd = LEAP_EVERY;
+    return true;
+  }
+
+  /** How high the baby Reaper is out of the water, mid-leap. */
+  get leapZ(): number {
+    return this.leapT < 0 ? 0 : Math.sin((Math.PI * this.leapT) / LEAP_T) * LEAP_H;
   }
 
   /** A hit on it. Returns whether it hurt. */
@@ -215,7 +268,9 @@ export class Pal implements Entity {
             ? [-14, -18]
             : this.kind === 'necro'
               ? [-20, -6]
-              : [14, -16];
+              : this.kind === 'baby'
+                ? [12, 18]
+                : [14, -16];
     for (const [dx, dy] of [
       off,
       [-(off[0] as number), off[1] as number],
@@ -331,9 +386,10 @@ export class Pal implements Entity {
   /**
    * The naga at sea: beside the boat on the side nearer the viewer, so the hull never hides him, ducking
    * under to the other side once a turn has clearly put him behind it; keeping up; over at once if far behind.
+   * The baby Reaper the same, but off the bow on the far side, leaping now and then.
    */
   private swim(dt: number, w: World): void {
-    if (this.kind !== 'naga') return;
+    if (this.kind !== 'naga' && this.kind !== 'baby') return;
     const b = w.boat;
     const k = w.hullScale;
     const c = Math.cos(b.h);
@@ -342,8 +398,13 @@ export class Pal implements Entity {
     const near = c - s;
     if (near > 0.35) this.side = 1;
     else if (near < -0.35) this.side = -1;
-    const tx = b.x + c * SWIM_AHEAD * k - s * SWIM_SIDE * k * this.side;
-    const ty = b.y + s * SWIM_AHEAD * k + c * SWIM_SIDE * k * this.side;
+    const baby = this.kind === 'baby';
+    const side = baby ? -this.side : this.side;
+    const along = (baby ? BABY_AHEAD : SWIM_AHEAD) * k;
+    const off = (baby ? BABY_SIDE : SWIM_SIDE) * k * side;
+    const tx = b.x + c * along - s * off;
+    const ty = b.y + s * along + c * off;
+    if (baby) this.leaping(dt);
     const dx = tx - this.x;
     const dy = ty - this.y;
     const d = Math.hypot(dx, dy);
@@ -361,7 +422,22 @@ export class Pal implements Entity {
       this.y += (dy / d) * sp * dt;
     }
     if (Math.abs(b.v) > 12) this.h = b.v > 0 ? b.h : b.h + Math.PI;
+    else if (baby && this.leapT < 0) this.h = b.h;
     this.ph += dt * (2.5 + Math.abs(b.v) / 30);
+  }
+
+  /** The baby Reaper's leaps: one every few seconds, and the splash as he goes back in. */
+  private leaping(dt: number): void {
+    if (this.leapT >= 0) {
+      this.leapT += dt;
+      if (this.leapT >= LEAP_T) {
+        this.leapT = -1;
+        this.onSplash?.(this.x, this.y);
+      }
+      return;
+    }
+    this.leapCd -= dt;
+    if (this.leapCd <= 0) this.leap();
   }
 
   private step(ux: number, uy: number, sp: number, dt: number): number {
@@ -390,7 +466,17 @@ export class Pal implements Entity {
       drawWarrior(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
     else if (this.kind === 'naga')
       drawNaga(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1, false);
-    else drawBones(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
+    else if (this.kind === 'baby') {
+      // His middle stands this high on his legs; he trots, bobbing, and his jaw snaps open as he nips.
+      const z = (50 * BABY_LEN) / 240 + Math.abs(Math.sin(this.ph * 0.5)) * 1.5 * this.gait;
+      drawReaperBody(v, this.x, this.y, z, sideOn(this.h), 0, {
+        T: this.ph / 12,
+        len: BABY_LEN,
+        legs: 'walk',
+        mouth: this.swingT < 0.3 ? 1 - this.swingT / 0.3 : 0,
+        young: true,
+      });
+    } else drawBones(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
     this.drawOver(v, sx, sy);
   }
 
@@ -408,7 +494,9 @@ export class Pal implements Entity {
             ? 36
             : this.kind === 'necro'
               ? 50
-              : 40) *
+              : this.kind === 'baby'
+                ? 26
+                : 40) *
         Z;
     const max = this.maxHp;
     if (this.hp < max) {
@@ -450,7 +538,7 @@ export class Pal implements Entity {
 
   /** Riding along on a boat of this hull scale while the figure is aboard. */
   drawAboard(v: DrawView, b: { x: number; y: number; h: number }, k: number): void {
-    if (!this.free || this.state === 'with' || this.kind === 'naga') return;
+    if (!this.free || this.state === 'with' || this.kind === 'naga' || this.kind === 'baby') return;
     if (this.kind === 'cat') {
       // On the cabin roof, curled up.
       const p = this.seat(b, k);
@@ -469,14 +557,18 @@ export class Pal implements Entity {
   }
 }
 
-/** The naga can be drawn swimming: free and not ashore with the figure. */
-export function nagaSwims(p: Pal): boolean {
-  return p.kind === 'naga' && p.free && p.state !== 'with' && p.swimming;
+/** The naga or the baby Reaper can be drawn swimming: free and not ashore with the figure. */
+export function swims(p: Pal): boolean {
+  return (p.kind === 'naga' || p.kind === 'baby') && p.free && p.state !== 'with' && p.swimming;
 }
 
 /** The naga in the water beside the boat: his tail under the surface, a ripple round him. */
 export function drawSwimming(v: DrawView, p: Pal): void {
-  if (!nagaSwims(p)) return;
+  if (!swims(p)) return;
+  if (p.kind === 'baby') {
+    drawBabySwimming(v, p);
+    return;
+  }
   const { ctx } = v;
   const Z = v.zoom;
   const sx = v.px(p.x, p.y);
@@ -495,6 +587,52 @@ export function drawSwimming(v: DrawView, p: Pal): void {
   );
   ctx.stroke();
   drawNaga(v, sx, sy, p.h, p.ph, 1, false, 1, true);
+}
+
+/**
+ * The baby Reaper in the water, side on as his father is drawn: paddling at the surface with his back, his fin and his
+ * big eye up out of it and his legs under, a ripple round him; mid-leap, all of him up out of the water, nose up
+ * rising and nose down falling, legs paddling, with rings where he left it.
+ */
+function drawBabySwimming(v: DrawView, p: Pal): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sx = v.px(p.x, p.y);
+  const sy = v.py(p.x, p.y, 0);
+  const h = sideOn(p.h);
+  const ring = (r: number, a: number) => {
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = 1.2 * Z;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r * Z, r * 0.5 * Z, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  if (p.leapT >= 0) {
+    const f = p.leapT / LEAP_T;
+    if (f < 0.35) ring(10 + f * 34, 0.5 * (1 - f / 0.35));
+    if (f > 0.75) ring(8 + (f - 0.75) * 44, 0.5);
+    drawReaperBody(v, p.x, p.y, p.leapZ, h, Math.cos(Math.PI * f) * 0.55, {
+      T: v.T,
+      len: BABY_SEA_LEN,
+      legs: 'swim',
+      mouth: f > 0.3 && f < 0.6 ? 0.6 : 0,
+      young: true,
+    });
+    return;
+  }
+  // Only what is above the water shows: cut him off at the surface, bobbing a little.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(sx - 200 * Z, sy - 200 * Z, 400 * Z, 201.5 * Z);
+  ctx.clip();
+  drawReaperBody(v, p.x, p.y, 2 + Math.sin(v.T * 2.4) * 1.2, h, 0.05, {
+    T: v.T,
+    len: BABY_SEA_LEN,
+    legs: 'swim',
+    young: true,
+  });
+  ctx.restore();
+  ring(13 + Math.sin(v.T * 3) * 1.5, 0.45);
 }
 
 /**
