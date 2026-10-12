@@ -8,7 +8,7 @@
  */
 import { angDiff } from '../core/math';
 import { IX, IY } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type Whale = {
   x: number;
@@ -130,6 +130,12 @@ export class Whales implements Entity {
       wh.up = SURFACE_SECONDS;
       wh.spout = 0;
     }
+  }
+
+  /** On the radar, the mother and her calf. */
+  radar(blip: Blipper): void {
+    blip(this.mother.x, this.mother.y, 'other');
+    blip(this.calf.x, this.calf.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {

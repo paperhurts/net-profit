@@ -186,6 +186,8 @@ export type SaveData = {
     ballast: boolean;
     /** The white scuba suit: warm under the ice. */
     white: boolean;
+    /** The radar: fish, threats and the rest round the boat; missing in old saves and read as not bought. */
+    radar: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -295,6 +297,7 @@ export function defaultSave(b: Bounds): SaveData {
       tank: false,
       ballast: false,
       white: false,
+      radar: false,
     },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -430,6 +433,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       tank: !!g.tank,
       ballast: !!g.ballast,
       white: !!g.white,
+      radar: !!g.radar,
     };
   }
   if (o.snook && typeof o.snook === 'object') {

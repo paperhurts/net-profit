@@ -7,7 +7,7 @@
  * callbacks: the warning toast and cue, the shark going into the hold, the
  * tear and the spilled fish.
  */
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** What a shark needs from the school it circles; the school object itself is kept, live. */
 export type SharkHome = { cx: number; cy: number; r: number };
@@ -175,6 +175,11 @@ export class Sharks implements Entity {
         sh.ang = Math.atan2((dx + dy) * 0.5, dx - dy);
       }
     }
+  }
+
+  /** On the radar, each shark that is about. */
+  radar(blip: Blipper): void {
+    for (const sh of this.sharks) if (sh.alive) blip(sh.x, sh.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

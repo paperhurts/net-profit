@@ -8,7 +8,7 @@
  */
 import { angDiff } from '../core/math';
 import { IX, IY } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type Manta = {
   x: number;
@@ -150,6 +150,11 @@ export class Mantas implements Entity {
   /** How high a leaping manta is right now, in world units; zero when swimming. */
   static height(m: Manta): number {
     return m.leap < 0 ? 0 : LEAP_HEIGHT * Math.sin((Math.PI * m.leap) / LEAP_SECONDS);
+  }
+
+  /** On the radar, each manta. */
+  radar(blip: Blipper): void {
+    for (const m of this.mantas) blip(m.x, m.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {

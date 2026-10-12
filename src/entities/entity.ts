@@ -132,4 +132,9 @@ export interface Entity {
   draw(view: DrawView, layer: Layer): void;
   /** For the sorted solids layer; world x + y by convention. */
   depth?(): number;
+  /** Show on the radar what of it is out on the water, if anything (see world/radar.ts). */
+  radar?(blip: Blipper): void;
 }
+
+/** Put something on the radar at world x, y, as a fish, a threat, or anything else. */
+export type Blipper = (x: number, y: number, kind: import('../world/radar').BlipKind) => void;

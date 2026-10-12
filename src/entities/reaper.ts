@@ -35,7 +35,7 @@ import { ISLE5 } from '../world/isle5';
 import { ISLE6 } from '../world/isle6';
 import { ISLE7 } from '../world/isle7';
 import { ISLE8, ISLE9 } from '../world/isle8';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** His loop through the deep and the far deep, clear of every island, past the buoys all the way. */
 export const ROUTE: readonly { x: number; y: number }[] = [
@@ -468,6 +468,11 @@ export class Reaper implements Entity {
     const hi = WS + DEEP + FAR - 60;
     this.x = clamp(this.x, lo, hi);
     this.y = clamp(this.y, lo, hi);
+  }
+
+  /** On the radar while he is about. */
+  radar(blip: Blipper): void {
+    if (this.state !== 'away') blip(this.x, this.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

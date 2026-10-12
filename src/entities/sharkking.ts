@@ -26,7 +26,7 @@
 import { angDiff, clamp } from '../core/math';
 import { DEEP, FAR, WS } from '../world/island';
 import { ISLE5 } from '../world/isle5';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** A boat this close to the reef wakes him; this far off it, he gives up. */
 export const NOTICE = 700;
@@ -385,6 +385,12 @@ export class SharkKing implements Entity {
   }
 
   /** The ring where the trident will land and the churn of a charge, on the water; the fin or the whole of him, and the trident, above it. */
+  /** On the radar once he has risen, until he is dead. */
+  radar(blip: Blipper): void {
+    if (this.state === 'dead' || (this.state === 'wait' && this.up < 0.02)) return;
+    blip(this.x, this.y, 'threat');
+  }
+
   draw(v: DrawView, layer: Layer): void {
     if (this.state === 'wait' && this.up < 0.02) return;
     if (this.state === 'dead') return;

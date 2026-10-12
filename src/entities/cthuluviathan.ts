@@ -15,7 +15,7 @@
 import { rgba } from '../core/color';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { WS } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** Its sunken city, past both lines of buoys at one corner of the deep. */
 export const LAIR = { x: WS + 650, y: -650 } as const;
@@ -219,6 +219,12 @@ export class Cthuluviathan implements Entity {
       else t.t = Math.max(t.t, WARN + UP);
     }
     return true;
+  }
+
+  /** On the radar: each tentacle up, and the beast itself once it is awake (asleep, it is not). */
+  radar(blip: Blipper): void {
+    for (const t of this.tentacles) blip(t.x, t.y, 'threat');
+    if (this.state === 'awake') blip(LAIR.x, LAIR.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

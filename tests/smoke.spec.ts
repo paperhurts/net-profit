@@ -176,7 +176,17 @@ type Np = {
   AQUARIUM: { x0: number; y0: number; x1: number; y1: number };
   tankView: { fish: unknown[]; eaten: number };
   rod: { state: string };
-  gear: { mesh: boolean; strongbox: boolean; suit: boolean; tank: boolean; white: boolean };
+  gear: {
+    mesh: boolean;
+    strongbox: boolean;
+    suit: boolean;
+    tank: boolean;
+    white: boolean;
+    radar: boolean;
+  };
+  pirate: { state: string; x: number; y: number };
+  radarOn: boolean;
+  radarBlips(): { x: number; y: number; kind: 'fish' | 'threat' | 'other' }[];
   anchorer: { state: string; up: boolean; hit(power: number): void };
   tarling: { with: boolean; free: boolean };
   isle4Stage: number;
@@ -568,6 +578,58 @@ test('shop: once the ice floe is found, with scuba gear, the shipwright sells a 
   await page.waitForFunction(() => window.__np.gear.white, null, { timeout: 2000 });
   expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
   await expect(page.locator('#yours')).toContainText('White scuba suit');
+  expect(errors).toEqual([]);
+});
+
+test('the radar: the shipwright sells it, and at sea it shows the fish and a pirate coming; docked, it is put away', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 3500,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  const card = page.locator('#gear [data-g="radar"]');
+  await expect(card).toContainText('Radar');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.gear.radar, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(500);
+  // Tied up at the dock, the shop has the corner; the radar waits. (A new game starts just off it.)
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK.x;
+    n.boat.y = n.DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#radar')).toBeHidden({ timeout: 3000 });
+  // Out at sea it shows, with the schools round about on it as fish.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 3300;
+    b.y = 1500;
+    b.v = 0;
+  });
+  await expect(page.locator('#radar')).toBeVisible({ timeout: 3000 });
+  const kinds = async () =>
+    page.evaluate(() => [...new Set(window.__np.radarBlips().map((b) => b.kind))].sort());
+  expect(await kinds()).toContain('fish');
+  // A pirate coming: a threat on it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.pirate.state = 'chase';
+    n.pirate.x = n.boat.x + 600;
+    n.pirate.y = n.boat.y - 200;
+  });
+  expect(await kinds()).toContain('threat');
+  // Back at the dock, put away again.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.pirate.state = 'away';
+    n.boat.x = n.DOCK.x;
+    n.boat.y = n.DOCK.y;
+  });
+  await expect(page.locator('#radar')).toBeHidden({ timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

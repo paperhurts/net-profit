@@ -13,7 +13,7 @@
 
 import type { Solid } from '../render/layers';
 import { ISLE8, ISLE9, pushOffTwins } from '../world/isle8';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 import { type Ship, type ShipLook, steerShip } from './ship';
 
 /** How many boats keep the Heron's water, and how fast they go: the flagship tops out at 350. */
@@ -215,6 +215,12 @@ export class HiredBoats implements Entity {
     return this.boats
       .filter((s) => s.state !== 'sunk' && v.onScreen(s.x, s.y, 120))
       .map((s) => ({ d: s.x + s.y, f: () => v.ship(s, s.flash > 0 ? FLASH_LOOK : HIRED_LOOK) }));
+  }
+
+  /** On the radar, each hired boat still afloat. */
+  radar(blip: Blipper): void {
+    if (!this.here) return;
+    for (const s of this.boats) if (s.state !== 'sunk') blip(s.x, s.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

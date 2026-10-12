@@ -20,7 +20,7 @@
 
 import { angDiff, clamp } from '../core/math';
 import { TEMPLE } from '../world/isle6';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** Where it sleeps: out in the sea off the temple, east of island 6. */
 export const LAIR6 = { x: TEMPLE.x + 420, y: TEMPLE.y } as const;
@@ -320,6 +320,12 @@ export class DeepOne implements Entity {
   }
 
   /** The rings where logs and the grab will land, on the water; it, its tentacles and the logs, above. */
+  /** On the radar once it has risen; asleep in its lair it is not. */
+  radar(blip: Blipper): void {
+    if (this.state === 'rise' || this.state === 'fight' || this.state === 'drag')
+      blip(this.x, this.y, 'threat');
+  }
+
   draw(v: DrawView, layer: Layer): void {
     if (this.state === 'down') return;
     if (!v.onScreen(this.x, this.y, 500 * v.zoom)) return;

@@ -10,7 +10,7 @@
  */
 import { clamp } from '../core/math';
 import { IX, IY, nearBeach, type Point, WS } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type Piece = {
   x: number;
@@ -160,6 +160,11 @@ export class Flotsam implements Entity {
         this.onPick?.(f, r);
       }
     }
+  }
+
+  /** On the radar, each piece afloat. */
+  radar(blip: Blipper): void {
+    for (const f of this.pieces) if (f.alive) blip(f.x, f.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {

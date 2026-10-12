@@ -9,7 +9,7 @@
 import { clamp } from '../core/math';
 import { SPECIES } from '../data/tuning';
 import { IX, IY, nearBeach, type Point, WS } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type RareFish = {
   on: boolean;
@@ -133,6 +133,11 @@ export class Rare implements Entity {
       r.on = false;
       this.onCatch?.(r.sp);
     }
+  }
+
+  /** On the radar while it is out: a fish. */
+  radar(blip: Blipper): void {
+    if (this.rare.on) blip(this.rare.x, this.rare.y, 'fish');
   }
 
   draw(v: DrawView, layer: Layer): void {
