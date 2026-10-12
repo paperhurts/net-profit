@@ -21,7 +21,7 @@ import { nearIsle2 } from '../world/isle2';
 import { nearIsle3 } from '../world/isle3';
 import { nearIsle4 } from '../world/isle4';
 import { LAIR } from './cthuluviathan';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** It comes up once it is this dark, and sinks once it is lighter than DAWN. */
 export const DUSK = 0.5;
@@ -219,6 +219,11 @@ export class Anglerfish implements Entity {
       this.onMiss?.();
     }
     return false;
+  }
+
+  /** On the radar while its light shows. */
+  radar(blip: Blipper): void {
+    if (this.glow >= 0.02) blip(this.x, this.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

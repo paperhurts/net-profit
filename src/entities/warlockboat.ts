@@ -10,7 +10,7 @@
 
 import { angDiff, clamp } from '../core/math';
 import { drawWarlock } from '../render/warlock';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 import { type ShipLook, steerShip } from './ship';
 
 /** Deep-water green with a gold trim, a dark cabin and a purple sail. */
@@ -123,6 +123,11 @@ export class WarlockBoat implements Entity {
   /** Among the solids, like any ship. */
   depth(): number {
     return this.x + this.y;
+  }
+
+  /** On the radar once it is on the water. */
+  radar(blip: Blipper): void {
+    if (this.free && this.placed) blip(this.x, this.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {

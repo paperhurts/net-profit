@@ -41,6 +41,7 @@ export function fakeView(): FakeView {
     lineTo: count('lineTo'),
     quadraticCurveTo: count('quadraticCurveTo'),
     fillRect: count('fillRect'),
+    clearRect: count('clearRect'),
     bezierCurveTo: count('bezierCurveTo'),
     closePath: count('closePath'),
     fillText: count('fillText'),

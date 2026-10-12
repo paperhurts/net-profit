@@ -10,7 +10,7 @@
  */
 import { angDiff, clamp } from '../core/math';
 import { IR, IX, IY } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type TurtleState = 'cruise' | 'with' | 'dive';
 
@@ -236,6 +236,11 @@ export class Turtles implements Entity {
     t.v += (speed - t.v) * Math.min(1, dt * 2);
     t.x += Math.cos(t.h) * t.v * dt;
     t.y += Math.sin(t.h) * t.v * dt;
+  }
+
+  /** On the radar, each turtle. */
+  radar(blip: Blipper): void {
+    for (const t of this.turtles) blip(t.x, t.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {

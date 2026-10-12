@@ -15,7 +15,9 @@
  * more air, so a dive goes deeper and longer and takes more bites. Ballast,
  * kept back until a storm has been met, steadies the boat in one. The white
  * scuba suit, the owner's, kept back until the ice floe has been found and
- * there is scuba gear, keeps a diver warm under the ice.
+ * there is scuba gear, keeps a diver warm under the ice. The radar, the kid's,
+ * shows what is out on the water round the boat: fish blue, threats red, the
+ * rest grey.
  */
 
 export type GearId =
@@ -27,7 +29,8 @@ export type GearId =
   | 'lionnet'
   | 'tank'
   | 'ballast'
-  | 'white';
+  | 'white'
+  | 'radar';
 
 export type Gear = {
   name: string;
@@ -99,12 +102,20 @@ export const GEAR: Readonly<Record<GearId, Gear>> = {
       'An all-white scuba suit, warm as toast. Stop beside the ice floe and tap Dive under the ice.',
     cost: 6000,
   },
+  radar: {
+    name: 'Radar',
+    blurb: 'See round the boat: fish blue, threats red, the rest grey.',
+    fitted:
+      'Radar fitted. The scope in the corner shows what is out on the water round you: fish blue, threats red, everything else grey.',
+    cost: 3000,
+  },
 };
 
 /** The shelf, in the order it is shown. */
 export const GEAR_IDS: readonly GearId[] = [
   'mesh',
   'strongbox',
+  'radar',
   'kit',
   'rod',
   'lionnet',
@@ -134,6 +145,7 @@ export function noGear(): Owned {
     tank: false,
     ballast: false,
     white: false,
+    radar: false,
   };
 }
 

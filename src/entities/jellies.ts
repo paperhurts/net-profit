@@ -10,7 +10,7 @@
 import { rgba } from '../core/color';
 import { angDiff, clamp } from '../core/math';
 import { BEACH, IR, IX, IY, pushOut, WS } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type Jelly = {
   /** Offset from the bloom's centre. */
@@ -139,6 +139,11 @@ export class Jellies implements Entity {
         if (this.inNet++ === 0) this.onFoul?.();
       }
     }
+  }
+
+  /** On the radar, the bloom while it has jellyfish in it. */
+  radar(blip: Blipper): void {
+    if (this.bloom.jellies.length) blip(this.bloom.x, this.bloom.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {

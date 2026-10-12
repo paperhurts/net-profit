@@ -23,7 +23,7 @@ import {
   pushOut,
   WS,
 } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 import { type Ship, type ShipLook, steerShip } from './ship';
 
 export type PirateState = 'away' | 'prowl' | 'chase' | 'leave';
@@ -177,6 +177,11 @@ export class Pirate implements Entity {
     steerShip(p, tx, ty, speed, 1.7, dt);
     pushOut(p, IX, IY, IR + 60);
     pushOut(p, BEACH.x, BEACH.y, BEACH.r + 50);
+  }
+
+  /** On the radar while it is about. */
+  radar(blip: Blipper): void {
+    if (this.visible) blip(this.ship.x, this.ship.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

@@ -18,7 +18,7 @@ import { rgba } from '../core/color';
 import { angDiff, clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { DEEP, pastBuoys, WS } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** Its stretch of the deep: the east side, short of both corners. */
 export const ZONE = { x0: WS + 180, x1: WS + DEEP - 180, y0: 500, y1: WS - 500 } as const;
@@ -195,6 +195,12 @@ export class Gulper implements Entity {
     // Never past the deep's end or into the home water.
     this.x = clamp(this.x, WS + 40, WS + DEEP - 40);
     this.y = clamp(this.y, -DEEP + 40, WS + DEEP - 40);
+  }
+
+  /** On the radar: its head, wherever it swims. */
+  radar(blip: Blipper): void {
+    const head = this.body[0];
+    if (head) blip(head.x, head.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

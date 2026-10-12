@@ -11,7 +11,7 @@
  */
 import { clamp } from '../core/math';
 import { IX, IY } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type Lionfish = {
   /** Its place round the group's spot, and its phase as it hovers. */
@@ -173,6 +173,12 @@ export class Lionfishes implements Entity {
         return;
       }
     }
+  }
+
+  /** On the radar, each group with fish in it: their spines cut the net. */
+  radar(blip: Blipper): void {
+    if (!this.here) return;
+    for (const g of this.groups) if (g.fish.some((f) => f.away <= 0)) blip(g.x, g.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

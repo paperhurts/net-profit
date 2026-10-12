@@ -26,7 +26,7 @@ import { clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { TIER_NAME } from '../data/tuning';
 import { IX, IY, type Point, pastBuoys } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** Shadows in the chain. */
 export const LEV_N = 28;
@@ -278,6 +278,11 @@ export class Leviathan implements Entity {
     r.up = 0;
     if (r.t < RISE) r.t = RISE;
     return true;
+  }
+
+  /** On the radar while it shows above the water; not while it is down. */
+  radar(blip: Blipper): void {
+    if (this.lev.vis > 0) blip(this.lev.x, this.lev.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

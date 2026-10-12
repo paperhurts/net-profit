@@ -12,7 +12,7 @@
 import { angDiff, clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { ISLE6 } from '../world/isle6';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** Its loop over the island: how far out, how high, how fast round. */
 export const HAUNT_R = 780;
@@ -322,6 +322,11 @@ export class MeteorSerpent implements Entity {
       pz = q.z;
     }
     return out;
+  }
+
+  /** On the radar while it is about. */
+  radar(blip: Blipper): void {
+    if (this.state !== 'away') blip(this.x, this.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {

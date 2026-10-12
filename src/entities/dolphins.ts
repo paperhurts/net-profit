@@ -6,7 +6,7 @@
  */
 import { angDiff, clamp } from '../core/math';
 import { around, BEACH, IR, IX, IY, PIER_BUMPS, pushOut, WS } from '../world/island';
-import type { DrawView, Entity, Layer, World } from './entity';
+import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 export type Dolphin = { ox: number; oy: number; p: number };
 
@@ -126,6 +126,11 @@ export class Dolphins implements Entity {
       for (const b of PIER_BUMPS) pushOut(p, b[0], b[1], 85);
       for (const q of p.d) q.p += dt * (p.state === 'escort' ? 3.2 : 2.2);
     }
+  }
+
+  /** On the radar, each pod. */
+  radar(blip: Blipper): void {
+    for (const p of this.pods) blip(p.x, p.y, 'other');
   }
 
   draw(v: DrawView, layer: Layer): void {
