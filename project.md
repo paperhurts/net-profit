@@ -407,3 +407,9 @@ The kid's world, as he tells it, collected here as it comes. The game says it wh
 - Players reach for what the world shows them. The day they could walk past the dog, both players went looking for a way to pet it. Make the obvious touch work, and show how until it is found.
 - On the far side of an isometric island a figure stands in front of the water behind it, so one walked to the waterline looks as if it is wading. Keep feet a shadow's width inside the sand.
 - Eight-way keys on an isometric map point at a diagonal the boat is rarely facing, so the throttle penalty for turning is on almost all the time and the keyboard feels slower and twitchier than the stick. Put feels side by side behind a switch and let the players pick. Two players picked two different ones, and a setting was cheaper than a winner.
+- A grey screen on a phone is the page's process killed, not a script error, which leaves the last frame frozen on the screen. Look for what grows over a long session.
+- Safari keeps any Web Audio node that is still connected, and runs it on every block of sound, for good. Every note must disconnect what it made when it ends (`onended`). Before that fix (2026-10-12, #157) ten minutes of gulls, dolphins and whales left 2,727 nodes running, the likely cause of the owner's grey screen during a Star encounter. `tests/unit/audionodes.test.ts` plays the cues and the sea through a fake engine and checks every note unplugs.
+- Playwright cannot route a fetch that a service worker handles. A test that serves the page something else runs with `serviceWorkers: 'block'`, and what the worker does is tested on its own (offline, in the installable test).
+- A global `canvas{position:fixed;inset:0}` pins every canvas to the top left. A second canvas, as the radar is, needs `top:auto;left:auto`.
+- A new game starts just off the dock ring, not in it. A test that means "docked" puts the boat on `DOCK`.
+
