@@ -2042,9 +2042,13 @@ function testerSay(said){
 function story(){ return {isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage}; }
 function openTester(){ audio(); sfx.click(); const done = stepsDone(story());
   $('testerSteps').innerHTML = STEPS.map((st, i) => `<button class="tstep${i < done ? ' done' : ''}" data-step="${i}"><span>${st.label}</span><span class="tk">${i < done ? 'Done' : 'Skip to here'}</span></button>`).join('');
-  $('testerExtras').innerHTML = [['coins', '+10,000 coins'], ['wood', '+100 driftwood'], ['kit', "The Reaper's ice fishing kit"], ['egg', "The Reaper's egg"], ['hatch', "The Reaper's egg, hatching now"], ['mend', 'Mend the boat, fill the hearts']]
-    .map(([k, l]) => `<button class="tstep" data-extra="${k}"><span>${l}</span><span class="tk">Add</span></button>`).join('');
-  $('tester').hidden = false; }
+  renderExtras(); $('tester').hidden = false; }
+// The extras: some again and again (coins, driftwood, mending), the rest once, and say so once you have them.
+const EXTRAS = [['coins', '+10,000 coins'], ['wood', '+100 driftwood'], ['kit', "The Reaper's ice fishing kit", () => driven.reaper > 0],
+  ['egg', "The Reaper's egg", () => reaperEgg >= 2], ['hatch', "The Reaper's egg, hatching now", () => reaperEgg >= 3],
+  ['otter', 'The otter', () => otter.free], ['neil', 'Neil the seal', () => neil.free], ['naga', 'The naga', () => nagaFree], ['mend', 'Mend the boat, fill the hearts']];
+function renderExtras(){ $('testerExtras').innerHTML = EXTRAS.map(([k, l, has]) => { const got = has && has();
+  return `<button class="tstep${got ? ' done' : ''}" data-extra="${k}"><span>${l}</span><span class="tk">${got ? 'Have it' : 'Add'}</span></button>`; }).join(''); }
 $('testerBtn').addEventListener('click', openTester);
 $('testerClose').addEventListener('click', () => { sfx.click(); $('tester').hidden = true; });
 $('testerSteps').addEventListener('click', (e) => { const b = e.target.closest('[data-step]'); if (!b) return;
@@ -2057,8 +2061,14 @@ $('testerExtras').addEventListener('click', (e) => { const b = e.target.closest(
   else if (k === 'kit'){ driven.reaper = Math.max(1, driven.reaper); reaperSeen = true; }
   else if (k === 'egg'){ if (reaperEgg < 2){ reaperEgg = 2; eggDay = day; } reaperLandSeen = true; }
   else if (k === 'hatch'){ if (reaperEgg < 3){ reaperEgg = 2; eggDay = 0; } reaperLandSeen = true; }
+  else if (k === 'otter') otter.set(OTTER_FEEDS);
+  else if (k === 'neil'){ neil.set(NEIL_FEEDS); iceSeen = true; }
+  else if (k === 'naga') nagaFree = true;
   else if (k === 'mend'){ hp = HP_MAX; hearts = maxHearts(); hudHull(); hudHearts(); }
-  sfx.upgrade(); save(); refreshShop(); toast('Done.', 1200); });
+  sfx.upgrade(); save(); refreshShop();
+  // Down here the toasts are hidden behind the panel, so the button itself says it worked.
+  const tk = b.querySelector('.tk'); if (tk) tk.textContent = 'Added \u2713'; b.classList.add('added');
+  setTimeout(renderExtras, 1400); });
 // Your game on another device, for the owner's dad: no accounts, so the game travels in a link, #game=… on the end,
 // the save squeezed small. Opened, it asks before it takes the place of the game here. The panel copies the link,
 // and takes one pasted in, for a phone's home-screen game, which keeps a game of its own and opens no links.
