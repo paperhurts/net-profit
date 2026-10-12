@@ -241,7 +241,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
 #tester,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#tester[hidden],#testerBtn[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
 #tester .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
 #tester h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
 #tester h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
@@ -257,6 +257,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #tester .tstep.done{opacity:.6}
 #tester .tstep .tk{flex:none;font-size:13px}
 #testerBtn{border:2px dashed rgba(0,0,0,.35)}
+#updateBtn{margin:0 0 10px;border:2px solid var(--fill)}
 #seamap,#aquarium{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
 #seamap[hidden],#aquarium[hidden]{display:none}
 #seamap .planks,#aquarium .planks{width:min(560px,100%);padding:10px;box-sizing:border-box}
@@ -365,6 +366,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
     <button class="pill" id="mapPill">Sea map</button>
   </div>
   <div class="planks">
+    <button class="build" id="updateBtn" hidden><span><b>A new version is ready</b><small>Tap to update. Your game is saved first.</small></span><span class="buy">Update</span></button>
     <h2>Upgrades <span id="tierTxt"></span></h2>
     <div class="row">
       <button class="up" data-k="net"><b>Wider net</b><div class="pips"></div><small></small><div class="buy"></div></button>

@@ -46,13 +46,25 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
+/** The page's request, asking the server whether it has changed; the request itself where that cannot be made. */
+function revalidating(req) {
+  try {
+    return new Request(req, { cache: 'no-cache' });
+  } catch {
+    return req;
+  }
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET') return;
+  // Asked for fresh (the game checking for a new version): straight to the network, not kept.
+  if (req.method !== 'GET' || req.cache === 'no-store') return;
   const url = new URL(req.url);
   if (req.mode === 'navigate' && url.origin === self.location.origin) {
+    // Checked with the server every time (a cheap not-modified when nothing has changed): a page held
+    // in the browser's own cache for a few minutes after a deploy would load the old game again.
     e.respondWith(
-      fetch(req)
+      fetch(revalidating(req))
         .then((res) => {
           if (res.ok && url.pathname === new URL(PAGE).pathname) {
             const copy = res.clone();

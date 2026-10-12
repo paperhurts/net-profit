@@ -187,6 +187,8 @@ type Np = {
   pirate: { state: string; x: number; y: number };
   coastGuard: { out: boolean; ship: { state: string; x: number; y: number }; reset(): void };
   radioDay: number;
+  checkForUpdate(force?: boolean): Promise<boolean>;
+  updateReady: boolean;
   radarOn: boolean;
   radarBlips(): { x: number; y: number; kind: 'fish' | 'threat' | 'other' }[];
   anchorer: { state: string; up: boolean; hit(power: number): void };
@@ -693,6 +695,44 @@ test('the coast guard: with the radio, a call when pirates come brings their boa
   });
   await expect(button).toBeVisible({ timeout: 2000 });
   expect(errors).toEqual([]);
+});
+
+test.describe('a new version', () => {
+  // Playwright cannot serve a page's fetches while a service worker is in charge of them, so this one runs
+  // without it; that the worker lets the game's check through to the network is in the installable test.
+  test.use({ serviceWorkers: 'block' });
+
+  test('found when the game is checked mid-trip, the shop offers it at the dock', async ({
+    context,
+    page,
+  }) => {
+    const errors = await boot(context, page, {
+      muted: true,
+      coins: 300,
+      trip: { x: 3300, y: 1500, h: 0, clock: 0.3, hold: [] },
+    });
+    // Nothing new yet.
+    expect(await page.evaluate(() => window.__np.checkForUpdate(true))).toBe(false);
+    // Then the server has a newer build.
+    await page.route('**/', async (route) => {
+      if (route.request().resourceType() !== 'fetch') return route.continue();
+      const res = await route.fetch();
+      const body = (await res.text()).replace(/assets\/index-[^"]+\.js/, 'assets/index-NEWER.js');
+      return route.fulfill({ response: res, body });
+    });
+    expect(await page.evaluate(() => window.__np.checkForUpdate(true))).toBe(true);
+    expect(await page.evaluate(() => window.__np.updateReady)).toBe(true);
+    // At sea nothing is cut short; tied up, the shop offers it.
+    await page.evaluate(() => {
+      const n = window.__np;
+      n.boat.x = n.DOCK.x;
+      n.boat.y = n.DOCK.y;
+      n.boat.v = 0;
+    });
+    await expect(page.locator('#updateBtn')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#updateBtn')).toContainText('A new version is ready');
+    expect(errors).toEqual([]);
+  });
 });
 
 test('armour: once there is a spear the shipwright sells leather armour, and it is a fourth heart', async ({
@@ -3730,6 +3770,19 @@ test('installable: a manifest with its icons, a service worker, and with no sign
   );
   // No signal: the game opens from what was kept, the save with it.
   await context.setOffline(true);
+  // The game's own check for a new version is not answered from what was kept: it goes to the network, and fails.
+  expect(
+    await page.evaluate(async () => {
+      const got = async (init?: RequestInit) => {
+        try {
+          return (await fetch('./', init)).ok;
+        } catch {
+          return 'failed';
+        }
+      };
+      return [await got(), await got({ cache: 'no-store' })];
+    }),
+  ).toEqual([true, 'failed']);
   await page.reload();
   await page.waitForTimeout(400);
   await page.click('#go');
