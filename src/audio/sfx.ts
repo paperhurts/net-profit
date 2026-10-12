@@ -62,6 +62,11 @@ function play(f: number, d: number, type: Wave, vol: number, slide: number, dela
     g.gain.exponentialRampToValueAtTime(0.0001, t + d);
     o.connect(g);
     g.connect(ac.destination);
+    // Unplugged once it has played: Safari keeps a node that is still connected, and runs it, for good.
+    o.onended = () => {
+      o.disconnect();
+      g.disconnect();
+    };
     o.start(t);
     o.stop(t + d + 0.03);
   } catch {
