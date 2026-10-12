@@ -1310,7 +1310,8 @@ function takeEgg(){ if (reaperEgg !== 1 || walker.state !== 'ashore' || walker.d
 function eggSeat(){ const c = Math.cos(boat.h), s = Math.sin(boat.h), k = bk(); return {x: boat.x + c*12*k - s*6*k, y: boat.y + s*12*k + c*6*k, z: 9*k + 1}; }
 function drawEggAboard(){ const p = eggSeat(), sx = px(p.x, p.y), sy = py(p.x, p.y, p.z), t = eggT(), r = eggLook(T, t);
   ctx.strokeStyle = '#C9A46A'; ctx.lineWidth = 1.6*Z; for (const q of [6, 4.5]){ ctx.beginPath(); ctx.ellipse(sx, sy, q*Z, q*.5*Z, 0, 0, Math.PI*2); ctx.stroke(); }
-  const s = .55*Z*(1 + r.swell);
+  // In its scene it is drawn a little bigger again, so the shaking and the cracks read on a phone.
+  const s = .55*Z*(1 + r.swell)*(t === null ? 1 : 1 + .35*cineK());
   if (t === null || t < POP_T){ drawReaperEgg(ctx, sx, sy + 1*Z - r.hop*2.5*Z, s, r.wob, r.crack); return; }
   // Out: the bottom of his shell in the coil of rope, and him in it, looking about, a tiny roar as he comes out.
   ctx.save(); ctx.beginPath(); ctx.rect(sx - 40*Z, sy - 1.3*8.4*s + 1*Z, 80*Z, 40*Z); ctx.clip(); drawReaperEgg(ctx, sx, sy + 1*Z, s, 0, 1); ctx.restore();
@@ -1543,7 +1544,10 @@ function drawCine(){ if (!cine) return; const len = cineLen(), k = Math.min(1, c
 // Over the egg, each crack in big comic letters, popping up and fading; then the banner: Congratulations! It's a baby Reaper!
 function drawEggWords(){ const t = cine.t, p = eggSeat(), ex = px(p.x, p.y), ey = py(p.x, p.y, p.z), pop = (u) => u < .18 ? .4 + u/.18*.75 : u < .3 ? 1.15 - (u - .18)/.12*.15 : 1;
   const word = (text, x, y, size, fill, tilt, a) => { ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(tilt);
-    ctx.font = `900 ${Math.round(size)}px Grandstander, ui-rounded, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `900 ${Math.round(size)}px Grandstander, ui-rounded, system-ui, sans-serif`;
+    // Never wider than the screen, less a margin.
+    const fit = Math.min(1, (W - 36)/(ctx.measureText(text).width + size*.2)); if (fit < 1){ size *= fit; ctx.font = `900 ${Math.round(size)}px Grandstander, ui-rounded, system-ui, sans-serif`; }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = size*.18; ctx.strokeStyle = '#1D2B3A'; ctx.strokeText(text, 0, 0); ctx.fillStyle = fill; ctx.fillText(text, 0, 0); ctx.restore(); };
   CRACKS.forEach((c, i) => { const u = t - c; if (u < 0 || u > 1.1 || t >= POP_T) return;
     const big = i === CRACKS.length - 1, side = i % 2 ? 1 : -1;
@@ -2624,7 +2628,7 @@ function update(dt){
   lionfish.here = shipwrightOpen(tier()); lionfish.sweeps = gear.lionnet; updateMend(dt); updateRadio(); updateSeine(dt); updatePots(dt); updateTrench(dt); updateFloe(dt); updateRod(dt); updateCharter(); updateStorm(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
   // The egg's scene comes in close on the bow.
-  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + (cine && cine.kind === 'egg' ? 1.4*cineK() : 0)) - Z)*Math.min(1, dt*4);
+  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + (cine && cine.kind === 'egg' ? 2.2*cineK() : 0)) - Z)*Math.min(1, dt*4);
 
   /* bits */
   wakeT -= dt;
