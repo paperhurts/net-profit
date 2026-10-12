@@ -24,8 +24,12 @@ export type ReaperLook = {
   len?: number;
   /** How far his jaw drops, 0 shut to 1 wide. */
   mouth?: number;
-  /** His legs: paddling in the water, clawing the air reared up, or walking. */
-  legs?: 'swim' | 'rear' | 'walk';
+  /** His legs: paddling in the water, clawing the air reared up, walking, or folded under him lying down. */
+  legs?: 'swim' | 'rear' | 'walk' | 'lie';
+  /** Walking, how fast his legs go round, 1 a stroll. */
+  pace?: number;
+  /** His eye shut, asleep. */
+  asleep?: boolean;
 };
 
 /** His half-width along him, from -1 at the tail to 1 at the snout, in screen units at size 1. */
@@ -106,7 +110,13 @@ export function drawReaperBody(
     let fy: number;
     let kx: number;
     let ky: number;
-    if (legs === 'rear' && front) {
+    if (legs === 'lie') {
+      // Folded under him, claws tucked.
+      kx = bx - 7 * Z * dir;
+      ky = by + 4 * Z;
+      fx = kx + 3 * Z * dir;
+      fy = ky + 3 * Z;
+    } else if (legs === 'rear' && front) {
       // Clawing the air.
       const a = Math.sin(T * 7 + ph) * 0.5;
       kx = bx + (10 + a * 6) * Z * dir;
@@ -114,7 +124,8 @@ export function drawReaperBody(
       fx = kx + (8 + a * 4) * Z * dir;
       fy = ky - (6 - a * 8) * Z;
     } else {
-      const sw = legs === 'walk' ? Math.sin(T * 6 + ph * 1.6) : Math.sin(T * 8 + ph);
+      const sw =
+        legs === 'walk' ? Math.sin(T * 6 * (o.pace ?? 1) + ph * 1.6) : Math.sin(T * 8 + ph);
       kx = bx + sw * 6 * Z * dir;
       ky = by + 10 * Z;
       fx = kx + (2 + sw * 4) * Z * dir;
@@ -286,9 +297,17 @@ export function drawReaperBody(
   ctx.moveTo(jx, jy);
   ctx.lineTo(sx, sy);
   ctx.stroke();
-  // His big yellow eye, and the angry brow over it.
+  // His big yellow eye, and the angry brow over it; asleep, a shut lid.
   const [ex, ey] = edge(N - 5, 0.35);
   const [e2x, e2y] = edge(N - 3, 0.75);
+  if (o.asleep) {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.8 * Z;
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, 5 * Z, 2.4 * Z, Math.atan2(my1 - my0, mx1 - mx0), 0.15, Math.PI - 0.15);
+    ctx.stroke();
+    return;
+  }
   ctx.fillStyle = o.angry ? '#FF8A2A' : YELLOW;
   ctx.beginPath();
   ctx.ellipse(ex, ey, 5.6 * Z, 4 * Z, Math.atan2(my1 - my0, mx1 - mx0), 0, Math.PI * 2);
@@ -395,4 +414,103 @@ export function drawReaperFin(
   ctx.strokeStyle = INK;
   ctx.lineWidth = 2 * Z;
   ctx.stroke();
+}
+
+/**
+ * His egg, at a screen point, s pixels to a world unit: pale blue, a zigzag band of his blue round it and yellow
+ * speckles, as the kid's Reaper is; tipped by wob (radians) when it wobbles.
+ */
+export function drawReaperEgg(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  s: number,
+  wob = 0,
+): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(wob);
+  const w = 6.2 * s;
+  const h = 8.4 * s;
+  // It stands on its broad end: the middle is a little above the point it rests on.
+  const egg = () => {
+    ctx.beginPath();
+    ctx.moveTo(0, -2 * h);
+    ctx.bezierCurveTo(w * 0.85, -2 * h, w * 1.05, -h * 0.55, w, -h * 0.5);
+    ctx.bezierCurveTo(w * 0.95, -h * 0.05, w * 0.55, 0, 0, 0);
+    ctx.bezierCurveTo(-w * 0.55, 0, -w * 0.95, -h * 0.05, -w, -h * 0.5);
+    ctx.bezierCurveTo(-w * 1.05, -h * 0.55, -w * 0.85, -2 * h, 0, -2 * h);
+    ctx.closePath();
+  };
+  egg();
+  ctx.fillStyle = '#DCEEFB';
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  // The zigzag band of his blue round its middle.
+  ctx.strokeStyle = BLUE;
+  ctx.lineWidth = 2.2 * s;
+  ctx.beginPath();
+  for (let i = 0; i <= 6; i++) {
+    const zx = -w + (i / 6) * 2 * w;
+    const zy = -h * 0.95 + (i % 2 ? -0.22 : 0.22) * h;
+    if (i === 0) ctx.moveTo(zx, zy);
+    else ctx.lineTo(zx, zy);
+  }
+  ctx.stroke();
+  ctx.fillStyle = YELLOW;
+  for (const [sx, sy] of [
+    [-0.45, -1.55],
+    [0.3, -1.7],
+    [0.5, -0.5],
+    [-0.35, -0.35],
+    [0.05, -1.25],
+  ] as const) {
+    ctx.beginPath();
+    ctx.arc(sx * w, sy * h, 0.9 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Light on its shoulder.
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.beginPath();
+  ctx.ellipse(-w * 0.4, -h * 1.45, w * 0.22, h * 0.3, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  egg();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.1 * s;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** His nest on the sand: a hollow ringed with seaweed and driftwood, at world x, y, this wide. */
+export function drawReaperNest(v: DrawView, x: number, y: number, r: number): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  v.isoEllipse(x, y, r + 3);
+  ctx.fillStyle = 'rgba(120,96,58,.35)';
+  ctx.fill();
+  v.isoEllipse(x, y, r * 0.7);
+  ctx.fillStyle = '#B99A63';
+  ctx.fill();
+  // Seaweed heaped round the rim, darker at the back.
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    const ax = x + Math.cos(a) * r;
+    const ay = y + Math.sin(a) * r;
+    const bx = x + Math.cos(a + 0.5) * r;
+    const by = y + Math.sin(a + 0.5) * r;
+    ctx.strokeStyle = i % 3 === 0 ? '#5B4A33' : i % 2 ? '#3E6B3A' : '#4F7D3F';
+    ctx.lineWidth = (i % 3 === 0 ? 2.2 : 3.2) * Z;
+    ctx.beginPath();
+    ctx.moveTo(px(ax, ay), py(ax, ay, 2));
+    ctx.quadraticCurveTo(
+      px((ax + bx) / 2, (ay + by) / 2),
+      py((ax + bx) / 2, (ay + by) / 2, 5),
+      px(bx, by),
+      py(bx, by, 2),
+    );
+    ctx.stroke();
+  }
 }

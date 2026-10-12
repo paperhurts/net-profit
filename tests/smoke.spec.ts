@@ -200,6 +200,18 @@ type Np = {
   chests6: number;
   CHESTS6: [number, number][];
   isle6Stage: number;
+  landReaper: {
+    state: string;
+    awake: boolean;
+    open: boolean;
+    hp: number;
+    t: number;
+    up: number;
+    hit(power: number, fired?: boolean): boolean;
+  };
+  reaperLandSeen: boolean;
+  reaperEgg: number;
+  NEST6: { x: number; y: number; r: number };
   isle7Seen: boolean;
   isle7Stage: number;
   portalOpen: number;
@@ -2859,6 +2871,75 @@ test('island 6: dock at the big island, step ashore, and find a treasure chest',
   });
   await page.waitForFunction(() => window.__np.chests6 > 0, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(400);
+  expect(errors).toEqual([]);
+});
+
+test('the Reaper on land: he wakes by his nest on island 6, and beaten, his egg is yours and rides aboard', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 3,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: -1320, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 2400;
+    b.y = -1320;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.locator('#ashore').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.landReaper.state)).toBe('sleep');
+  // Up the beach toward his cove: sighted asleep first, then he wakes.
+  await page.evaluate(() => {
+    const { walker: w, NEST6: n } = window.__np;
+    w.x = n.x + 200;
+    w.y = n.y + 180;
+  });
+  await page.waitForFunction(() => window.__np.reaperLandSeen, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.landReaper.state)).toBe('sleep');
+  await page.evaluate(() => {
+    const { walker: w, NEST6: n } = window.__np;
+    w.x = n.x + 110;
+    w.y = n.y + 90;
+  });
+  await page.waitForFunction(() => window.__np.landReaper.awake, null, { timeout: 3000 });
+  await expect(page.locator('#hearts')).toBeVisible();
+  // His scales turn a spear until he rears up; then the throw button shows.
+  expect(await page.evaluate(() => window.__np.landReaper.hit(2))).toBe(false);
+  await page.waitForFunction(() => window.__np.landReaper.open, null, { timeout: 20000 });
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 2000 });
+  // Beat him: he backs off into the sea, and the egg waits in his nest.
+  await page.evaluate(() => window.__np.landReaper.hit(99, true));
+  await page.waitForFunction(() => window.__np.reaperEgg === 1, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(1100);
+  await page.evaluate(() => {
+    const { walker: w, NEST6: n } = window.__np;
+    w.x = n.x + 6;
+    w.y = n.y + 6;
+  });
+  await page.waitForFunction(() => window.__np.reaperEgg === 2, null, { timeout: 3000 });
+  // It is kept, and he stays beaten.
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => [window.__np.reaperEgg, window.__np.landReaper.state])).toEqual([
+    2,
+    'gone',
+  ]);
   expect(errors).toEqual([]);
 });
 

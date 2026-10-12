@@ -530,9 +530,16 @@ export class Reaper implements Entity {
 }
 
 /** Whether a boat at x, y, this big, is in the part of the fan his tail has swept so far (round to ta). */
-export function inSwept(f: Fan, ta: number, x: number, y: number, hull: number): boolean {
+export function inSwept(
+  f: Fan,
+  ta: number,
+  x: number,
+  y: number,
+  hull: number,
+  reach = REACH,
+): boolean {
   const d = Math.hypot(x - f.x, y - f.y);
-  if (d > REACH + hull) return false;
+  if (d > reach + hull) return false;
   const s = Math.sign(angDiff(f.a1, f.a0)) || 1;
   const pad = d < hull ? Math.PI : Math.asin(Math.min(1, hull / d));
   const rel = angDiff(Math.atan2(y - f.y, x - f.x), f.a0) * s;
@@ -541,7 +548,7 @@ export function inSwept(f: Fan, ta: number, x: number, y: number, hull: number):
 }
 
 /** The fan on the water: filling red as the sweep comes (k), and white spray where the tail has been (sweep). */
-function drawFan(v: DrawView, f: Fan, k: number, sweep: number): void {
+export function drawFan(v: DrawView, f: Fan, k: number, sweep: number, reach = REACH): void {
   const { ctx } = v;
   const Z = v.zoom;
   const kk = clamp(k, 0, 1);
@@ -552,8 +559,8 @@ function drawFan(v: DrawView, f: Fan, k: number, sweep: number): void {
     const n = 18;
     for (let i = 0; i <= n; i++) {
       const a = f.a0 + span * to * (i / n);
-      const x = f.x + Math.cos(a) * REACH;
-      const y = f.y + Math.sin(a) * REACH;
+      const x = f.x + Math.cos(a) * reach;
+      const y = f.y + Math.sin(a) * reach;
       ctx.lineTo(v.px(x, y), v.py(x, y));
     }
     ctx.closePath();
