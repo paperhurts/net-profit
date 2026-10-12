@@ -98,9 +98,9 @@ import { berth6, CHEST_COINS, CHEST_REACH, CHESTS6, ISLE6, NEST6, POST6_MID, pus
 import { BODY_R as DEEP_BODY, DEEP_RESOLVE, DeepOne, LOG as DEEP_LOG } from './entities/deepone';
 import { Cthulhu, CTH_R } from './entities/cthulhu';
 import { drawNagaCage, drawSwimming, Pal, swims } from './entities/pals';
-import { eggDue, eggRock, HATCH_T, HATCH_WAIT } from './entities/egg';
+import { CRACK_WORDS, CRACKS, EGG_CINE, EGG_IN, EGG_OUT, eggDue, eggLook, HATCH_WAIT, INTO_SEA, POP_T } from './entities/egg';
 import { drawIsle6Flat, drawIsle6Sea, isle6Solids } from './render/isle6';
-import { drawReaperEgg, drawReaperNest } from './render/reaper';
+import { drawReaperBody, drawReaperEgg, drawReaperNest, sideOn } from './render/reaper';
 import { CAMP7, CHEST7, DOCK7, DOOR7, ISLE7, PORTAL7, POST7_MID, pushOffIsle7, SIGHT7 } from './world/isle7';
 import { BAR, CAMP8, CAMP9, DOCK8, DOOR8, DOOR9, ISLE8, ISLE9, nearTwins, POST8_MID, pushOffTwins, SIGHT8 } from './world/isle8';
 import { HERON_HP, HERON9_HP, Heron, segDist, ZAP_HIT } from './entities/heron';
@@ -1308,25 +1308,40 @@ function takeEgg(){ if (reaperEgg !== 1 || walker.state !== 'ashore' || walker.d
   hud(); refreshShop(); save(); }
 // The egg aboard, at the bow on the side away from the necromancer, in a coil of rope; it wobbles now and then.
 function eggSeat(){ const c = Math.cos(boat.h), s = Math.sin(boat.h), k = bk(); return {x: boat.x + c*12*k - s*6*k, y: boat.y + s*12*k + c*6*k, z: 9*k + 1}; }
-function drawEggAboard(){ const p = eggSeat(), sx = px(p.x, p.y), sy = py(p.x, p.y, p.z), k = hatchK(), r = eggRock(T, k);
+function drawEggAboard(){ const p = eggSeat(), sx = px(p.x, p.y), sy = py(p.x, p.y, p.z), t = eggT(), r = eggLook(T, t);
   ctx.strokeStyle = '#C9A46A'; ctx.lineWidth = 1.6*Z; for (const q of [6, 4.5]){ ctx.beginPath(); ctx.ellipse(sx, sy, q*Z, q*.5*Z, 0, 0, Math.PI*2); ctx.stroke(); }
-  // Hatching, it swells as he pushes at it, so the cracks show.
-  drawReaperEgg(ctx, sx, sy + 1*Z - r.hop*2.5*Z, .55*Z*(1 + Math.min(1, k)*.6), r.wob, r.crack); }
-// It hatches at the first dawn after it came aboard, once the figure is aboard to see it: a moment for the dawn's news,
-// then it rocks harder and harder and cracks, and the baby Reaper leaps out of it into the sea. A landing, the shop
-// open at a pier, the map, a dive, the ice or a cutscene puts it off; it starts again after.
-let hatchT = -1, crackCd = 0, babyTold = false;
-function hatchK(){ return hatchT < HATCH_WAIT ? 0 : (hatchT - HATCH_WAIT) / HATCH_T; }
-function updateEgg(dt){ if (reaperEgg !== 2){ hatchT = -1; return; }
-  if (!eggDue(reaperEgg, eggDay, day) || !walker.aboard || shopOpen || mapOpen || diving || icing || cine || swallowT > 0 || tankOpen){ hatchT = -1; return; }
-  const was = hatchT; hatchT = Math.max(0, hatchT + dt);
-  if (was < HATCH_WAIT && hatchT >= HATCH_WAIT){ toasts.clear(); toast('The Reaper\'s egg is rocking in its coil of rope... it\'s hatching!', 3600, 2); }
-  if (hatchT >= HATCH_WAIT){ crackCd -= dt; if (crackCd <= 0){ sfx.eggCrack(); crackCd = .5 - hatchK()*.35; } }
-  if (hatchT >= HATCH_WAIT + HATCH_T) hatch(); }
-function hatch(){ const p = eggSeat(); reaperEgg = 3; hatchT = -1; baby.hatchAt(p.x, p.y); sfx.babyRoar(); shake = Math.max(shake, .15);
-  for (let k=0;k<14;k++) sparks.push({x: p.x, y: p.y, vx:(Math.random()-.5)*80, vy:(Math.random()-.5)*80, z: p.z + 6, vz:40+Math.random()*50, age:0, life:.8+Math.random()*.5, c: k % 3 ? '#DCEEFB' : '#4F86C6'});
-  addText(p.x, p.y, 30, 'Rawr!', '#BFE0FF', 20, 1.6);
-  toasts.clear(); toast('The egg hatched! A baby Reaper! He leaps into the sea and swims beside your boat. Ashore, he walks with you and nips whatever you fight. Tap him!', 6000, 2);
+  const s = .55*Z*(1 + r.swell);
+  if (t === null || t < POP_T){ drawReaperEgg(ctx, sx, sy + 1*Z - r.hop*2.5*Z, s, r.wob, r.crack); return; }
+  // Out: the bottom of his shell in the coil of rope, and him in it, looking about, a tiny roar as he comes out.
+  ctx.save(); ctx.beginPath(); ctx.rect(sx - 40*Z, sy - 1.3*8.4*s + 1*Z, 80*Z, 40*Z); ctx.clip(); drawReaperEgg(ctx, sx, sy + 1*Z, s, 0, 1); ctx.restore();
+  const u = t - POP_T, look = Math.sin(u*2.2)*.5 > 0 ? -1 : 1;
+  drawReaperBody(drawView, p.x, p.y, p.z + 6 + Math.abs(Math.sin(u*5))*1.5*Math.max(0, 1 - u), sideOn(boat.h + (look > 0 ? 0 : Math.PI)), .35,
+    {T: u*.6, len: 30, legs: 'walk', mouth: u < .9 ? 1 - u/.9 : 0, young: true}); }
+// It hatches at the first dawn after it came aboard, once the figure is aboard and out at sea with nothing after the
+// boat: a moment for the dawn's news, then the owner's cutscene. The little egg shakes on deck, Crack! Crack!
+// Crrrrack!, and he is out: Congratulations! It's a baby Reaper! Then he hops over the side into the sea. A landing,
+// the shop open at a pier, the map, a dive, the ice, the tank or a beast after the boat puts it off.
+let hatchT = -1, babyTold = false;
+/** The hatching scene's clock, or null when it is not on. */
+function eggT(){ return cine && cine.kind === 'egg' ? cine.t : null; }
+function calmSea(){ return !dangerNear() && !reaper.hunting && !serpent.hunting && !king.fighting && !hiredBoats.chasing && pirate.state !== 'chase'
+  && cthulu.state !== 'awake' && gulper.state !== 'hunt' && deep.state !== 'rise' && deep.state !== 'fight' && deep.state !== 'drag'; }
+function updateEgg(dt){ if (reaperEgg !== 2 || cine){ hatchT = -1; return; }
+  if (!eggDue(reaperEgg, eggDay, day) || !started || walker.state !== 'aboard' || docked || shopOpen || mapOpen || diving || icing || swallowT > 0 || tankOpen || !calmSea()){ hatchT = -1; return; }
+  hatchT = Math.max(0, hatchT + dt);
+  if (hatchT >= HATCH_WAIT){ hatchT = -1; startCine('egg'); } }
+// The scene's beats: each crack, the pop, the banner, and the hop into the sea.
+function updateEggCine(){ const t = cine.t;
+  while (cine.cue < CRACKS.length && t >= CRACKS[cine.cue]){ cine.cue++; sfx.eggCrack(); sfx.eggCrack(); shake = Math.max(shake, .12 + cine.cue*.06); }
+  if (cine.cue === CRACKS.length && t >= POP_T){ cine.cue++; const p = eggSeat(); sfx.babyRoar(); sfx.tierUp(); shake = Math.max(shake, .3);
+    for (let k=0;k<16;k++) sparks.push({x: p.x, y: p.y, vx:(Math.random()-.5)*70, vy:(Math.random()-.5)*70, z: p.z + 8, vz:50+Math.random()*50, age:0, life:.9+Math.random()*.4, c: k % 3 ? '#DCEEFB' : '#4F86C6'});
+    for (let k=0;k<28;k++) sparks.push({x: p.x, y: p.y, vx:(Math.random()-.5)*110, vy:(Math.random()-.5)*110, z: p.z + 30, vz:60+Math.random()*60, age:0, life:1.4+Math.random()*.8, c: ['#F2C230', '#FF8FB0', '#7FD8FF', '#9BE58A', '#FFFFFF'][k % 5]}); }
+  if (cine.cue === CRACKS.length + 1 && t >= INTO_SEA){ cine.cue++; hatch(); } }
+function endEggCine(){ if (reaperEgg === 2) hatch();
+  toast('A baby Reaper! He swims beside your boat, and now and then he leaps. Ashore, he walks with you and nips whatever you fight. Tap him!', 5600, 2); }
+// Out of the scene, or skipped: he hops from the bow into the sea, and he is yours.
+function hatch(){ const p = eggSeat(); reaperEgg = 3; baby.hatchAt(p.x, p.y); sfx.babyRoar();
+  addText(p.x, p.y, 30, 'Rawr!', '#BFE0FF', 18, 1.2);
   hud(); refreshShop(); save(); }
 // The baby Reaper, tapped: at sea he leaps for you; ashore, walk up to him and he gets a pat.
 function babyAt(){ if (baby.shown) return [px(baby.x, baby.y), py(baby.x, baby.y, 10)];
@@ -1342,12 +1357,16 @@ function drawNestHere(){ drawReaperNest(drawView, NEST6.x, NEST6.y, NEST6.r);
 function puff(x, y){ for (let i=0;i<16;i++) sparks.push({x, y, vx:(Math.random()-.5)*90, vy:(Math.random()-.5)*90, z:14, vz:30+Math.random()*40, age:0, life:.8+Math.random()*.5, c:'#B98AFF'}); }
 // The kid's cutscene, once the warlock is free and the figure is back aboard: far off in the south corner of the deep,
 // an evil monkey summons a tar monster out of the sea, the water goes black, and island 4 turns to tar. A tap skips it.
+// The other cutscene is the egg's (kind egg): the camera in close on the bow while the Reaper's egg hatches.
 const CINE = 12, CINE_IN = 2.5, CINE_OUT = 9.5;
+const EGG_CAPTIONS = [[0, 'The Reaper\'s egg is shaking...'], [POP_T + .3, 'He has his dad\'s zigzags, and his dad\'s fin.'], [INTO_SEA - .2, 'And over the side he goes!']];
 const CAPTIONS = [[0, 'Far away, in the south corner of the deep...'], [2.6, 'An evil monkey is summoning something out of the sea.'],
   [4.8, 'A tar monster! The water is turning black.'], [7.6, 'Island 4 is a tar island now. To go there, you will need a chemistry suit from the shipwright.']];
 let cine = null, cineWait = 0, tarToastT = 0;
 const ease = (t) => t*t*(3 - 2*t);
-function cineK(){ if (!cine) return 0; const t = cine.t; return t < CINE_IN ? ease(t/CINE_IN) : t < CINE_OUT ? 1 : ease(clamp(1 - (t - CINE_OUT)/(CINE - CINE_OUT), 0, 1)); }
+function cineLen(){ return cine && cine.kind === 'egg' ? EGG_CINE : CINE; }
+function cineK(){ if (!cine) return 0; const t = cine.t, egg = cine.kind === 'egg', len = cineLen(), i = egg ? EGG_IN : CINE_IN, o = egg ? EGG_OUT : CINE_OUT;
+  return t < i ? ease(t/i) : t < o ? 1 : ease(clamp(1 - (t - o)/(len - o), 0, 1)); }
 // Once it is tar the Anchorer draws the monster, and the evil monkey stands on the beach until it wakes.
 // How island 7 looks now: the camp's chest, the tower's flag once the sorcerer is beaten there, and the portal.
 function isle8Look(){ const fl = (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1);
@@ -1492,22 +1511,27 @@ function updatePortal7(dt){ if (isle7Stage < 1){ portalOpen = 0; return; }
   if (portalOpen < 1 && out){ if (portalOpen === 0){ sfx.portal(); shake = Math.max(shake, .4); toasts.clear(); toast('The ring on the burnt grass is waking up. It is a portal! Walk into it.', 3600, 2); }
     portalOpen = Math.min(1, portalOpen + dt/2.5); } }
 function isle4Look(){ if (isle3Stage >= 4) return {tar: 1, spread: 1, rise: 0, summon: 0, monkey: anchorer.waiting};
-  if (!cine) return {tar: 0, spread: 0, rise: 0, summon: 0, monkey: false};
+  if (!cine || cine.kind !== 'tar') return {tar: 0, spread: 0, rise: 0, summon: 0, monkey: false};
   const t = cine.t, r = (a, b) => clamp((t - a)/(b - a), 0, 1);
   return {summon: r(2.5, 4.6), rise: r(4.4, 6.8), spread: r(5, 8.2), tar: r(6.2, 8.8), monkey: t >= 2.5}; }
-function startCine(){ cine = {t: 0, cue: 0}; toasts.clear(); boat.v = 0; document.body.classList.add('cine'); }
-function endCine(){ cine = null; document.body.classList.remove('cine'); isle3Stage = Math.max(isle3Stage, 4); save(); refreshShop();
+// The tar scene stops the boat where it is; the egg's lets it coast to a stop, its net still out.
+function startCine(kind = 'tar'){ cine = {kind, t: 0, cue: 0}; toasts.clear(); if (kind === 'tar') boat.v = 0; document.body.classList.add('cine'); }
+function endCine(){ const kind = cine.kind; cine = null; document.body.classList.remove('cine'); if (kind === 'egg'){ endEggCine(); return; }
+  isle3Stage = Math.max(isle3Stage, 4); save(); refreshShop();
   toast('Island 4 has turned to tar. A dark marker shows the way there. You need a chemistry suit: dock, and the shipwright in the shop sells one.', 5200, 1); }
 function updateCine(dt){
   if (!cine){ if (isle3Stage === 3 && walker.aboard && started && swallowT <= 0){ cineWait += dt; if (cineWait > 1.5){ cineWait = 0; startCine(); } } else cineWait = 0; return; }
   cine.t += dt;
-  if (cine.cue === 0 && cine.t >= 2.5){ cine.cue = 1; sfx.portal(); }
-  if (cine.cue === 1 && cine.t >= 4.4){ cine.cue = 2; sfx.cthuluWake(); shake = Math.max(shake, .6); }
-  if (cine.t >= CINE) endCine(); }
-cv.addEventListener('pointerdown', () => { if (cine) cine.t = Math.max(cine.t, CINE - .01); });
-function drawCine(){ if (!cine) return; const k = Math.min(1, cine.t/.5, (CINE - cine.t)/.5), bar = H*.11*k;
+  if (cine.kind === 'egg') updateEggCine();
+  else if (cine.cue === 0 && cine.t >= 2.5){ cine.cue = 1; sfx.portal(); }
+  else if (cine.cue === 1 && cine.t >= 4.4){ cine.cue = 2; sfx.cthuluWake(); shake = Math.max(shake, .6); }
+  if (cine.t >= cineLen()) endCine(); }
+// A tap skips it; the egg's only once it is in, so a tap that was steering the boat as it began does not lose it.
+cv.addEventListener('pointerdown', () => { if (cine && (cine.kind !== 'egg' || cine.t > EGG_IN)) cine.t = Math.max(cine.t, cineLen() - .01); });
+function drawCine(){ if (!cine) return; const len = cineLen(), k = Math.min(1, cine.t/.5, (len - cine.t)/.5), bar = H*.11*k;
   ctx.fillStyle = '#05080C'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
-  let cap = ''; for (const [t, c] of CAPTIONS) if (cine.t >= t) cap = c;
+  if (cine.kind === 'egg') drawEggWords();
+  let cap = ''; for (const [t, c] of cine.kind === 'egg' ? EGG_CAPTIONS : CAPTIONS) if (cine.t >= t) cap = c;
   ctx.globalAlpha = k; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFF1D6';
   ctx.font = `800 ${Math.round(Math.min(18, W/22))}px Grandstander, ui-rounded, system-ui, sans-serif`;
   const words = cap.split(' '), lines = []; let line = '';
@@ -1516,6 +1540,17 @@ function drawCine(){ if (!cine) return; const k = Math.min(1, cine.t/.5, (CINE -
   lines.forEach((l, i) => ctx.fillText(l, W/2, H - bar/2 + (i - (lines.length - 1)/2)*22));
   ctx.font = `600 12px Grandstander, ui-rounded, system-ui, sans-serif`; ctx.fillStyle = 'rgba(255,241,214,.6)'; ctx.fillText('Tap to skip', W/2, bar*.75);
   ctx.globalAlpha = 1; }
+// Over the egg, each crack in big comic letters, popping up and fading; then the banner: Congratulations! It's a baby Reaper!
+function drawEggWords(){ const t = cine.t, p = eggSeat(), ex = px(p.x, p.y), ey = py(p.x, p.y, p.z), pop = (u) => u < .18 ? .4 + u/.18*.75 : u < .3 ? 1.15 - (u - .18)/.12*.15 : 1;
+  const word = (text, x, y, size, fill, tilt, a) => { ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(tilt);
+    ctx.font = `900 ${Math.round(size)}px Grandstander, ui-rounded, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = size*.18; ctx.strokeStyle = '#1D2B3A'; ctx.strokeText(text, 0, 0); ctx.fillStyle = fill; ctx.fillText(text, 0, 0); ctx.restore(); };
+  CRACKS.forEach((c, i) => { const u = t - c; if (u < 0 || u > 1.1 || t >= POP_T) return;
+    const big = i === CRACKS.length - 1, side = i % 2 ? 1 : -1;
+    word(CRACK_WORDS[i], ex + side*Math.min(W*.22, 70)*(big ? .2 : 1), ey - 70 - i*14 - u*14, Math.min(W/8, big ? 52 : 40)*pop(u), '#FFFBEF', side*.12, Math.min(1, (1.1 - u)/.3)); });
+  const u = t - POP_T - .15; if (u < 0) return; const a = Math.min(1, u/.2, (EGG_CINE - .3 - t)/.4);
+  word('Congratulations!', W/2, H*.2, Math.min(W/9, 46)*pop(u), '#F2C230', -.04, a);
+  word('It\'s a baby Reaper!', W/2, H*.2 + Math.min(W/9, 46)*1.05, Math.min(W/13, 32)*pop(Math.max(0, u - .2)), '#BFE0FF', .03, u < .2 ? 0 : a); }
 function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || boss.up || boss3.up || boss7.up || heron.up || heron9.up || nest.up || swordsman.up || demons.some(d => d.up) || anchorer.up || landReaper.awake || cth.up || lancers.roused || oldOne.up || !!oldScene || pullT > 0; }
 warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
@@ -2588,7 +2623,8 @@ function update(dt){
   updateFishing(dt);
   lionfish.here = shipwrightOpen(tier()); lionfish.sweeps = gear.lionnet; updateMend(dt); updateRadio(); updateSeine(dt); updatePots(dt); updateTrench(dt); updateFloe(dt); updateRod(dt); updateCharter(); updateStorm(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView) - Z)*Math.min(1, dt*4);
+  // The egg's scene comes in close on the bow.
+  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + (cine && cine.kind === 'egg' ? 1.4*cineK() : 0)) - Z)*Math.min(1, dt*4);
 
   /* bits */
   wakeT -= dt;
@@ -2609,7 +2645,7 @@ function update(dt){
   lx += (walker.x + walker.vx*.3 - lx)*walkView; ly += (walker.y + walker.vy*.3 - ly)*walkView;
   // Fighting the Reaper on land, the camera takes him in too: he is big, and the messages sit over the figure's head.
   if (landReaper.awake && walker.shown){ const c = .35*walkView; lx += (landReaper.x - lx)*c; ly += (landReaper.y - ly)*c; }
-  if (cine){ const c = cineK(); lx = lx*(1-c) + (ISLE4.x - 70)*c; ly = ly*(1-c) + (ISLE4.y - 70)*c; }
+  if (cine){ const c = cineK(), e = cine.kind === 'egg' ? eggSeat() : {x: ISLE4.x - 70, y: ISLE4.y - 70}; lx = lx*(1-c) + e.x*c; ly = ly*(1-c) + e.y*c; }
   if (kingDying()){ const c = clamp(Math.min(king.t, 12 - king.t)/.8, 0, 1); lx = lx*(1-c) + king.x*c; ly = ly*(1-c) + king.y*c; }
   viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK());
   cam.x += (lx-cam.x)*Math.min(1, dt*3.5); cam.y += (ly-cam.y)*Math.min(1, dt*3.5);
@@ -3393,5 +3429,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, reaper, get reaperSeen(){ return reaperSeen; }, landReaper, get reaperLandSeen(){ return reaperLandSeen; }, get reaperEgg(){ return reaperEgg; }, set reaperEgg(v){ reaperEgg = v; }, get eggDay(){ return eggDay; }, set eggDay(v){ eggDay = v; }, get hatchT(){ return hatchT; }, baby, get babyAt(){ return babyAt(); }, tapBaby, NEST6, get icing(){ return icing; }, get iceRun(){ return iceRun; }, get iceSeen(){ return iceSeen; }, get iceRuns(){ return iceRuns; }, get iceLoot(){ return iceLoot; }, ICE_FLOE, neil, tapNeil, get neilAt(){ return neilAt(); }, get iceSeal(){ return iceSeal; }, startIce, iceDrop, FLOE_BASE, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, get bases(){ return bases; }, BASES, get pots(){ return pots; }, get diving(){ return diving; }, diver, startDive, trenchSh, get diveAim(){ return diveAim; }, diveThrow, get diveT(){ return diveT; }, get trenchSeen(){ return trenchSeen; }, get trenchDeep(){ return trenchDeep; }, storm, get stormE(){ return stormE; }, get stormSeen(){ return stormSeen; }, get charter(){ return charter; }, get charterOffer(){ return charterOffer; }, get chartersRun(){ return chartersRun; }, get trenchLoot(){ return trenchLoot; }, get wreckChest(){ return wreckChest; }, get diveSite(){ return diveSite; }, boneSharks, WRECK, WRECK_CHEST, get pearlDay(){ return pearlDay; }, TRENCH_LOOT, lurker, get lurkerSeen(){ return lurkerSeen; }, get lurkerStung(){ return lurkerStung; }, TRENCH, tapPot, swallow, seine, get haulLeft(){ return haul.length; }, toggleSeine, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, necroPal, otter, tapOtter, OTTER_HOME, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, get radarOn(){ return radarOn(); }, radarBlips, checkForUpdate, get updateReady(){ return updateReady; }, coastGuard, get radioDay(){ return radioDay; }, set radioDay(v){ radioDay = v; }, openMap, closeMap, mapMarks, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
+window.__np = {get cine(){ return cine; }, monkeys7, get isle7Seen(){ return isle7Seen; }, get isle7Stage(){ return isle7Stage; }, set isle7Stage(v){ isle7Stage = v; }, get portalOpen(){ return portalOpen; }, boss7, roofMonkeys, hordes, forgotten, lancers, oldOne, get soulArmour(){ return soulArmour; }, allies, bonesPal, cat, warrior, get catAt(){ return catAt(); }, deep, cth, get isle6Stage(){ return isle6Stage; }, set isle6Stage(v){ isle6Stage = v; }, get isle5Seen(){ return isle5Seen; }, get isle6Seen(){ return isle6Seen; }, get chests6(){ return chests6; }, CHESTS6, king, get isle5Stage(){ return isle5Stage; }, isle4Look, anchorer, tarling, get isle4Stage(){ return isle4Stage; }, set isle4Stage(v){ isle4Stage = v; }, get isle3Seen(){ return isle3Seen; }, get isle3Stage(){ return isle3Stage; }, boss3, swordsman, demons, demonMonkeys, warlock, wboat, rare, lev, leviathan, turtles, get turtleSwims(){ return turtleSwims; }, cthulu, angler, gulper, serpent, get meteorSeen(){ return meteorSeen; }, reaper, get reaperSeen(){ return reaperSeen; }, landReaper, get reaperLandSeen(){ return reaperLandSeen; }, get reaperEgg(){ return reaperEgg; }, set reaperEgg(v){ reaperEgg = v; }, get eggDay(){ return eggDay; }, set eggDay(v){ eggDay = v; }, get hatchT(){ return hatchT; }, get eggT(){ return eggT(); }, baby, get babyAt(){ return babyAt(); }, tapBaby, NEST6, get icing(){ return icing; }, get iceRun(){ return iceRun; }, get iceSeen(){ return iceSeen; }, get iceRuns(){ return iceRuns; }, get iceLoot(){ return iceLoot; }, ICE_FLOE, neil, tapNeil, get neilAt(){ return neilAt(); }, get iceSeal(){ return iceSeal; }, startIce, iceDrop, FLOE_BASE, driven, get harpoonTarget(){ const t = harpoonTarget(); return t ? t.k : null; }, fireHarpoon, shallows, monkeys, floors, boss, get floor(){ return floor; }, get towerTaken(){ return towerTaken; }, get hearts(){ return hearts; }, get masks(){ return masks; }, get spear(){ return spear; }, set spear(v){ spear = v; refreshShop(); }, get armour(){ return armour; }, get maxHearts(){ return maxHearts(); }, lionfish, rod, get lionSeen(){ return lionSeen; }, get lionCaught(){ return lionCaught; }, get aquarium(){ return aquarium; }, get bases(){ return bases; }, BASES, get pots(){ return pots; }, get diving(){ return diving; }, diver, startDive, trenchSh, get diveAim(){ return diveAim; }, diveThrow, get diveT(){ return diveT; }, get trenchSeen(){ return trenchSeen; }, get trenchDeep(){ return trenchDeep; }, storm, get stormE(){ return stormE; }, get stormSeen(){ return stormSeen; }, get charter(){ return charter; }, get charterOffer(){ return charterOffer; }, get chartersRun(){ return chartersRun; }, get trenchLoot(){ return trenchLoot; }, get wreckChest(){ return wreckChest; }, get diveSite(){ return diveSite; }, boneSharks, WRECK, WRECK_CHEST, get pearlDay(){ return pearlDay; }, TRENCH_LOOT, lurker, get lurkerSeen(){ return lurkerSeen; }, get lurkerStung(){ return lurkerStung; }, TRENCH, tapPot, swallow, seine, get haulLeft(){ return haul.length; }, toggleSeine, naga, get nagaFree(){ return nagaFree; }, NAGA_CAGE, get isle8Seen(){ return isle8Seen; }, hired8, hired9, hiredBoats, heron, heron9, nest, nestHorde, NEST9, necroPal, otter, tapOtter, OTTER_HOME, get heronStage(){ return heronStage; }, set heronStage(v){ heronStage = v; }, ROOF8, ISLE8, ISLE9, BAR, DOOR8, DOOR9, set aquarium(v){ aquarium = v; refreshShop(); }, get tankOpen(){ return tankOpen; }, tankView, openTank, closeTank, AQUARIUM, get netCut(){ return netCut(); }, get mending(){ return mendT > 0; }, get sailedShare(){ return sailedShare(sailed); }, get mapOpen(){ return mapOpen; }, get radarOn(){ return radarOn(); }, radarBlips, checkForUpdate, get updateReady(){ return updateReady; }, coastGuard, get radioDay(){ return radioDay; }, set radioDay(v){ radioDay = v; }, openMap, closeMap, mapMarks, get swallowing(){ return swallowT > 0; }, get hp(){ return hp; }, walker, get dogAt(){ const d = pets.dog; return d ? [px(d.x, d.y), py(d.x, d.y, d.z + 12)] : null; }, get petted(){ return petted; }, jellies, pets, whales, mantas, snook, get fight(){return fight;}, SNOOK_SPOT, gear, set coins(v){coins=v; hud(); refreshShop();}, get day(){return day;}, first, get earned(){return earned;}, set earned(v){earned=v;}, get market(){return market;}, get clock(){return clock;}, set clock(v){clock=v;}, get keys(){return keyMode;}, set keys(v){keyMode=v; keysLabel();}, get ambience(){return !!ambience;}, get phase(){return phase;}, boat, net, schools, pirate, sharks, flotsam, drift, pods: dolphins.pods, lv, DOCK, set build(v){build=v;}, set wood(v){wood=v; hudWood(); refreshShop();}, get hold(){return holdTotal;}, get coins(){return coins;}};
 })();

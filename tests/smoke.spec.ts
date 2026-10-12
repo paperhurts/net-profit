@@ -97,7 +97,7 @@ type Np = {
   demons: { up: boolean; state: string; hit(power: number): boolean }[];
   warlock: { shown: boolean; x: number; y: number; hearts: number; bolts: unknown[] };
   wboat: { free: boolean; x: number; y: number; catches: number };
-  cine: { t: number } | null;
+  cine: { t: number; kind: string } | null;
   floors: {
     list: { x: number; y: number }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
@@ -213,6 +213,7 @@ type Np = {
   reaperEgg: number;
   eggDay: number;
   hatchT: number;
+  eggT: number | null;
   baby: {
     shown: boolean;
     swimming: boolean;
@@ -2042,12 +2043,21 @@ test("the Reaper's egg hatches at dawn: the baby swims and leaps by the boat, an
   // Taken aboard today: it waits for the morning.
   await page.waitForTimeout(1200);
   expect(await page.evaluate(() => [window.__np.reaperEgg, window.__np.hatchT])).toEqual([2, -1]);
-  // A new day: a moment for the dawn, then it rocks, cracks, and he is out.
+  // A new day: a moment for the dawn, then the cutscene. The little egg shakes on deck, Crack! Crack! Crrrrack!,
+  // he is out, and over the side he goes.
   await page.evaluate(() => {
     window.__np.eggDay = 0;
   });
-  await expect(page.locator('#toast')).toContainText('hatching', { timeout: 6000 });
-  await page.waitForFunction(() => window.__np.reaperEgg === 3, null, { timeout: 8000 });
+  await page.waitForFunction(() => window.__np.cine?.kind === 'egg', null, { timeout: 5000 });
+  await expect(page.locator('body')).toHaveClass(/cine/);
+  // A tap as it begins does not skip it.
+  await page.mouse.click(195, 600);
+  expect(await page.evaluate(() => window.__np.cine?.kind)).toBe('egg');
+  await page.waitForFunction(() => (window.__np.eggT ?? 0) > 5.4, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.reaperEgg)).toBe(2);
+  await page.waitForFunction(() => window.__np.reaperEgg === 3, null, { timeout: 5000 });
+  await page.waitForFunction(() => window.__np.cine === null, null, { timeout: 4000 });
+  await expect(page.locator('body')).not.toHaveClass(/cine/);
   await expect(page.locator('#toast')).toContainText('baby Reaper');
   await page.waitForFunction(() => window.__np.baby.swimming && window.__np.baby.leapT < 0, null, {
     timeout: 3000,
