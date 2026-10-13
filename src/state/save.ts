@@ -9,6 +9,7 @@ import { ARMOUR_MAX } from '../data/armour';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
+import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { SPEAR_MAX } from '../data/spear';
 import { type Charter, parseCharter } from '../fishing/charter';
 import { type Pot, parsePots } from '../fishing/pots';
@@ -124,6 +125,10 @@ export type SaveData = {
   eggDay: number;
   /** Who rides which craft of the flotilla, the kid's choice (data/crew.ts). */
   crew: Crew;
+  /** Junk the net brought up, in the bucket on deck for the muffin man (data/junk.ts). */
+  junk: number;
+  /** The fish muffins in the box, each the time it was baked, in game days. */
+  muffins: number[];
   /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
   iceSeen: boolean;
   iceRuns: number;
@@ -276,6 +281,8 @@ export function defaultSave(b: Bounds): SaveData {
     reaperEgg: 0,
     eggDay: 0,
     crew: { ...DEFAULT_CREW },
+    junk: 0,
+    muffins: [],
     iceSeen: false,
     iceRuns: 0,
     lionSeen: false,
@@ -415,6 +422,9 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.eggDay = Math.max(0, int(o.eggDay));
   // Missing in a save from before the Boats card, read as the crew they started with.
   d.crew = parseCrew(o.crew);
+  // Missing in a save from before the muffin man baked, read as none.
+  d.junk = between(int(o.junk), 0, JUNK_MAX);
+  d.muffins = parseMuffins(o.muffins);
   d.iceSeen = !!o.iceSeen;
   d.iceRuns =
     typeof o.iceRuns === 'number' && Number.isFinite(o.iceRuns) && o.iceRuns > 0
@@ -539,6 +549,8 @@ export function serializeSave(d: SaveData): string {
     reaperEgg: d.reaperEgg,
     eggDay: d.eggDay,
     crew: d.crew,
+    junk: d.junk,
+    muffins: d.muffins,
     iceSeen: d.iceSeen,
     iceRuns: d.iceRuns,
     lionSeen: d.lionSeen,

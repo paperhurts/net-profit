@@ -34,6 +34,10 @@ type Np = {
   petted: boolean;
   muffin: { line: number; near: boolean; saying(): string | null };
   bakerAt: [number, number];
+  junk: number;
+  muffins: number[];
+  hearts: number;
+  setHearts(n: number): void;
   swallowing: boolean;
   swallow(by: string): void;
   bases: Record<string, number>;
@@ -272,6 +276,8 @@ type Np = {
 declare global {
   interface Window {
     __np: Np;
+    /** Junk the net brings up with the next fish, for a test. */
+    __npJunk?: string;
   }
 }
 
@@ -595,6 +601,94 @@ test('the muffin man: a tap from far off asks you to walk up; close by, his loop
     'Do you know him?',
     'Do you know the muffin man?',
   ]);
+  expect(errors).toEqual([]);
+});
+
+test('junk: now and then the net brings up junk with the fish, into a bucket on deck, not the hold', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true });
+  await page.evaluate(() => {
+    window.__npJunk = 'boot';
+  });
+  const [sx, sy] = await page.evaluate((): [number, number] => {
+    const s = window.__np.schools[0];
+    if (!s) throw new Error('no schools');
+    return [s.cx, s.cy];
+  });
+  await expect(page.locator('#junk')).toBeHidden();
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  for (let i = 0; i < 80 && (await page.evaluate(() => window.__np.junk)) < 2; i++) {
+    await steerTo(page, sx, sy, 40, i);
+    await page.waitForTimeout(150);
+  }
+  await page.mouse.up();
+  await page.evaluate(() => {
+    window.__npJunk = undefined;
+  });
+  await page.waitForTimeout(300);
+  const { junk, hold } = await page.evaluate(() => ({
+    junk: window.__np.junk,
+    hold: window.__np.hold,
+  }));
+  expect(junk, 'no junk came up').toBeGreaterThanOrEqual(2);
+  // The hold has only the fish in it.
+  expect(hold).toBeGreaterThanOrEqual(junk);
+  await expect(page.locator('#junk')).toBeVisible();
+  await expect(page.locator('#junk')).toContainText(String(junk));
+  expect(errors).toEqual([]);
+});
+
+test('fish muffins: the muffin man bakes your junk into muffins, kept on reload, and one eaten gives a heart back', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    junk: 3,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#junk')).toContainText('3');
+  await expect(page.locator('#muffinBtn')).toBeHidden();
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2580 + 46;
+    window.__np.walker.y = 2400 + 2;
+  });
+  await page.waitForTimeout(2500);
+  const at = await page.evaluate(() => window.__np.bakerAt);
+  await page.mouse.click(at[0], at[1]);
+  // He still says his line, and takes the junk for muffins.
+  expect(await page.evaluate(() => window.__np.muffin.saying())).toBe(
+    'Do you know the muffin man?',
+  );
+  expect(
+    await page.evaluate(() => ({ junk: window.__np.junk, muffins: window.__np.muffins.length })),
+  ).toEqual({
+    junk: 0,
+    muffins: 3,
+  });
+  await expect(page.locator('#junk')).toBeHidden();
+  await expect(page.locator('#muffinBtn')).toContainText('3');
+
+  // Full hearts: he says to keep it. Hurt, ashore: one is eaten, a heart comes back.
+  await page.click('#muffinBtn');
+  await expect(page.locator('#toast')).toContainText('Keep it for a fight');
+  expect(await page.evaluate(() => window.__np.muffins.length)).toBe(3);
+  await page.evaluate(() => window.__np.setHearts(1));
+  await page.waitForTimeout(300);
+  const before = await page.evaluate(() => window.__np.hearts);
+  await page.click('#muffinBtn');
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(before + 1);
+  await expect(page.locator('#muffinBtn')).toContainText('2');
+
+  // Kept on reload.
+  await page.reload();
+  await page.click('#go');
+  await expect(page.locator('#muffinBtn')).toContainText('2');
   expect(errors).toEqual([]);
 });
 

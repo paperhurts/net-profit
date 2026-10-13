@@ -385,6 +385,12 @@ export const cues = {
     tone(520, 0.06, 'square', 0.05, 1.3);
     tone(430, 0.08, 'square', 0.05, 1.25, 0.11);
   },
+  /** A fish muffin eaten: two crunchy munches and a happy note. */
+  nom(): void {
+    tone(220, 0.05, 'square', 0.035, 0.7);
+    tone(200, 0.05, 'square', 0.035, 0.7, 0.11);
+    tone(660, 0.14, 'triangle', 0.05, 1.2, 0.24);
+  },
   /**
    * The muffin man says a line of his loop, in a sing-song: up at the end of a question, and down, proudly, for
    * "I AM the muffin man."

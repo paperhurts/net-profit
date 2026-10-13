@@ -60,7 +60,7 @@ button:focus-visible{outline:3px solid var(--coin);outline-offset:2px}
 
 body.cine .hud,body.cine #order,body.cine #charter,body.cine #rchips,body.cine #toast{opacity:0;transition:opacity .4s}
 body.cine #mapBtn,body.cine #radioBtn{opacity:0;pointer-events:none;transition:opacity .4s}
-body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,body.inside #market,body.inside #wood{display:none}
+body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,body.inside #market,body.inside #wood,body.inside #junk{display:none}
 .hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;pointer-events:none;
   padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left))}
 .pill{pointer-events:auto;background:var(--pill-bg);color:var(--pill-fg);border-radius:999px;height:40px;padding:0 14px;
@@ -159,11 +159,14 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 #hull[hidden]{display:none}
 .hbar{width:48px;height:9px;border-radius:9px;background:var(--track);overflow:hidden;margin-top:-2px}
 .hbar i{display:block;height:100%;border-radius:9px}
-#wood,#phase,#market,#hull{
+#wood,#phase,#market,#hull,#junk,#muffinBtn{
   background:var(--pill-bg);color:var(--pill-fg);border-radius:12px;padding:7px 11px 4px;font-size:13.5px;font-weight:800;line-height:1;
   display:flex;gap:6px;align-items:center;box-shadow:0 2px 0 var(--pill-shadow)}
 #wood svg,#market svg{margin-top:-3px}
-#market[hidden]{display:none}
+#market[hidden],#junk[hidden],#muffinBtn[hidden]{display:none}
+#muffinBtn{pointer-events:auto;border:0;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;outline:2px solid #F28FAE;outline-offset:-2px;padding:5px 11px 3px}
+#muffinBtn svg{margin-top:-2px}
+#junk svg{margin-top:-3px}
 .build{width:100%;margin-top:8px;background:var(--card);color:var(--card-fg);border-radius:11px;padding:9px 8px 8px 10px;text-align:left;
   display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 3px 0 rgba(0,0,0,.22)}
 .build > span:first-child{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -207,12 +210,12 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 #iglooBtn{position:fixed;left:50%;bottom:calc(162px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;font-size:15px;height:40px;padding:3px 16px 0;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #iglooBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #iceLeave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
-body.icing #order,body.icing #charter,body.icing #hull,body.icing #market,body.icing #wood,body.icing #mapBtn,body.icing #seineBtn,body.icing #potBtn,body.icing #mend,body.icing #rodcast,body.icing #cast,body.icing #throw,body.icing #iglooBtn,body.icing #diveBtn{display:none}
+body.icing #order,body.icing #charter,body.icing #hull,body.icing #market,body.icing #wood,body.icing #junk,body.icing #muffinBtn,body.icing #mapBtn,body.icing #seineBtn,body.icing #potBtn,body.icing #mend,body.icing #rodcast,body.icing #cast,body.icing #throw,body.icing #iglooBtn,body.icing #diveBtn{display:none}
 /* Alongside the ice floe with scuba gear: Ice fish, then Dive under the ice, then the igloo's button, one over the other. */
 body.floedive #diveBtn{bottom:calc(162px + env(safe-area-inset-bottom))}
 body.floedive #iglooBtn{bottom:calc(220px + env(safe-area-inset-bottom))}
 /* Diving, the sea's own buttons and bubbles stand down: the dive draws its own air and depth. The hold stays, for what is speared, and so does the throw button. */
-body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,body.diving #wood,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast,body.diving #iceBtn,body.diving #iglooBtn{display:none}
+body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,body.diving #wood,body.diving #junk,body.diving #muffinBtn,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast,body.diving #iceBtn,body.diving #iglooBtn{display:none}
 #leave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;font-size:14px;height:38px;padding:3px 14px 0}
 /* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
 #throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;
@@ -347,7 +350,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 
 <div id="order" aria-live="polite"></div>
 <div id="charter" aria-live="polite" hidden></div>
-<div id="rchips"><div id="hearts" title="Your hearts" hidden></div><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div></div>
+<div id="rchips"><div id="hearts" title="Your hearts" hidden></div><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div></div>
 <div id="toast" role="status"></div>
 <canvas id="radar" hidden aria-hidden="true"></canvas>
 <button class="pill icon" id="mapBtn" aria-label="Sea map" title="Sea map"><svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true"><path d="M2 4l6-2 8 3 6-2v15l-6 2-8-3-6 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 2v15M16 5v15" stroke="currentColor" stroke-width="2"/></svg></button>
