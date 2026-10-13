@@ -120,6 +120,8 @@ export type SaveData = {
   reaperSeen: boolean;
   /** The Reaper on land, the second of him, has been sighted asleep by his nest on island 6. */
   reaperLandSeen: boolean;
+  /** The Reaper on land is back by his nest for a rematch (the tester panel's), though his egg has been had. */
+  reaperRematch: boolean;
   /** His egg: 0 he is not beaten; 1 beaten, the egg waiting in his nest; 2 the egg is yours, aboard; 3 hatched. */
   reaperEgg: number;
   /** The day the egg was taken aboard: it hatches at the next dawn. */
@@ -283,6 +285,7 @@ export function defaultSave(b: Bounds): SaveData {
     meteorSeen: false,
     reaperSeen: false,
     reaperLandSeen: false,
+    reaperRematch: false,
     reaperEgg: 0,
     eggDay: 0,
     crew: { ...DEFAULT_CREW },
@@ -424,6 +427,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.meteorSeen = !!o.meteorSeen;
   d.reaperSeen = !!o.reaperSeen;
   d.reaperLandSeen = !!o.reaperLandSeen;
+  d.reaperRematch = !!o.reaperRematch;
   d.reaperEgg = Math.max(0, Math.min(EGG_STAGES, int(o.reaperEgg)));
   // Missing in a save from before the egg could hatch, read as day 0: an egg already aboard hatches at once.
   d.eggDay = Math.max(0, int(o.eggDay));
@@ -556,6 +560,7 @@ export function serializeSave(d: SaveData): string {
     meteorSeen: d.meteorSeen,
     reaperSeen: d.reaperSeen,
     reaperLandSeen: d.reaperLandSeen,
+    reaperRematch: d.reaperRematch,
     reaperEgg: d.reaperEgg,
     eggDay: d.eggDay,
     crew: d.crew,

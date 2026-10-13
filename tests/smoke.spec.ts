@@ -230,6 +230,7 @@ type Np = {
   };
   reaperLandSeen: boolean;
   reaperEgg: number;
+  reaperRematch: boolean;
   eggDay: number;
   hatchT: number;
   eggT: number | null;
@@ -4392,6 +4393,63 @@ test('tester: the #tester link shows a Tester button in the shop, and skipping t
     timeout: 2000,
   });
   expect(new URL(page.url()).hash).toBe('');
+  expect(errors).toEqual([]);
+});
+
+test('tester: the egg buttons leave a Reaper on land never beaten asleep by his nest, and a button brings him back for a rematch', async ({
+  context,
+  page,
+}) => {
+  // A game restored from the tester: the egg given, the Reaper on land never fought.
+  const errors = await boot(
+    context,
+    page,
+    { muted: true, coins: 300, isle6Seen: true },
+    './#tester',
+  );
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await page.locator('#testerExtras [data-extra="hatch"]').click();
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => [window.__np.reaperEgg, window.__np.reaperRematch])).toEqual([
+    2,
+    true,
+  ]);
+  await page.waitForFunction(() => window.__np.landReaper.state !== 'gone', null, {
+    timeout: 2000,
+  });
+  // Still there after a reload.
+  await page.reload();
+  await page.click('#go');
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__np.landReaper.state)).toBe('sleep');
+  expect(errors).toEqual([]);
+});
+
+test('tester: a Reaper on land already beaten comes back by his nest for a rematch, and stays for it after a reload', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(
+    context,
+    page,
+    { muted: true, coins: 300, isle6Seen: true, reaperEgg: 3 },
+    './#tester',
+  );
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__np.landReaper.state)).toBe('gone');
+  await page.locator('#testerBtn').dispatchEvent('click');
+  const b = page.locator('#testerExtras [data-extra="reaperland"]');
+  await expect(b).toContainText('Add');
+  await b.click();
+  await expect(b).toContainText('Have it', { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [window.__np.landReaper.state, window.__np.reaperRematch]),
+  ).toEqual(['sleep', true]);
+  await page.reload();
+  await page.click('#go');
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__np.landReaper.state)).toBe('sleep');
+  expect(await page.evaluate(() => window.__np.reaperEgg)).toBe(3);
   expect(errors).toEqual([]);
 });
 
