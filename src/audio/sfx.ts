@@ -385,6 +385,31 @@ export const cues = {
     tone(520, 0.06, 'square', 0.05, 1.3);
     tone(430, 0.08, 'square', 0.05, 1.25, 0.11);
   },
+  /**
+   * The muffin man says a line of his loop, in a sing-song: up at the end of a question, and down, proudly, for
+   * "I AM the muffin man."
+   */
+  muffinMan(line: number): void {
+    const tune = MUFFIN_TUNES[line % MUFFIN_TUNES.length] ?? [];
+    tune.forEach((f, i) => {
+      const last = i === tune.length - 1;
+      tone(
+        f,
+        last ? 0.16 : 0.09,
+        'triangle',
+        0.06,
+        last ? (line % 3 === 1 ? 0.88 : 1.12) : 0,
+        i * 0.1,
+      );
+    });
+  },
 };
+
+/** The muffin man's three lines, as notes. */
+const MUFFIN_TUNES: readonly (readonly number[])[] = [
+  [392, 392, 440, 523],
+  [330, 294, 262],
+  [392, 440, 587],
+];
 
 export type Cue = keyof typeof cues;

@@ -32,6 +32,8 @@ type Np = {
   };
   dogAt: [number, number] | null;
   petted: boolean;
+  muffin: { line: number; near: boolean; saying(): string | null };
+  bakerAt: [number, number];
   swallowing: boolean;
   swallow(by: string): void;
   bases: Record<string, number>;
@@ -554,6 +556,45 @@ test('ashore: step off at the dock, pet the dog, walk up the pier onto the islan
   await page.click('#aboard');
   await page.waitForFunction(() => window.__np.walker.state === 'aboard', null, { timeout: 2000 });
   await expect(page.locator('#shop')).toHaveClass(/open/);
+  expect(errors).toEqual([]);
+});
+
+test('the muffin man: a tap from far off asks you to walk up; close by, his loop goes round and never resolves', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // From the end of the pier he is out of reach: a word says to walk up, and he says nothing.
+  await page.waitForTimeout(600);
+  let at = await page.evaluate(() => window.__np.bakerAt);
+  await page.mouse.click(at[0], at[1]);
+  await expect(page.locator('#toast')).toContainText('Walk up to the baker');
+  expect(await page.evaluate(() => window.__np.muffin.line)).toBe(-1);
+
+  // In front of his counter, a "..." says he would talk, and each tap is the next line, round and round.
+  await page.evaluate(() => {
+    window.__np.walker.x = 2580 + 46;
+    window.__np.walker.y = 2400 + 2;
+  });
+  await page.waitForFunction(() => window.__np.muffin.near, null, { timeout: 2000 });
+  await page.waitForTimeout(2500);
+  const said: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    at = await page.evaluate(() => window.__np.bakerAt);
+    await page.mouse.click(at[0], at[1]);
+    said.push((await page.evaluate(() => window.__np.muffin.saying())) ?? '');
+  }
+  expect(said).toEqual([
+    'Do you know the muffin man?',
+    'I AM the muffin man.',
+    'Do you know him?',
+    'Do you know the muffin man?',
+  ]);
   expect(errors).toEqual([]);
 });
 
