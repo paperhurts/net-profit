@@ -33,7 +33,10 @@ export function drawCraft(v: DrawView, c: Craft, rider: Rider | null): void {
   };
   const poly = (pts: [number, number][], fill: string, stroke = true) => {
     ctx.beginPath();
-    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    pts.forEach(([x, y], i) => {
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    });
     ctx.closePath();
     ctx.fillStyle = fill;
     ctx.fill();
