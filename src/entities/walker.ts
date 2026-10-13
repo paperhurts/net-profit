@@ -104,6 +104,7 @@ import {
 } from '../world/isle8';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
+import { BAKERY, DRURY_LANE } from './muffinman';
 
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
 export const WALK_SPEED = 85;
@@ -361,6 +362,9 @@ export const PROPS: readonly Prop[] = [
   // The crates on the pier, a little inside their fronts so the way past along the front edge is wide enough.
   prop(PX0 + 117, IY - 13, PX0 + 141, IY + 8, 0, 0, 0, false),
   prop(PX0 + 93, IY - 14, PX0 + 111, IY + 2, 0, 0, 0, false),
+  // The muffin man's stall on the pier's far edge, and the Drury Lane sign's post on the sand beside it.
+  prop(BAKERY.x0, BAKERY.y0, BAKERY.x1, BAKERY.y1, 0, 0, 0, false),
+  post([DRURY_LANE.x, DRURY_LANE.y], 2, DRURY_LANE.x + DRURY_LANE.y),
   // The umbrella's pole, sorted with the beach things; the toll sign's post, with the bridge's last part.
   post(UMBRELLA, 3, BEACH.x + BEACH.y),
   post(TOLL_SIGN, 2.5, bridgePartDepth(BRIDGE_PARTS - 1)),
