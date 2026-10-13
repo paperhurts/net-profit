@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ARC,
+  assignSlots,
+  FORM_SPEED,
   FRONT_DEPTH,
   FRONT_WIDE,
+  formation,
+  formUp,
+  RING_STEP,
+  RING0,
+  SLOT_GAP,
+  type Slot,
   SPREAD_FIGURE,
   SPREAD_GAP,
   SPREAD_NEAR,
@@ -80,5 +89,87 @@ describe('companions keep a little apart', () => {
     const d = { x: 6, y: 5 };
     spreadOut([c, d], { x: 5, y: 6 }, DT, () => {});
     expect(c).toEqual({ x: 5, y: 5 });
+  });
+});
+
+describe('the whole army, outside a fight', () => {
+  it('has a place each, ring by ring behind the figure, never in front of it, none closer than the gap', () => {
+    for (const n of [1, 3, 8, 12]) {
+      const slots = formation(n);
+      expect(slots).toHaveLength(n);
+      // The near ring fills before the next.
+      for (let i = 1; i < n; i++)
+        expect((slots[i] as Slot).r).toBeGreaterThanOrEqual((slots[i - 1] as Slot).r);
+      expect((slots[0] as Slot).r).toBe(RING0);
+      for (const s of slots) {
+        // Never where the old rule would call it in front of the figure, hiding it.
+        const depth = s.dx + s.dy;
+        const across = s.dx - s.dy;
+        expect(depth > 0 && depth < FRONT_DEPTH && Math.abs(across) < FRONT_WIDE).toBe(false);
+        // Within the arc either side of straight behind (up the screen).
+        const a = Math.atan2(s.dy, s.dx) + (3 * Math.PI) / 4;
+        expect(Math.abs(Math.atan2(Math.sin(a), Math.cos(a)))).toBeLessThanOrEqual(ARC + 1e-9);
+      }
+      for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++) {
+          const p = slots[i] as Slot;
+          const q = slots[j] as Slot;
+          expect(Math.hypot(p.dx - q.dx, p.dy - q.dy)).toBeGreaterThan(
+            Math.min(SLOT_GAP, RING_STEP) - 1,
+          );
+        }
+    }
+  });
+
+  it('passes over a place the figure could not walk to, such as the sea', () => {
+    // The sea to the left of the screen: nothing with x below y.
+    const slots = formation(6, (dx, dy) => dx >= dy);
+    expect(slots).toHaveLength(6);
+    for (const s of slots) expect(s.dx).toBeGreaterThanOrEqual(s.dy);
+  });
+
+  it('gives each the place on its own side, so none walks across another or in front of the figure', () => {
+    const figure = { x: 0, y: 0 };
+    // Two in the near ring: one off to the screen's left, one off to its right.
+    const left = { x: -30, y: 10 };
+    const right = { x: 10, y: -30 };
+    const slots = formation(2);
+    const [a, b] = assignSlots([right, left], slots, figure);
+    expect(a && b).toBeTruthy();
+    // Screen left is x below y.
+    expect((b as Slot).dx - (b as Slot).dy).toBeLessThan(0);
+    expect((a as Slot).dx - (a as Slot).dy).toBeGreaterThan(0);
+    expect(a).not.toBe(b);
+  });
+
+  it('forms up: eight stacked behind the figure walk out to their places and stand apart', () => {
+    const figure = { x: 0, y: 0 };
+    const army = Array.from({ length: 8 }, (_, i) => ({ x: -20 - i, y: -18 - i }));
+    const slots = assignSlots(army, formation(army.length), figure);
+    for (let i = 0; i < 6 / DT; i++) formUp(army, slots, figure, DT, move);
+    army.forEach((b, i) => {
+      const s = slots[i] as Slot;
+      expect(Math.hypot(b.x - s.dx, b.y - s.dy)).toBeLessThan(1.5);
+    });
+    for (let i = 0; i < army.length; i++)
+      for (let j = i + 1; j < army.length; j++) {
+        const p = army[i] as { x: number; y: number };
+        const q = army[j] as { x: number; y: number };
+        expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeGreaterThan(Math.min(SLOT_GAP, RING_STEP) - 3);
+      }
+    expect(figure).toEqual({ x: 0, y: 0 });
+  });
+
+  it('walks in no faster than FORM_SPEED, leaves one far off to follow the steps, and never walks through a wall', () => {
+    const figure = { x: 0, y: 0 };
+    const near = { x: -10, y: -10 };
+    const far = { x: -300, y: -300 };
+    const slots = formation(2);
+    formUp([near, far], slots, figure, DT, move);
+    expect(Math.hypot(near.x + 10, near.y + 10)).toBeLessThanOrEqual(FORM_SPEED * DT + 1e-9);
+    expect(far).toEqual({ x: -300, y: -300 });
+    const walled = { x: -10, y: -10 };
+    for (let i = 0; i < 60; i++) formUp([walled], slots, figure, DT, () => {});
+    expect(walled).toEqual({ x: -10, y: -10 });
   });
 });
