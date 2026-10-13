@@ -24,6 +24,7 @@ import {
   onIsle10Ground,
   POND,
   regionAt,
+  STORE10,
   shoreR10,
 } from '../world/isle10';
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -40,7 +41,9 @@ export function onPrairie(x: number, y: number, pad = 0): boolean {
   const d = Math.hypot(x - ISLE10.x, y - ISLE10.y);
   const a = Math.atan2(y - ISLE10.y, x - ISLE10.x);
   if (d > shoreR10(a) - 46 - pad) return false;
-  return Math.hypot(x - CRATES10.x, y - CRATES10.y) > 36;
+  return (
+    Math.hypot(x - CRATES10.x, y - CRATES10.y) > 36 && Math.hypot(x - STORE10.x, y - STORE10.y) > 60
+  );
 }
 
 /** Points out on the prairie from a seed, each this far from the others. */

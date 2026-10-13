@@ -110,8 +110,10 @@ import {
   groundZ10,
   LANDING10,
   OAKS10,
+  OLDMAN10,
   onIsle10,
   ROCKS10,
+  SHACK10,
   TREES10,
 } from '../world/isle10';
 import { CAGE, onFloor } from '../world/tower';
@@ -472,6 +474,9 @@ export const PROPS: readonly Prop[] = [
     CRATES10.y + 15,
     CRATES10.x + CRATES10.y + 10,
   ),
+  // The old man's shack, and his rocking chair on the porch.
+  prop(SHACK10.x0, SHACK10.y0, SHACK10.x1, SHACK10.y1, SHACK10.x1 + SHACK10.y1),
+  post([OLDMAN10.x, OLDMAN10.y], 6, OLDMAN10.x + OLDMAN10.y),
   ...ROCKS6.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
   ...CHESTS6.map((p) => prop(p[0] - 7, p[1] - 5, p[0] + 7, p[1] + 5, p[0] + p[1], 0, 1.5)),
   // Island 7: the trading post, the tower, the palms, the monkey camp and the portal's two feet.
@@ -658,6 +663,8 @@ export class Walker implements Entity {
   throwT = 0;
   /** Whether it carries a spear, which shows over its shoulder while it walks. */
   armed = false;
+  /** How much faster than its own pace it walks: more than 1 while an apple from island 10's old man lasts. */
+  speedK = 1;
   /** Just bonked: it blinks while it cannot be bonked again. */
   blink = false;
   /** Under the water in scuba gear: a brass helmet for the sou'wester, a tank on its back, bubbles. */
@@ -864,7 +871,7 @@ export class Walker implements Entity {
     if (mag > 0) {
       const d = dirToWorld(this.ix, this.iy);
       const n = Math.hypot(d[0], d[1]) || 1;
-      const pace = WALK_SPEED * mag * (swim ? SWIM_PACE : 1);
+      const pace = WALK_SPEED * mag * (swim ? SWIM_PACE : 1) * this.speedK;
       tx = (d[0] / n) * pace;
       ty = (d[1] / n) * pace;
     }

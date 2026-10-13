@@ -10,6 +10,7 @@ import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
+import { noSnacks, parseSnacks, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
 import { LEGGY_MAX } from '../entities/leggy';
 import { type Charter, parseCharter } from '../fishing/charter';
@@ -134,6 +135,8 @@ export type SaveData = {
   junk: number;
   /** The fish muffins in the box, each the time it was baked, in game days. */
   muffins: number[];
+  /** Island 10's old man's snacks in the bag: apples, carrots and bananas. */
+  snacks: Snacks;
   /** Muffins left uneaten that grew legs and follow you (entities/leggy.ts), six at most. */
   leggy: number;
   /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
@@ -294,6 +297,7 @@ export function defaultSave(b: Bounds): SaveData {
     crew: { ...DEFAULT_CREW },
     junk: 0,
     muffins: [],
+    snacks: noSnacks(),
     leggy: 0,
     iceSeen: false,
     iceRuns: 0,
@@ -440,6 +444,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   // Missing in a save from before the muffin man baked, read as none.
   d.junk = between(int(o.junk), 0, JUNK_MAX);
   d.muffins = parseMuffins(o.muffins);
+  // Missing in a save from before the old man's store, read as an empty bag.
+  d.snacks = parseSnacks(o.snacks);
   // Missing in a save from before muffins grew legs, read as none.
   d.leggy = between(int(o.leggy), 0, LEGGY_MAX);
   d.iceSeen = !!o.iceSeen;
@@ -571,6 +577,7 @@ export function serializeSave(d: SaveData): string {
     crew: d.crew,
     junk: d.junk,
     muffins: d.muffins,
+    snacks: d.snacks,
     leggy: d.leggy,
     iceSeen: d.iceSeen,
     iceRuns: d.iceRuns,

@@ -101,6 +101,20 @@ export const LANDING10 = { x: ISLE10.x, y: PIER10.y1 - 10 } as const;
 /** A stack of crates and a barrel at the pier's root, to one side: the catch flies there. */
 export const CRATES10 = { x: ISLE10.x + 34, y: PIER_ROOT - 12 } as const;
 
+/**
+ * The old man's store: a little wooden shack on the prairie, up and to the left of the pier as the figure comes
+ * ashore, with a porch out front where he sits in his rocking chair. The shack stands in the way; the chair too.
+ */
+export const STORE10 = { x: ISLE10.x - 120, y: ISLE10.y + 440 } as const;
+export const SHACK10 = {
+  x0: STORE10.x - 28,
+  x1: STORE10.x + 10,
+  y0: STORE10.y - 28,
+  y1: STORE10.y + 6,
+} as const;
+/** His rocking chair, along the porch from the shack's door, so the sign over it shows. */
+export const OLDMAN10 = { x: STORE10.x + 24, y: STORE10.y + 22 } as const;
+
 /** Things placed once from a seed in one part of the island, each this far from the others and from `from`. */
 function scatter(
   seed: number,
@@ -122,6 +136,7 @@ function scatter(
     // Keep the way up from the pier, and the crates, open.
     if (Math.abs(x - ISLE10.x) < 46 && y > ISLE10.y + 160) continue;
     if (Math.hypot(x - CRATES10.x, y - CRATES10.y) < 40) continue;
+    if (Math.hypot(x - STORE10.x, y - STORE10.y) < 80) continue;
     if (!from.every(([px, py]) => Math.hypot(x - px, y - py) > clearOf)) continue;
     if (!out.every(([px, py]) => Math.hypot(x - px, y - py) > near)) continue;
     out.push([x, y]);

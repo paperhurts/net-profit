@@ -23,6 +23,7 @@ type Np = {
   clock: number;
   phase: string;
   walker: {
+    speedK: number;
     state: string;
     x: number;
     y: number;
@@ -233,6 +234,13 @@ type Np = {
   reaperEgg: number;
   reaperRematch: boolean;
   oldOwed: boolean;
+  OLDMAN10: { x: number; y: number };
+  oldManAt: [number, number];
+  storeOpen: boolean;
+  snacks: { apple: number; carrot: number; banana: number };
+  appleT: number;
+  carrotT: number;
+  DAD_JOKES: string[];
   eggDay: number;
   hatchT: number;
   eggT: number | null;
@@ -3668,6 +3676,81 @@ test("island 10's pond: cast from its edge, too soon changes nothing, and reeled
   });
   await expect(cast).toBeHidden({ timeout: 3000 });
   expect(await page.evaluate(() => window.__np.pondLine.state)).toBe('idle');
+  expect(errors).toEqual([]);
+});
+
+test("island 10's old man: a dad joke and his store; snacks bought, kept, and eaten ashore for speed, strength and hearts", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 200,
+    spear: 2,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  // Too far off: walk up to him.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 140;
+    n.walker.y = n.OLDMAN10.y + 100;
+  });
+  await page.waitForTimeout(800);
+  let at = await page.evaluate(() => window.__np.oldManAt);
+  await page.mouse.click(at[0], at[1]);
+  await expect(page.locator('#toast')).toContainText('Walk up to the old man');
+  expect(await page.evaluate(() => window.__np.storeOpen)).toBe(false);
+  // Up on his porch: a joke, and his shelf.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 30;
+    n.walker.y = n.OLDMAN10.y + 24;
+  });
+  await page.waitForTimeout(800);
+  at = await page.evaluate(() => window.__np.oldManAt);
+  await page.mouse.click(at[0], at[1]);
+  await expect(page.locator('#store10')).toBeVisible();
+  const joke = await page.evaluate(() => window.__np.DAD_JOKES[0] ?? '');
+  await expect(page.locator('#store10Joke')).toContainText(joke);
+  for (const k of ['apple', 'apple', 'carrot', 'banana'])
+    await page.locator(`#store10Shelf [data-buy="${k}"]`).click();
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.snacks])).toEqual([
+    200 - 25 * 2 - 40 - 30,
+    { apple: 2, carrot: 1, banana: 1 },
+  ]);
+  await page.locator('#store10Close').click();
+  await expect(page.locator('#store10')).toBeHidden();
+  // The bag by the hearts. A banana with full hearts is kept; hurt, it gives two back.
+  await expect(page.locator('#snackBanana')).toBeVisible();
+  await page.click('#snackBanana');
+  await expect(page.locator('#toast')).toContainText('Keep the banana');
+  await page.evaluate(() => window.__np.setHearts(1));
+  await page.click('#snackBanana');
+  expect(await page.evaluate(() => [window.__np.hearts, window.__np.snacks.banana])).toEqual([
+    3, 0,
+  ]);
+  // An apple: faster legs for a while; a carrot: a harder spear.
+  await page.click('#snackApple');
+  await page.click('#snackCarrot');
+  expect(
+    await page.evaluate(() => [
+      window.__np.walker.speedK,
+      window.__np.appleT > 25,
+      window.__np.carrotT > 25,
+    ]),
+  ).toEqual([1.5, true, true]);
+  await expect(page.locator('#snackApple')).toContainText('s');
+  // What is left in the bag is kept on reload.
+  await page.reload();
+  await page.click('#go');
+  expect(await page.evaluate(() => window.__np.snacks)).toEqual({ apple: 1, carrot: 0, banana: 0 });
   expect(errors).toEqual([]);
 });
 
