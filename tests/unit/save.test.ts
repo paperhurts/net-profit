@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
+import { JUNK_MAX } from '../../src/data/junk';
 import { SPEAR_MAX } from '../../src/data/spear';
 import {
   type Bounds,
@@ -564,6 +565,27 @@ describe('the leviathans driven off', () => {
     expect(s.crew).toEqual(DEFAULT_CREW);
     s.crew = { airboat: 'tarling', catamaran: null, windsurf: 'necro', banana: 'warrior' };
     expect(parseSave(serializeSave(s), bounds).crew).toEqual(s.crew);
+  });
+
+  it('keep the junk in the bucket and the muffin box, as none in a save from before the muffin man baked', () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    delete old.junk;
+    delete old.muffins;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect(s.junk).toBe(0);
+    expect(s.muffins).toEqual([]);
+    s.junk = 5;
+    s.muffins = [3.25, 4.5];
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.junk).toBe(5);
+    expect(back.muffins).toEqual([3.25, 4.5]);
+    // Never more than the bucket and the box hold, and nothing that is not a time.
+    const big = parseSave(
+      JSON.stringify({ ...old, junk: 99, muffins: [1, 'x', -2, 2, 3, 4, 5, 6, 7, 8] }),
+      bounds,
+    );
+    expect(big.junk).toBe(JUNK_MAX);
+    expect(big.muffins).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('keep the day the egg came aboard, and the baby Reaper hatched, as day 0 in a save from before', () => {
