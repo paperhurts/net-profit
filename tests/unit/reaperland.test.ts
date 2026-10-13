@@ -238,6 +238,17 @@ describe('the Reaper on land', () => {
     expect(g.state).toBe('gone');
   });
 
+  it('back for a rematch, from the tester panel: asleep by his nest again, whole, and he wakes as before', () => {
+    const g = new LandReaper();
+    g.beatenForGood();
+    g.rematch();
+    expect(g.state).toBe('sleep');
+    expect([g.x, g.y]).toEqual([REST.x, REST.y]);
+    expect(g.hp).toBe(LAND_HP);
+    run(g, baseWorld({ figure: inland(WAKE_R - 30) }), 1);
+    expect(g.awake).toBe(true);
+  });
+
   it('draws in every state without a fault', () => {
     const r = new LandReaper();
     const w = baseWorld({ figure: inland(WAKE_R - 30) });

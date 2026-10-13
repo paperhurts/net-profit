@@ -222,6 +222,12 @@ export class LandReaper implements Entity {
     this.dash = null;
   }
 
+  /** Back asleep by his nest for a rematch, whole, whatever happened before: the tester panel's. */
+  rematch(): void {
+    this.state = 'sleep';
+    this.reset();
+  }
+
   /** Back asleep by his nest, whole, as when the figure is bonked out or leaves the island. */
   reset(): void {
     if (this.state === 'gone' || this.state === 'beaten' || this.state === 'flee') return;
