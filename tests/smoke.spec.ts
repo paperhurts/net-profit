@@ -35,6 +35,10 @@ type Np = {
   muffin: { line: number; near: boolean; saying(): string | null };
   bakerAt: [number, number];
   isle10Seen: boolean;
+  first: number[];
+  pondLine: { state: string; sp: number };
+  pondShown: boolean;
+  POND: { x: number; y: number; r: number };
   prairie10: {
     bunnies: { x: number; y: number; hop: number }[];
     dogs: { x: number; y: number; up: number; hide: number; town: number }[];
@@ -3594,6 +3598,61 @@ test("island 10's prairie: prairie dogs duck as you come, bunnies hop when tappe
   if (!bat) throw new Error('no bunny on the screen');
   await page.mouse.click(bat[0], bat[1]);
   expect(await page.evaluate(() => window.__np.prairie10.bunnies[4]?.hop ?? 0)).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's pond: cast from its edge, too soon changes nothing, and reeled in when the float goes under, the fish is landed and sold", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  const cast = page.locator('#pondcast');
+  await expect(cast).toBeHidden();
+  // To the pond's edge: the cast shows.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.POND.x + (n.POND.r + 12) * 0.6;
+    n.walker.y = n.POND.y + (n.POND.r + 12) * 0.8;
+  });
+  await expect(cast).toHaveText('Cast into the pond', { timeout: 3000 });
+  const coins = await page.evaluate(() => window.__np.coins);
+  await cast.dispatchEvent('click');
+  expect(await page.evaluate(() => window.__np.pondLine.state)).toBe('wait');
+  // Too soon: nothing changes, and the game says to wait.
+  await cast.dispatchEvent('click');
+  expect(await page.evaluate(() => window.__np.pondLine.state)).toBe('wait');
+  await expect(page.locator('#toast')).toContainText('Wait for the float');
+  // The float goes under: reel in, and the fish is landed, and sold at the crates since the boat is tied up.
+  await page.waitForFunction(() => window.__np.pondLine.state === 'bite', null, { timeout: 9000 });
+  await expect(cast).toHaveText('Reel in!');
+  const sp = await page.evaluate(() => window.__np.pondLine.sp);
+  await cast.dispatchEvent('click');
+  expect(await page.evaluate(() => window.__np.pondLine.state)).toBe('idle');
+  expect(await page.evaluate((sp) => window.__np.first[sp], sp)).toBeGreaterThan(0);
+  await expect(page.locator('#toast')).toContainText('Four kinds of fish');
+  await page.waitForFunction((c) => window.__np.coins > c, coins, { timeout: 3000 });
+  // Cast again and walk off: the line comes in and the button goes.
+  await cast.dispatchEvent('click');
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.POND.x + 200;
+    n.walker.y = n.POND.y + 160;
+  });
+  await expect(cast).toBeHidden({ timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.pondLine.state)).toBe('idle');
   expect(errors).toEqual([]);
 });
 

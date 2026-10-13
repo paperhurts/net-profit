@@ -55,6 +55,8 @@ export const CHAR_SP = 19;
 export const COD_SP = 20;
 export const ICEFISH_SP = 21;
 export const SNOWCRAB_SP = 22;
+/** Island 10's pond's four, on a line cast from its edge. */
+export const POND_SPS: readonly number[] = [23, 24, 25, 26];
 
 /** One line per species, in the game's voice. */
 export const BLURBS: readonly string[] = [
@@ -81,6 +83,10 @@ export const BLURBS: readonly string[] = [
   'Small and olive, and happier in icy water than anything else in the sea. They swim below the char.',
   'Nearly see-through, like a fish made of ice. Real icefish have clear blood, with no red in it at all, and live where the water is coldest. Deep down under the floe.',
   'Long legs and an orange shell, walking the floor far under the ice. Steer the hook down onto one as it drops: it grabs on when the line turns for home.',
+  'A little round sunfish, blue-green with an orange breast, and the first fish lots of people ever catch. The pond is full of them.',
+  'Gold with dark bars down its sides, like a tiger that took up swimming. Perch swim about the pond in little gangs.',
+  'Green, with a dark stripe down its side and a mouth so big it can swallow a frog. The fish everybody in a pond wants to catch.',
+  'Grey and spotted, with long whiskers like a cat, so it can taste its way along the muddy bottom in the dark. The biggest fish in the pond, and the hardest to find.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -109,6 +115,8 @@ export function whereText(sp: number): string {
     return 'The trench in the deep, down by its floor. Dive with scuba gear and a spear.';
   if (sp === CHAR_SP || sp === COD_SP || sp === ICEFISH_SP)
     return "Under the ice floe in the far deep's north-west corner, on the ice fishing line.";
+  if (POND_SPS.includes(sp))
+    return "In the pond on island 10's prairie. Stand at its edge and cast.";
   if (sp === SNOWCRAB_SP)
     return 'On the floor under the ice floe, on the ice fishing line. Steer the hook down onto one.';
   return 'Out there somewhere.';
@@ -125,6 +133,8 @@ export function whenText(sp: number): string {
   if (sp === SQUID_SP || sp === DRAGON_SP)
     return 'Day and night: down there it is always dark. Glows.';
   if (sp >= CHAR_SP && sp <= SNOWCRAB_SP) return 'Day and night. So many a day under the hole.';
+  if (POND_SPS.includes(sp))
+    return 'Day and night, as many as you like. By day, birds sing while you wait.';
   return '';
 }
 

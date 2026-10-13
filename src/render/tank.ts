@@ -126,6 +126,7 @@ const LOW = new Set([
   'parrotfish',
   'neon dragonfish',
   'icefish',
+  'channel catfish',
 ]);
 const MID = new Set([
   'shark',

@@ -13,6 +13,8 @@ import {
   padNotes,
   panFor,
   phraseSeconds,
+  songPhrase,
+  songSeconds,
   swellPhase,
   waveMix,
   whaleEarshot,
@@ -177,5 +179,30 @@ describe('the whales', () => {
       }
       expect(phraseSeconds(p)).toBeGreaterThan(p.length * v.glide[0]);
     }
+  });
+});
+
+describe("the songbirds by island 10's pond", () => {
+  it('each sings its own short, high, clear phrase, a little different each time', () => {
+    const r = rng(7);
+    for (const kind of [0, 1, 2]) {
+      const p = songPhrase(kind, r);
+      expect(p.length).toBeGreaterThanOrEqual(3);
+      for (const [f0, f1, d, gap] of p) {
+        for (const f of [f0, f1]) {
+          expect(f).toBeGreaterThan(1500);
+          expect(f).toBeLessThan(4200);
+        }
+        expect(d).toBeGreaterThan(0);
+        expect(gap).toBeGreaterThanOrEqual(0);
+      }
+      expect(songSeconds(p)).toBeLessThan(1.2);
+    }
+    // The cardinal's notes slide down; the goldfinch's climb.
+    const cardinal = songPhrase(0, r);
+    expect(cardinal.every(([a, b]) => b < a)).toBe(true);
+    const finch = songPhrase(2, r);
+    expect(finch.every(([a, b]) => b > a)).toBe(true);
+    expect(songPhrase(1, rng(1))[0]?.[0]).not.toBe(songPhrase(1, rng(2))[0]?.[0]);
   });
 });

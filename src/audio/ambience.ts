@@ -186,6 +186,43 @@ export function phraseSeconds(phrase: readonly Glide[]): number {
   return phrase.reduce((s, g) => s + g[2] + GLIDE_GAP, 0);
 }
 
+/* ---------- songbirds, by island 10's pond ---------- */
+
+/** One note of a song: from this pitch to that, over so long, then a gap. */
+export type Chirp = readonly [from: number, to: number, seconds: number, gap: number];
+
+/**
+ * A songbird's phrase, by kind: 0 a cardinal's "cheer cheer cheer", clear whistles sliding down; 1 a bluebird's soft
+ * warble, up and down; 2 a goldfinch's quick "po-ta-to-chip", rising. r varies it a little each time.
+ */
+export function songPhrase(kind: number, r: () => number): Chirp[] {
+  const lift = 1 + (r() - 0.5) * 0.12;
+  if (kind === 0) {
+    const n = 3 + Math.floor(r() * 2);
+    return Array.from(
+      { length: n },
+      (_, i) => [3300 * lift, 2200 * lift, 0.15, i === n - 1 ? 0 : 0.07] as const,
+    );
+  }
+  if (kind === 1)
+    return [
+      [1900 * lift, 2400 * lift, 0.12, 0.04],
+      [2400 * lift, 2000 * lift, 0.14, 0.05],
+      [2100 * lift, 2600 * lift, 0.16, 0],
+    ];
+  return [
+    [2600 * lift, 2900 * lift, 0.05, 0.05],
+    [2800 * lift, 3100 * lift, 0.05, 0.05],
+    [3000 * lift, 3300 * lift, 0.05, 0.05],
+    [3200 * lift, 3600 * lift, 0.09, 0],
+  ];
+}
+
+/** Seconds a phrase takes. */
+export function songSeconds(phrase: readonly Chirp[]): number {
+  return phrase.reduce((s, c) => s + c[2] + c[3], 0);
+}
+
 /* ---------- the bus ---------- */
 
 export type PodSound = { dx: number; dy: number; dist: number; escort: boolean };
@@ -535,6 +572,33 @@ export class Ambience {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.035, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + (double ? 0.26 : 0.12));
+  }
+
+  /** A songbird by the pond sings a phrase: clear sines sliding through its notes, each one shaped on its own. */
+  songbird(kind: number, pan: number, vol: number): void {
+    if (vol <= 0) return;
+    const { g, p, t } = this.voice(pan);
+    g.gain.value = 1;
+    const made: AudioNode[] = [g, p];
+    let at = t;
+    let last: OscillatorNode | null = null;
+    for (const [f0, f1, d, gap] of songPhrase(kind, this.r)) {
+      const o = this.ctx.createOscillator();
+      const og = this.ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f0, at);
+      o.frequency.exponentialRampToValueAtTime(f1, at + d);
+      og.gain.setValueAtTime(0.0001, at);
+      og.gain.exponentialRampToValueAtTime(0.03 * vol, at + 0.015);
+      og.gain.exponentialRampToValueAtTime(0.0001, at + d);
+      o.connect(og).connect(g);
+      o.start(at);
+      o.stop(at + d + 0.02);
+      made.push(o, og);
+      last = o;
+      at += d + gap;
+    }
+    if (last) this.release(last, made);
   }
 
   /** A whale: sines gliding through the phrase together, swelling and fading on each glide, into the echo. */

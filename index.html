@@ -188,10 +188,10 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 #radioBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #radioBtn[hidden]{display:none}
 #mend[aria-disabled="true"]{opacity:.75}
-#rodcast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+#rodcast,#pondcast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
-#rodcast:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
-#rodcast.bite{background:#F0C544;color:#2A1E08;animation:rodpulse .35s ease-in-out infinite alternate}
+#rodcast:active,#pondcast:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#rodcast.bite,#pondcast.bite{background:#F0C544;color:#2A1E08;animation:rodpulse .35s ease-in-out infinite alternate}
 @keyframes rodpulse{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.08)}}
 #aboard{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -358,6 +358,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 <button class="pill" id="mend" hidden>Mend the net</button>
 <button class="pill" id="radioBtn" hidden>Call the coast guard</button>
 <button class="pill" id="rodcast" hidden>Cast for lionfish</button>
+<button class="pill" id="pondcast" hidden>Cast into the pond</button>
 <button class="pill" id="aboard" hidden>Back aboard</button>
 <button class="pill" id="climb" hidden>Climb the tower</button>
 <button class="pill" id="diveBtn" hidden>Dive into the trench</button>
