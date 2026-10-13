@@ -385,6 +385,11 @@ export const cues = {
     tone(520, 0.06, 'square', 0.05, 1.3);
     tone(430, 0.08, 'square', 0.05, 1.25, 0.11);
   },
+  /** A leggy muffin, poked or just sprouted: a tiny squeak. */
+  squeak(): void {
+    tone(1500, 0.05, 'square', 0.025, 1.35);
+    tone(1900, 0.06, 'sine', 0.03, 0.8, 0.06);
+  },
   /** A fish muffin eaten: two crunchy munches and a happy note. */
   nom(): void {
     tone(220, 0.05, 'square', 0.035, 0.7);

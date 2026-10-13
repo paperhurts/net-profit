@@ -3,6 +3,7 @@ import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { JUNK_MAX } from '../../src/data/junk';
 import { SPEAR_MAX } from '../../src/data/spear';
+import { LEGGY_MAX } from '../../src/entities/leggy';
 import {
   type Bounds,
   DEFAULT_ORDER,
@@ -565,6 +566,16 @@ describe('the leviathans driven off', () => {
     expect(s.crew).toEqual(DEFAULT_CREW);
     s.crew = { airboat: 'tarling', catamaran: null, windsurf: 'necro', banana: 'warrior' };
     expect(parseSave(serializeSave(s), bounds).crew).toEqual(s.crew);
+  });
+
+  it('keep the leggy muffins, as none in a save from before they grew legs, and never more than six', () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    delete old.leggy;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect(s.leggy).toBe(0);
+    s.leggy = 4;
+    expect(parseSave(serializeSave(s), bounds).leggy).toBe(4);
+    expect(parseSave(JSON.stringify({ ...old, leggy: 40 }), bounds).leggy).toBe(LEGGY_MAX);
   });
 
   it('keep the junk in the bucket and the muffin box, as none in a save from before the muffin man baked', () => {

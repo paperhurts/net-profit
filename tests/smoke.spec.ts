@@ -36,6 +36,8 @@ type Np = {
   bakerAt: [number, number];
   junk: number;
   muffins: number[];
+  leggy: { count: number; list: { x: number; y: number; hop: number }[] };
+  leggyAt(i: number): [number, number] | null;
   hearts: number;
   setHearts(n: number): void;
   swallowing: boolean;
@@ -689,6 +691,53 @@ test('fish muffins: the muffin man bakes your junk into muffins, kept on reload,
   await page.reload();
   await page.click('#go');
   await expect(page.locator('#muffinBtn')).toContainText('2');
+  expect(errors).toEqual([]);
+});
+
+test('leggy muffins: a day in the box and they grow legs, six at most, and follow the figure ashore in a line', async ({
+  context,
+  page,
+}) => {
+  // Five already, and two muffins left in the box more than a day: both grow legs, and the oldest wanders off.
+  const errors = await boot(context, page, {
+    muted: true,
+    day: 5,
+    leggy: 5,
+    muffins: [3.2, 3.9],
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.muffins.length === 0, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.leggy.count)).toBe(6);
+  await expect(page.locator('#muffinBtn')).toBeHidden();
+
+  // Ashore, they tumble out and trot after the figure in a line.
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.leggy.list.length === 6, null, { timeout: 2000 });
+  const sx = -1;
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX + sx * 54, CY - 27, { steps: 3 });
+  await page.waitForTimeout(2600);
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  const d = await page.evaluate(() => {
+    const w = window.__np.walker;
+    return window.__np.leggy.list.map((m) => Math.hypot(m.x - w.x, m.y - w.y));
+  });
+  expect(d).toHaveLength(6);
+  expect(d[0], 'the first is not just behind').toBeLessThan(45);
+  expect(d[5] ?? 0, 'they are not in a line').toBeGreaterThan((d[0] ?? 0) + 40);
+
+  // A tap on one: it hops.
+  const [mx, my] = (await page.evaluate(() => window.__np.leggyAt(2))) ?? [0, 0];
+  await page.mouse.click(mx, my);
+  expect(await page.evaluate(() => window.__np.leggy.list[2]?.hop ?? 0)).toBeGreaterThan(0.5);
+
+  // Kept on reload: six, riding in their crate.
+  await page.reload();
+  await page.click('#go');
+  expect(await page.evaluate(() => window.__np.leggy.count)).toBe(6);
   expect(errors).toEqual([]);
 });
 
