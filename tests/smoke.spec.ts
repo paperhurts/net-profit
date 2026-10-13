@@ -3810,6 +3810,25 @@ test('tester: the #tester link shows a Tester button in the shop, and skipping t
   // An extra: coins, straight away.
   await page.locator('#testerExtras [data-extra="coins"]').click();
   expect(await page.evaluate(() => window.__np.coins)).toBe(10300);
+  // The button itself says it worked, since the toasts are behind the panel; then it goes back to Add.
+  await expect(page.locator('#testerExtras [data-extra="coins"]')).toContainText('Added');
+  await expect(page.locator('#testerExtras [data-extra="coins"]')).not.toContainText('Added', {
+    timeout: 3000,
+  });
+  // The pets: the otter and Neil, and the naga, each once.
+  for (const k of ['otter', 'neil', 'naga']) {
+    await page.locator(`#testerExtras [data-extra="${k}"]`).click();
+    await expect(page.locator(`#testerExtras [data-extra="${k}"]`)).toContainText('Have it', {
+      timeout: 3000,
+    });
+  }
+  expect(
+    await page.evaluate(() => [
+      window.__np.otter.free,
+      window.__np.neil.free,
+      window.__np.nagaFree,
+    ]),
+  ).toEqual([true, true, true]);
   // A step: the game saves and starts again, past the Shark King.
   await Promise.all([
     page.waitForEvent('load'),
