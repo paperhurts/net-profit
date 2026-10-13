@@ -53,6 +53,10 @@ type Np = {
   leggyAt(i: number): [number, number] | null;
   hearts: number;
   setHearts(n: number): void;
+  gators: {
+    roused: boolean;
+    list: { state: string; hp: number; pool: { x: number; y: number; r: number } }[];
+  };
   swallowing: boolean;
   swallow(by: string): void;
   bases: Record<string, number>;
@@ -4767,5 +4771,61 @@ test('installable: a manifest with its icons, a service worker, and with no sign
   await page.click('#go');
   await page.waitForFunction(() => window.__np?.coins === 777, null, { timeout: 3000 });
   await context.setOffline(false);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's gators: one surges out of its pool, bites with its jaws wide, and ten hits beat it for coins", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 2,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => window.__np.gators.list.map((g) => g.state))).toEqual([
+    'lurk',
+    'lurk',
+    'lurk',
+    'lurk',
+  ]);
+  // Up to the edge of a pool: its gator comes out at you.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const p = n.gators.list[0]?.pool ?? { x: 0, y: 0, r: 0 };
+    n.walker.x = p.x - (p.r + 40);
+    n.walker.y = p.y + 10;
+  });
+  await page.waitForFunction(() => window.__np.gators.roused, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('A gator!');
+  // Stood still, it opens its jaws and bites.
+  const full = await page.evaluate(() => window.__np.hearts);
+  await page.waitForFunction((h) => window.__np.hearts < h, full, { timeout: 8000 });
+  // The spear, until it rolls over: hearts kept up so the figure stays ashore for it.
+  for (let i = 0; i < 30; i++) {
+    const st = await page.evaluate(() => window.__np.gators.list[0]?.state);
+    if (st === 'fall' || st === 'gone') break;
+    await page.evaluate(() => window.__np.setHearts(window.__np.maxHearts));
+    await page.dispatchEvent('#throw', 'pointerdown', {
+      button: 0,
+      pointerType: 'touch',
+      isPrimary: false,
+    });
+    await page.waitForTimeout(500);
+  }
+  await page.waitForFunction(() => window.__np.coins === 130, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('You beat a gator!');
+  await page.waitForFunction(() => window.__np.gators.list[0]?.state === 'gone', null, {
+    timeout: 4000,
+  });
+  expect(await page.evaluate(() => window.__np.gators.roused)).toBe(false);
   expect(errors).toEqual([]);
 });
