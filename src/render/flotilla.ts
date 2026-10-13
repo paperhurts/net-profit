@@ -1,16 +1,16 @@
 /**
  * The flotilla's craft, the kid's (entities/flotilla.ts): an airboat, flat and silver, its rider up on a high seat in
  * front of a great caged fan; a catamaran, two slim white hulls with a net between and a striped sail; a windsurfer,
- * a board and a bright sail, its rider standing at the boom; and a banana boat, a big yellow inflatable banana with a
- * little outboard on its tail and its rider astride it. Each bobs on the water, with a wake when under way. The game
- * draws the rider, at the point and height given.
+ * a board and a bright sail, its rider standing at the boom; and a banana boat, a big yellow inflatable banana as long
+ * as the warlock's boat, its rider astride it, on a rope behind the airboat or, on its own, with a little outboard on
+ * its tail. Each bobs on the water, with a wake when under way. The game draws the rider, at the point and height
+ * given.
  */
 
 import type { DrawView } from '../entities/entity';
-import type { Craft, CraftKind } from '../entities/flotilla';
+import { BANANA_HALF, CRAFT_SCALE, type Craft, type CraftKind } from '../entities/flotilla';
 
-/** How big the craft are drawn, against the hull's units. */
-export const CRAFT_SCALE = 1.15;
+export { CRAFT_SCALE };
 
 const INK = '#1D2B3A';
 
@@ -54,7 +54,7 @@ export function drawCraft(v: DrawView, c: Craft, rider: Rider | null): void {
     ctx.lineTo(b[0], b[1]);
     ctx.stroke();
   };
-  wake(v, c, L);
+  wake(v, c, L, c.kind === 'banana' ? -BANANA_HALF : -14);
   const hull = (pts: [number, number][], z0: number, z1: number, side: string, top: string) =>
     v.extrude(
       pts.map(([a, b]) => L(a, b)),
@@ -214,26 +214,39 @@ export function drawCraft(v: DrawView, c: Craft, rider: Rider | null): void {
     seat(-3, 0, 1.5);
     line(P(2, lean * 0.4, 15), clew, INK, 1.2);
   } else {
-    // The banana: a fat yellow tube, its ends curling up, brown at the tips; a little outboard on its tail.
-    const N = 12;
+    // The banana: a long fat yellow tube, its ends curling up, brown at the tips. On a rope behind the airboat, the
+    // rope runs from its nose to the airboat's stern; on its own, a little outboard on its tail.
+    const B = BANANA_HALF;
+    if (c.tow) {
+      const nose = P(B - 1, 0, 6);
+      line(nose, [px(c.tow.x, c.tow.y), py(c.tow.x, c.tow.y, 3 + bob)], '#F4EFE6', 1.3);
+    }
+    const N = 18;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
-      const a = -16 + t * 32;
-      const curl = (a / 16) ** 2 * 5;
-      const r = (4.4 - Math.abs(a / 16) ** 3 * 2.4) * k;
+      const a = -B + t * 2 * B;
+      const curl = (a / B) ** 2 * 6;
+      const r = (4.4 - Math.abs(a / B) ** 3 * 2.4) * k;
       const [x, y] = L(a, 0);
       v.isoEllipse(x, y, r, (2.5 + curl) * k + bob);
-      ctx.fillStyle = t < 0.06 || t > 0.94 ? '#6B4A1E' : i % 2 ? '#F6D23C' : '#F2C230';
+      ctx.fillStyle = t < 0.05 || t > 0.95 ? '#6B4A1E' : i % 2 ? '#F6D23C' : '#F2C230';
       ctx.fill();
     }
-    line(P(-15, 0, 5), P(-19, 0, 1), '#2A2F33', 3);
-    line(P(-19, 0, 1), P(-19, 0, -2), '#2A2F33', 1.6);
-    seat(-1, 0, 7);
+    if (!c.tow) {
+      line(P(-B + 1, 0, 5), P(-B - 3, 0, 1), '#2A2F33', 3);
+      line(P(-B - 3, 0, 1), P(-B - 3, 0, -2), '#2A2F33', 1.6);
+    }
+    seat(-2, 0, 7);
   }
 }
 
 /** A white V spreading behind a craft under way. */
-function wake(v: DrawView, c: Craft, L: (a: number, b: number) => [number, number]): void {
+function wake(
+  v: DrawView,
+  c: Craft,
+  L: (a: number, b: number) => [number, number],
+  stern: number,
+): void {
   const sp = Math.abs(c.v);
   if (sp < 20) return;
   const { ctx, px, py } = v;
@@ -241,8 +254,8 @@ function wake(v: DrawView, c: Craft, L: (a: number, b: number) => [number, numbe
   ctx.strokeStyle = `rgba(255,255,255,${a})`;
   ctx.lineWidth = 1.5 * v.zoom;
   for (const s of [1, -1]) {
-    const [x0, y0] = L(-14, 0);
-    const [x1, y1] = L(-14 - 30 - sp * 0.05, s * (10 + sp * 0.03));
+    const [x0, y0] = L(stern, 0);
+    const [x1, y1] = L(stern - 30 - sp * 0.05, s * (10 + sp * 0.03));
     ctx.beginPath();
     ctx.moveTo(px(x0, y0), py(x0, y0));
     ctx.lineTo(px(x1, y1), py(x1, y1));

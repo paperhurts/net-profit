@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { World } from '../../src/entities/entity';
 import {
+  AIR_STERN,
+  BANANA_HALF,
   CATCH_UP,
+  CRAFT_SCALE,
   CRAFTS,
   DEFAULT_CREW,
   Flotilla,
   RIDERS,
   type Rider,
+  ROPE,
   STATIONS,
 } from '../../src/entities/flotilla';
 import { drawCraft } from '../../src/render/flotilla';
@@ -31,17 +35,57 @@ describe('the flotilla', () => {
     expect(f.crafts.filter((c) => c.placed).map((c) => c.kind)).toEqual(['windsurf', 'banana']);
   });
 
-  it('keeps each rider to one craft when the kid moves them about', () => {
+  it("swaps two riders when the kid puts one on the other's craft, and keeps each to one craft", () => {
     const f = new Flotilla();
     f.assign('airboat', 'tarling');
     expect(f.crew.airboat).toBe('tarling');
-    expect(f.crew.banana).toBeNull();
+    // The warrior, who had the airboat, takes the tarling's banana: nobody is left out.
+    expect(f.crew.banana).toBe('warrior');
     expect(f.craftOf('tarling')?.kind).toBe('airboat');
-    expect(f.craftOf('warrior')).toBeNull();
-    f.assign('banana', 'warrior');
-    expect(Object.values(f.crew).filter((r) => r === 'warrior')).toHaveLength(1);
+    for (const r of RIDERS) expect(Object.values(f.crew).filter((x) => x === r)).toHaveLength(1);
+    // Nobody sends a rider back to the deck.
     f.assign('airboat', null);
     expect(f.craftOf('tarling')).toBeNull();
+    expect(f.crew.airboat).toBeNull();
+    // Onto an empty craft, a rider just leaves the old one empty.
+    f.assign('airboat', 'warrior');
+    expect(f.crew.banana).toBeNull();
+    expect(f.crew.airboat).toBe('warrior');
+  });
+
+  it("tows the banana behind the airboat, a rope's length back, when both are out", () => {
+    const f = all(new Flotilla());
+    const w: World = baseWorld({ figure: null });
+    w.boat.v = 250;
+    for (let i = 0; i < 6 / DT; i++) {
+      w.boat.h += 0.1 * DT;
+      w.boat.x += Math.cos(w.boat.h) * w.boat.v * DT;
+      w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
+      f.update(DT, w);
+    }
+    expect(f.towing()).toBe(true);
+    const air = f.crafts.find((c) => c.kind === 'airboat');
+    const ban = f.crafts.find((c) => c.kind === 'banana');
+    expect(ban?.tow).not.toBeNull();
+    const reach = (ROPE + BANANA_HALF) * CRAFT_SCALE;
+    const sx = (air?.x ?? 0) - Math.cos(air?.h ?? 0) * AIR_STERN * CRAFT_SCALE;
+    const sy = (air?.y ?? 0) - Math.sin(air?.h ?? 0) * AIR_STERN * CRAFT_SCALE;
+    expect(Math.hypot((ban?.x ?? 0) - sx, (ban?.y ?? 0) - sy)).toBeCloseTo(reach, 0);
+    // Behind the airboat: back along its heading.
+    const back =
+      ((air?.x ?? 0) - (ban?.x ?? 0)) * Math.cos(air?.h ?? 0) +
+      ((air?.y ?? 0) - (ban?.y ?? 0)) * Math.sin(air?.h ?? 0);
+    expect(back).toBeGreaterThan(reach * 0.8);
+    // The other two take the next stations, the banana none of its own.
+    const cat = f.crafts.find((c) => c.kind === 'catamaran');
+    const st1 = Flotilla.station(1, w.boat, w.hullScale);
+    expect(Math.hypot((cat?.x ?? 0) - st1.x, (cat?.y ?? 0) - st1.y)).toBeLessThan(60);
+    // With nobody on the airboat, the banana runs on its own: no rope.
+    f.assign('airboat', null);
+    f.update(DT, w);
+    expect(f.towing()).toBe(false);
+    expect(ban?.tow).toBeNull();
+    expect(ban?.placed).toBe(true);
   });
 
   it('keeps its stations ahead of the boat and out to the sides, never behind it where the net is', () => {
@@ -65,11 +109,15 @@ describe('the flotilla', () => {
       w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
       f.update(DT, w);
     }
-    f.crafts.forEach((c, i) => {
-      const st = Flotilla.station(i, w.boat, w.hullScale);
-      expect(c.placed).toBe(true);
-      expect(Math.hypot(c.x - st.x, c.y - st.y)).toBeLessThan(60);
-    });
+    // The three with stations of their own (the banana is on the airboat's rope).
+    f.crafts
+      .filter((c) => c.kind !== 'banana')
+      .forEach((c, i) => {
+        const st = Flotilla.station(i, w.boat, w.hullScale);
+        expect(c.placed).toBe(true);
+        expect(Math.hypot(c.x - st.x, c.y - st.y)).toBeLessThan(60);
+      });
+    expect(f.crafts.find((c) => c.kind === 'banana')?.placed).toBe(true);
   });
 
   it('holds where it is with the figure ashore, tied up, or with its station up on the land', () => {

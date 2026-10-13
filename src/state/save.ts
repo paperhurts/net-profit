@@ -6,6 +6,7 @@
  */
 
 import { ARMOUR_MAX } from '../data/armour';
+import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { SPEAR_MAX } from '../data/spear';
@@ -121,6 +122,8 @@ export type SaveData = {
   reaperEgg: number;
   /** The day the egg was taken aboard: it hatches at the next dawn. */
   eggDay: number;
+  /** Who rides which craft of the flotilla, the kid's choice (data/crew.ts). */
+  crew: Crew;
   /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
   iceSeen: boolean;
   iceRuns: number;
@@ -272,6 +275,7 @@ export function defaultSave(b: Bounds): SaveData {
     reaperLandSeen: false,
     reaperEgg: 0,
     eggDay: 0,
+    crew: { ...DEFAULT_CREW },
     iceSeen: false,
     iceRuns: 0,
     lionSeen: false,
@@ -409,6 +413,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.reaperEgg = Math.max(0, Math.min(EGG_STAGES, int(o.reaperEgg)));
   // Missing in a save from before the egg could hatch, read as day 0: an egg already aboard hatches at once.
   d.eggDay = Math.max(0, int(o.eggDay));
+  // Missing in a save from before the Boats card, read as the crew they started with.
+  d.crew = parseCrew(o.crew);
   d.iceSeen = !!o.iceSeen;
   d.iceRuns =
     typeof o.iceRuns === 'number' && Number.isFinite(o.iceRuns) && o.iceRuns > 0
@@ -532,6 +538,7 @@ export function serializeSave(d: SaveData): string {
     reaperLandSeen: d.reaperLandSeen,
     reaperEgg: d.reaperEgg,
     eggDay: d.eggDay,
+    crew: d.crew,
     iceSeen: d.iceSeen,
     iceRuns: d.iceRuns,
     lionSeen: d.lionSeen,
