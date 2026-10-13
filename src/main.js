@@ -1276,7 +1276,8 @@ function tapsBaker(x, y){ const bx = px(BAKER.x, BAKER.y), d = Math.hypot(x - bx
   if (g && Math.hypot(x - px(g.x, g.y), y - py(g.x, g.y, g.z + 12)) < Math.min(d, 36)) return false;
   return d < 30 || (!!muffin.saying() || muffin.near) && Math.hypot(x - bx, y - (py(BAKER.x, BAKER.y, WORDS_Z) - 24)) < 40; }
 function talkToBaker(){ audio();
-  if (!MuffinMan.reaches(walker.x, walker.y)){ toast('Walk up to the baker.', 1600); return; }
+  // A tap answers at once, not behind whatever was being said.
+  if (!MuffinMan.reaches(walker.x, walker.y)){ toasts.clear(); toast('Walk up to the baker.', 1600); return; }
   muffin.say(); sfx.muffinMan(muffin.line); }
 const RIDER_PAL = {warrior, bones: bonesPal, necro: necroPal};
 flotilla.free = (r) => r === 'tarling' ? tarling.free : RIDER_PAL[r].free;
