@@ -385,6 +385,11 @@ export const cues = {
     tone(520, 0.06, 'square', 0.05, 1.3);
     tone(430, 0.08, 'square', 0.05, 1.25, 0.11);
   },
+  /** Parrots burst out of a palm: two rough squawks. */
+  squawk(): void {
+    tone(900, 0.09, 'sawtooth', 0.025, 0.7);
+    tone(1150, 0.08, 'sawtooth', 0.02, 0.75, 0.12);
+  },
   /** A leggy muffin, poked or just sprouted: a tiny squeak. */
   squeak(): void {
     tone(1500, 0.05, 'square', 0.025, 1.35);
