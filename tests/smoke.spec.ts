@@ -232,6 +232,7 @@ type Np = {
   reaperLandSeen: boolean;
   reaperEgg: number;
   reaperRematch: boolean;
+  oldOwed: boolean;
   eggDay: number;
   hatchT: number;
   eggT: number | null;
@@ -4251,6 +4252,86 @@ test('the Old One: through the door behind the throne, he rises, you get soul ar
   expect(errors).toEqual([]);
 });
 
+test("the Old One's rising, owed to a game the tester skipped past him: it plays in full in the ruins, and he sinks back", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    coins: 500,
+    towerTaken: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 4,
+    soulArmour: true,
+    oldOwed: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  for (const [i, y, r] of [
+    [12, -6000, 170],
+    [13, -6900, 160],
+    [14, -7800, 160],
+  ] as const) {
+    await page.waitForFunction(
+      (n) => window.__np.hordes[n]?.list.some((u) => u.state !== 'wait'),
+      i,
+    );
+    await page.evaluate(
+      ([n, ry, rr]) => {
+        const h = window.__np.hordes[n];
+        if (!h) return;
+        for (const u of h.list) {
+          u.guard = false;
+          h.hit(u, 99, u.x + 40, u.y);
+        }
+        window.__np.walker.x = -13500 - rr * 0.6 * Math.SQRT1_2;
+        window.__np.walker.y = ry - rr * 0.6 * Math.SQRT1_2;
+      },
+      [i, y, r] as const,
+    );
+    await expect(page.locator('#climb')).toHaveText('Through the door');
+    await page.click('#climb');
+    await page.waitForFunction((n) => window.__np.floor === n, i + 1);
+  }
+  await page.evaluate(() => {
+    window.__np.walker.x = -13500 - 158 * Math.SQRT1_2;
+    window.__np.walker.y = -8800 - 158 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Through the door');
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 16);
+  // The whole scene, soul armour and all, as if for the first time; then down he goes, and no fight.
+  await page.waitForFunction(() => window.__np.oldOne.state === 'rise', null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.oldOwed)).toBe(false);
+  await expect(page.locator('#toast')).toContainText('soul armour', { timeout: 12000 });
+  await page.waitForFunction(() => window.__np.oldOne.state === 'sink', null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('long ago');
+  await page.waitForFunction(() => window.__np.oldOne.state === 'gone', null, { timeout: 8000 });
+  expect(await page.evaluate(() => [window.__np.isle7Stage, window.__np.coins])).toEqual([
+    4,
+    coins,
+  ]);
+  expect(errors).toEqual([]);
+});
+
 test('the healer cat and the Cthulhu warrior: the cat eats a fish aboard for a heal, and both come ashore', async ({
   context,
   page,
@@ -4393,7 +4474,8 @@ test('tester: the #tester link shows a Tester button in the shop, and skipping t
       const n = window.__np;
       return [n.isle3Stage, n.isle4Stage, n.isle5Seen, n.isle5Stage, n.isle6Stage, n.coins];
     }),
-  ).toEqual([4, 1, true, 1, 0, 10300]);
+    // Island 3 at stage 3: the tar monster's scene is still to come, the next time the boat is out (a skip never skips one).
+  ).toEqual([3, 1, true, 1, 0, 10300]);
   expect(await page.evaluate(() => document.getElementById('testerBtn')?.hidden)).toBe(false);
   await page.locator('#testerBtn').dispatchEvent('click');
   await expect(page.locator('#testerSteps .tstep.done')).toHaveCount(3);
@@ -4463,6 +4545,32 @@ test('tester: a Reaper on land already beaten comes back by his nest for a remat
   await page.waitForTimeout(600);
   expect(await page.evaluate(() => window.__np.landReaper.state)).toBe('sleep');
   expect(await page.evaluate(() => window.__np.reaperEgg)).toBe(3);
+  expect(errors).toEqual([]);
+});
+
+test("tester: a skip never skips a cutscene: the tar monster rises the next time the boat is out, and the Old One's scene is owed", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true, coins: 300 }, './#tester');
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.locator('#testerSteps .tstep', { hasText: 'Old One beaten' }).click(),
+  ]);
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => [window.__np.isle7Stage, window.__np.oldOwed])).toEqual([
+    4,
+    true,
+  ]);
+  // Out on the water: the tar monster's scene, and then island 4 is tar, as in the story.
+  await page.waitForFunction(() => window.__np.cine?.kind === 'tar', null, { timeout: 6000 });
+  expect(await page.evaluate(() => window.__np.isle3Stage)).toBe(3);
+  await page.waitForTimeout(1500);
+  await page.mouse.click(CX, CY);
+  await page.waitForFunction(() => window.__np.isle3Stage === 4, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.cine)).toBeNull();
   expect(errors).toEqual([]);
 });
 

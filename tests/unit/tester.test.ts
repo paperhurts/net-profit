@@ -47,7 +47,8 @@ describe('the tester panel', () => {
     skipTo(s, at('king'));
     expect(s).toMatchObject({
       isle3Seen: true,
-      isle3Stage: 4,
+      // The tar monster's scene still to come: it plays the next time the boat is out, and moves this to 4.
+      isle3Stage: 3,
       isle4Stage: 1,
       isle5Seen: true,
       isle5Stage: 1,
@@ -75,7 +76,7 @@ describe('the tester panel', () => {
     const s = fresh();
     skipTo(s, STEPS.length - 1);
     expect(s).toMatchObject({
-      isle3Stage: ISLE3_STAGES,
+      isle3Stage: ISLE3_STAGES - 1,
       isle4Stage: ISLE4_STAGES,
       isle5Stage: ISLE5_STAGES,
       isle6Stage: ISLE6_STAGES,

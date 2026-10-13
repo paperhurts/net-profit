@@ -124,6 +124,14 @@ export class OldOne implements Entity {
     return true;
   }
 
+  /** Down he goes into the pool without a blow, as at the end of his scene played again for a game that skipped it. */
+  sink(): void {
+    if (this.state === 'gone' || this.state === 'sink') return;
+    this.state = 'sink';
+    this.t = 0;
+    this.slam = null;
+  }
+
   /** Tar on one of his eyes: a slam he was about to bring down comes to nothing, and he holds a while. */
   stun(s: number): void {
     if (!this.up) return;
