@@ -215,7 +215,13 @@ type Np = {
   hatchT: number;
   eggT: number | null;
   flotilla: {
-    crafts: { kind: string; placed: boolean; x: number; y: number }[];
+    crafts: {
+      kind: string;
+      placed: boolean;
+      x: number;
+      y: number;
+      tow: { x: number; y: number } | null;
+    }[];
     crew: Record<string, string | null>;
     riding(r: string): boolean;
   };
@@ -2150,6 +2156,65 @@ test('the flotilla: the warrior, the bones, the necromancer and the tarling sail
   await page.waitForFunction(() => window.__np.warriorPal.shown, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.flotilla.riding('warrior'))).toBe(false);
   expect(await page.evaluate(() => window.__np.flotilla.crafts.every((c) => c.placed))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the Boats card: the kid puts a friend on a boat, the two swap, and it is kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 4,
+    soulArmour: true,
+    isle8Seen: true,
+    heronStage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => document.getElementById('boatsBtn')?.hidden === false, null, {
+    timeout: 3000,
+  });
+  await page.locator('#boatsBtn').dispatchEvent('click');
+  await expect(page.locator('#boats')).toBeVisible();
+  // Four boats, each offering the four friends and Nobody; the warrior has the airboat to start.
+  await expect(page.locator('#boatsList .boat')).toHaveCount(4);
+  await expect(page.locator('#boatsList .rchip.on[data-craft="airboat"]')).toHaveText('Warrior');
+  // The tarling onto the airboat: the warrior takes his banana boat.
+  await page.locator('#boatsList [data-craft="airboat"][data-rider="tarling"]').click();
+  await expect(page.locator('#boatsList .rchip.on[data-craft="airboat"]')).toHaveText('Tarling');
+  await expect(page.locator('#boatsList .rchip.on[data-craft="banana"]')).toHaveText('Warrior');
+  // Nobody on the catamaran: the necromancer goes back to the deck.
+  await page.locator('#boatsList [data-craft="catamaran"][data-rider=""]').click();
+  expect(await page.evaluate(() => window.__np.flotilla.crew)).toEqual({
+    airboat: 'tarling',
+    catamaran: null,
+    windsurf: 'bones',
+    banana: 'warrior',
+  });
+  await page.locator('#boatsClose').click();
+  await expect(page.locator('#boats')).toBeHidden();
+  // Kept: a reload finds the same crew, and the airboat towing the banana.
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => window.__np.flotilla.crew.airboat)).toBe('tarling');
+  await page.waitForFunction(
+    () => window.__np.flotilla.crafts.find((c) => c.kind === 'banana')?.tow,
+    null,
+    {
+      timeout: 3000,
+    },
+  );
   expect(errors).toEqual([]);
 });
 

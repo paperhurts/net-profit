@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { SPEAR_MAX } from '../../src/data/spear';
 import {
@@ -554,6 +555,15 @@ describe('the leviathans driven off', () => {
     expect(back.reaperEgg).toBe(2);
     expect(parseSave(JSON.stringify({ ...s, reaperEgg: 7 }), bounds).reaperEgg).toBe(EGG_STAGES);
     expect(parseSave(JSON.stringify({ ...s, reaperEgg: -1 }), bounds).reaperEgg).toBe(0);
+  });
+
+  it("keep the flotilla's crew, as the starting crew in a save from before the Boats card", () => {
+    const old = JSON.parse(serializeSave(parseSave(legacy, bounds)));
+    delete old.crew;
+    const s = parseSave(JSON.stringify(old), bounds);
+    expect(s.crew).toEqual(DEFAULT_CREW);
+    s.crew = { airboat: 'tarling', catamaran: null, windsurf: 'necro', banana: 'warrior' };
+    expect(parseSave(serializeSave(s), bounds).crew).toEqual(s.crew);
   });
 
   it('keep the day the egg came aboard, and the baby Reaper hatched, as day 0 in a save from before', () => {
