@@ -214,6 +214,12 @@ type Np = {
   eggDay: number;
   hatchT: number;
   eggT: number | null;
+  flotilla: {
+    crafts: { kind: string; placed: boolean; x: number; y: number }[];
+    crew: Record<string, string | null>;
+    riding(r: string): boolean;
+  };
+  warriorPal: { shown: boolean };
   baby: {
     shown: boolean;
     swimming: boolean;
@@ -2089,6 +2095,61 @@ test("the Reaper's egg hatches at dawn: the baby swims and leaps by the boat, an
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   await page.waitForFunction(() => window.__np.baby.shown, null, { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('the flotilla: the warrior, the bones, the necromancer and the tarling sail their own craft, and step off them ashore', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 4,
+    soulArmour: true,
+    isle8Seen: true,
+    heronStage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  // Out at sea, each on its craft, the four of them round the boat.
+  await page.waitForFunction(() => window.__np.flotilla.crafts.every((c) => c.placed), null, {
+    timeout: 3000,
+  });
+  const sea = await page.evaluate(() => {
+    const { flotilla: f, boat: b } = window.__np;
+    return {
+      kinds: f.crafts.map((c) => c.kind),
+      gaps: f.crafts.map((c) => Math.hypot(c.x - b.x, c.y - b.y)),
+      riding: ['warrior', 'bones', 'necro', 'tarling'].map((r) => f.riding(r)),
+    };
+  });
+  expect(sea.kinds).toEqual(['airboat', 'catamaran', 'windsurf', 'banana']);
+  for (const g of sea.gaps) expect(g).toBeLessThan(260);
+  expect(sea.riding).toEqual([true, true, true, true]);
+  // Ashore at island 2's berth: they step off and walk with the figure; the craft wait.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = -600 + 330 * Math.SQRT1_2;
+    b.y = 5400 - 330 * Math.SQRT1_2;
+    b.h = 2.36;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.warriorPal.shown, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.flotilla.riding('warrior'))).toBe(false);
+  expect(await page.evaluate(() => window.__np.flotilla.crafts.every((c) => c.placed))).toBe(true);
   expect(errors).toEqual([]);
 });
 
