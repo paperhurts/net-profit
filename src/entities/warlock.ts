@@ -63,6 +63,8 @@ export class Warlock implements Entity {
   private readonly trail: { x: number; y: number }[] = [];
   /** Seconds it has wanted to follow and not moved. */
   private blockedT = 0;
+  /** Where it stops following: its place in the army's rings, when the game gives it one (spread.ts); else its heel. */
+  heelAt: number | null = null;
   private hadFigure = false;
   /** The nearest thing in reach to cast at, which the game finds. */
   findTarget: ((x: number, y: number, range: number) => Target | null) | null = null;
@@ -189,7 +191,8 @@ export class Warlock implements Entity {
       if (this.trail.length > 80) this.trail.shift();
     }
     this.gait = Math.max(0, this.gait - dt * 4);
-    if (d > HEEL) {
+    const heel = this.heelAt ?? HEEL;
+    if (d > heel) {
       while (this.trail.length > 1) {
         const c = this.trail[0] as { x: number; y: number };
         if (Math.hypot(c.x - this.x, c.y - this.y) >= 5) break;
@@ -200,7 +203,7 @@ export class Warlock implements Entity {
       const dy = t.y - this.y;
       const dl = Math.hypot(dx, dy);
       if (dl > 0.5) {
-        const sp = Math.min(WARLOCK_SPEED, 30 + (d - HEEL) * 4);
+        const sp = Math.min(WARLOCK_SPEED, 30 + (d - heel) * 4);
         const moved = walkStep(this, (dx / dl) * sp * dt, (dy / dl) * sp * dt, 99);
         // No way along the steps at all for a while: pop over beside the figure.
         this.blockedT = moved > 0 ? 0 : this.blockedT + dt;

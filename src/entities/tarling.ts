@@ -56,6 +56,8 @@ export class Tarling implements Entity {
   private readonly trail: { x: number; y: number }[] = [];
   /** Seconds it has wanted to follow and not moved. */
   private blockedT = 0;
+  /** Where it stops following: its place in the army's rings, when the game gives it one (spread.ts); else its heel. */
+  heelAt: number | null = null;
   /** What it can spit at, nearest, within reach; the game knows. */
   findTarget: ((x: number, y: number, range: number) => SpitTarget | null) | null = null;
   /** It spat. */
@@ -129,7 +131,8 @@ export class Tarling implements Entity {
     }
     const d = Math.hypot(f.x - this.x, f.y - this.y);
     this.gait = Math.max(0, this.gait - dt * 4);
-    if (d > TB_HEEL) {
+    const heel = this.heelAt ?? TB_HEEL;
+    if (d > heel) {
       while (this.trail.length > 1) {
         const c = this.trail[0] as { x: number; y: number };
         if (Math.hypot(c.x - this.x, c.y - this.y) >= 4) break;
@@ -140,7 +143,7 @@ export class Tarling implements Entity {
       const dy = t.y - this.y;
       const dl = Math.hypot(dx, dy);
       if (dl > 0.5) {
-        const sp = Math.min(TB_SPEED, 30 + (d - TB_HEEL) * 5);
+        const sp = Math.min(TB_SPEED, 30 + (d - heel) * 5);
         const moved = walkStep(this, (dx / dl) * sp * dt, (dy / dl) * sp * dt, 99);
         // No way along the steps at all for a while: pop over beside the figure.
         this.blockedT = moved > 0 ? 0 : this.blockedT + dt;

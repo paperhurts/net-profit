@@ -158,6 +158,8 @@ export class Pal implements Entity {
   private raiseCd = 0;
   /** Seconds it has wanted to follow and not moved. */
   private blockedT = 0;
+  /** Where it stops following: its place in the army's rings, when the game gives it one (spread.ts); else its heel. */
+  heelAt: number | null = null;
 
   constructor(readonly kind: PalKind) {
     this.hp = this.maxHp;
@@ -357,7 +359,8 @@ export class Pal implements Entity {
       if (this.trail.length > 80) this.trail.shift();
     }
     const d = Math.hypot(f.x - this.x, f.y - this.y);
-    if (d > PAL_HEEL[this.kind]) {
+    const heel = this.heelAt ?? PAL_HEEL[this.kind];
+    if (d > heel) {
       while (this.trail.length > 1) {
         const c = this.trail[0] as { x: number; y: number };
         if (Math.hypot(c.x - this.x, c.y - this.y) >= 4) break;
@@ -368,12 +371,7 @@ export class Pal implements Entity {
       const dy = t.y - this.y;
       const dl = Math.hypot(dx, dy);
       if (dl > 0.5) {
-        const moved = this.step(
-          dx / dl,
-          dy / dl,
-          Math.min(PAL_SPEED, 30 + (d - PAL_HEEL[this.kind]) * 5),
-          dt,
-        );
+        const moved = this.step(dx / dl, dy / dl, Math.min(PAL_SPEED, 30 + (d - heel) * 5), dt);
         this.blockedT = moved > 0 ? 0 : this.blockedT + dt;
         if (this.blockedT >= STUCK_T) {
           this.blockedT = 0;

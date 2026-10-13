@@ -83,8 +83,8 @@ import { AQUARIUM, AQUARIUM_BASE, AQUARIUM_COST, AQUARIUM_FROM, AQUARIUM_MID, AQ
 import { nextSpear, spearAt } from './data/spear';
 import { drivePrize, HARPOON_LEVEL, HARPOON_POWER, HARPOON_RANGE, HARPOON_RELOAD, noDriven, RESOLVE, TROPHY } from './data/harpoon';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
-import { spreadOut } from './entities/spread';
-import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK, ISLE8_DOCK, tarDock, WALK_ZOOM, Walker, walkerDepth, walkStep } from './entities/walker';
+import { assignSlots, formation, formUp, spreadOut } from './entities/spread';
+import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK, ISLE8_DOCK, tarDock, WALK_ZOOM, Walker, walkable, walkerDepth, walkStep } from './entities/walker';
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, NAGA_CAGE, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
 import { DIVE3, DOCK3, DOOR3, ISLE3, MAT, onPlanks, pushOffTown, TRADER_MID } from './world/isle3';
 import { atTar, ISLE4, MONSTER, SUMMONER, TAR_R, TAR_STOP } from './world/isle4';
@@ -1108,11 +1108,22 @@ warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' 
   if (out){ toasts.clear(); toast('The warlock is worn out. He flies back to his boat to rest.', 3200, 1); } };
 warlock.onArrive = () => { if (!warlockTold){ warlockTold = true; toast('The warlock comes ashore with you. He casts at whatever you fight.', 3000, 1); } };
 // What would hurt the figure hurts the warlock if he is in the way: a monkey's bonk, a bolt, a slash.
-// The companions with the figure keep a little apart, round it, rather than all stopping in one stack behind it.
-function spreadPals(dt){ if (walker.state !== 'ashore') return; const list = [];
-  if (warlock.shown) list.push(warlock); if (tarling.with) list.push(tarling);
-  for (const p of [cat, warrior, bonesPal, naga, necroPal, baby]) if (p.shown) list.push(p);
-  if (list.length) spreadOut(list, walker, dt, (b, dx, dy) => walkStep(b, dx, dy, build)); }
+// The companions with the figure keep a little apart, round it, rather than all stopping in one stack behind it; and
+// outside a fight each has a place of its own, the small ones near and the big ones further out, in rings behind the
+// figure, so the whole army reads (spread.ts). On the move they string out behind it, each stopping at its own ring;
+// once it stops they walk in to their places. In a fight they go for whatever it fights, and only keep apart.
+const ARMY_SIZE = {tarling: 8, cat: 10, warrior: 13, naga: 14, bones: 14, warlock: 15, necro: 15, baby: 24};
+function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build), all = [warlock, tarling, cat, warrior, bonesPal, naga, necroPal, baby];
+  const size = (b) => ARMY_SIZE[b === warlock ? 'warlock' : b === tarling ? 'tarling' : b.kind] ?? 0;
+  const list = walker.state === 'ashore' ? all.filter(b => b === tarling ? tarling.with : b.shown) : [];
+  for (const b of all) if (!list.includes(b)) b.heelAt = null;
+  if (!list.length) return;
+  if (inFight()){ for (const b of list) b.heelAt = null; spreadOut(list, walker, dt, step); return; }
+  list.sort((a, b) => size(a) - size(b));
+  const places = assignSlots(list, formation(list.length, (dx, dy) => walkable(walker.x + dx, walker.y + dy, build)), walker);
+  list.forEach((b, i) => { const s = places[i]; b.heelAt = s ? s.r + 8 : null; });
+  if (Math.hypot(walker.vx, walker.vy) < 15) formUp(list, places, walker, dt, step);
+  else spreadOut(list, walker, dt, step); }
 function hurtWarlock(dt){ for (const h of [warlock, cat, warrior, bonesPal, naga, necroPal, baby]) hurtHelper(h, dt);
   for (const a of allies.list) hurtHelper({shown: a.state === 'fight', x: a.x, y: a.y, hurt: () => allies.hurt(a)}, dt); }
 // What would hurt the figure hurts a helper in the way: the warlock, the cat, the warrior or the bones.
