@@ -102,6 +102,18 @@ import {
   TOWER8,
   TOWER9,
 } from '../world/isle8';
+import {
+  berth10,
+  CRATES10,
+  CYPRESS10,
+  DOCK10,
+  groundZ10,
+  LANDING10,
+  OAKS10,
+  onIsle10,
+  ROCKS10,
+  TREES10,
+} from '../world/isle10';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { BAKERY, DRURY_LANE } from './muffinman';
@@ -199,6 +211,14 @@ export const ISLE8_DOCK: Dock = {
   berth: berth8,
   landing: LANDING8,
 };
+/** Island 10's dock, at the end of its pier on the side toward home. */
+export const ISLE10_DOCK: Dock = {
+  x: DOCK10.x,
+  y: DOCK10.y,
+  r: DOCK10.r,
+  berth: berth10,
+  landing: LANDING10,
+};
 export const DOCKS: readonly Dock[] = [
   HOME_DOCK,
   ISLE2_DOCK,
@@ -206,6 +226,7 @@ export const DOCKS: readonly Dock[] = [
   ISLE6_DOCK,
   ISLE7_DOCK,
   ISLE8_DOCK,
+  ISLE10_DOCK,
 ];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
@@ -266,7 +287,8 @@ function inBox(
 /**
  * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
  * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
- * gets into, island 6 and its pier, island 7, and islands 8 and 9 with the sandbar between.
+ * gets into, island 6 and its pier, island 7, islands 8 and 9 with the sandbar between, and island 10 and its
+ * pier, round its pond and pools.
  */
 export function onLand(x: number, y: number): boolean {
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
@@ -274,6 +296,7 @@ export function onLand(x: number, y: number): boolean {
   if (onIsle6(x, y)) return true;
   if (onIsle7(x, y)) return true;
   if (onTwins(x, y)) return true;
+  if (onIsle10(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
@@ -288,6 +311,7 @@ export function onLand(x: number, y: number): boolean {
 export function groundZ(x: number, y: number): number {
   if (onIsle3(x, y)) return groundZ3(x, y);
   if (onIsle6(x, y)) return groundZ6(x, y);
+  if (onIsle10(x, y)) return groundZ10(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -436,6 +460,18 @@ export const PROPS: readonly Prop[] = [
     TEMPLE.x + TEMPLE.y + TEMPLE.w * 0.8,
   ),
   ...PALMS6.map((p) => post(p, 4, p[0] + p[1])),
+  // Island 10: the forest's trees, the swamp's cypresses, the prairie's lone oaks and rocks, and the crates on the pier.
+  ...TREES10.map((p) => post(p, 5, p[0] + p[1])),
+  ...CYPRESS10.map((p) => post(p, 5, p[0] + p[1])),
+  ...OAKS10.map((p) => post(p, 6, p[0] + p[1])),
+  ...ROCKS10.map((p) => prop(p[0] - 8, p[1] - 6, p[0] + 8, p[1] + 6, p[0] + p[1])),
+  prop(
+    CRATES10.x - 10,
+    CRATES10.y - 8,
+    CRATES10.x + 19,
+    CRATES10.y + 15,
+    CRATES10.x + CRATES10.y + 10,
+  ),
   ...ROCKS6.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
   ...CHESTS6.map((p) => prop(p[0] - 7, p[1] - 5, p[0] + 7, p[1] + 5, p[0] + p[1], 0, 1.5)),
   // Island 7: the trading post, the tower, the palms, the monkey camp and the portal's two feet.

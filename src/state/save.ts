@@ -167,6 +167,8 @@ export type SaveData = {
   nagaFree: boolean;
   /** Islands 8 and 9, the Heron's twins, have been sighted. */
   isle8Seen: boolean;
+  /** Island 10 has been sighted, in the far deep's north-east corner. Missing in old saves and read as not. */
+  isle10Seen: boolean;
   /** Fish tossed to the otter off the home dock: three make him yours. */
   otterFed: number;
   /** Ice fish tossed to Neil, the seal at the ice floe's edge: three make him yours. */
@@ -307,6 +309,7 @@ export function defaultSave(b: Bounds): SaveData {
     chartersRun: 0,
     nagaFree: false,
     isle8Seen: false,
+    isle10Seen: false,
     otterFed: 0,
     neilFed: 0,
     radioDay: 0,
@@ -454,6 +457,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.chartersRun = Math.max(0, int(o.chartersRun));
   d.nagaFree = !!o.nagaFree;
   d.isle8Seen = !!o.isle8Seen;
+  d.isle10Seen = !!o.isle10Seen;
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
   d.neilFed = Math.max(0, Math.min(NEIL_FEEDS, int(o.neilFed)));
   d.radioDay = Math.max(0, int(o.radioDay));
@@ -578,6 +582,7 @@ export function serializeSave(d: SaveData): string {
     chartersRun: d.chartersRun,
     nagaFree: d.nagaFree,
     isle8Seen: d.isle8Seen,
+    isle10Seen: d.isle10Seen,
     otterFed: d.otterFed,
     neilFed: d.neilFed,
     radioDay: d.radioDay,
