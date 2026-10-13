@@ -35,6 +35,12 @@ type Np = {
   muffin: { line: number; near: boolean; saying(): string | null };
   bakerAt: [number, number];
   isle10Seen: boolean;
+  prairie10: {
+    bunnies: { x: number; y: number; hop: number }[];
+    dogs: { x: number; y: number; up: number; hide: number; town: number }[];
+    bison: { x: number; y: number }[];
+  };
+  prairieAt(k: 'bunny' | 'dog' | 'bison', i: number): [number, number] | null;
   junk: number;
   muffins: number[];
   leggy: { count: number; list: { x: number; y: number; hop: number }[] };
@@ -3523,6 +3529,71 @@ test('island 10: sight it in the far corner, tie up at its pier, and walk onto t
   expect(y0 - y1, 'did not walk up the pier onto the island').toBeGreaterThan(150);
   expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
   await expect(page.locator('#log')).toContainText('Island 10 found');
+  expect(errors).toEqual([]);
+});
+
+test("island 10's prairie: prairie dogs duck as you come, bunnies hop when tapped, and a herd of bison grazes", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  const herd = await page.evaluate(() => window.__np.prairie10.bison.length);
+  expect(herd).toBeGreaterThanOrEqual(4);
+  // A prairie dog town, from off its edge: all up. A tap on one and it ducks.
+  const put = (x: number, y: number) =>
+    page.evaluate(
+      (p) => {
+        window.__np.walker.x = p.x;
+        window.__np.walker.y = p.y;
+      },
+      { x, y },
+    );
+  const d0 = await page.evaluate(() => {
+    const d = window.__np.prairie10.dogs[0];
+    return d ? [d.x, d.y, d.town] : [0, 0, 0];
+  });
+  await put((d0[0] ?? 0) + 110, (d0[1] ?? 0) + 110);
+  await page.waitForTimeout(1500);
+  const town = (n: number) =>
+    page.evaluate(
+      (n) => window.__np.prairie10.dogs.filter((d) => d.town === n).map((d) => d.up),
+      n,
+    );
+  expect(await town(d0[2] ?? 0)).toEqual([1, 1, 1]);
+  const at = await page.evaluate(() => window.__np.prairieAt('dog', 0));
+  if (!at) throw new Error('no dog on the screen');
+  await page.mouse.click(at[0], at[1]);
+  await page.waitForFunction(() => (window.__np.prairie10.dogs[0]?.up ?? 1) === 0, null, {
+    timeout: 1500,
+  });
+  // Walk right up to the town: every dog in it goes down its hole.
+  await put((d0[0] ?? 0) + 30, (d0[1] ?? 0) + 30);
+  await page.waitForTimeout(500);
+  expect(Math.max(...(await town(d0[2] ?? 0)))).toBe(0);
+  // A bunny, tapped, hops.
+  const b = await page.evaluate(() => {
+    const b = window.__np.prairie10.bunnies[4];
+    return b ? [b.x, b.y] : [0, 0];
+  });
+  await put((b[0] ?? 0) + 100, (b[1] ?? 0) + 100);
+  await page.waitForTimeout(1500);
+  const bat = await page.evaluate(() => window.__np.prairieAt('bunny', 4));
+  if (!bat) throw new Error('no bunny on the screen');
+  await page.mouse.click(bat[0], bat[1]);
+  expect(await page.evaluate(() => window.__np.prairie10.bunnies[4]?.hop ?? 0)).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 

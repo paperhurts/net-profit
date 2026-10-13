@@ -390,6 +390,11 @@ export const cues = {
     tone(900, 0.09, 'sawtooth', 0.025, 0.7);
     tone(1150, 0.08, 'sawtooth', 0.02, 0.75, 0.12);
   },
+  /** A bison on island 10's prairie, tapped: a low, breathy snort. */
+  snort(): void {
+    tone(130, 0.16, 'sawtooth', 0.045, 0.6);
+    tone(105, 0.2, 'sawtooth', 0.035, 0.7, 0.14);
+  },
   /** A leggy muffin, poked or just sprouted: a tiny squeak. */
   squeak(): void {
     tone(1500, 0.05, 'square', 0.025, 1.35);
