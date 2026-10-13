@@ -260,6 +260,51 @@ export const SPECIES: readonly Species[] = [
     mark: '#F6E2C8',
     crab: true,
   },
+  // In the pond on island 10's prairie, on a line from its edge: a bluegill, round and blue-green with an orange breast;
+  {
+    name: 'bluegill',
+    pl: 'bluegills',
+    v: 12,
+    c: '#5E8FA8',
+    s: 7.5,
+    fat: 0.5,
+    tail: 0.7,
+    mark: '#F2A13A',
+  },
+  // a yellow perch, barred dark;
+  {
+    name: 'yellow perch',
+    pl: 'yellow perch',
+    v: 16,
+    c: '#D9B84A',
+    s: 8.5,
+    fat: 0.32,
+    tail: 0.75,
+    mark: '#4A5A2C',
+  },
+  // a largemouth bass, green with a dark stripe and a mouth to match its name;
+  {
+    name: 'largemouth bass',
+    pl: 'largemouth bass',
+    v: 26,
+    c: '#6E8A4A',
+    s: 10.5,
+    fat: 0.33,
+    tail: 0.8,
+    mark: '#2F3A22',
+  },
+  // and a channel catfish, grey and spotted, the pond's biggest and rarest.
+  {
+    name: 'channel catfish',
+    pl: 'channel catfish',
+    v: 34,
+    c: '#8A8F96',
+    s: 12,
+    fat: 0.24,
+    tail: 0.7,
+    mark: '#E8E4DA',
+    dot: true,
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -272,6 +317,11 @@ export const ICE_CHAR = 19;
 export const POLAR_COD = 20;
 export const ICEFISH = 21;
 export const SNOW_CRAB = 22;
+/** Island 10's pond's, on a line from its edge. */
+export const BLUEGILL = 23;
+export const PERCH = 24;
+export const BASS = 25;
+export const CATFISH = 26;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;
