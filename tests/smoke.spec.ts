@@ -34,6 +34,7 @@ type Np = {
   petted: boolean;
   muffin: { line: number; near: boolean; saying(): string | null };
   bakerAt: [number, number];
+  isle10Seen: boolean;
   junk: number;
   muffins: number[];
   leggy: { count: number; list: { x: number; y: number; hop: number }[] };
@@ -3483,6 +3484,45 @@ test("islands 8 and 9: sight the twins, tie up at island 8, walk the sandbar, an
   // After the landing's own message, which is still up.
   await expect(page.locator('#toast')).toContainText('Barred', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Islands 8 and 9 found');
+  expect(errors).toEqual([]);
+});
+
+test('island 10: sight it in the far corner, tie up at its pier, and walk onto the prairie', async ({
+  context,
+  page,
+}) => {
+  // A flagship out in the far deep, south of island 10's pier, sailing for it.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.isle10Seen, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Island 10');
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const y0 = await page.evaluate(() => window.__np.walker.y);
+  // Up the pier (north, -y) and onto the prairie.
+  const sx = 1;
+  const sy = -0.5;
+  const n = Math.hypot(sx, sy);
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX + (sx / n) * 60, CY + (sy / n) * 60, { steps: 3 });
+  await page.waitForTimeout(2600);
+  await page.mouse.up();
+  const y1 = await page.evaluate(() => window.__np.walker.y);
+  expect(y0 - y1, 'did not walk up the pier onto the island').toBeGreaterThan(150);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  await expect(page.locator('#log')).toContainText('Island 10 found');
   expect(errors).toEqual([]);
 });
 
