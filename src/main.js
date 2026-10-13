@@ -52,7 +52,7 @@ import { WarlockBoat } from './entities/warlockboat';
 import { CAGE, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, NEST9, ROOF, ROOF3, ROOF7, ROOF8, ROOMS, RUINS, STEP, stairs, TEMPLE6, THRONE, TOWERS } from './world/tower';
 import { Spears } from './entities/spears';
 import { armourAt, nextArmour, heartsFor } from './data/armour';
-import { decodeSailed, encodeSailed, noSailed, sail, sailedCount, sailedShare, seedSailed } from './state/sailed';
+import { decodeSailed, encodeSailed, noSailed, sail, sailAll, sailedCount, sailedShare, seedSailed } from './state/sailed';
 import { drawRadar } from './render/radar';
 import { inRange } from './world/radar';
 import { isNewVersion } from './state/update';
@@ -2128,7 +2128,7 @@ function openTester(){ audio(); sfx.click(); const done = stepsDone(story());
   $('testerSteps').innerHTML = STEPS.map((st, i) => `<button class="tstep${i < done ? ' done' : ''}" data-step="${i}"><span>${st.label}</span><span class="tk">${i < done ? 'Done' : 'Skip to here'}</span></button>`).join('');
   renderExtras(); $('tester').hidden = false; }
 // The extras: some again and again (coins, driftwood, mending), the rest once, and say so once you have them.
-const EXTRAS = [['coins', '+10,000 coins'], ['wood', '+100 driftwood'], ['kit', "The Reaper's ice fishing kit", () => driven.reaper > 0],
+const EXTRAS = [['coins', '+10,000 coins'], ['wood', '+100 driftwood'], ['unfog', 'Unfog the sea map', () => sailedShare(sailed) >= 1], ['kit', "The Reaper's ice fishing kit", () => driven.reaper > 0],
   ['egg', "The Reaper's egg", () => reaperEgg >= 2], ['hatch', "The Reaper's egg, hatching now", () => reaperEgg >= 3],
   ['otter', 'The otter', () => otter.free], ['neil', 'Neil the seal', () => neil.free], ['naga', 'The naga', () => nagaFree], ['junk', 'A bucket of junk, for the muffin man'], ['stale', 'A fish muffin about to grow legs'], ['leggy', 'Six leggy muffins', () => leggy.count >= LEGGY_MAX], ['mend', 'Mend the boat, fill the hearts']];
 function renderExtras(){ $('testerExtras').innerHTML = EXTRAS.map(([k, l, has]) => { const got = has && has();
@@ -2156,6 +2156,7 @@ $('testerSteps').addEventListener('click', (e) => { const b = e.target.closest('
 $('testerExtras').addEventListener('click', (e) => { const b = e.target.closest('[data-extra]'); if (!b) return; const k = b.dataset.extra;
   if (k === 'coins'){ coins += 10000; hud(); }
   else if (k === 'wood'){ wood += 100; hudWood(); }
+  else if (k === 'unfog') sailAll(sailed);
   else if (k === 'kit'){ driven.reaper = Math.max(1, driven.reaper); reaperSeen = true; }
   else if (k === 'egg'){ if (reaperEgg < 2){ reaperEgg = 2; eggDay = day; } reaperLandSeen = true; }
   else if (k === 'hatch'){ if (reaperEgg < 3){ reaperEgg = 2; eggDay = 0; } reaperLandSeen = true; }
@@ -2256,7 +2257,8 @@ function drawMap(){ if (!mapOpen) return; const dpr = Math.min(2, window.deviceP
   if (mapCanvas.width !== w || mapCanvas.height !== h){ mapCanvas.width = w; mapCanvas.height = h; }
   seaMap.draw(mapCanvas.getContext('2d'), w, h, {sailed, boat, isles: mapIsles(), marks: mapMarks(), T: performance.now() / 1000}); }
 function openMap(){ audio(); sfx.click(); mapOpen = true; elMap.hidden = false;
-  $('mapNote').textContent = `You have sailed ${Math.max(1, Math.round(sailedShare(sailed) * 100))}% of the sea. Fog is where you have not been yet.`; drawMap(); }
+  const share = sailedShare(sailed);
+  $('mapNote').textContent = share >= 1 ? 'No fog left: the whole sea is on the map.' : `You have sailed ${Math.max(1, Math.round(share * 100))}% of the sea. Fog is where you have not been yet.`; drawMap(); }
 function closeMap(){ mapOpen = false; elMap.hidden = true; sfx.click(); }
 elMapBtn.addEventListener('click', openMap); $('mapPill').addEventListener('click', openMap); $('mapClose').addEventListener('click', closeMap);
 elMap.addEventListener('click', e => { if (e.target === elMap) closeMap(); });

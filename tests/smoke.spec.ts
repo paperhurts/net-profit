@@ -4176,6 +4176,13 @@ test('tester: the #tester link shows a Tester button in the shop, and skipping t
   await expect(page.locator('#testerExtras [data-extra="coins"]')).not.toContainText('Added', {
     timeout: 3000,
   });
+  // The sea map, all its fog cleared at once.
+  expect(await page.evaluate(() => window.__np.sailedShare)).toBeLessThan(1);
+  await page.locator('#testerExtras [data-extra="unfog"]').click();
+  expect(await page.evaluate(() => window.__np.sailedShare)).toBe(1);
+  await expect(page.locator('#testerExtras [data-extra="unfog"]')).toContainText('Have it', {
+    timeout: 3000,
+  });
   // The pets: the otter and Neil, and the naga, each once.
   for (const k of ['otter', 'neil', 'naga']) {
     await page.locator(`#testerExtras [data-extra="${k}"]`).click();

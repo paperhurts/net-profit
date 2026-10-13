@@ -11,6 +11,7 @@ import {
   SEA_MIN,
   SEA_SPAN,
   sail,
+  sailAll,
   sailedCount,
   sailedShare,
   seedSailed,
@@ -74,5 +75,15 @@ describe('the sea sailed, for the map', () => {
     expect(isSailed(s, six[0], six[1])).toBe(true);
     const deep = cellAt(-DEEP / 2, IY) as [number, number];
     expect(isSailed(s, deep[0], deep[1])).toBe(false);
+  });
+
+  it('opens the whole sea for the tester, every cell and no more, and it still saves', () => {
+    const s = noSailed();
+    sail(s, IX, IY);
+    sailAll(s);
+    expect(sailedShare(s)).toBe(1);
+    expect(isSailed(s, 0, 0)).toBe(true);
+    expect(isSailed(s, SAILED_N - 1, SAILED_N - 1)).toBe(true);
+    expect(decodeSailed(encodeSailed(s))).toEqual(s);
   });
 });

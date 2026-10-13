@@ -80,6 +80,11 @@ export function sailBox(s: Sailed, x0: number, y0: number, x1: number, y1: numbe
     }
 }
 
+/** Open the whole sea at once, for the tester panel: every cell, and no bit past the last one. */
+export function sailAll(s: Sailed): void {
+  for (let n = 0; n < SAILED_N * SAILED_N; n++) s[n >> 3] = (s[n >> 3] ?? 0) | (1 << (n & 7));
+}
+
 /** How many cells have been sailed, and the share of the sea that is. */
 export function sailedCount(s: Sailed): number {
   let n = 0;
