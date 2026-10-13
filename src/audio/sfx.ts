@@ -395,6 +395,18 @@ export const cues = {
     tone(130, 0.16, 'sawtooth', 0.045, 0.6);
     tone(105, 0.2, 'sawtooth', 0.035, 0.7, 0.14);
   },
+  /** A gator surging out of its pool on island 10: a heavy splash, a slap and a spray. */
+  splash(): void {
+    tone(160, 0.22, 'sawtooth', 0.05, 0.4);
+    tone(1200, 0.3, 'triangle', 0.03, 0.35, 0.04);
+    tone(90, 0.3, 'sine', 0.08, 0.6, 0.02);
+  },
+  /** A gator opening its jaws wide: a low, rough hiss, rising. */
+  hiss(): void {
+    tone(2400, 0.6, 'sawtooth', 0.012, 1.3);
+    tone(3100, 0.5, 'square', 0.006, 1.2, 0.05);
+    tone(80, 0.5, 'sawtooth', 0.04, 1.2);
+  },
   /** A leggy muffin, poked or just sprouted: a tiny squeak. */
   squeak(): void {
     tone(1500, 0.05, 'square', 0.025, 1.35);
