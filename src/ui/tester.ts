@@ -6,6 +6,9 @@
  * story's steps in the order they come, each marking everything up to it
  * beaten, and a few extras. The game applies what is tapped, saves, and
  * starts again from the save, so everything that hangs off the story fits.
+ * A skip never skips a cutscene (the kid: "cutscenes are important"): island 3
+ * is left with the tar monster's scene still to come, which plays the next
+ * time the boat is out, and the game owes the Old One's rising (see main).
  * Nothing in it is shown to a player who has not opened the link.
  */
 
@@ -37,9 +40,10 @@ export const STEPS: readonly Step[] = [
     id: 'isle3',
     short: 'island 3',
     label: 'Island 3: its tower, the swordsman, the warlock freed, and the tar',
+    // Stage 3, not 4: the tar monster's scene is still to come, and moves it on.
     apply: (s) => {
       s.isle3Seen = true;
-      atLeast(s, 'isle3Stage', 4);
+      atLeast(s, 'isle3Stage', 3);
     },
   },
   {
