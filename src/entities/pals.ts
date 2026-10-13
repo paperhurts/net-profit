@@ -126,9 +126,15 @@ export class Pal implements Entity {
   invuln = 0;
   /** Seconds since its last swing began, for the swing's look. */
   swingT = 9;
-  /** The cat's heals left this fight, and the one it is about to give. */
+  /** The cat's heals left this fight, and the one it is about to give: to the figure, or (null) to a companion. */
   heals = HEALS;
   private healT = -1;
+  private healWho: object | null = null;
+  /**
+   * The cat has had a tuna, the kid's (2026-10-13: "cat can heal companions as long as you fed it tuna"): its heals go
+   * to a hurt companion as well as to the figure, until they run out.
+   */
+  tuna = false;
   /** Seconds of hearts over it after a pet. */
   love = 0;
   private rest = 0;
@@ -151,6 +157,8 @@ export class Pal implements Entity {
   onHurt: ((out: boolean) => void) | null = null;
   /** The cat gives the figure a heart back. */
   onHeal: (() => void) | null = null;
+  /** The cat, fed tuna, gives a companion back what it lost; the game says how. */
+  onHealPal: ((who: object) => void) | null = null;
   /** The bones raise a ghost and a skeleton here, or the necromancer his hamster; the game calls them up. */
   onRaise: ((x: number, y: number) => void) | null = null;
   /** Whether they may raise now: the game says whether the last ones are gone. */
@@ -243,12 +251,33 @@ export class Pal implements Entity {
   noticeHurt(): void {
     if (this.kind !== 'cat' || this.state !== 'with' || this.heals <= 0 || this.healT >= 0) return;
     this.healT = HEAL_DELAY;
+    this.healWho = null;
   }
 
-  /** Fed a fish: another heal, up to the most it holds. Returns whether it would eat. */
-  feed(): boolean {
-    if (this.kind !== 'cat' || this.heals >= MAX_HEALS) return false;
-    this.heals++;
+  /** A companion has been hurt (not worn out): a cat that has had tuna will heal it too. */
+  noticePalHurt(who: object): void {
+    if (
+      this.kind !== 'cat' ||
+      !this.tuna ||
+      this.state !== 'with' ||
+      this.heals <= 0 ||
+      this.healT >= 0
+    )
+      return;
+    this.healT = HEAL_DELAY;
+    this.healWho = who;
+  }
+
+  /**
+   * Fed a fish: another heal, up to the most it holds. A tuna also lets it heal companions, and it will eat one for
+   * that even full. Returns whether it would eat.
+   */
+  feed(tuna = false): boolean {
+    if (this.kind !== 'cat') return false;
+    const wantsTuna = tuna && !this.tuna;
+    if (this.heals >= MAX_HEALS && !wantsTuna) return false;
+    this.heals = Math.min(MAX_HEALS, this.heals + 1);
+    if (tuna) this.tuna = true;
     this.love = 1.6;
     return true;
   }
@@ -297,7 +326,11 @@ export class Pal implements Entity {
       this.healT -= dt;
       if (this.healT < 0 && this.heals > 0 && this.state === 'with') {
         this.heals--;
-        this.onHeal?.();
+        if (this.healWho) this.onHealPal?.(this.healWho);
+        else this.onHeal?.();
+        this.healWho = null;
+        // The tuna is spent with the last of its heals.
+        if (this.heals <= 0) this.tuna = false;
       }
     }
     if (!this.free) return;

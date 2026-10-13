@@ -268,8 +268,8 @@ type Np = {
   soulArmour: boolean;
   deep: { fighting: boolean; state: string; resolve: number };
   cth: { state: string; hit(power: number): void };
-  cat: { shown: boolean; heals: number; x: number; y: number };
-  warrior: { shown: boolean };
+  cat: { shown: boolean; heals: number; tuna: boolean; x: number; y: number };
+  warrior: { shown: boolean; hp: number; maxHp: number; invuln: number; hurt(): boolean };
   catAt: [number, number] | null;
   king: { fighting: boolean; state: string; t: number; resolve: number };
   fireHarpoon(): void;
@@ -4103,6 +4103,57 @@ test('the healer cat and the Cthulhu warrior: the cat eats a fish aboard for a h
   await page.waitForFunction(() => window.__np.cat.shown && window.__np.warrior.shown, null, {
     timeout: 5000,
   });
+  expect(errors).toEqual([]);
+});
+
+test('the tuna cat: it eats the tuna first, and then heals a hurt companion ashore as well as you', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    // Three sardines and a tuna.
+    trip: { x: 2400, y: -1100, h: -Math.PI / 2, clock: 0.3, hold: [3, 0, 0, 0, 1] },
+  });
+  await page.waitForTimeout(600);
+  const [x, y] = (await page.evaluate(() => window.__np.catAt)) as [number, number];
+  await page.mouse.click(x, y);
+  await page.waitForFunction(() => window.__np.cat.tuna, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).toContainText('heals your companions');
+  // It took the tuna, not a sardine.
+  expect(await page.evaluate(() => window.__np.hold)).toBe(3);
+
+  // Ashore, the warrior takes a hit, and the cat gives it back.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 2400;
+    b.y = -1320;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.locator('#ashore').click();
+  await page.waitForFunction(() => window.__np.cat.shown && window.__np.warrior.shown, null, {
+    timeout: 5000,
+  });
+  await page.waitForTimeout(800);
+  const full = await page.evaluate(() => window.__np.warrior.maxHp);
+  expect(
+    await page.evaluate(() => {
+      window.__np.warrior.invuln = 0;
+      return window.__np.warrior.hurt();
+    }),
+  ).toBe(true);
+  expect(await page.evaluate(() => window.__np.warrior.hp)).toBe(full - 1);
+  await page.waitForFunction((f) => window.__np.warrior.hp === f, full, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 
