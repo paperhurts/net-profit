@@ -153,6 +153,47 @@ describe('the healer cat and the Cthulhu warrior', () => {
     expect(war.feed()).toBe(false);
   });
 
+  it('fed a tuna, the cat heals a hurt companion too, until its heals run out', () => {
+    const cat = new Pal('cat');
+    cat.free = true;
+    const w: World = baseWorld({ figure: figureAt(LANDING.x, LANDING.y) });
+    cat.update(DT, w);
+    const pal = { name: 'the warrior' };
+    const healedPals: object[] = [];
+    let healedFigure = 0;
+    cat.onHealPal = (who) => healedPals.push(who);
+    cat.onHeal = () => healedFigure++;
+    const wait = () => {
+      for (let i = 0; i < (HEAL_DELAY + 0.1) / DT; i++) cat.update(DT, w);
+    };
+    // No tuna: a hurt companion gets nothing.
+    cat.noticePalHurt(pal);
+    wait();
+    expect(healedPals).toHaveLength(0);
+    // A tuna, eaten even when full of other fish.
+    while (cat.feed());
+    expect(cat.feed(true)).toBe(true);
+    expect(cat.tuna).toBe(true);
+    expect(cat.feed(true)).toBe(false);
+    cat.noticePalHurt(pal);
+    wait();
+    expect(healedPals).toEqual([pal]);
+    // It still heals the figure, from the same heals.
+    cat.noticeHurt();
+    wait();
+    expect(healedFigure).toBe(1);
+    // Down to the last: once they are gone, so is the tuna.
+    while (cat.heals > 0) {
+      cat.noticePalHurt(pal);
+      wait();
+    }
+    expect(cat.tuna).toBe(false);
+    expect(healedPals.length).toBe(MAX_HEALS - 1);
+    // The warrior can't eat tuna for anyone.
+    const war = new Pal('warrior');
+    expect(war.feed(true)).toBe(false);
+  });
+
   it('draw ashore, hurt and petted, and aboard', () => {
     for (const kind of ['cat', 'warrior'] as const) {
       const p = new Pal(kind);

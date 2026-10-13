@@ -1115,7 +1115,7 @@ warlock.findTarget = (x, y, range) => { let best = null, bd = range;
   for (const k of cth.tents) if (k.state === 'chase') consider({get x(){ return k.x; }, get y(){ return k.y; }, hit: (p) => cth.hitTent(k, p), stun: (s) => cth.stunTent(k, s), head: 22}, Math.hypot(k.x - x, k.y - y));
   return best; };
 warlock.onCast = () => sfx.zap();
-warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 16, 1.1); hudHearts();
+warlock.onHurt = (out) => { addText(warlock.x, warlock.y, 32, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 16, 1.1); hudHearts(); if (!out) cat.noticePalHurt(warlock);
   if (out){ toasts.clear(); toast('The warlock is worn out. He flies back to his boat to rest.', 3200, 1); } };
 warlock.onArrive = () => { if (!warlockTold){ warlockTold = true; toast('The warlock comes ashore with you. He casts at whatever you fight.', 3000, 1); } };
 // What would hurt the figure hurts the warlock if he is in the way: a monkey's bonk, a bolt, a slash.
@@ -1320,7 +1320,7 @@ function riderOn(r){ const v = drawView; return (x, y, z, h) => {
 /** A rider out on its own craft, and so not on the deck. */
 function onCraft(r){ const c = flotilla.craftOf(r); return !!c && c.placed; }
 for (const p of [cat, warrior, bonesPal, naga, necroPal, baby]){ p.findTarget = (x, y, r) => warlock.findTarget(x, y, r); p.onSwing = () => sfx.spearHit();
-  p.onHurt = (out) => { addText(p.x, p.y, 26, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 15, 1); if (out){ toasts.clear(); toast(p.kind === 'naga' ? 'The naga is worn out. He swims back to the boat to rest.' : p.kind === 'baby' ? 'The baby Reaper is worn out. He swims back to the boat to rest.' : p.kind === 'necro' ? 'The necromancer is worn out. He goes back to the boat to rest.' : `The ${p.kind === 'cat' ? 'cat' : p.kind === 'warrior' ? 'warrior' : 'skeleton'} is worn out. It goes back to the boat to rest.`, 2800, 1); } }; }
+  p.onHurt = (out) => { addText(p.x, p.y, 26, out ? 'Worn out!' : 'Ow!', '#B8FFC8', 15, 1); if (!out) cat.noticePalHurt(p); if (out){ toasts.clear(); toast(p.kind === 'naga' ? 'The naga is worn out. He swims back to the boat to rest.' : p.kind === 'baby' ? 'The baby Reaper is worn out. He swims back to the boat to rest.' : p.kind === 'necro' ? 'The necromancer is worn out. He goes back to the boat to rest.' : `The ${p.kind === 'cat' ? 'cat' : p.kind === 'warrior' ? 'warrior' : 'skeleton'} is worn out. It goes back to the boat to rest.`, 2800, 1); } }; }
 bonesPal.canRaise = () => allies.count('ghost') + allies.count('skeleton') === 0;
 necroPal.canRaise = () => allies.count('hamster') === 0;
 necroPal.onRaise = (x, y) => { allies.call(x + 16, y + 14, 'hamster'); sfx.portal(); addText(x + 16, y + 14, 30, 'Squeak!', '#D8FFE0', 16, 1.1);
@@ -1329,10 +1329,19 @@ bonesPal.onRaise = (x, y) => { allies.call(x + 18, y + 8, 'ghost'); allies.call(
   if (!raiseTold){ raiseTold = true; toast('The skeleton raises a ghost and a skeleton out of the ground. They fight for you!', 3000, 1); } };
 cat.onHeal = () => { if (hearts < maxHearts()){ hearts++; hudHearts(); sfx.turtle(); addText(walker.x, walker.y, 34, '+1', '#FF8FB0', 18, 1.2);
   for (let i=0;i<8;i++) sparks.push({x: walker.x, y: walker.y, vx:(Math.random()-.5)*60, vy:(Math.random()-.5)*60, z:20, vz:30+Math.random()*30, age:0, life:.7, c:'#FFB3C8'}); } };
-// Tapped: on the boat at sea with fish aboard it eats one, the commonest, for another heal; otherwise it is petted.
+// Fed tuna, the cat heals a hurt companion too: the warlock a heart, the others a hit, with the same pink sparkle.
+cat.onHealPal = (who) => { const p = who; if (!p.shown) return;
+  if (p === warlock) warlock.hearts = Math.min(WARLOCK_HEARTS, warlock.hearts + 1); else p.hp = Math.min(p.maxHp, p.hp + 1);
+  hudHearts(); sfx.turtle(); addText(p.x, p.y, 30, '+1', '#FF8FB0', 17, 1.2);
+  for (let i=0;i<8;i++) sparks.push({x: p.x, y: p.y, vx:(Math.random()-.5)*60, vy:(Math.random()-.5)*60, z:18, vz:30+Math.random()*30, age:0, life:.7, c:'#FFB3C8'}); };
+const TUNA = SPECIES.findIndex(s => s.name === 'tuna');
+// Tapped: on the boat at sea with fish aboard it eats one, a tuna if there is one (it can smell it), else the
+// commonest, for another heal; otherwise it is petted.
 function tapCat(){ if (walker.state === 'ashore' && Math.hypot(walker.x - cat.x, walker.y - cat.y) > PET_REACH){ toast('Walk up to the cat.', 1600); return; }
-  if (walker.aboard && holdTotal > 0 && cat.feed()){ let sp = 0; while (sp < hold.length && !hold[sp]) sp++; hold[sp]--; holdTotal--; hud(); sfx.yip();
-    hudHearts(); toasts.clear(); toast(`The cat ate a ${SPECIES[sp].name}. It has ${cat.heals} heals for the next fight.`, 2400, 1); }
+  const tuna = TUNA >= 0 && hold[TUNA] > 0, firstTuna = tuna && !cat.tuna;
+  if (walker.aboard && holdTotal > 0 && cat.feed(tuna)){ let sp = 0; if (tuna) sp = TUNA; else while (sp < hold.length && !hold[sp]) sp++; hold[sp]--; holdTotal--; hud(); sfx.yip();
+    hudHearts(); toasts.clear(); toast(firstTuna ? `The cat ate a tuna! Purr. Now it heals your companions in a fight too, as well as you. ${cat.heals} heals.`
+      : `The cat ate a ${SPECIES[sp].name}. It has ${cat.heals} heals for the next fight.`, firstTuna ? 3400 : 2400, 1); }
   else { cat.pet(); sfx.yip(); if (walker.aboard && cat.heals >= 5 && holdTotal > 0) toast('The cat is full. Purr.', 1600);
     else if (walker.aboard && !holdTotal && !catFedTold){ catFedTold = true; toast('Purr. Catch a fish and tap the cat to feed it: one more heal.', 2800, 1); } } }
 let catFedTold = false;
