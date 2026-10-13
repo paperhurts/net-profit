@@ -73,11 +73,15 @@ export function drawIsle6Flat(v: DrawView): void {
   ctx.fill();
 }
 
+/** The i-th palm's crown: how high, and how far its trunk leans on screen (in zoomed pixels). */
+export function palm6Crown(i: number): { top: number; lean: number } {
+  return { top: 44 + (i % 4) * 5, lean: (i % 2 ? 1 : -1) * (4 + (i % 3) * 2) };
+}
+
 function drawPalm6(v: DrawView, x: number, y: number, i: number): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
-  const top = 44 + (i % 4) * 5;
-  const lean = (i % 2 ? 1 : -1) * (4 + (i % 3) * 2);
+  const { top, lean } = palm6Crown(i);
   ctx.strokeStyle = '#8A6A43';
   ctx.lineWidth = 3.4 * Z;
   ctx.lineCap = 'round';
@@ -185,12 +189,28 @@ function drawPost6(v: DrawView): void {
   v.box(x0 - 4, y0 - 4, x1 - x0 + 8, y1 - y0 + 8, 30, 40, '#3F7FA0', '#5C9CC0');
 }
 
-/** What stands on island 6, for the game's depth-sorted solids. opened says which chests are empty. */
-export function isle6Solids(v: DrawView, opened: (i: number) => boolean): Solid[] {
+/**
+ * What stands on island 6, for the game's depth-sorted solids. opened says which chests are empty; onPalm, if given,
+ * draws whatever sits in the i-th palm's crown (its parrots), at the crown's screen point.
+ */
+export function isle6Solids(
+  v: DrawView,
+  opened: (i: number) => boolean,
+  onPalm?: (i: number, sx: number, sy: number) => void,
+): Solid[] {
   if (!v.onScreen(ISLE6.x, ISLE6.y, (ISLE6.r + 260) * v.zoom)) return [];
   const out: Solid[] = [];
   PALMS6.forEach(([x, y], i) => {
-    if (v.onScreen(x, y, 80 * v.zoom)) out.push({ d: x + y, f: () => drawPalm6(v, x, y, i) });
+    if (!v.onScreen(x, y, 80 * v.zoom)) return;
+    out.push({
+      d: x + y,
+      f: () => {
+        drawPalm6(v, x, y, i);
+        if (!onPalm) return;
+        const { top, lean } = palm6Crown(i);
+        onPalm(i, v.px(x, y) + lean * v.zoom, v.py(x, y, top));
+      },
+    });
   });
   for (const [x, y] of ROCKS6)
     if (v.onScreen(x, y, 60 * v.zoom))
