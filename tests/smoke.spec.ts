@@ -40,7 +40,8 @@ type Np = {
   pondShown: boolean;
   POND: { x: number; y: number; r: number };
   prairie10: {
-    bunnies: { x: number; y: number; hop: number }[];
+    bunnies: { x: number; y: number; hop: number; wait: number }[];
+    play: { i: number; t: number } | null;
     dogs: { x: number; y: number; up: number; hide: number; town: number }[];
     bison: { x: number; y: number }[];
   };
@@ -3595,6 +3596,18 @@ test("island 10's prairie: prairie dogs duck as you come, bunnies hop when tappe
   });
   await put((b[0] ?? 0) + 100, (b[1] ?? 0) + 100);
   await page.waitForTimeout(1500);
+  // Sat still for the tap: one mid-hop or mid-frolic rightly ignores it, and could land before the look.
+  await page.evaluate(() => {
+    const p = window.__np.prairie10;
+    if (p.play && (p.play.i === 4 || p.play.i + 1 === 4)) p.play.t = 0;
+  });
+  await page.waitForFunction(() => {
+    const p = window.__np.prairie10;
+    const b = p.bunnies[4];
+    if (!b || b.hop !== 0 || (p.play && (p.play.i === 4 || p.play.i + 1 === 4))) return false;
+    b.wait = 10;
+    return true;
+  });
   const bat = await page.evaluate(() => window.__np.prairieAt('bunny', 4));
   if (!bat) throw new Error('no bunny on the screen');
   await page.mouse.click(bat[0], bat[1]);
