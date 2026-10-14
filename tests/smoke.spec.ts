@@ -66,6 +66,10 @@ type Np = {
   crowAt(i: number): [number, number] | null;
   crowCard: number;
   finder: boolean;
+  sub: boolean;
+  diveShown: string | null;
+  subDive: { key: string; loot: { x: number; y: number; coins: number }[] };
+  subFound: { day: number; patches: Record<string, number> };
   badges: { shield: number; damage: boolean; heal: boolean; on: Record<string, string | null> };
   WEARER: Record<
     string,
@@ -103,6 +107,7 @@ type Np = {
     y: number;
     vx: number;
     vy: number;
+    sub: boolean;
     air: number;
     airMax: number;
     face: number;
@@ -5292,5 +5297,76 @@ test("island 10's badges: bought from the old man, pinned on companions, a shiel
   await page.waitForTimeout(600);
   await page.reload();
   await page.waitForFunction(() => window.__np?.badges?.on.heal === 'cat', null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test("island 10's treasure submarine: bought from the old man, it dives in the far deep and its claw picks up treasure", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 6100,
+    spear: 3,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 30;
+    n.walker.y = n.OLDMAN10.y + 24;
+  });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__np.talkToOldMan());
+  await page.locator('#store10Shelf [data-buy="sub"]').click();
+  await expect(page.locator('#toast')).toContainText('treasure submarine is yours');
+  expect(await page.evaluate(() => [window.__np.sub, window.__np.coins])).toEqual([true, 100]);
+  await page.locator('#store10Close').click();
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.walker.dock.landing.x;
+    n.walker.y = n.walker.dock.landing.y - 5;
+    (n.walker as unknown as { wandered: boolean }).wandered = true;
+  });
+  await page.locator('#aboard').click({ timeout: 8000 });
+  // Out in the far deep's open water, stopped: Dive in the submarine.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = 6300;
+    n.boat.y = -1400;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive in the submarine', { timeout: 4000 });
+  await page.click('#diveBtn');
+  await expect(page.locator('#toast')).toContainText('Down in the submarine');
+  expect(await page.evaluate(() => window.__np.diver.sub)).toBe(true);
+  await expect(page.locator('#surfaceBtn')).toHaveText('Back up to the boat');
+  // Up to a treasure on the floor: the claw takes it.
+  const t = await page.evaluate(() => {
+    const n = window.__np;
+    const l = n.subDive.loot[0];
+    if (!l) throw new Error('no treasure');
+    n.diver.x = l.x - 6;
+    n.diver.y = l.y - 14;
+    n.diver.vx = 0;
+    n.diver.vy = 0;
+    return l.coins;
+  });
+  await expect(page.locator('#toast')).toContainText('The claw grabs', { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(100 + t);
+  const key = await page.evaluate(() => window.__np.subDive.key);
+  expect(await page.evaluate((k) => window.__np.subFound.patches[k], key)).toBe(1);
+  await page.click('#surfaceBtn');
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 8000 });
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.sub === true, null, { timeout: 5000 });
+  expect(await page.evaluate((k) => window.__np.subFound.patches[k], key)).toBe(1);
   expect(errors).toEqual([]);
 });

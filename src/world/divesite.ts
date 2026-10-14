@@ -2,13 +2,13 @@
  * A place to dive, side on: how wide and deep its scene is, where the diver
  * goes in under the boat, and how its water is kept to (walls, floor, and
  * anything solid in it). The trench in the deep is one; the wreck off island
- * 5 is another (world/wreck.ts), and under the ice floe the third
- * (world/icedive.ts).
+ * 5 is another (world/wreck.ts), under the ice floe the third
+ * (world/icedive.ts), and the submarine's patches of the far deep the rest (world/subsea.ts).
  */
 
 import { ENTRY, inWater, keepInWater, TD, TW } from './trench';
 
-export type DiveSiteId = 'trench' | 'wreck' | 'ice';
+export type DiveSiteId = 'trench' | 'wreck' | 'ice' | 'sub';
 
 export type DiveSite = {
   id: DiveSiteId;
@@ -25,6 +25,8 @@ export type DiveSite = {
   inWater(x: number, y: number, pad?: number): boolean;
   /** A roof of ice overhead: the only way up is where the diver went in, and a rope back to it. */
   ceiling?: boolean;
+  /** A sea floor across it, for a site that is open water down to the bottom (the submarine's). */
+  floor?: (x: number) => number;
 };
 
 export const TRENCH_SITE: DiveSite = {

@@ -30,12 +30,14 @@ import {
 import { drawIceDiveScene } from './icedive';
 import { drawLoot, drawLootGlint } from './loot';
 import { drawLurker, drawLurkerGlow } from './lurker';
+import { drawSeabed, drawSub, drawSubBeam } from './sub';
 import { drawWreckScene } from './wreck';
 
 /** How much of the trench shows across the screen (each site says its own). */
 export const VIEW_W = TRENCH_SITE.view;
-/** The diver drawn bigger than life, so a small player finds it on a phone. */
+/** The diver drawn bigger than life, so a small player finds it on a phone; the submarine too. */
 const DIVER_SIZE = 1.5;
+const SUB_SIZE = 1.2;
 
 /** The water's colour at the surface, the end of the sunlit water, the end of the twilight, and the floor. */
 const WATER: readonly [number, string][] = [
@@ -168,6 +170,7 @@ export function drawDive(
   }
   if (site.id === 'wreck') drawWreckScene(ctx, X, Y, s, T);
   else if (site.id === 'ice') drawIceDiveScene(ctx, X, Y, s, T);
+  else if (site.id === 'sub' && site.floor) drawSeabed(ctx, X, Y, s, site.w, bottom, site.floor);
   else drawRock(ctx, X, Y, s, top, bottom);
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
@@ -186,7 +189,8 @@ export function drawDive(
   sc.under?.(ctx, X, Y, s);
   // The boat overhead, the diver, and the bubbles.
   if (top < 30 && !site.ceiling) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
-  drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T, !!sc.white);
+  if (d.sub) drawSub(ctx, X(d.x), Y(d.y), s * SUB_SIZE, d, T);
+  else drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T, !!sc.white);
   ctx.fillStyle = 'rgba(230,248,255,.7)';
   for (const b of sc.bubbles) {
     ctx.beginPath();
@@ -196,12 +200,22 @@ export function drawDive(
   // The dark round the diver's lamp, deeper the deeper it is.
   const k = darkAt(d.y);
   if (k > 0.01) {
-    const lamp = ctx.createRadialGradient(X(d.x), Y(d.y), 40 * s, X(d.x), Y(d.y), 230 * s);
+    // The submarine's lamps light more, and further ahead of it.
+    const lx = X(d.x + (d.sub ? d.face * 70 : 0));
+    const lamp = ctx.createRadialGradient(
+      lx,
+      Y(d.y),
+      (d.sub ? 70 : 40) * s,
+      lx,
+      Y(d.y),
+      (d.sub ? 320 : 230) * s,
+    );
     lamp.addColorStop(0, 'rgba(1,4,10,0)');
     lamp.addColorStop(1, `rgba(1,4,10,${k})`);
     ctx.fillStyle = lamp;
     ctx.fillRect(0, 0, W, H);
   }
+  if (d.sub) drawSubBeam(ctx, X(d.x), Y(d.y), s * SUB_SIZE, d.face);
   // What glows, over the dark.
   for (const p of sc.plants)
     if (p.glow && p.y > top - 140 && p.y < bottom + 140) drawPlant(ctx, X, Y, s, p, T, true);
@@ -656,6 +670,18 @@ const GAP = 15;
 function drawGauge(ctx: CanvasRenderingContext2D, d: Diver, W: number): void {
   const x = 16;
   const y = 92;
+  if (d.sub) {
+    // The submarine needs no air: only how deep it is.
+    ctx.fillStyle = 'rgba(8,24,36,.55)';
+    ctx.beginPath();
+    ctx.roundRect(x - 8, y - 16, 150, 32, 16);
+    ctx.fill();
+    ctx.font = '800 14px Grandstander, system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFF6E5';
+    ctx.fillText(`Depth ${Math.round(Math.max(0, d.y))}`, x, y + 1);
+    return;
+  }
   const n = 10;
   const left = d.air / d.airMax;
   const low = left <= AIR_LOW;
