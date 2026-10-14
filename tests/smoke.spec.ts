@@ -58,6 +58,14 @@ type Np = {
   DOOR10: { x: number; y: number };
   pelicanBeaten: boolean;
   bread: number;
+  crows: { list: { x: number; y: number; state: string }[]; flying: number };
+  FEEDER10: { x: number; y: number };
+  feederFull: boolean;
+  crowsOwned: number;
+  feederAt(): [number, number];
+  crowAt(i: number): [number, number] | null;
+  crowCard: number;
+  crowAsk: { q: { q: string; right: string } } | null;
   gorillas: { roused: boolean; list: { x: number; y: number; state: string; hp: number }[] };
   WEB: { x: number; y: number };
   webT: number;
@@ -5046,5 +5054,80 @@ test("island 10's tower: up to the roof, the giant pelican dives and spits, and 
   await page.reload();
   await page.waitForFunction(() => window.__np?.bread === 1, null, { timeout: 5000 });
   expect(await page.evaluate(() => window.__np.pelicanBeaten)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's birdfeeder: the bread brings the crows, and one answered right is petted and yours", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 3,
+    isle4Stage: 1,
+    isle10Seen: true,
+    pelicanBeaten: true,
+    bread: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.FEEDER10.x + 30;
+    n.walker.y = n.FEEDER10.y + 30;
+  });
+  await page.waitForTimeout(600);
+  // A tap on the feeder crumbles the bread into it, and the crows come.
+  const f = await page.evaluate(() => window.__np.feederAt());
+  await page.mouse.click(f[0], f[1]);
+  await expect(page.locator('#toast')).toContainText('Here come the crows', { timeout: 3000 });
+  expect(await page.evaluate(() => [window.__np.bread, window.__np.feederFull])).toEqual([0, true]);
+  await page.waitForFunction(
+    () =>
+      window.__np.crows.list.length === 3 &&
+      window.__np.crows.list.every((c) => c.state === 'peck' || c.state === 'hop'),
+    null,
+    { timeout: 15000 },
+  );
+  // A tap on a crow, still at the feeder, asks a question.
+  await page.waitForFunction(() => window.__np.crows.list.some((c) => c.state === 'peck'), null, {
+    timeout: 5000,
+  });
+  const c = await page.evaluate(() => {
+    const n = window.__np;
+    return n.crowAt(n.crows.list.findIndex((k) => k.state === 'peck'));
+  });
+  if (!c) throw new Error('no crow');
+  await page.mouse.click(c[0], c[1]);
+  await expect(page.locator('#crowCard')).toBeVisible({ timeout: 2000 });
+  // Wrong: it says the right answer, and asks another.
+  const right = await page.evaluate(() => window.__np.crowAsk?.q.right ?? '');
+  await page.locator('#crowAnswers .answer').filter({ hasNotText: right }).first().click();
+  await expect(page.locator('#crowFact')).toContainText('Not quite');
+  await expect(page.locator('#crowPet')).toBeHidden();
+  await page.click('#crowNext');
+  // Right: pet it, and it is yours.
+  const right2 = await page.evaluate(() => window.__np.crowAsk?.q.right ?? '');
+  await page.locator('#crowAnswers .answer').filter({ hasText: right2 }).first().click();
+  await expect(page.locator('#crowFact')).toContainText('right!');
+  await page.click('#crowPet');
+  await expect(page.locator('#crowCard')).toBeHidden();
+  await expect(page.locator('#toast')).toContainText('The crow is yours!');
+  expect(await page.evaluate(() => window.__np.crowsOwned)).toBe(1);
+  // It flies off to the boat; the other two stay at the feeder.
+  await page.waitForFunction(() => window.__np.crows.flying === 0, null, { timeout: 8000 });
+  expect(
+    await page.evaluate(() => window.__np.crows.list.filter((k) => k.state !== 'gone').length),
+  ).toBe(2);
+  // The crow and the full feeder are saved.
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.crowsOwned === 1, null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.feederFull)).toBe(true);
   expect(errors).toEqual([]);
 });

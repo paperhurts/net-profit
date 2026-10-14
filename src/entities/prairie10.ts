@@ -19,6 +19,7 @@ import { rng } from '../core/math';
 import type { Point } from '../world/island';
 import {
   CRATES10,
+  FEEDER10,
   ISLE10,
   inWater10,
   onIsle10Ground,
@@ -45,7 +46,8 @@ export function onPrairie(x: number, y: number, pad = 0): boolean {
   return (
     Math.hypot(x - CRATES10.x, y - CRATES10.y) > 36 &&
     Math.hypot(x - STORE10.x, y - STORE10.y) > 60 &&
-    Math.hypot(x - TOWER10.x, y - TOWER10.y) > 48
+    Math.hypot(x - TOWER10.x, y - TOWER10.y) > 48 &&
+    Math.hypot(x - FEEDER10.x, y - FEEDER10.y) > 40
   );
 }
 

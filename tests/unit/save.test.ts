@@ -794,3 +794,16 @@ describe("island 10's spider and pelican", () => {
     expect([silly.bugSpray, silly.bread]).toEqual([30, 0]);
   });
 });
+
+describe("island 10's birdfeeder and crows", () => {
+  it('an old save has an empty feeder and no crows; they keep, the crows no more than there are', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.feederFull, s.crows]).toEqual([false, 0]);
+    s.feederFull = true;
+    s.crows = 2;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.feederFull, back.crows]).toEqual([true, 2]);
+    expect(parseSave(JSON.stringify({ ...s, crows: 40 }), bounds).crows).toBe(3);
+    expect(parseSave(JSON.stringify({ ...s, crows: -1 }), bounds).crows).toBe(0);
+  });
+});
