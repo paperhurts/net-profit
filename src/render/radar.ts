@@ -2,7 +2,8 @@
  * The radar's scope, drawn into its own little canvas in the corner: dark water, two rings, the
  * islands as grey shapes and the lines of buoys dotted in red, the line sweeping round with a
  * fading wake, the blips (bright where the line has just passed, dimming until it comes round
- * again), and the boat in the middle pointing the way it is heading.
+ * again), and the boat in the middle pointing the way it is heading. With the treasure finder, treasure shows as gold
+ * diamonds, and the nearest one past the edge as a gold arrowhead on the rim.
  */
 
 import { BLIP_COLOUR, type Blip, blipGlow, RADAR_RANGE, scopeAt, sweepAngle } from '../world/radar';
@@ -15,6 +16,8 @@ export type RadarView = {
   lines: readonly { lo: number; hi: number; colour: string }[];
   /** Game seconds, for the sweep. */
   T: number;
+  /** The nearest treasure out past the scope's edge, with the treasure finder, or none. */
+  toward?: { x: number; y: number } | null;
 };
 
 const WAKE = 14;
@@ -96,21 +99,49 @@ export function drawRadar(ctx: CanvasRenderingContext2D, S: number, v: RadarView
   ctx.moveTo(c, c);
   ctx.lineTo(c + Math.cos(up + a) * R, c + Math.sin(up + a) * R);
   ctx.stroke();
-  // The blips: the grey ones small and quiet, so the fish and the threats stand out; threats last, on top.
-  for (const kind of ['other', 'fish', 'threat'] as const) {
+  // The blips: the grey ones small and quiet, so the fish and the threats stand out; treasure a gold diamond; threats
+  // last, on top.
+  for (const kind of ['other', 'fish', 'treasure', 'threat'] as const) {
     ctx.fillStyle = BLIP_COLOUR[kind];
-    const r = kind === 'threat' ? 3.6 : kind === 'fish' ? 3 : 2;
+    const r = kind === 'threat' ? 3.6 : kind === 'fish' ? 3 : kind === 'treasure' ? 4 : 2;
     const k = kind === 'other' ? 0.55 : 1;
     for (const b of v.blips) {
       if (b.kind !== kind) continue;
       const [sx, sy] = scopeAt(b.x - v.boat.x, b.y - v.boat.y);
-      ctx.globalAlpha = k * blipGlow(sx, sy, a);
+      const x = c + sx * R;
+      const y = c + sy * R;
+      ctx.globalAlpha =
+        kind === 'treasure' ? Math.max(0.6, blipGlow(sx, sy, a)) : k * blipGlow(sx, sy, a);
       ctx.beginPath();
-      ctx.arc(c + sx * R, c + sy * R, r, 0, Math.PI * 2);
+      if (kind === 'treasure') {
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y);
+        ctx.closePath();
+      } else ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     }
   }
   ctx.globalAlpha = 1;
+  // The nearest treasure past the scope's edge, as a gold arrowhead on the rim pointing the way to it.
+  if (v.toward) {
+    const [sx, sy] = scopeAt(v.toward.x - v.boat.x, v.toward.y - v.boat.y);
+    const l = Math.hypot(sx, sy) || 1;
+    const ux = sx / l;
+    const uy = sy / l;
+    const tx = c + ux * (R - 2);
+    const ty = c + uy * (R - 2);
+    ctx.fillStyle = BLIP_COLOUR.treasure;
+    ctx.globalAlpha = 0.75 + 0.25 * Math.sin(v.T * 4);
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx - ux * 8 - uy * 5, ty - uy * 8 + ux * 5);
+    ctx.lineTo(tx - ux * 8 + uy * 5, ty - uy * 8 - ux * 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
   // The boat, in the middle, pointing the way it heads.
   const [hx, hy] = scopeAt(Math.cos(v.boat.h), Math.sin(v.boat.h), 1);
   const hl = Math.hypot(hx, hy) || 1;

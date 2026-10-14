@@ -16,7 +16,7 @@
 import { K } from '../core/iso';
 
 /** What a radar shows a thing as. */
-export type BlipKind = 'fish' | 'threat' | 'other';
+export type BlipKind = 'fish' | 'threat' | 'other' | 'treasure';
 
 /** Something on the radar: where it is in the world, and what it shows as. */
 export type Blip = { x: number; y: number; kind: BlipKind };
@@ -61,4 +61,6 @@ export const BLIP_COLOUR: Readonly<Record<BlipKind, string>> = {
   fish: '#4FC3F7',
   threat: '#FF5A3C',
   other: '#B7C4C7',
+  // The treasure finder's, from the old man's store on island 10.
+  treasure: '#FFD24A',
 };

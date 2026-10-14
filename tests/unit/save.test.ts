@@ -807,3 +807,17 @@ describe("island 10's birdfeeder and crows", () => {
     expect(parseSave(JSON.stringify({ ...s, crows: -1 }), bounds).crows).toBe(0);
   });
 });
+
+describe('the treasure finder and the sunken treasure', () => {
+  it('an old save has no finder and no treasure found; they keep, within range', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.finder, s.sunkenDay, s.sunkenFound]).toEqual([false, 0, 0]);
+    s.finder = true;
+    s.sunkenDay = 12;
+    s.sunkenFound = 0b1010;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.finder, back.sunkenDay, back.sunkenFound]).toEqual([true, 12, 0b1010]);
+    expect(parseSave(JSON.stringify({ ...s, sunkenFound: 1e9 }), bounds).sunkenFound).toBe(255);
+    expect(parseSave(JSON.stringify({ ...s, sunkenDay: -4 }), bounds).sunkenDay).toBe(0);
+  });
+});
