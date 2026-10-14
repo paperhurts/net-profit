@@ -53,6 +53,11 @@ type Np = {
   leggyAt(i: number): [number, number] | null;
   hearts: number;
   setHearts(n: number): void;
+  swamp10: {
+    monster: { x: number; y: number; state: string };
+    cubs: { x: number; y: number; state: string }[];
+  };
+  swampAt(k: string, i: number): [number, number] | null;
   gators: {
     roused: boolean;
     list: { state: string; hp: number; pool: { x: number; y: number; r: number } }[];
@@ -4827,5 +4832,56 @@ test("island 10's gators: one surges out of its pool, bites with its jaws wide, 
     timeout: 4000,
   });
   expect(await page.evaluate(() => window.__np.gators.roused)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's swamp: the swamp monster wakes with a roar and waves; a bear cub tapped rolls over", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  // Near enough to see it, not near enough to wake it: a mossy mound. A tap wakes it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.swamp10.monster.x - 130;
+    n.walker.y = n.swamp10.monster.y + 20;
+  });
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__np.swamp10.monster.state)).toBe('sleep');
+  let at = await page.evaluate(() => window.__np.swampAt('monster', 0));
+  if (!at) throw new Error('no monster');
+  await page.mouse.click(at[0], at[1]);
+  await page.waitForFunction(() => window.__np.swamp10.monster.state === 'roar', null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#toast')).toContainText('The swamp monster!');
+  await page.waitForFunction(() => window.__np.swamp10.monster.state === 'wave', null, {
+    timeout: 3000,
+  });
+  // Over to the cubs, not too close: a tap and one rolls over.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const c = n.swamp10.cubs[0] ?? { x: 0, y: 0 };
+    n.walker.x = c.x - 110;
+    n.walker.y = c.y - 30;
+  });
+  await page.waitForTimeout(1500);
+  at = await page.evaluate(() => window.__np.swampAt('cub', 0));
+  if (!at) throw new Error('no cub');
+  await page.mouse.click(at[0], at[1]);
+  await page.waitForFunction(() => window.__np.swamp10.cubs[0]?.state === 'roll', null, {
+    timeout: 2000,
+  });
   expect(errors).toEqual([]);
 });

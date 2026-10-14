@@ -152,6 +152,13 @@ export const POOLS10: readonly { x: number; y: number; r: number }[] = scatter(
   'swamp',
 ).map(([x, y], i) => ({ x, y, r: 26 + (i % 3) * 9 }));
 const POOL_PTS: Point[] = POOLS10.map((p) => [p.x, p.y]);
+/** A swamp pool's two lily pads, half way out, where its frogs sit. */
+export function padsOf(p: { x: number; y: number; r: number }): Point[] {
+  return [0, 1].map((i) => {
+    const a = p.x * 0.01 + i * 2.3;
+    return [p.x + Math.cos(a) * p.r * 0.5, p.y + Math.sin(a) * p.r * 0.5];
+  });
+}
 /** The forest's trees: oaks and pines, close. */
 export const TREES10: readonly Point[] = scatter(1011, 46, 34, 'forest');
 /** The swamp's cypresses, clear of the pools' edges. */
