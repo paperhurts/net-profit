@@ -5150,11 +5150,16 @@ test("island 10's treasure finder: bought from the old man, it shows sunken trea
   context,
   page,
 }) => {
+  // The far islands already seen, so no first-sighting toast lands over the snag's while the boat tows.
   const errors = await boot(context, page, {
     muted: true,
     coins: 2100,
     spear: 3,
     isle4Stage: 1,
+    isle5Seen: true,
+    isle6Seen: true,
+    isle7Seen: true,
+    isle8Seen: true,
     isle10Seen: true,
     gear: { radar: true },
     lv: { net: 5, hold: 5, engine: 5 },
