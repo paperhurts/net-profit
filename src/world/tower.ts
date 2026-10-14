@@ -27,7 +27,8 @@ export type RoomKind =
   | 'castle'
   | 'throne'
   | 'ruins'
-  | 'nest';
+  | 'nest'
+  | 'perch';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -65,6 +66,8 @@ export const ROOMS: readonly Room[] = [
   { x: -16500, y: -6000, r: ROOM_R, roof: false, kind: 'floor' },
   { x: -16500, y: -6900, r: ROOM_R, roof: false, kind: 'floor' },
   { x: -16500, y: -7800, r: ROOM_R + 40, roof: true, kind: 'nest' },
+  // Island 10's: up its long stairs to the roof, where the giant pelican nests in the sun.
+  { x: -18000, y: -7800, r: ROOM_R + 40, roof: true, kind: 'perch' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -73,6 +76,8 @@ export const ROOF7 = 11;
 export const ROOF8 = 19;
 /** The Heron's nest, on top of island 9's tower. */
 export const NEST9 = 22;
+/** The giant pelican's roof, on top of island 10's tower: the only room in it. */
+export const ROOF10 = 23;
 /** The hall under island 3's tower, and the demon dimension. */
 export const HALL = 6;
 export const DEMON = 7;
@@ -92,6 +97,7 @@ export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 9, roof: ROOF7 },
   { first: 17, roof: ROOF8 },
   { first: 20, roof: NEST9 },
+  { first: ROOF10, roof: ROOF10 },
 ];
 
 const D = Math.SQRT1_2;

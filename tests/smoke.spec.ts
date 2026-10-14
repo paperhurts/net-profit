@@ -54,6 +54,10 @@ type Np = {
   hearts: number;
   setHearts(n: number): void;
   spider10: { state: string };
+  pelican: { state: string; hp: number };
+  DOOR10: { x: number; y: number };
+  pelicanBeaten: boolean;
+  bread: number;
   gorillas: { roused: boolean; list: { x: number; y: number; state: string; hp: number }[] };
   WEB: { x: number; y: number };
   webT: number;
@@ -4991,5 +4995,56 @@ test("island 10's gorillas: the troop beats its chests, one slams for three hear
   }
   await page.waitForFunction(() => window.__np.coins === 140, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('runs off into the trees');
+  expect(errors).toEqual([]);
+});
+
+test("island 10's tower: up to the roof, the giant pelican dives and spits, and beaten it leaves a little bread", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 3,
+    armour: 4,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.DOOR10.x;
+    n.walker.y = n.DOOR10.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('The giant pelican!', { timeout: 4000 });
+  // Stood still, something gets the figure: a fish or a dive.
+  const full = await page.evaluate(() => window.__np.hearts);
+  await page.waitForFunction((h) => window.__np.hearts < h, full, { timeout: 12000 });
+  // The spear whenever it is down, hearts kept up, until it is beaten.
+  for (let i = 0; i < 120; i++) {
+    if (await page.evaluate(() => window.__np.pelicanBeaten)) break;
+    await page.evaluate(() => window.__np.setHearts(window.__np.maxHearts));
+    await page.dispatchEvent('#throw', 'pointerdown', {
+      button: 0,
+      pointerType: 'touch',
+      isPrimary: false,
+    });
+    await page.waitForTimeout(300);
+  }
+  await page.waitForFunction(() => window.__np.pelicanBeaten, null, { timeout: 4000 });
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.bread])).toEqual([1600, 1]);
+  await expect(page.locator('#toast')).toContainText('little loaf of bread');
+  // The bread and the win are saved.
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.bread === 1, null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.pelicanBeaten)).toBe(true);
   expect(errors).toEqual([]);
 });

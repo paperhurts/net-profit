@@ -114,6 +114,7 @@ import {
   onIsle10,
   ROCKS10,
   SHACK10,
+  TOWER10,
   TREES10,
 } from '../world/isle10';
 import { CAGE, onFloor } from '../world/tower';
@@ -462,7 +463,15 @@ export const PROPS: readonly Prop[] = [
     TEMPLE.x + TEMPLE.y + TEMPLE.w * 0.8,
   ),
   ...PALMS6.map((p) => post(p, 4, p[0] + p[1])),
-  // Island 10: the forest's trees, the swamp's cypresses, the prairie's lone oaks and rocks, and the crates on the pier.
+  // Island 10: the forest's trees, the swamp's cypresses, the prairie's lone oaks and rocks, and the crates on the pier;
+  // and its tower, in the meadow.
+  prop(
+    TOWER10.x - TOWER10.r,
+    TOWER10.y - TOWER10.r,
+    TOWER10.x + TOWER10.r,
+    TOWER10.y + TOWER10.r,
+    TOWER10.x + TOWER10.y,
+  ),
   ...TREES10.map((p) => post(p, 5, p[0] + p[1])),
   ...CYPRESS10.map((p) => post(p, 5, p[0] + p[1])),
   ...OAKS10.map((p) => post(p, 6, p[0] + p[1])),
