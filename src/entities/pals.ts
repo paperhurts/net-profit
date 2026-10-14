@@ -32,6 +32,7 @@
  * and every few seconds he leaps clear of the water and dives back in. Tap him and he leaps for you.
  */
 
+import { Worn } from '../data/badges';
 import { drawReaperBody, sideOn } from '../render/reaper';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { drawNecromancer } from './nest';
@@ -124,6 +125,8 @@ export class Pal implements Entity {
   gait = 0;
   hp = PAL_HP;
   invuln = 0;
+  /** Its badge, if one is pinned on it (data/badges.ts). */
+  readonly worn = new Worn();
   /** Seconds since its last swing began, for the swing's look. */
   swingT = 9;
   /** The cat's heals left this fight, and the one it is about to give: to the figure, or (null) to a companion. */
@@ -224,6 +227,10 @@ export class Pal implements Entity {
   /** A hit on it. Returns whether it hurt. */
   hurt(): boolean {
     if (this.state !== 'with' || this.invuln > 0) return false;
+    if (this.worn.absorb()) {
+      this.invuln = PAL_INVULN;
+      return true;
+    }
     this.hp--;
     this.invuln = PAL_INVULN;
     if (this.hp <= 0) {
@@ -337,6 +344,9 @@ export class Pal implements Entity {
     const f = w.figure;
     const landed = !!f && !this.hadFigure;
     this.hadFigure = !!f;
+    if (landed) this.worn.refill();
+    const hurt = this.state === 'with' && this.hp < this.maxHp;
+    if (this.worn.tick(dt, hurt) && hurt) this.hp++;
     if (this.state === 'resting') {
       this.rest -= dt;
       if (landed) this.rest = 0;
@@ -379,7 +389,7 @@ export class Pal implements Entity {
       else if (this.swingCd <= 0) {
         this.swingCd = SWING_EVERY[this.kind];
         this.swingT = 0;
-        foe.hit(POWER[this.kind]);
+        foe.hit(this.worn.power(POWER[this.kind]));
         this.onSwing?.();
       }
       this.trail.length = 0;

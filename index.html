@@ -256,12 +256,12 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
-#tester,#boats,#store10,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#boatsBtn[hidden],#store10[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#store10 .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#store10 h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#store10 h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
-#tester .tnote,#boats .tnote,#store10 .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
+#tester,#boats,#badges,#store10,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#boatsBtn[hidden],#badges[hidden],#badgesBtn[hidden],#store10[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#badges .planks,#store10 .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#badges h2,#store10 h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#badges h2 .pill,#store10 h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester .tnote,#boats .tnote,#badges .tnote,#store10 .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
 #carry input{flex:1;min-width:0;height:40px;padding:0 10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);font:700 14px var(--font);box-shadow:inset 0 2px 0 rgba(0,0,0,.12)}
@@ -274,11 +274,11 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #tester .tstep.added{background:#3FB37A;color:#fff;opacity:1}
 #tester .tstep .tk{flex:none;font-size:13px}
 #testerBtn{border:2px dashed rgba(0,0,0,.35)}
-#boats .boat{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
-#boats .boat b{display:block;font-size:15px;font-weight:800}
-#boats .boat small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:2px 0 8px}
-#boats .bchips{display:flex;flex-wrap:wrap;gap:6px}
-#boats .rchip{height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 13px var(--font)}
+#boats .boat,#badges .boat{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
+#boats .boat b,#badges .boat b{display:block;font-size:15px;font-weight:800}
+#boats .boat small,#badges .boat small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:2px 0 8px}
+#boats .bchips,#badges .bchips{display:flex;flex-wrap:wrap;gap:6px}
+#boats .rchip,#badges .rchip{height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 13px var(--font)}
 #store10 .joke{margin:4px 4px 10px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:800;line-height:1.3}
 #store10 .joke small{display:block;margin-top:4px;font-size:12px;color:#8A5A34}
 #store10 .shelf{display:grid;gap:8px}
@@ -298,7 +298,9 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #crowCard .fact b{display:block;font-size:16px;font-weight:800;margin-bottom:2px}
 #crowCard .go{display:block;width:100%;height:48px;margin-top:10px;font-size:16px}
 #crowCard [hidden]{display:none}
-#boats .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
+#boats .rchip.on,#badges .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
+#badges .boat b{display:flex;align-items:center;gap:8px}
+#badges .pin{width:22px;height:22px;flex:0 0 auto}
 #updateBtn{margin:0 0 10px;border:2px solid var(--fill)}
 #seamap,#aquarium{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
 #seamap[hidden],#aquarium[hidden]{display:none}
@@ -430,6 +432,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
       <button class="build" id="flagBtn"><span><b>Your flag</b><small>Design the flag you fly.</small></span><span class="fmini" id="flagMini"></span></button>
     </div>
     <button class="build" id="boatsBtn" hidden><span><b>Boats</b><small>Who rides which boat.</small></span><span class="buy">Open</span></button>
+    <button class="build" id="badgesBtn" hidden><span><b>Badges</b><small>Who wears which badge.</small></span><span class="buy">Open</span></button>
     <button class="build" id="carryBtn"><span><b>Play on another device</b><small>A link to this game, to open there.</small></span><span class="buy">Open</span></button>
     <button class="build" id="testerBtn" hidden><span><b>Tester</b><small>Skip ahead past a boss, or add coins.</small></span><span class="buy">Open</span></button>
   </div>
@@ -478,6 +481,14 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
     <h2>Boats <button class="pill icon" id="boatsClose" aria-label="Close the boats">✕</button></h2>
     <p class="tnote">Tap a friend to put him on a boat. Two friends swap if you pick one who already has a boat. The airboat tows the banana boat.</p>
     <div id="boatsList"></div>
+  </div>
+</section>
+
+<section id="badges" hidden aria-label="Badges">
+  <div class="planks">
+    <h2>Badges <button class="pill icon" id="badgesClose" aria-label="Close the badges">✕</button></h2>
+    <p class="tnote">Tap a friend to pin a badge on them. One badge each: pin a second one on a friend and the first comes off.</p>
+    <div id="badgesList"></div>
   </div>
 </section>
 

@@ -6,6 +6,7 @@
  */
 
 import { ARMOUR_MAX } from '../data/armour';
+import { type Badges, noBadges, parseBadges } from '../data/badges';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
@@ -188,6 +189,8 @@ export type SaveData = {
   feederFull: boolean;
   /** Crows won at the feeder, each by a science question answered right: they ride on the boat's rail. */
   crows: number;
+  /** The badges bought from the old man, and who wears each. Missing in old saves and read as none. */
+  badges: Badges;
   /** The old man's treasure finder is fitted to the radar. Missing in old saves and read as not. */
   finder: boolean;
   /** The day the sunken treasure was last looked at, and which of that day's were found, a bit each. */
@@ -342,6 +345,7 @@ export function defaultSave(b: Bounds): SaveData {
     bread: 0,
     feederFull: false,
     crows: 0,
+    badges: noBadges(),
     finder: false,
     sunkenDay: 0,
     sunkenFound: 0,
@@ -502,6 +506,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
   d.feederFull = !!o.feederFull;
   d.crows = between(int(o.crows), 0, CROWS);
+  d.badges = parseBadges(o.badges);
   d.finder = !!o.finder;
   d.sunkenDay = Math.max(0, int(o.sunkenDay));
   d.sunkenFound = between(int(o.sunkenFound), 0, (1 << SUNKEN_COUNT) - 1);
@@ -638,6 +643,7 @@ export function serializeSave(d: SaveData): string {
     bread: d.bread,
     feederFull: d.feederFull,
     crows: d.crows,
+    badges: d.badges,
     finder: d.finder,
     sunkenDay: d.sunkenDay,
     sunkenFound: d.sunkenFound,
