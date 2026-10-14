@@ -12,6 +12,8 @@
  * back to the hole and up through it. And the water there is freezing: the
  * diver gets cold, the game says how fast (not at all in the white scuba suit),
  * warms again at the hole, and when too cold is pulled up as when out of air.
+ *
+ * The same drives the treasure submarine, side on, in the far deep: heavier, hovering, and with no air to run out.
  */
 
 import { type DiveSite, TRENCH_SITE } from '../world/divesite';
@@ -31,6 +33,14 @@ export const ASCEND = 190;
 export const TOP = 14;
 /** How much room the diver takes against the rock. */
 export const BODY = 12;
+
+/**
+ * The treasure submarine (world/subsea.ts) drives as the diver swims, but heavier and slower to answer, hovers where
+ * it is let go rather than drifting up, needs no air, and takes this much room.
+ */
+export const SUB_SPEED = 100;
+export const SUB_EASE = 2.2;
+export const SUB_BODY = 20;
 
 /** The share of too cold at which the game warns. */
 export const CHILLY = 0.6;
@@ -59,12 +69,15 @@ export class Diver {
   /** How cold it is, 0 to 1 (too cold); and how fast it gets colder, a share a second, while under. */
   cold = 0;
   chill = 0;
+  /** It is the treasure submarine, not the diver. */
+  sub = false;
   private warned = false;
   private shivered = false;
 
   /** Back in at the top under the boat, at a site, with a full tank of the size given. */
-  reset(airMax = AIR_MAX, site: DiveSite = TRENCH_SITE, chill = 0): void {
+  reset(airMax = AIR_MAX, site: DiveSite = TRENCH_SITE, chill = 0, sub = false): void {
     this.site = site;
+    this.sub = sub;
     this.chill = chill;
     this.cold = 0;
     this.shivered = false;
@@ -109,16 +122,17 @@ export class Diver {
       this.vy = -ASCEND;
     } else {
       const m = Math.hypot(ix, iy);
-      const tx = m > 0.05 ? ix * SWIM : 0;
-      const ty = m > 0.05 ? iy * SWIM : -DRIFT;
-      const k = Math.min(1, dt * EASE);
+      const top = this.sub ? SUB_SPEED : SWIM;
+      const tx = m > 0.05 ? ix * top : 0;
+      const ty = m > 0.05 ? iy * top : this.sub ? 0 : -DRIFT;
+      const k = Math.min(1, dt * (this.sub ? SUB_EASE : EASE));
       this.vx += (tx - this.vx) * k;
       this.vy += (ty - this.vy) * k;
       if (Math.abs(ix) > 0.15) this.face = ix > 0 ? 1 : -1;
     }
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.site.keep(this, BODY);
+    this.site.keep(this, this.sub ? SUB_BODY : BODY);
     this.kick += dt * (3 + Math.hypot(this.vx, this.vy) / 14);
     this.deepest = Math.max(this.deepest, this.y);
     if (this.y <= TOP) {
@@ -128,7 +142,7 @@ export class Diver {
       if (this.cold < CHILLY) this.shivered = false;
       // Up at the top and still heading up: back aboard.
       if (this.state === 'up' || this.vy < -SWIM * 0.4) return 'surfaced';
-    } else if (this.state === 'swim') {
+    } else if (this.state === 'swim' && !this.sub) {
       this.air = Math.max(0, this.air - dt);
       if (!this.warned && this.air <= this.airMax * AIR_LOW) {
         this.warned = true;

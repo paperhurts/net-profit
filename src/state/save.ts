@@ -20,6 +20,7 @@ import { type Pot, parsePots } from '../fishing/pots';
 import { type Bases, noBases, parseBases } from '../world/bases';
 import { ICE_LOOT_ALL } from '../world/icedive';
 import { LOOT_ALL } from '../world/loot';
+import { noSubFound, parseSubFound, type SubFound } from '../world/subsea';
 import { SUNKEN_COUNT } from '../world/sunken';
 import { TD } from '../world/trench';
 
@@ -189,6 +190,10 @@ export type SaveData = {
   feederFull: boolean;
   /** Crows won at the feeder, each by a science question answered right: they ride on the boat's rail. */
   crows: number;
+  /** The old man's treasure submarine is on deck. Missing in old saves and read as not. */
+  sub: boolean;
+  /** Which treasures the submarine has found today, patch by patch of the far deep. */
+  subFound: SubFound;
   /** The badges bought from the old man, and who wears each. Missing in old saves and read as none. */
   badges: Badges;
   /** The old man's treasure finder is fitted to the radar. Missing in old saves and read as not. */
@@ -345,6 +350,8 @@ export function defaultSave(b: Bounds): SaveData {
     bread: 0,
     feederFull: false,
     crows: 0,
+    sub: false,
+    subFound: noSubFound(),
     badges: noBadges(),
     finder: false,
     sunkenDay: 0,
@@ -506,6 +513,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
   d.feederFull = !!o.feederFull;
   d.crows = between(int(o.crows), 0, CROWS);
+  d.sub = !!o.sub;
+  d.subFound = parseSubFound(o.subFound);
   d.badges = parseBadges(o.badges);
   d.finder = !!o.finder;
   d.sunkenDay = Math.max(0, int(o.sunkenDay));
@@ -643,6 +652,8 @@ export function serializeSave(d: SaveData): string {
     bread: d.bread,
     feederFull: d.feederFull,
     crows: d.crows,
+    sub: d.sub,
+    subFound: d.subFound,
     badges: d.badges,
     finder: d.finder,
     sunkenDay: d.sunkenDay,

@@ -840,3 +840,14 @@ describe("the companions' badges", () => {
     expect(parseSave(serializeSave(s), bounds).badges).toEqual(s.badges);
   });
 });
+
+describe('the treasure submarine', () => {
+  it('an old save has no submarine and nothing found by it; they keep', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.sub, s.subFound]).toEqual([false, { day: 0, patches: {} }]);
+    s.sub = true;
+    s.subFound = { day: 9, patches: { '7,-2': 3 } };
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.sub, back.subFound]).toEqual([true, { day: 9, patches: { '7,-2': 3 } }]);
+  });
+});
