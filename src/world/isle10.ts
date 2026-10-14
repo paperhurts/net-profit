@@ -115,6 +115,16 @@ export const SHACK10 = {
 /** His rocking chair, along the porch from the shack's door, so the sign over it shows. */
 export const OLDMAN10 = { x: STORE10.x + 24, y: STORE10.y + 22 } as const;
 
+/**
+ * Island 10's tower, the kid's, where the giant pelican nests: tall and sandy, in the meadow at the island's heart, a
+ * little toward the forest so it stands clear of the rock and the bunnies there. Its door faces the viewer.
+ */
+export const TOWER10 = { x: ISLE10.x - 30, y: ISLE10.y - 40, r: 26, h: 190 } as const;
+export const DOOR10 = {
+  x: TOWER10.x + 44 * Math.SQRT1_2,
+  y: TOWER10.y + 44 * Math.SQRT1_2,
+} as const;
+
 /** Things placed once from a seed in one part of the island, each this far from the others and from `from`. */
 function scatter(
   seed: number,

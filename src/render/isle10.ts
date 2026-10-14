@@ -26,9 +26,11 @@ import {
   regionAt,
   SWAMP_A,
   shoreR10,
+  TOWER10,
   TREES10,
 } from '../world/isle10';
 import type { Solid } from './layers';
+import { drawTower10 } from './pelican';
 
 const N = 80;
 const PRAIRIE = '#B5C46A';
@@ -339,7 +341,11 @@ function drawCrates10(v: DrawView): void {
 }
 
 /** What stands on island 10, for the game's depth-sorted solids. */
-export function isle10Solids(v: DrawView): Solid[] {
+/** flag10, once the pelican is beaten: the player's flag on top of the tower, drawn at a point. */
+export function isle10Solids(
+  v: DrawView,
+  flag10: ((x: number, y: number) => void) | null = null,
+): Solid[] {
   if (!v.onScreen(ISLE10.x, ISLE10.y, (ISLE10.r + 260) * v.zoom)) return [];
   const out: Solid[] = [];
   const on = (x: number, y: number) => v.onScreen(x, y, 90 * v.zoom);
@@ -356,6 +362,7 @@ export function isle10Solids(v: DrawView): Solid[] {
   for (const [x, y] of ROCKS10)
     if (on(x, y))
       out.push({ d: x + y, f: () => v.box(x - 8, y - 6, 16, 12, 0, 9, '#9A9486', '#B4AE9F') });
+  out.push({ d: TOWER10.x + TOWER10.y, f: () => drawTower10(v, flag10) });
   out.push({ d: PIER10.x0 + PIER10.y0, f: () => drawPier10(v) });
   out.push({ d: CRATES10.x + CRATES10.y + 10, f: () => drawCrates10(v) });
   return out;

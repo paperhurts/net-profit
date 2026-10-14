@@ -780,3 +780,17 @@ describe('islands 8 and 9', () => {
     expect(parseSave(JSON.stringify({ ...s, heronStage: -3 }), bounds).heronStage).toBe(0);
   });
 });
+
+describe("island 10's spider and pelican", () => {
+  it('an old save has no bug spray, no pelican beaten and no bread; they keep, within their ranges', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.bugSpray, s.pelicanBeaten, s.bread]).toEqual([0, false, 0]);
+    s.bugSpray = 12;
+    s.pelicanBeaten = true;
+    s.bread = 1;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.bugSpray, back.pelicanBeaten, back.bread]).toEqual([12, true, 1]);
+    const silly = parseSave(JSON.stringify({ ...s, bugSpray: 500, bread: -2 }), bounds);
+    expect([silly.bugSpray, silly.bread]).toEqual([30, 0]);
+  });
+});
