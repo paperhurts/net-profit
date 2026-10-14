@@ -165,6 +165,33 @@ export const TREES10: readonly Point[] = scatter(1011, 46, 34, 'forest');
 export const CYPRESS10: readonly Point[] = scatter(1019, 18, 52, 'swamp', POOL_PTS, 50).filter(
   ([x, y]) => !POOLS10.some((p) => Math.hypot(x - p.x, y - p.y) < p.r + 22),
 );
+/**
+ * The giant spider's web, the kid's: an orb strung upright between two cypresses deep in the swamp, the pair standing
+ * 45 to 65 apart furthest from the island's middle. Its trunks, its middle on the ground, and how high its hub hangs.
+ */
+export const WEB10: { a: Point; b: Point; x: number; y: number; z: number; r: number } = (() => {
+  let best: [Point, Point] | null = null;
+  let far = -1;
+  for (let i = 0; i < CYPRESS10.length; i++)
+    for (let j = i + 1; j < CYPRESS10.length; j++) {
+      const a = CYPRESS10[i] as Point;
+      const b = CYPRESS10[j] as Point;
+      const gap = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const mx = (a[0] + b[0]) / 2;
+      const my = (a[1] + b[1]) / 2;
+      const d = Math.hypot(mx - ISLE10.x, my - ISLE10.y);
+      if (gap < 45 || gap > 65 || regionAt(mx, my) !== 'swamp' || d <= far) continue;
+      far = d;
+      best = [a, b];
+    }
+  const [a, b] = best ?? [
+    [ISLE10.x + 380, ISLE10.y + 96],
+    [ISLE10.x + 434, ISLE10.y + 83],
+  ];
+  const gap = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  return { a, b, x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, z: 24, r: gap / 2 - 4 };
+})();
+
 /** A few lone trees and rocks out on the prairie. */
 export const OAKS10: readonly Point[] = scatter(1027, 5, 150, 'prairie');
 export const ROCKS10: readonly Point[] = scatter(1031, 7, 110, 'prairie', OAKS10);

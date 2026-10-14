@@ -438,6 +438,20 @@ export const cues = {
     tone(98, 0.9, 'square', 0.035, 0.75, 0.08);
     tone(196, 0.7, 'triangle', 0.04, 0.6, 0.12);
   },
+  /** Bug spray: a short hissing psssht. */
+  spray(): void {
+    tone(3600, 0.32, 'sawtooth', 0.014, 0.85);
+    tone(4700, 0.28, 'square', 0.007, 0.9, 0.02);
+  },
+  /** The giant spider dropping down his thread: quick skittering ticks. */
+  skitter(): void {
+    for (let i = 0; i < 5; i++) tone(1300 + (i % 2) * 400, 0.025, 'square', 0.02, 1, i * 0.06);
+  },
+  /** The giant spider sprayed: a thin, high shriek, falling. */
+  shriek(): void {
+    tone(1800, 0.35, 'sawtooth', 0.03, 0.5);
+    tone(2400, 0.25, 'triangle', 0.02, 0.55, 0.03);
+  },
   /** A leggy muffin, poked or just sprouted: a tiny squeak. */
   squeak(): void {
     tone(1500, 0.05, 'square', 0.025, 1.35);
