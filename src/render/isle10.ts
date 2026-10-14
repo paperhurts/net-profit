@@ -21,6 +21,7 @@ import {
   POND,
   POOLS10,
   PRAIRIE_A,
+  padsOf,
   ROCKS10,
   regionAt,
   SWAMP_A,
@@ -159,9 +160,8 @@ export function drawIsle10Flat(v: DrawView): void {
     ctx.fillStyle = SWAMP_WATER;
     ctx.fill();
     ctx.fillStyle = '#5C8A45';
-    for (let i = 0; i < 2; i++) {
-      const a = p.x * 0.01 + i * 2.3;
-      v.isoEllipse(p.x + Math.cos(a) * p.r * 0.5, p.y + Math.sin(a) * p.r * 0.5, 4.5);
+    for (const [lx, ly] of padsOf(p)) {
+      v.isoEllipse(lx, ly, 4.5);
       ctx.fill();
     }
   }

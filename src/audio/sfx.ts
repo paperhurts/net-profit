@@ -407,6 +407,37 @@ export const cues = {
     tone(3100, 0.5, 'square', 0.006, 1.2, 0.05);
     tone(80, 0.5, 'sawtooth', 0.04, 1.2);
   },
+  /** A frog in island 10's swamp croaking to itself nearby: soft and low, two notes. */
+  croak(): void {
+    tone(190, 0.09, 'square', 0.012, 0.8);
+    tone(170, 0.11, 'square', 0.012, 0.75, 0.13);
+  },
+  /** A frog tapped: a loud, bright ribbit. */
+  ribbit(): void {
+    tone(330, 0.07, 'square', 0.03, 1.4);
+    tone(420, 0.09, 'square', 0.03, 1.3, 0.1);
+  },
+  /** A swamp panther tapped: a low, rolling growl that rises and falls. */
+  rowr(): void {
+    tone(140, 0.45, 'sawtooth', 0.04, 1.4);
+    tone(280, 0.35, 'triangle', 0.025, 0.7, 0.15);
+  },
+  /** A bear cub tapped: a tiny, high growl. */
+  grr(): void {
+    tone(260, 0.22, 'sawtooth', 0.03, 0.85);
+    tone(390, 0.18, 'square', 0.012, 0.9, 0.02);
+  },
+  /** A tiny deer tapped: a short, high bleat. */
+  bleat(): void {
+    tone(900, 0.16, 'triangle', 0.045, 0.8);
+    tone(1100, 0.1, 'sine', 0.02, 0.85, 0.02);
+  },
+  /** The swamp monster roaring: deep, wobbling and long. */
+  blargh(): void {
+    tone(65, 1.1, 'sawtooth', 0.09, 0.8);
+    tone(98, 0.9, 'square', 0.035, 0.75, 0.08);
+    tone(196, 0.7, 'triangle', 0.04, 0.6, 0.12);
+  },
   /** A leggy muffin, poked or just sprouted: a tiny squeak. */
   squeak(): void {
     tone(1500, 0.05, 'square', 0.025, 1.35);
