@@ -821,3 +821,22 @@ describe('the treasure finder and the sunken treasure', () => {
     expect(parseSave(JSON.stringify({ ...s, sunkenDay: -4 }), bounds).sunkenDay).toBe(0);
   });
 });
+
+describe("the companions' badges", () => {
+  it('an old save has no badges; they keep, pinned where they were', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.badges).toEqual({
+      shield: 0,
+      damage: false,
+      heal: false,
+      on: { shield: null, damage: null, heal: null },
+    });
+    s.badges = {
+      shield: 2,
+      damage: true,
+      heal: false,
+      on: { shield: 'cat', damage: 'warlock', heal: null },
+    };
+    expect(parseSave(serializeSave(s), bounds).badges).toEqual(s.badges);
+  });
+});

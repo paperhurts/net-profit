@@ -66,6 +66,11 @@ type Np = {
   crowAt(i: number): [number, number] | null;
   crowCard: number;
   finder: boolean;
+  badges: { shield: number; damage: boolean; heal: boolean; on: Record<string, string | null> };
+  WEARER: Record<
+    string,
+    { hp?: number; hearts?: number; invuln: number; worn: { shield: number }; hurt(): boolean }
+  >;
   sunkenFound: number;
   sunken: { on: boolean; list: { x: number; y: number; coins: number }[] };
   talkToOldMan(): void;
@@ -5207,5 +5212,85 @@ test("island 10's treasure finder: bought from the old man, it shows sunken trea
   await page.reload();
   await page.waitForFunction(() => window.__np?.sunkenFound === 1 << 7, null, { timeout: 5000 });
   expect(await page.evaluate(() => window.__np.finder)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's badges: bought from the old man, pinned on companions, a shield takes the hits, and moved in the card", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 10000,
+    spear: 3,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    isle6Stage: 2,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 30;
+    n.walker.y = n.OLDMAN10.y + 24;
+  });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__np.talkToOldMan());
+  await expect(page.locator('#store10')).toBeVisible();
+  // Each badge goes on a friend without one; the shield's upgrade is the shield again.
+  for (const k of ['shield', 'damage', 'heal', 'shield'])
+    await page.locator(`#store10Shelf [data-buy="badge-${k}"]`).click();
+  await expect(page.locator('#toast')).toContainText('takes 6 hits');
+  const b = await page.evaluate(() => window.__np.badges);
+  expect([b.shield, b.damage, b.heal, b.on]).toEqual([
+    2,
+    true,
+    true,
+    { shield: 'warlock', damage: 'cat', heal: 'warrior' },
+  ]);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(10000 - 1500 - 2000 - 2000 - 2500);
+  await page.locator('#store10Close').click();
+  // The warlock's shield takes his hits.
+  await page.waitForTimeout(1000);
+  const hurt = await page.evaluate(() => {
+    const k = window.__np.WEARER.warlock;
+    if (!k) throw new Error('no warlock');
+    const before = k.hearts;
+    k.invuln = 0;
+    k.hurt();
+    return [before, k.hearts, k.worn.shield];
+  });
+  expect(hurt).toEqual([hurt[0], hurt[0], 5]);
+  // Back aboard: the Badges card moves the healing badge to the cat, taking the damage badge off her.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.walker.dock.landing.x;
+    n.walker.y = n.walker.dock.landing.y - 5;
+    (n.walker as unknown as { wandered: boolean }).wandered = true;
+  });
+  await page.locator('#aboard').click({ timeout: 8000 });
+  await expect(page.locator('#badgesBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#badgesBtn').click();
+  await expect(page.locator('#badges')).toBeVisible();
+  await page.locator('[data-badge="heal"][data-wearer="cat"]').click();
+  expect(await page.evaluate(() => window.__np.badges.on)).toEqual({
+    shield: 'warlock',
+    damage: null,
+    heal: 'cat',
+  });
+  await page.locator('#badgesClose').click();
+  // Kept.
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.badges?.on.heal === 'cat', null, { timeout: 5000 });
   expect(errors).toEqual([]);
 });

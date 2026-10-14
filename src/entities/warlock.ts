@@ -11,6 +11,7 @@
  * The game finds his targets and decides what hurts him.
  */
 
+import { Worn } from '../data/badges';
 import { drawWarlock } from '../render/warlock';
 import { inTar } from '../world/isle4';
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -52,6 +53,8 @@ export class Warlock implements Entity {
   ph = 0;
   gait = 0;
   hearts = WARLOCK_HEARTS;
+  /** His badge, if one is pinned on him (data/badges.ts). */
+  readonly worn = new Worn();
   readonly bolts: Bolt[] = [];
   readonly puffs: Puff[] = [];
   /** Seconds since he last cast, to the next cast, of invulnerability, to the next heart, and of rest. */
@@ -118,6 +121,10 @@ export class Warlock implements Entity {
   /** A hit on him. Returns whether it hurt. */
   hurt(): boolean {
     if (this.state !== 'with' || this.invuln > 0) return false;
+    if (this.worn.absorb()) {
+      this.invuln = WARLOCK_INVULN;
+      return true;
+    }
     this.hearts--;
     this.invuln = WARLOCK_INVULN;
     this.mend = 0;
@@ -149,7 +156,7 @@ export class Warlock implements Entity {
       b.t += dt;
       if (b.t >= b.dur) {
         this.bolts.splice(i, 1);
-        b.to.hit(BOLT_POWER);
+        b.to.hit(this.worn.power(BOLT_POWER));
       }
     }
     if (!this.free) return;
@@ -157,6 +164,9 @@ export class Warlock implements Entity {
     const landed = !!f && !this.hadFigure;
     this.hadFigure = !!f;
     this.invuln = Math.max(0, this.invuln - dt);
+    if (landed) this.worn.refill();
+    const hurt = this.state === 'with' && this.hearts < WARLOCK_HEARTS;
+    if (this.worn.tick(dt, hurt) && hurt) this.hearts++;
     // Worn out, he is back the next time the figure steps ashore.
     if (this.state === 'resting' && landed) this.rest = 0;
     if (this.state === 'resting') {
