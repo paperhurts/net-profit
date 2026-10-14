@@ -53,6 +53,11 @@ type Np = {
   leggyAt(i: number): [number, number] | null;
   hearts: number;
   setHearts(n: number): void;
+  spider10: { state: string };
+  WEB: { x: number; y: number };
+  webT: number;
+  bugSpray: number;
+  sprayShown: boolean;
   swamp10: {
     monster: { x: number; y: number; state: string };
     cubs: { x: number; y: number; state: string }[];
@@ -4883,5 +4888,62 @@ test("island 10's swamp: the swamp monster wakes with a roar and waves; a bear c
   await page.waitForFunction(() => window.__np.swamp10.cubs[0]?.state === 'roll', null, {
     timeout: 2000,
   });
+  expect(errors).toEqual([]);
+});
+
+test("island 10's spider: he hangs you in his web without bug spray; the old man's spray beats him for coins", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 200,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  // Toward his web from the pier's side, close enough to wake him, with no spray: he catches you and hangs you up.
+  const toWeb = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const a = Math.atan2(n.OLDMAN10.y - n.WEB.y, n.OLDMAN10.x - n.WEB.x);
+      n.walker.x = n.WEB.x + Math.cos(a) * 60;
+      n.walker.y = n.WEB.y + Math.sin(a) * 60;
+    });
+  await toWeb();
+  await page.waitForFunction(() => window.__np.webT > 0, null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('hung you in his web');
+  await page.waitForFunction(() => window.__np.webT === 0, null, { timeout: 5000 });
+  // Off to the old man for a can of bug spray.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 30;
+    n.walker.y = n.OLDMAN10.y + 24;
+  });
+  await page.waitForTimeout(800);
+  const at = await page.evaluate(() => window.__np.oldManAt);
+  await page.mouse.click(at[0], at[1]);
+  await expect(page.locator('#store10')).toBeVisible();
+  await page.locator('#store10Shelf [data-buy="spray"]').click();
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.bugSpray])).toEqual([150, 6]);
+  await page.locator('#store10Close').click();
+  // Back to his web: the spray can shows, and three sprays beat him.
+  await toWeb();
+  await page.waitForFunction(() => window.__np.sprayShown, null, { timeout: 8000 });
+  for (let i = 0; i < 12; i++) {
+    const st = await page.evaluate(() => window.__np.spider10.state);
+    if (st === 'fall' || st === 'gone') break;
+    if (await page.evaluate(() => window.__np.sprayShown))
+      await page.dispatchEvent('#sprayBtn', 'pointerdown', { button: 0, pointerType: 'touch' });
+    await page.waitForTimeout(700);
+  }
+  await page.waitForFunction(() => window.__np.coins === 250, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('curls up');
+  expect(await page.evaluate(() => window.__np.bugSpray)).toBe(3);
   expect(errors).toEqual([]);
 });

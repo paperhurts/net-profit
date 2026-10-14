@@ -32,6 +32,25 @@ export const BANANA_HEARTS = 2;
 /** Most of each kind the bag holds. */
 export const SNACK_MAX = 9;
 
+/**
+ * Bug spray, on his shelf too: the only thing that beats the swamp's giant spider (entities/spider10.ts). A can is so
+ * many sprays; the bag holds so many at most.
+ */
+export const BUG_SPRAY = {
+  name: 'Bug spray',
+  price: 50,
+  sprays: 6,
+  blurb: "Six sprays. The only thing that beats the swamp's giant spider.",
+} as const;
+export const SPRAY_MAX = 30;
+
+/** Sprays of bug spray from the save, a whole number 0..SPRAY_MAX; anything else is none. */
+export function parseSprays(n: unknown): number {
+  return typeof n === 'number' && Number.isFinite(n)
+    ? Math.max(0, Math.min(SPRAY_MAX, Math.floor(n)))
+    : 0;
+}
+
 export type Snacks = Record<SnackKind, number>;
 
 export function noSnacks(): Snacks {
