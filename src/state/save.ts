@@ -12,6 +12,7 @@ import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { noSnacks, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
+import { CROWS } from '../entities/crows';
 import { LEGGY_MAX } from '../entities/leggy';
 import { type Charter, parseCharter } from '../fishing/charter';
 import { type Pot, parsePots } from '../fishing/pots';
@@ -182,6 +183,10 @@ export type SaveData = {
   pelicanBeaten: boolean;
   /** Little loaves of bread the pelican left, for a birdfeeder. */
   bread: number;
+  /** Island 10's birdfeeder has bread in it, so the crows come. Missing in old saves and read as empty. */
+  feederFull: boolean;
+  /** Crows won at the feeder, each by a science question answered right: they ride on the boat's rail. */
+  crows: number;
   /** Fish tossed to the otter off the home dock: three make him yours. */
   otterFed: number;
   /** Ice fish tossed to Neil, the seal at the ice floe's edge: three make him yours. */
@@ -329,6 +334,8 @@ export function defaultSave(b: Bounds): SaveData {
     isle10Seen: false,
     pelicanBeaten: false,
     bread: 0,
+    feederFull: false,
+    crows: 0,
     otterFed: 0,
     neilFed: 0,
     radioDay: 0,
@@ -484,6 +491,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle10Seen = !!o.isle10Seen;
   d.pelicanBeaten = !!o.pelicanBeaten;
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
+  d.feederFull = !!o.feederFull;
+  d.crows = between(int(o.crows), 0, CROWS);
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
   d.neilFed = Math.max(0, Math.min(NEIL_FEEDS, int(o.neilFed)));
   d.radioDay = Math.max(0, int(o.radioDay));
@@ -615,6 +624,8 @@ export function serializeSave(d: SaveData): string {
     isle10Seen: d.isle10Seen,
     pelicanBeaten: d.pelicanBeaten,
     bread: d.bread,
+    feederFull: d.feederFull,
+    crows: d.crows,
     otterFed: d.otterFed,
     neilFed: d.neilFed,
     radioDay: d.radioDay,

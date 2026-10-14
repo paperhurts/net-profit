@@ -114,6 +114,8 @@ export const SHACK10 = {
 } as const;
 /** His rocking chair, along the porch from the shack's door, so the sign over it shows. */
 export const OLDMAN10 = { x: STORE10.x + 24, y: STORE10.y + 22 } as const;
+/** The birdfeeder on its pole, out on the grass past the porch (to its right on the screen), where the crows come. */
+export const FEEDER10 = { x: STORE10.x + 50, y: STORE10.y - 60 } as const;
 
 /**
  * Island 10's tower, the kid's, where the giant pelican nests: tall and sandy, in the meadow at the island's heart, a

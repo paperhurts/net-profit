@@ -107,6 +107,7 @@ import {
   CRATES10,
   CYPRESS10,
   DOCK10,
+  FEEDER10,
   groundZ10,
   LANDING10,
   OAKS10,
@@ -486,6 +487,8 @@ export const PROPS: readonly Prop[] = [
   // The old man's shack, and his rocking chair on the porch.
   prop(SHACK10.x0, SHACK10.y0, SHACK10.x1, SHACK10.y1, SHACK10.x1 + SHACK10.y1),
   post([OLDMAN10.x, OLDMAN10.y], 6, OLDMAN10.x + OLDMAN10.y),
+  // The birdfeeder's pole, past the porch.
+  post([FEEDER10.x, FEEDER10.y], 3, FEEDER10.x + FEEDER10.y),
   ...ROCKS6.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
   ...CHESTS6.map((p) => prop(p[0] - 7, p[1] - 5, p[0] + 7, p[1] + 5, p[0] + p[1], 0, 1.5)),
   // Island 7: the trading post, the tower, the palms, the monkey camp and the portal's two feet.

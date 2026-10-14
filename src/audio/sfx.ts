@@ -390,6 +390,18 @@ export const cues = {
     tone(900, 0.09, 'sawtooth', 0.025, 0.7);
     tone(1150, 0.08, 'sawtooth', 0.02, 0.75, 0.12);
   },
+  /** A crow at island 10's birdfeeder: a harsh caw, twice, sliding down. */
+  caw(): void {
+    tone(620, 0.16, 'sawtooth', 0.03, 0.72);
+    tone(700, 0.14, 'square', 0.008, 0.7);
+    tone(600, 0.18, 'sawtooth', 0.03, 0.7, 0.24);
+  },
+  /** A crow's question answered right: three bright notes up. */
+  rightAnswer(): void {
+    tone(660, 0.1, 'triangle', 0.05);
+    tone(830, 0.1, 'triangle', 0.05, 1, 0.1);
+    tone(990, 0.18, 'triangle', 0.05, 1, 0.2);
+  },
   /** A bison on island 10's prairie, tapped: a low, breathy snort. */
   snort(): void {
     tone(130, 0.16, 'sawtooth', 0.045, 0.6);

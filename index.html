@@ -256,12 +256,12 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
-#tester,#boats,#store10,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#boatsBtn[hidden],#store10[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#store10 .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#store10 h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#store10 h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
-#tester .tnote,#boats .tnote,#store10 .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
+#tester,#boats,#store10,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#boatsBtn[hidden],#store10[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#store10 .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#store10 h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#store10 h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester .tnote,#boats .tnote,#store10 .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
 #carry input{flex:1;min-width:0;height:40px;padding:0 10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);font:700 14px var(--font);box-shadow:inset 0 2px 0 rgba(0,0,0,.12)}
@@ -288,6 +288,16 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 #store10 .item .buy{font-weight:800;font-size:14px;padding:6px 10px;border-radius:999px;background:var(--coin);color:#2A1E08;white-space:nowrap}
 #store10 .item[aria-disabled="true"]{opacity:.55}
 #store10 .item.added{box-shadow:0 0 0 3px #3FB37A,0 3px 0 rgba(0,0,0,.22)}
+#crowCard .q{margin:4px 4px 10px;padding:12px;border-radius:11px;background:#EEF2FA;color:#17171D;font-size:17px;font-weight:800;line-height:1.3}
+#crowCard .answers{display:grid;gap:8px}
+#crowCard .answer{width:100%;min-height:48px;text-align:left;padding:10px 14px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;font-size:16px;font-weight:800;cursor:pointer}
+#crowCard .answer.right{background:#3FB37A;color:#fff}
+#crowCard .answer.wrong{background:#D85A4A;color:#fff}
+#crowCard .answer[disabled]{cursor:default}
+#crowCard .fact{margin:10px 4px 4px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:700;line-height:1.35}
+#crowCard .fact b{display:block;font-size:16px;font-weight:800;margin-bottom:2px}
+#crowCard .go{display:block;width:100%;height:48px;margin-top:10px;font-size:16px}
+#crowCard [hidden]{display:none}
 #boats .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
 #updateBtn{margin:0 0 10px;border:2px solid var(--fill)}
 #seamap,#aquarium{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
@@ -477,6 +487,17 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
     <p class="joke" id="store10Joke"></p>
     <p class="tnote">Snacks go in your bag. Tap one by your hearts to eat it, ashore.</p>
     <div class="shelf" id="store10Shelf"></div>
+  </div>
+</section>
+
+<section id="crowCard" hidden aria-label="A crow's question">
+  <div class="planks">
+    <h2>A crow asks you&hellip; <button class="pill icon" id="crowClose" aria-label="Close">✕</button></h2>
+    <p class="q" id="crowQ"></p>
+    <div class="answers" id="crowAnswers"></div>
+    <p class="fact" id="crowFact" hidden></p>
+    <button class="pill go" id="crowPet" hidden>Pet the crow</button>
+    <button class="pill go" id="crowNext" hidden>Another question</button>
   </div>
 </section>
 
