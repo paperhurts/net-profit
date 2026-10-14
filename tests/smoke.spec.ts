@@ -54,6 +54,7 @@ type Np = {
   hearts: number;
   setHearts(n: number): void;
   spider10: { state: string };
+  gorillas: { roused: boolean; list: { x: number; y: number; state: string; hp: number }[] };
   WEB: { x: number; y: number };
   webT: number;
   bugSpray: number;
@@ -4945,5 +4946,50 @@ test("island 10's spider: he hangs you in his web without bug spray; the old man
   await page.waitForFunction(() => window.__np.coins === 250, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('curls up');
   expect(await page.evaluate(() => window.__np.bugSpray)).toBe(3);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's gorillas: the troop beats its chests, one slams for three hearts, and seven spear hits beat it", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 2,
+    armour: 4,
+    isle4Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.gorillas.list[0] ?? { x: 0, y: 0 };
+    n.walker.x = g.x + 80;
+    n.walker.y = g.y;
+  });
+  await page.waitForFunction(() => window.__np.gorillas.roused, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Gorillas!');
+  // Stood still in its ring, a slam lands: three hearts.
+  const full = await page.evaluate(() => window.__np.hearts);
+  await page.waitForFunction((h) => window.__np.hearts <= h - 3, full, { timeout: 8000 });
+  // The spear, hearts kept up, until one has had enough.
+  for (let i = 0; i < 40; i++) {
+    if (await page.evaluate(() => window.__np.coins >= 140)) break;
+    await page.evaluate(() => window.__np.setHearts(window.__np.maxHearts));
+    await page.dispatchEvent('#throw', 'pointerdown', {
+      button: 0,
+      pointerType: 'touch',
+      isPrimary: false,
+    });
+    await page.waitForTimeout(450);
+  }
+  await page.waitForFunction(() => window.__np.coins === 140, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('runs off into the trees');
   expect(errors).toEqual([]);
 });

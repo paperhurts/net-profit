@@ -452,6 +452,16 @@ export const cues = {
     tone(1800, 0.35, 'sawtooth', 0.03, 0.5);
     tone(2400, 0.25, 'triangle', 0.02, 0.55, 0.03);
   },
+  /** A gorilla beating its chest: hollow thumps, quicker and quicker, and a hoot over them. */
+  hoot(): void {
+    for (let i = 0; i < 6; i++) tone(95, 0.07, 'sine', 0.11, 0.8, i * (0.13 - i * 0.012));
+    tone(330, 0.5, 'triangle', 0.03, 1.5, 0.05);
+  },
+  /** A gorilla rearing up for a slam: a deep roar. */
+  gorillaRoar(): void {
+    tone(85, 0.8, 'sawtooth', 0.07, 0.75);
+    tone(170, 0.6, 'square', 0.025, 0.8, 0.05);
+  },
   /** A leggy muffin, poked or just sprouted: a tiny squeak. */
   squeak(): void {
     tone(1500, 0.05, 'square', 0.025, 1.35);
