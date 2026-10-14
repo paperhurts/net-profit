@@ -65,6 +65,10 @@ type Np = {
   feederAt(): [number, number];
   crowAt(i: number): [number, number] | null;
   crowCard: number;
+  finder: boolean;
+  sunkenFound: number;
+  sunken: { on: boolean; list: { x: number; y: number; coins: number }[] };
+  talkToOldMan(): void;
   crowAsk: { q: { q: string; right: string } } | null;
   gorillas: { roused: boolean; list: { x: number; y: number; state: string; hp: number }[] };
   WEB: { x: number; y: number };
@@ -5129,5 +5133,79 @@ test("island 10's birdfeeder: the bread brings the crows, and one answered right
   await page.reload();
   await page.waitForFunction(() => window.__np?.crowsOwned === 1, null, { timeout: 5000 });
   expect(await page.evaluate(() => window.__np.feederFull)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("island 10's treasure finder: bought from the old man, it shows sunken treasure on the radar, and the net hauls it up", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 2100,
+    spear: 3,
+    isle4Stage: 1,
+    isle10Seen: true,
+    gear: { radar: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  // Without the finder there is nothing to see or snag.
+  expect(await page.evaluate(() => window.__np.sunken.on)).toBe(false);
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 30;
+    n.walker.y = n.OLDMAN10.y + 24;
+  });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__np.talkToOldMan());
+  await expect(page.locator('#store10')).toBeVisible();
+  await page.locator('#store10Shelf [data-buy="finder"]').click();
+  await expect(page.locator('#toast')).toContainText('treasure finder is fitted');
+  expect(await page.evaluate(() => [window.__np.finder, window.__np.coins])).toEqual([true, 100]);
+  await expect(page.locator('#store10Shelf [data-buy="finder"]')).toContainText('Fitted');
+  await page.locator('#store10Close').click();
+  // Back aboard and out to sea, the day's treasure is on the radar.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.walker.dock.landing.x;
+    n.walker.y = n.walker.dock.landing.y - 5;
+    (n.walker as unknown as { wandered: boolean }).wandered = true;
+  });
+  await page.locator('#aboard').click({ timeout: 8000 });
+  await page.waitForFunction(
+    () => window.__np.sunken.on && window.__np.sunken.list.length === 8,
+    null,
+    {
+      timeout: 4000,
+    },
+  );
+  // Tow the net over one: it snags it, for coins.
+  const t = await page.evaluate(() => {
+    const n = window.__np;
+    const s = n.sunken.list[7];
+    if (!s) throw new Error('no treasure');
+    n.boat.x = s.x - 260;
+    n.boat.y = s.y;
+    n.boat.h = 0;
+    n.boat.v = 0;
+    n.keys = 'drive';
+    return s.coins;
+  });
+  await page.waitForTimeout(400);
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(() => window.__np.sunkenFound !== 0, null, { timeout: 12000 });
+  await page.keyboard.up('ArrowUp');
+  await expect(page.locator('#toast')).toContainText('Your net snagged');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(100 + t);
+  // What was found today is saved.
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.sunkenFound === 1 << 7, null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.finder)).toBe(true);
   expect(errors).toEqual([]);
 });

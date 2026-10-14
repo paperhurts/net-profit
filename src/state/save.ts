@@ -19,6 +19,7 @@ import { type Pot, parsePots } from '../fishing/pots';
 import { type Bases, noBases, parseBases } from '../world/bases';
 import { ICE_LOOT_ALL } from '../world/icedive';
 import { LOOT_ALL } from '../world/loot';
+import { SUNKEN_COUNT } from '../world/sunken';
 import { TD } from '../world/trench';
 
 export const SAVE_KEY = 'netprofit.v1';
@@ -187,6 +188,11 @@ export type SaveData = {
   feederFull: boolean;
   /** Crows won at the feeder, each by a science question answered right: they ride on the boat's rail. */
   crows: number;
+  /** The old man's treasure finder is fitted to the radar. Missing in old saves and read as not. */
+  finder: boolean;
+  /** The day the sunken treasure was last looked at, and which of that day's were found, a bit each. */
+  sunkenDay: number;
+  sunkenFound: number;
   /** Fish tossed to the otter off the home dock: three make him yours. */
   otterFed: number;
   /** Ice fish tossed to Neil, the seal at the ice floe's edge: three make him yours. */
@@ -336,6 +342,9 @@ export function defaultSave(b: Bounds): SaveData {
     bread: 0,
     feederFull: false,
     crows: 0,
+    finder: false,
+    sunkenDay: 0,
+    sunkenFound: 0,
     otterFed: 0,
     neilFed: 0,
     radioDay: 0,
@@ -493,6 +502,9 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
   d.feederFull = !!o.feederFull;
   d.crows = between(int(o.crows), 0, CROWS);
+  d.finder = !!o.finder;
+  d.sunkenDay = Math.max(0, int(o.sunkenDay));
+  d.sunkenFound = between(int(o.sunkenFound), 0, (1 << SUNKEN_COUNT) - 1);
   d.otterFed = Math.max(0, Math.min(OTTER_FEEDS, int(o.otterFed)));
   d.neilFed = Math.max(0, Math.min(NEIL_FEEDS, int(o.neilFed)));
   d.radioDay = Math.max(0, int(o.radioDay));
@@ -626,6 +638,9 @@ export function serializeSave(d: SaveData): string {
     bread: d.bread,
     feederFull: d.feederFull,
     crows: d.crows,
+    finder: d.finder,
+    sunkenDay: d.sunkenDay,
+    sunkenFound: d.sunkenFound,
     otterFed: d.otterFed,
     neilFed: d.neilFed,
     radioDay: d.radioDay,
