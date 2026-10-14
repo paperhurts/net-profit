@@ -429,11 +429,22 @@ export class Prairie10 implements Entity {
         ty = mom.y + Math.sin(a) * 18;
         speed = 46;
       }
-      const fd = Math.hypot(f.x - b.x, f.y - b.y);
-      if (fd < BISON_SHY && fd > 0) {
-        // Ambles off out of the way, then drifts back to its place.
-        tx = b.x + ((b.x - f.x) / fd) * 30;
-        ty = b.y + ((b.y - f.y) / fd) * 30;
+      // Walk up close and it ambles out of the way: with the figure standing near its place, the place moves off
+      // to BISON_SHY from the figure, so the bison stands off there. (Stepping away only while the figure was
+      // within BISON_SHY, then back to its place, shuffled it to and fro across the line every frame, turning
+      // round each time: it flickered, and so did a companion stood by it.)
+      const ox = tx - f.x;
+      const oy = ty - f.y;
+      const od = Math.hypot(ox, oy);
+      if (od < BISON_SHY) {
+        const bx = b.x - f.x;
+        const by = b.y - f.y;
+        const [ux, uy] =
+          od > 1
+            ? [ox / od, oy / od]
+            : [bx / (Math.hypot(bx, by) || 1), by / (Math.hypot(bx, by) || 1)];
+        tx = f.x + ux * BISON_SHY;
+        ty = f.y + uy * BISON_SHY;
       }
       const dx = tx - b.x;
       const dy = ty - b.y;

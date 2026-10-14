@@ -118,6 +118,33 @@ describe("island 10's prairie animals", () => {
     expect(BISON_SHY).toBeGreaterThan(was);
   });
 
+  it('a bison with the figure stood by stands off and keeps still, not shuffling to and fro and turning', () => {
+    // The owner's report: the bison flickered, and the companions beside them, when the figure stood near to pet one.
+    const p = new Prairie10();
+    p.herd.grazeT = 99;
+    const b = p.bison[0];
+    if (!b) throw new Error('no bison');
+    const fx = b.x + 40;
+    const fy = b.y + 15;
+    for (let t = 0; t < 4; t += DT) p.update(DT, at(fx, fy));
+    const flips = p.bison.map(() => 0);
+    const moved = p.bison.map(() => 0);
+    let last = p.bison.map((q) => ({ x: q.x, y: q.y, face: q.face }));
+    for (let t = 0; t < 2; t += DT) {
+      p.update(DT, at(fx, fy));
+      p.bison.forEach((q, i) => {
+        const was = last[i];
+        if (!was || q.calf) return;
+        if (q.face !== was.face) flips[i] = (flips[i] ?? 0) + 1;
+        moved[i] = (moved[i] ?? 0) + Math.hypot(q.x - was.x, q.y - was.y);
+      });
+      last = p.bison.map((q) => ({ x: q.x, y: q.y, face: q.face }));
+    }
+    expect(flips.every((n) => n === 0)).toBe(true);
+    expect(Math.max(...moved)).toBeLessThan(1);
+    expect(Math.hypot(b.x - fx, b.y - fy)).toBeGreaterThan(BISON_SHY - 4);
+  });
+
   it('a tap: a bunny hops on the spot, a dog ducks; only the dogs that are up can be tapped', () => {
     const p = new Prairie10();
     const b = p.bunnies[2];
