@@ -6,6 +6,11 @@
  * island 7's portal, so the shipwright only has it once the portal is awake.
  * Each level has its look on the figure: a chest plate, and above leather a
  * helmet in place of the sou'wester.
+ *
+ * Last, his Honor Guard armour (his sixth list, 2026-10-15, and his drawing): gold, with a red plume on the helmet
+ * and a red cape, nine hearts, and a survival knife that comes with it. The shipwright has it once the Heron is
+ * beaten on island 9. The knife hits for 4 and does both, the kid said: up close it stabs, a little further off it is
+ * thrown, and past that the spear is thrown as before.
  */
 
 export type ArmourLevel = {
@@ -25,7 +30,9 @@ export type ArmourLook = {
   plate: string;
   edge: string;
   shine: string;
-  helm: 'none' | 'helm' | 'space';
+  helm: 'none' | 'helm' | 'space' | 'plume';
+  /** A cape down the back, in this colour. */
+  cape?: string;
 };
 
 /** Hearts ashore with no armour. */
@@ -64,13 +71,39 @@ export const ARMOURS: readonly ArmourLevel[] = [
     hearts: 7,
     look: { plate: '#EEF2F6', edge: '#8A96A8', shine: '#7FE8FF', helm: 'space' },
   },
+  {
+    name: 'Honor Guard armour',
+    blurb: 'Nine hearts ashore, and a survival knife: stab up close, or throw it.',
+    bought:
+      'Honor Guard armour, gold, with a red plume and a cape, and a survival knife at your belt. You have nine hearts ashore now. Up close, Throw stabs with the knife; a little further off, it throws it.',
+    cost: 15000,
+    hearts: 9,
+    look: { plate: '#E8B53A', edge: '#94650F', shine: '#FFF4C2', helm: 'plume', cape: '#C42F2A' },
+  },
 ];
 
 /** The best armour there is, as a level: levels run 0 (none) to this. */
 export const ARMOUR_MAX = ARMOURS.length;
 
 /** The level of space armour, which waits for island 7's portal. */
-export const SPACE_ARMOUR = ARMOUR_MAX;
+export const SPACE_ARMOUR = 4;
+
+/** The level of Honor Guard armour, which waits for the Heron to be beaten on island 9; the knife comes with it. */
+export const HONOR_GUARD = 5;
+
+/** The survival knife: how hard it hits; how near it stabs, and how soon again; how far it is thrown, and how soon again. */
+export const KNIFE = { power: 4, reach: 34, stabReload: 0.45, range: 100, reload: 0.8 } as const;
+
+/** Whether the figure has the knife: it comes with the Honor Guard armour. */
+export function hasKnife(level: number): boolean {
+  return level >= HONOR_GUARD;
+}
+
+/** How the knife is used on a foe this far off: stabbed, thrown, or not at all (the spear's, if any). */
+export function knifeUse(level: number, dist: number): 'stab' | 'throw' | null {
+  if (!hasKnife(level)) return null;
+  return dist <= KNIFE.reach ? 'stab' : dist <= KNIFE.range ? 'throw' : null;
+}
 
 /** The armour you wear at a level, or null with none. */
 export function armourAt(level: number): ArmourLevel | null {
@@ -82,8 +115,14 @@ export function heartsFor(level: number): number {
   return armourAt(level)?.hearts ?? BASE_HEARTS;
 }
 
-/** The next armour the shipwright sells, or null: once you have the best, or space armour before the portal wakes. */
-export function nextArmour(level: number, portalAwake: boolean): ArmourLevel | null {
+/** The next armour the shipwright sells, or null: once you have the best, space armour before the portal wakes, or
+ * Honor Guard before the Heron is beaten on island 9. */
+export function nextArmour(
+  level: number,
+  portalAwake: boolean,
+  heronBeaten = false,
+): ArmourLevel | null {
   if (level + 1 === SPACE_ARMOUR && !portalAwake) return null;
+  if (level + 1 === HONOR_GUARD && !heronBeaten) return null;
   return ARMOURS[level] ?? null;
 }

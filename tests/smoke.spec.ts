@@ -1042,6 +1042,37 @@ test('armour: once there is a spear the shipwright sells leather armour, and it 
   expect(errors).toEqual([]);
 });
 
+test('Honor Guard: the shipwright has it once the Heron is beaten on island 9, and it is nine hearts', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 16000,
+    isle2Seen: true,
+    isle7Stage: 1,
+    heronStage: 1,
+    spear: 3,
+    armour: 4,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  // Space armour on, the Heron not yet beaten in his nest: nothing more on the shelf.
+  const card = page.locator('#gear [data-a]');
+  await expect(card).toHaveCount(0);
+  // His escape already seen, so its scene does not start over the shop and clear the toast.
+  await page.evaluate(() => {
+    window.__np.heronFled = true;
+    window.__np.heronStage = 2;
+    window.__np.coins = 16000;
+  });
+  await expect(card).toContainText('Honor Guard armour');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.armour === 5, null, { timeout: 2000 });
+  expect(await page.evaluate(() => [window.__np.maxHearts, window.__np.coins])).toEqual([9, 1000]);
+  await expect(card).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('the sea map: sailing opens the fog, the map shows it, and the game waits while it is open', async ({
   context,
   page,
@@ -5035,6 +5066,63 @@ test("island 10's gorillas: the troop beats its chests, one slams for three hear
   }
   await page.waitForFunction(() => window.__np.coins === 140, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('runs off into the trees');
+  expect(errors).toEqual([]);
+});
+
+test('the survival knife: right up close it stabs, a little further off it is thrown, four a blow', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 100,
+    spear: 3,
+    armour: 5,
+    heronStage: 2,
+    heronFled: true,
+    isle4Stage: 1,
+    isle7Stage: 1,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.maxHearts)).toBe(9);
+  // Right beside a gorilla, the button shows the knife; a stab takes four at once.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.gorillas.list[0] ?? { x: 0, y: 0 };
+    n.walker.x = g.x + 22;
+    n.walker.y = g.y + 6;
+  });
+  await expect(page.locator('#throw')).toHaveClass(/knife/, { timeout: 2000 });
+  await expect(page.locator('#throw')).toHaveAttribute('aria-label', 'Use the knife');
+  const before = await page.evaluate(() => window.__np.gorillas.list[0]?.hp ?? 0);
+  await page.dispatchEvent('#throw', 'pointerdown', {
+    button: 0,
+    pointerType: 'touch',
+    isPrimary: false,
+  });
+  const after = await page.evaluate(() => window.__np.gorillas.list[0]?.hp ?? 0);
+  expect(before - after).toBeGreaterThanOrEqual(4);
+  // A little further off it is thrown, and that finishes it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(n.maxHearts);
+    const g = n.gorillas.list[0] ?? { x: 0, y: 0 };
+    n.walker.x = g.x + 80;
+    n.walker.y = g.y + 6;
+  });
+  await page.waitForTimeout(700);
+  await expect(page.locator('#throw')).toHaveClass(/knife/);
+  await page.dispatchEvent('#throw', 'pointerdown', {
+    button: 0,
+    pointerType: 'touch',
+    isPrimary: false,
+  });
+  await page.waitForFunction(() => window.__np.coins === 140, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

@@ -121,6 +121,7 @@ import {
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { BAKERY, DRURY_LANE } from './muffinman';
+import { drawKnife } from './spears';
 
 /** Walking speed in world units a second, and how quickly a step answers the stick. */
 export const WALK_SPEED = 85;
@@ -675,6 +676,10 @@ export class Walker implements Entity {
   throwT = 0;
   /** Whether it carries a spear, which shows over its shoulder while it walks. */
   armed = false;
+  /** Whether it has the survival knife (it comes with the Honor Guard armour), at its belt; and whether the last blow
+   * was a stab with it, the arm thrust forward with the knife in hand, not up in a throw. */
+  knife = false;
+  stabbing = false;
   /** How much faster than its own pace it walks: more than 1 while an apple from island 10's old man lasts. */
   speedK = 1;
   /** Just bonked: it blinks while it cannot be bonked again. */
@@ -783,6 +788,14 @@ export class Walker implements Entity {
   throwAt(x: number, y: number): void {
     this.h = Math.atan2(y - this.y, x - this.x);
     this.throwT = 0.3;
+    this.stabbing = false;
+  }
+
+  /** Face a point and stab at it with the knife. */
+  stabAt(x: number, y: number): void {
+    this.throwAt(x, y);
+    this.throwT = 0.22;
+    this.stabbing = true;
   }
 
   /** The stick or the keys, as a screen-space vector of magnitude 0..1. */
@@ -964,6 +977,42 @@ export class Walker implements Entity {
     }
   }
 
+  /** A cape from the shoulders down the back, swinging a little as it walks. */
+  private drawCape(v: DrawView, colour: string): void {
+    const { ctx, px, py } = v;
+    const Z = v.zoom;
+    const { x, y } = this;
+    const z = this.z - this.sink;
+    const c = Math.cos(this.h);
+    const s = Math.sin(this.h);
+    const sway = Math.sin(this.ph) * this.gait * 1.5;
+    const top = (k: number): [number, number] => {
+      const wx = x - c * 2.4 - s * 4 * k;
+      const wy = y - s * 2.4 + c * 4 * k;
+      return [px(wx, wy), py(wx, wy, z + 18)];
+    };
+    const foot = (k: number): [number, number] => {
+      const wx = x - c * (5 + this.gait * 2) - s * (5.5 * k + sway);
+      const wy = y - s * (5 + this.gait * 2) + c * (5.5 * k + sway);
+      return [px(wx, wy), py(wx, wy, z + 3)];
+    };
+    const [ax, ay] = top(-1);
+    const [bx, by] = top(1);
+    const [cx, cy] = foot(1);
+    const [dx, dy] = foot(-1);
+    ctx.fillStyle = colour;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(cx, cy);
+    ctx.quadraticCurveTo((cx + dx) / 2, (cy + dy) / 2 + 1.5 * Z, dx, dy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.25)';
+    ctx.lineWidth = 0.8 * Z;
+    ctx.stroke();
+  }
+
   private drawFigure(v: DrawView): void {
     if (this.blink && Math.floor(this.now * 12) % 2) return;
     const { ctx, px, py } = v;
@@ -1030,7 +1079,10 @@ export class Walker implements Entity {
       ctx.ellipse(px(tx, ty), py(tx, ty, z + 15), 2.8 * Z, 6 * Z, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    // The body, in the boat's colour.
+    // The body, in the boat's colour; a cape behind it, when it faces this way.
+    const arm0 = suit ? null : this.armour;
+    const towardUs = (c + s) / 2 >= 0;
+    if (arm0?.cape && towardUs) this.drawCape(v, arm0.cape);
     const bx = px(x, y);
     const by = py(x, y, z + 13);
     ctx.fillStyle = shirt;
@@ -1056,6 +1108,14 @@ export class Walker implements Entity {
       ctx.ellipse(bx - 1.6 * Z, by - 2 * Z, 1.1 * Z, 1.8 * Z, -0.4, 0, Math.PI * 2);
       ctx.fill();
     }
+    // Its back to us, the cape hangs over it.
+    if (arm?.cape && !towardUs) this.drawCape(v, arm.cape);
+    // The survival knife at its belt, unless it is in its hand.
+    if (this.knife && !(this.throwT > 0 && this.stabbing)) {
+      const kx = x + s * 4.6;
+      const ky = y - c * 4.6;
+      drawKnife(ctx, px(kx, ky), py(kx, ky, z + 10), Z * 0.75, Math.PI / 2);
+    }
     // Arms, swinging against the legs; at night one hand carries a lantern. Swimming, they reach over in turn.
     ctx.strokeStyle = shirt;
     ctx.lineWidth = 2.2 * Z;
@@ -1070,11 +1130,12 @@ export class Walker implements Entity {
         hy = y + s * reach + c * 5 * side;
         hz = z + 12 + Math.sin(p) * 6 * Math.max(0.3, this.gait);
       }
-      // Throwing, the near arm goes up and forward.
+      // Throwing, the near arm goes up and forward; stabbing, it thrusts straight out, the knife in hand.
       if (side === 1 && this.throwT > 0) {
-        hx = x + c * 7 - s * 3;
-        hy = y + s * 7 + c * 3;
-        hz = z + 21;
+        const out = this.stabbing ? 10 : 7;
+        hx = x + c * out - s * 3;
+        hy = y + s * out + c * 3;
+        hz = this.stabbing ? z + 13 : z + 21;
       }
       const sx = x - s * 4.2 * side;
       const sy = y + c * 4.2 * side;
@@ -1082,6 +1143,14 @@ export class Walker implements Entity {
       ctx.moveTo(px(sx, sy), py(sx, sy, z + 16));
       ctx.lineTo(px(hx, hy), py(hx, hy, hz));
       ctx.stroke();
+      if (side === 1 && this.throwT > 0 && this.stabbing) {
+        const tx = hx + c * 6;
+        const ty = hy + s * 6;
+        const a = Math.atan2(py(tx, ty, hz) - py(hx, hy, hz), px(tx, ty) - px(hx, hy));
+        drawKnife(ctx, px(hx, hy), py(hx, hy, hz), Z * 0.9, a);
+        ctx.strokeStyle = shirt;
+        ctx.lineWidth = 2.2 * Z;
+      }
     }
     // A spear over the shoulder, between throws.
     if (this.armed && this.throwT <= 0) {
@@ -1210,8 +1279,9 @@ export class Walker implements Entity {
       ctx.fill();
       return;
     }
-    if (arm && arm.helm === 'helm') {
+    if (arm && (arm.helm === 'helm' || arm.helm === 'plume')) {
       // A helmet in the armour's colour: a dome over the head with a rim and a crest, the face showing under it.
+      // Honor Guard's has a tall red plume along its top instead, swept back from where it looks.
       ctx.fillStyle = arm.plate;
       ctx.strokeStyle = arm.edge;
       ctx.lineWidth = 0.9 * Z;
@@ -1225,6 +1295,28 @@ export class Walker implements Entity {
       ctx.beginPath();
       ctx.ellipse(hx - 1.6 * Z, hy - 4 * Z, 1.2 * Z, 0.8 * Z, -0.3, 0, Math.PI * 2);
       ctx.fill();
+      if (arm.helm === 'plume') {
+        const back = -fx;
+        ctx.fillStyle = arm.cape ?? '#C42F2A';
+        ctx.beginPath();
+        ctx.moveTo(hx - 2.6 * Z, hy - 5.2 * Z);
+        ctx.quadraticCurveTo(
+          hx - 1 * Z + back * 2 * Z,
+          hy - 12.5 * Z,
+          hx + back * 6.5 * Z,
+          hy - 9.5 * Z,
+        );
+        ctx.quadraticCurveTo(hx + back * 4 * Z, hy - 7 * Z, hx + 2.6 * Z, hy - 5.2 * Z);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.35)';
+        ctx.lineWidth = 0.7 * Z;
+        ctx.beginPath();
+        ctx.moveTo(hx - 0.6 * Z, hy - 6 * Z);
+        ctx.quadraticCurveTo(hx + back * 1.5 * Z, hy - 10.5 * Z, hx + back * 5.2 * Z, hy - 9.4 * Z);
+        ctx.stroke();
+        return;
+      }
       ctx.strokeStyle = arm.edge;
       ctx.lineWidth = 1.4 * Z;
       ctx.beginPath();

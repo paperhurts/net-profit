@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ARMOUR_MAX } from '../../src/data/armour';
 import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { JUNK_MAX } from '../../src/data/junk';
@@ -638,7 +639,7 @@ describe('armour', () => {
     expect(parseSave(serializeSave(s), bounds).armour).toBe(3);
     const bad = JSON.parse(serializeSave(s));
     bad.armour = 99;
-    expect(parseSave(JSON.stringify(bad), bounds).armour).toBe(4);
+    expect(parseSave(JSON.stringify(bad), bounds).armour).toBe(ARMOUR_MAX);
     bad.armour = 'gold';
     expect(parseSave(JSON.stringify(bad), bounds).armour).toBe(0);
   });
