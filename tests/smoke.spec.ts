@@ -217,6 +217,7 @@ type Np = {
   DOOR9: { x: number; y: number };
   DOOR8: { x: number; y: number };
   heronStage: number;
+  heronFled: boolean;
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
   nest: { up: boolean; state: string; hit(power: number): void };
   nestHorde: { list: { state: string }[] };
@@ -2371,6 +2372,7 @@ test('the flotilla: the warrior, the bones, the necromancer and the tarling sail
     soulArmour: true,
     isle8Seen: true,
     heronStage: 2,
+    heronFled: true,
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
@@ -2425,6 +2427,7 @@ test('the Boats card: the kid puts a friend on a boat, the two swap, and it is k
     soulArmour: true,
     isle8Seen: true,
     heronStage: 2,
+    heronFled: true,
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
@@ -3805,6 +3808,7 @@ test("the Heron's hired boats go home once he is beaten for good", async ({ cont
     isle7Stage: 1,
     isle8Seen: true,
     heronStage: 2,
+    heronFled: true,
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 6300, y: 2070, h: 0, clock: 0.3, hold: [] },
   });
@@ -4022,13 +4026,26 @@ test("the Heron's nest: up island 9's tower, the orb shields him until the necro
   ).toBe(true);
   await page.evaluate(() => window.__np.heron9.hit(99));
   await page.waitForFunction(() => window.__np.heronStage === 2, null, { timeout: 3000 });
-  await expect(page.locator('#toast')).toContainText('for good');
+  await expect(page.locator('#toast')).toContainText('hired boats sail home');
   // The necromancer is free, and comes with you.
   expect(await page.evaluate(() => window.__np.necroPal.shown)).toBe(true);
   await expect(page.locator('#leave')).toHaveText('Back to the boat');
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
-  await expect(page.locator('#log')).toContainText('Heron beaten for good');
+  await expect(page.locator('#log')).toContainText('Heron beaten');
+  // Back aboard, his escape: out over the sea he falls in, the Reaper comes for him, and a portal takes him away.
+  await page.waitForFunction(() => window.__np.cine?.kind === 'heron', null, { timeout: 6000 });
+  await expect(page.locator('body')).toHaveClass(/cine/);
+  expect(await page.evaluate(() => window.__np.heronFled)).toBe(false);
+  await page.waitForTimeout(1000);
+  await page.mouse.click(CX, CY);
+  await page.waitForFunction(() => window.__np.cine === null, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.heronFled)).toBe(true);
+  await expect(page.locator('#toast')).toContainText('portal of his own');
+  await expect(page.locator('#log')).toContainText('fled by portal');
+  // Once only: it does not come round again.
+  await page.waitForTimeout(2500);
+  expect(await page.evaluate(() => window.__np.cine)).toBeNull();
   expect(errors).toEqual([]);
 });
 
@@ -4045,6 +4062,7 @@ test('the necromancer: with the Heron beaten for good he comes along, and in a f
     isle7Stage: 1,
     isle8Seen: true,
     heronStage: 2,
+    heronFled: true,
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 6560, y: 2070, h: 0, clock: 0.3, hold: [] },
   });

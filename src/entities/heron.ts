@@ -22,8 +22,8 @@ import type { Solid } from '../render/layers';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export const HERON_HP = 14;
-/** Round two, in his nest on island 9. */
-export const HERON9_HP = 18;
+/** Round two, in his nest on island 9: the same 14, the kid's sixth list (it was 18), but his zap there takes two hearts. */
+export const HERON9_HP = 14;
 /** How fast he stalks, and how far from the figure he likes to stand. */
 export const STALK = 46;
 export const KEEP = 95;
