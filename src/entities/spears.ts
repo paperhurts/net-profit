@@ -3,7 +3,8 @@
  * arc and always lands: it follows a fish as it swims, so a child's throw at a
  * fish in range is a fish. Where it lands the water splashes. The game says
  * what a hit means through the callback the throw carries. A harpoon is a
- * spear fired from the boat: bigger, and on a line back to the bow.
+ * spear fired from the boat: bigger, and on a line back to the bow. The survival knife, thrown, flies the same way,
+ * turning end over end.
  */
 
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -25,6 +26,8 @@ type Flight = {
   hit: () => void;
   /** A harpoon's line runs back to here, which moves with the boat. */
   rope: Target | null;
+  /** The survival knife, not a spear. */
+  knife: boolean;
 };
 
 /** How high on the boat a harpoon's line is tied. */
@@ -34,7 +37,7 @@ export class Spears implements Entity {
   readonly flying: Flight[] = [];
   readonly splashes: { x: number; y: number; z: number; age: number }[] = [];
 
-  /** Throw from (x, y) at height z toward a target, which lands at height tz; hit runs when it lands. A rope makes it a harpoon on a line back to that. */
+  /** Throw from (x, y) at height z toward a target, which lands at height tz; hit runs when it lands. A rope makes it a harpoon on a line back to that; knife, the survival knife. */
   launch(
     x: number,
     y: number,
@@ -43,6 +46,7 @@ export class Spears implements Entity {
     tz: number,
     hit: () => void,
     rope: Target | null = null,
+    knife = false,
   ): void {
     const d = Math.hypot(to.x - x, to.y - y);
     this.flying.push({
@@ -55,6 +59,7 @@ export class Spears implements Entity {
       dur: Math.max(0.12, d / SPEAR_SPEED),
       hit,
       rope,
+      knife,
     });
   }
 
@@ -91,6 +96,10 @@ export class Spears implements Entity {
     ctx.lineCap = 'round';
     for (const f of this.flying) {
       const [x, y, z] = Spears.at(f);
+      if (f.knife) {
+        drawKnife(ctx, px(x, y), py(x, y, z), Z, f.t * 22);
+        continue;
+      }
       const dx = f.to.x - f.x0;
       const dy = f.to.y - f.y0;
       const dl = Math.hypot(dx, dy) || 1;
@@ -128,4 +137,36 @@ export class Spears implements Entity {
       ctx.stroke();
     }
   }
+}
+
+/** The survival knife at screen (sx, sy), turned to angle a: a grey blade with a bright edge, a dark guard, a brown grip. */
+export function drawKnife(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  Z: number,
+  a: number,
+): void {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(a);
+  ctx.fillStyle = '#C9D2D8';
+  ctx.beginPath();
+  ctx.moveTo(-1 * Z, -1.4 * Z);
+  ctx.lineTo(6.5 * Z, -0.6 * Z);
+  ctx.lineTo(8 * Z, 0.4 * Z);
+  ctx.lineTo(-1 * Z, 1.4 * Z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#F4F8FA';
+  ctx.lineWidth = 0.6 * Z;
+  ctx.beginPath();
+  ctx.moveTo(0, -1.1 * Z);
+  ctx.lineTo(6.4 * Z, -0.5 * Z);
+  ctx.stroke();
+  ctx.fillStyle = '#3A3F44';
+  ctx.fillRect(-1.6 * Z, -2.2 * Z, 1.2 * Z, 4.4 * Z);
+  ctx.fillStyle = '#6B4424';
+  ctx.fillRect(-6 * Z, -1.1 * Z, 4.4 * Z, 2.2 * Z);
+  ctx.restore();
 }
