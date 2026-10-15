@@ -779,6 +779,18 @@ describe('islands 8 and 9', () => {
     );
     expect(parseSave(JSON.stringify({ ...s, heronStage: -3 }), bounds).heronStage).toBe(0);
   });
+
+  it("owe the Heron's escape to a save that beat him before it existed, and keep it played once it has", () => {
+    const s = parseSave(
+      JSON.stringify({ ...JSON.parse(legacy), heronStage: HERON_STAGES }),
+      bounds,
+    );
+    expect(s.heronFled).toBe(false);
+    s.heronFled = true;
+    expect(parseSave(serializeSave(s), bounds).heronFled).toBe(true);
+    // He cannot have got away from a fight that has not been won.
+    expect(parseSave(JSON.stringify({ ...s, heronStage: 1 }), bounds).heronFled).toBe(false);
+  });
 });
 
 describe("island 10's spider and pelican", () => {

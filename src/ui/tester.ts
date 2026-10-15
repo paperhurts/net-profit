@@ -97,7 +97,7 @@ export const STEPS: readonly Step[] = [
   {
     id: 'heron',
     short: 'the Heron',
-    label: 'The Heron beaten for good',
+    label: 'The Heron beaten on island 9',
     apply: (s) => {
       s.isle8Seen = true;
       atLeast(s, 'heronStage', 2);

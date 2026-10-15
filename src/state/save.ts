@@ -209,6 +209,9 @@ export type SaveData = {
   radioDay: number;
   /** The Heron: 0 not met, 1 beaten on island 8's tower and flown to his nest, 2 beaten for good on island 9's. */
   heronStage: number;
+  /** Beaten on island 9, the Heron fell in the sea, the Reaper hunted him and he got away through a portal: that scene
+   * has played. Missing in old saves and read as not yet, so a game that beat him before it existed sees it once. */
+  heronFled: boolean;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
@@ -360,6 +363,7 @@ export function defaultSave(b: Bounds): SaveData {
     neilFed: 0,
     radioDay: 0,
     heronStage: 0,
+    heronFled: false,
     spear: 0,
     armour: 0,
     sailed: '',
@@ -523,6 +527,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.neilFed = Math.max(0, Math.min(NEIL_FEEDS, int(o.neilFed)));
   d.radioDay = Math.max(0, int(o.radioDay));
   d.heronStage = Math.max(0, Math.min(HERON_STAGES, int(o.heronStage)));
+  d.heronFled = d.heronStage >= HERON_STAGES && !!o.heronFled;
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
@@ -662,6 +667,7 @@ export function serializeSave(d: SaveData): string {
     neilFed: d.neilFed,
     radioDay: d.radioDay,
     heronStage: d.heronStage,
+    heronFled: d.heronFled,
     spear: d.spear,
     armour: d.armour,
     sailed: d.sailed,
