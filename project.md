@@ -336,6 +336,7 @@ Entity contract: `update(dt, world)`, `draw(ctx, view, layer)`, optional `depth(
 - CI runs typecheck, lint, unit and smoke on every PR. Merging to `main` builds `dist/` and deploys it to GitHub Pages. Only the game ships; none of the docs are served.
 - Where the tuning tables above and `legacy/net-profit.html` disagree, the tables win and the port reproduces the tables.
 - Keyboard steering has two feels and a setting, because on 2026-09-17 the owner picked drive and her kid picked point, and both were right for how they play. Legacy points with the keys, unsmoothed; neither feel is that, so this is the one deliberate difference from legacy in how the boat is driven. The joystick and the physics under all three are bit-identical to legacy by test.
+- Questions for her kid go in a tab of their own in his document of lists, where he types his answers himself: the owner's standing word, 2026-10-15, so add the tab and put them there without asking. Keep them short and plain, grouped, one per line, in his words where possible, and read his spelling generously. Adding the tab needs the Google Docs connector; with only Drive's, the doc can be read but not changed, so hand the owner the questions to paste in instead.
 - The people in this doc are "the owner" and "her kid" on purpose. No real names or personal email anywhere in the repo, commits or PRs; the repo commits as the GitHub noreply address.
 
 ## Roadmap (ideas discussed; the built ones say so)
