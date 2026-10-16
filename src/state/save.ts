@@ -13,6 +13,7 @@ import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { type Look, parseLook, SKIPPER } from '../data/look';
+import { isScanKind, type ScanKind } from '../data/scans';
 import { noSnacks, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
 import { CROWS } from '../entities/crows';
@@ -198,6 +199,8 @@ export type SaveData = {
   castleHQ: boolean;
   /** The portable scanner he gave you, by its level: 0 without one. Missing in old saves and read as none. */
   scanner: number;
+  /** The kinds of creature scanned with it (data/scans.ts), each once. Missing in old saves and read as none. */
+  scanned: ScanKind[];
   /** The game's save code, four words (state/cloud.ts): the game is kept online under it. Missing in old saves, or not
    *  a code, and read as none, and the game makes one. */
   saveCode: string;
@@ -382,6 +385,7 @@ export function defaultSave(b: Bounds): SaveData {
     cryptWon: false,
     castleHQ: false,
     scanner: 0,
+    scanned: [],
     saveCode: '',
     codeTold: 0,
     barge: defaultBarge(),
@@ -557,6 +561,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.cryptWon = !!o.cryptWon;
   d.castleHQ = !!o.castleHQ;
   d.scanner = typeof o.scanner === 'number' && o.scanner > 0 ? Math.floor(o.scanner) : 0;
+  d.scanned = Array.isArray(o.scanned) ? [...new Set(o.scanned.filter(isScanKind))] : [];
   d.saveCode =
     typeof o.saveCode === 'string' && readCode(o.saveCode) === o.saveCode ? o.saveCode : '';
   d.codeTold =
@@ -712,6 +717,7 @@ export function serializeSave(d: SaveData): string {
     cryptWon: d.cryptWon,
     castleHQ: d.castleHQ,
     scanner: d.scanner,
+    scanned: d.scanned,
     saveCode: d.saveCode,
     codeTold: d.codeTold,
     barge: d.barge,
