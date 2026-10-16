@@ -47,7 +47,7 @@ import { alongsideFloe, FLOE_MAX, ICE_FLOE } from './world/icefloe';
 import { Shallows } from './entities/shallows';
 import { BLUE, Fighter, GREEN, RED, SLASH_ARC, SLASH_SLACK, SWORDSMAN } from './entities/fighter';
 import { BONK_EVERY, BONK_R, MONKEY_HP, Monkeys } from './entities/monkeys';
-import { ARENA_NAMES, ARENA_SIZES, arenaSpots, BARGE_DROP, BARGE_FOES, BARGE_LEAN, BARGE_MAX, BARGE_PRIZE, bargeAdd, bargeTotal, bargeZoom, BOSS_FOES, defaultBarge, FIGHTER_FOES, FOE_NAMES, SEA_ARENA, SEA_FOES, SEA_LEAN, SEA_LOOK, SEA_NAMES, SEA_RING, SEA_ZOOM, seaAdd, seaSpots, seaStart, seaTotal, UNDEAD_FOES } from './data/barge';
+import { ARENA_NAMES, ARENA_SIZES, arenaSpots, BARGE_DROP, BARGE_FOES, BARGE_LEAN, BARGE_MAX, BARGE_PRIZE, bargeAdd, bargeTotal, bargeZoom, BOSS_FOES, defaultBarge, FIGHTER_FOES, FOE_NAMES, FRAME_MID, SEA_ARENA, SEA_FOES, SEA_LOOK, SEA_NAMES, SEA_RING, SEA_ZOOM_MAX, SEA_ZOOM_MIN, seaAdd, seaFrame, seaSpots, seaStart, seaTotal, UNDEAD_FOES } from './data/barge';
 import { drawArenaBack } from './render/barge';
 import { drawSeaRing, drawSeaWater } from './render/seaarena';
 import { BOLT_HIT, CALL_N, Sorcerer, THIRD_HP } from './entities/sorcerer';
@@ -241,7 +241,7 @@ async function cloudOffer(){ cloudOffered = true; const got = await getGame(save
   const d = parseSave(un.json, SAVE_BOUNDS); if (d.earned <= earned) return;
   askLoad(un.json, 'Played on further on another device'); }
 // The Battle Barge at sea (below): where the boat came from, its ring's size, and whether the fight is won.
-let seaFight = null, seaWon = false, seaView = 0; const seaLook = {x: 0, y: 0};
+let seaFight = null, seaWon = false, seaView = 0; const seaCam = {x: 0, y: 0, k: SEA_ZOOM_MAX};
 const seaBoss = {meteor: [], king: [], deep: [], reaper: [], gulper: []};
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ const at = seaFight || boat; // out at the Battle Barge at sea, the boat is kept where it came from
@@ -1573,7 +1573,7 @@ function letCrowGo(){ audio(); if (!crowGoShown) return; const n = crowsAboard()
   if (!guide.letGo(crowSeat(boat, bk(), n - 1))) return; sfx.caw(); toasts.clear();
   toast('Off it goes, up and away! A crow flies for land: follow it.', 3200, 1); updateCrowGo(); }
 // Out in the far far sea with a crow on the rail and island 11 not yet found: Let a crow go.
-function updateCrowGo(){ const show = started && walker.aboard && !docked && !cine && !diving && !icing && !isle11Seen && !guide.away && crowsAboard() > 0 && pastFarFar(boat.x, boat.y);
+function updateCrowGo(){ const show = started && walker.aboard && !docked && !seaFight && !cine && !diving && !icing && !isle11Seen && !guide.away && crowsAboard() > 0 && pastFarFar(boat.x, boat.y);
   if (show !== crowGoShown){ crowGoShown = show; $('crowGo').hidden = !show; } }
 $('crowGo').addEventListener('click', letCrowGo);
 // The day's sunken treasure, the kid's, shown by the old man's treasure finder on the radar and hauled up in the net
@@ -1990,6 +1990,14 @@ function seaBossAt(kind, at){
   d.onRise = () => { sfx.cthuluWake(); shake = Math.max(shake, .5); };
   d.onWarn = deep.onWarn; d.onGrab = deep.onGrab; d.onSqueeze = deep.onSqueeze; d.onLog = deep.onLog; d.onSplash = deep.onSplash;
   d.onBeaten = () => { sfx.cthuluWake(); shake = Math.max(shake, .6); }; return d; }
+/** What the camera keeps in frame at sea, from the boat: the boat, its net behind, and each boss still in the fight
+ * within SEA_LOOK, how far round it reaches and how tall it stands (Star where it flies). */
+const SEA_FRAME = {meteor: [120, 40], king: [110, 80], deep: [170, 110], reaper: [150, 90], gulper: [150, 30]};
+function seaFramePoints(){ const k = bk(), pts = [{dx: 0, dy: 0, r: 110*k, tall: 50*k}];
+  for (const [kind, b] of seaMarks()){ if (b.afraid || SEA_DOWN.includes(b.state)) continue;
+    const dx = b.x - boat.x, dy = b.y - boat.y; if (Math.hypot(dx, dy) > SEA_LOOK) continue;
+    const [r, tall] = SEA_FRAME[kind]; pts.push({dx, dy, z: kind === 'meteor' ? b.z : 0, r, tall}); }
+  return pts; }
 /** Harpooned down: Down!, and won once every one of them is. */
 function seaDown(b){ sfx.spearHit(); shake = Math.max(shake, .5); addText(b.x, b.y, 50, 'Down!', '#D8FFE0', 20, 1.4); seaCheck(); }
 function seaCheck(){ if (!seaFight || seaWon || seaBosses().some(b => !SEA_DOWN.includes(b.state))) return;
@@ -3115,14 +3123,14 @@ function startSea(){ if (!seaTotal(barge.sea)) return;
   closeBarge(); if (!again){ seaFight = {x: boat.x, y: boat.y, h: boat.h}; document.body.classList.add('seafight'); }
   seaFight.r = SEA_RING[barge.size]; seaWon = false; seaSpaceTold = false;
   const st = seaStart(seaFight.r); stowSeine(); boat.x = SEA_ARENA.x + st.x; boat.y = SEA_ARENA.y + st.y; boat.h = st.h; boat.v = 0; resetNet();
-  wasDeep = wasFar = wasFarFar = true; cam.x = boat.x; cam.y = boat.y; seaLook.x = seaLook.y = 0; irisT = SPIT; hp = HP_MAX; hudHull();
+  wasDeep = wasFar = wasFarFar = true; cam.x = boat.x; cam.y = boat.y; seaCam.x = seaCam.y = 0; seaCam.k = SEA_ZOOM_MAX; irisT = SPIT; hp = HP_MAX; hudHull();
   const R = seaFight.r, spots = seaSpots(seaTotal(barge.sea), R).map(p => ({x: SEA_ARENA.x + p.x, y: SEA_ARENA.y + p.y})); let k = 0;
   for (const kind of SEA_FOES) seaBoss[kind] = spots.slice(k, k += barge.sea[kind]).map(p => seaBossAt(kind, p));
   sfx.portal(); shake = Math.max(shake, .3); toasts.clear(); toast(`The Battle Barge, at sea! ${seaTotal(barge.sea)} to beat. Harpoon them!`, 2600, 2); }
 /** Back where the boat was, its hull mended and its catch kept: left, or sunk. */
 function endSea(sunk){ const from = seaFight; if (!from) return; seaFight = null; seaWon = false; document.body.classList.remove('seafight'); for (const k of SEA_FOES) seaBoss[k] = [];
   swallowT = 0; hp = HP_MAX; boat.x = from.x; boat.y = from.y; boat.h = from.h; boat.v = 0; resetNet(); net.torn = 0;
-  wasDeep = pastBuoys(boat.x, boat.y); wasFar = pastFar(boat.x, boat.y); wasFarFar = pastFarFar(boat.x, boat.y); cam.x = boat.x; cam.y = boat.y; seaLook.x = seaLook.y = 0; irisT = SPIT; hudHull();
+  wasDeep = pastBuoys(boat.x, boat.y); wasFar = pastFar(boat.x, boat.y); wasFarFar = pastFarFar(boat.x, boat.y); cam.x = boat.x; cam.y = boat.y; seaCam.x = seaCam.y = 0; irisT = SPIT; hudHull();
   sfx.portal(); toasts.clear(); toast(sunk ? 'Sunk! Off the Battle Barge, and back where you were. The boat is fine, and nothing is lost.' : 'Off the Battle Barge, and back where you were.', 3000, 1); hud(); save(); }
 // The Boats card, the kid's: who rides which craft of the flotilla. Tap a friend under a boat to put him on it; one who
 // already had a boat swaps with whoever was on this one. Nobody sends a rider back to the deck. Only friends you have
@@ -3973,9 +3981,13 @@ function update(dt){
   updateFishing(dt);
   lionfish.here = shipwrightOpen(tier()); lionfish.sweeps = gear.lionnet; updateMend(dt); updateRadio(); updateSeine(dt); updatePots(dt); updateTrench(dt); updateCrowGo(); updateIsle11(); updateFloe(dt); updateRod(dt); updatePond(dt); updateHoney(dt); updateScope(dt); updateSnacks(dt); updateSpider(dt); hudSpray(); updateCharter(); updateStorm(dt);
   for (let i=sparks.length-1;i>=0;i--){ const q = sparks[i]; q.age += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.z += q.vz*dt; q.vz -= 120*dt; if (q.age > q.life) sparks.splice(i,1); }
-  // The egg's scene comes in close on the bow; the Battle Barge stands further back, to take in its arena, and at sea too.
+  // The egg's scene comes in close on the bow; the Battle Barge stands further back, to take in its arena. At sea it
+  // frames the fight: the boat and every boss still in it, near enough, between the top bar and the buttons.
   seaView += ((seaFight ? 1 : 0) - seaView)*Math.min(1, dt*3);
-  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + (cine && cine.kind === 'egg' ? 2.2*cineK() : 0))*(1 - (1 - bargeZoom(ROOMS[BARGE.first]?.r ?? 150))*bargeView)*(1 - (1 - SEA_ZOOM)*seaView) - Z)*Math.min(1, dt*4);
+  if (seaFight){ const f = seaFrame(seaFramePoints(), W, H), zSea = Zbase*(1 - .02*tier());
+    seaCam.k += (clamp(f.zoom/zSea, SEA_ZOOM_MIN, SEA_ZOOM_MAX) - seaCam.k)*Math.min(1, dt*1.2);
+    seaCam.x += (f.dx - seaCam.x)*Math.min(1, dt*2); seaCam.y += (f.dy - seaCam.y)*Math.min(1, dt*2); }
+  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + (cine && cine.kind === 'egg' ? 2.2*cineK() : 0))*(1 - (1 - bargeZoom(ROOMS[BARGE.first]?.r ?? 150))*bargeView)*(1 - (1 - seaCam.k)*seaView) - Z)*Math.min(1, dt*4);
 
   /* bits */
   wakeT -= dt;
@@ -4001,14 +4013,11 @@ function update(dt){
   bargeView += ((onBarge ? 1 : 0) - bargeView)*Math.min(1, dt*3);
   if (bargeView > .001 && arena){ const ax = arena.x + (walker.x - arena.x)*BARGE_LEAN, ay = arena.y + (walker.y - arena.y)*BARGE_LEAN;
     lx += (ax - lx)*bargeView; ly += (ay - ly)*bargeView; }
-  // At sea it leans toward the nearest boss still in the fight, to take in both.
-  if (seaView > .001){ let near = null, nd = SEA_LOOK;
-    for (const [, b] of seaMarks()){ if (b.afraid || SEA_DOWN.includes(b.state)) continue; const d = Math.hypot(b.x - boat.x, b.y - boat.y); if (d < nd){ nd = d; near = b; } }
-    seaLook.x += ((near ? near.x - boat.x : 0) - seaLook.x)*Math.min(1, dt*1.5); seaLook.y += ((near ? near.y - boat.y : 0) - seaLook.y)*Math.min(1, dt*1.5);
-    lx += seaLook.x*SEA_LEAN*seaView; ly += seaLook.y*SEA_LEAN*seaView; }
+  // At sea, on the middle of the fight.
+  if (seaView > .001){ lx += (boat.x + seaCam.x - lx)*seaView; ly += (boat.y + seaCam.y - ly)*seaView; }
   if (cine){ const c = cineK(), e = cine.kind === 'egg' ? eggSeat() : cine.kind === 'heron' ? ESCAPE_VIEW : {x: ISLE4.x - 70, y: ISLE4.y - 70}; lx = lx*(1-c) + e.x*c; ly = ly*(1-c) + e.y*c; }
   if (kingDying()){ const c = clamp(Math.min(king.t, 12 - king.t)/.8, 0, 1); lx = lx*(1-c) + king.x*c; ly = ly*(1-c) + king.y*c; }
-  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK()) + H*BARGE_DROP*bargeView;
+  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK()) + H*BARGE_DROP*bargeView - H*FRAME_MID*seaView;
   cam.x += (lx-cam.x)*Math.min(1, dt*3.5); cam.y += (ly-cam.y)*Math.min(1, dt*3.5);
 }
 
@@ -4696,7 +4705,7 @@ function drawRadarHud(){ const on = radarOn(); if (elRadar.hidden === on) elRada
   const px = Math.round(RADAR_PX * Math.min(2, window.devicePixelRatio || 1));
   if (elRadar.width !== px){ elRadar.width = elRadar.height = px; }
   radarCtx.setTransform(px / RADAR_PX, 0, 0, px / RADAR_PX, 0, 0);
-  drawRadar(radarCtx, RADAR_PX, {boat, blips: radarBlips(), isles: mapIsles(), lines: RADAR_LINES, T, toward: sunkenToward()}); }
+  drawRadar(radarCtx, RADAR_PX, {boat, blips: radarBlips(), isles: mapIsles(), lines: RADAR_LINES, T, toward: seaFight ? null : sunkenToward()}); }
 function draw(){
   drawRadarHud();
   drawView.zoom = Z; drawView.dark = dark; drawView.T = T;

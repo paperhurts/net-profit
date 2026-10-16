@@ -6761,6 +6761,29 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
     null,
     { timeout: 4000 },
   );
+  // The camera frames the fight: up beside the Deep One, both it and the boat stand in the band between the top bar
+  // and the buttons, the boat no longer in the middle.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.seaBoss.deep[0];
+    if (!d) return;
+    n.boat.x = d.x + 330;
+    n.boat.y = d.y + 330;
+    n.boat.v = 0;
+  });
+  await page.waitForTimeout(2500);
+  const framed = await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.seaBoss.deep[0] ?? { x: 0, y: 0 };
+    return { deep: n.screenOf(d.x, d.y), boat: n.screenOf(n.boat.x, n.boat.y), size: n.viewSize };
+  });
+  for (const [x, y] of [framed.deep, framed.boat]) {
+    expect(x).toBeGreaterThan(0);
+    expect(x).toBeLessThan(framed.size[0]);
+    expect(y).toBeGreaterThan(framed.size[1] * 0.25);
+    expect(y).toBeLessThan(framed.size[1] * 0.72);
+  }
+  expect(framed.boat[1]).toBeGreaterThan(framed.size[1] * 0.52);
   // The Shark King up out of the water by the bow with his trident, one hit from beaten.
   const coins = await page.evaluate(() => window.__np.coins);
   await page.evaluate(() => {
