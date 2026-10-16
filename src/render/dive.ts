@@ -28,6 +28,7 @@ import {
   wallIn,
 } from '../world/trench';
 import { drawIceDiveScene } from './icedive';
+import { drawLagoonScene } from './lagoondive';
 import { drawLoot, drawLootGlint } from './loot';
 import { drawLurker, drawLurkerGlow } from './lurker';
 import { drawSeabed, drawSub, drawSubBeam } from './sub';
@@ -94,6 +95,8 @@ export type DiveScene = {
   site?: DiveSite;
   /** Anything else to draw in the water before the dark, and over it: the wreck's sharks. */
   under?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
+  /** Anything that shows through the dark, drawn over it: the lagoon creatures' eyes, the skull key's glint. */
+  over?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
   /** The diver in the white scuba suit, for under the ice. */
   white?: boolean;
 };
@@ -136,12 +139,16 @@ export function drawDive(
   const g = ctx.createLinearGradient(0, 0, 0, H);
   for (let i = 0; i <= 6; i++) {
     const yy = top + ((bottom - top) * i) / 6;
-    g.addColorStop(i / 6, yy < 0 ? '#CDEBF3' : waterAt(yy));
+    g.addColorStop(
+      i / 6,
+      yy < 0 ? (site.look?.sky ?? '#CDEBF3') : (site.look?.water ?? waterAt)(yy),
+    );
   }
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  // Light shafts down from the surface, gone by the end of the sunlit water (under the ice, only through the hole).
-  if (top < SUNLIT && !site.ceiling) {
+  // Light shafts down from the surface, gone by the end of the sunlit water (under the ice, only through the hole;
+  // none at all through water of its own, the black lagoon's).
+  if (top < SUNLIT && !site.ceiling && !site.look) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 6; i++) {
@@ -161,7 +168,7 @@ export function drawDive(
     ctx.restore();
   }
   // Marine snow drifting down, all the way.
-  ctx.fillStyle = 'rgba(220,240,255,.35)';
+  ctx.fillStyle = site.look?.snow ?? 'rgba(220,240,255,.35)';
   for (let i = 0; i < 60; i++) {
     const sx = (i * 173.3) % site.w;
     const sy = (((i * 97.1 + T * 6) % (site.d + 100)) + site.d + 100) % (site.d + 100);
@@ -171,6 +178,7 @@ export function drawDive(
   if (site.id === 'wreck') drawWreckScene(ctx, X, Y, s, T);
   else if (site.id === 'ice') drawIceDiveScene(ctx, X, Y, s, T);
   else if (site.id === 'sub' && site.floor) drawSeabed(ctx, X, Y, s, site.w, bottom, site.floor);
+  else if (site.id === 'lagoon') drawLagoonScene(ctx, X, Y, s, T, top, bottom);
   else drawRock(ctx, X, Y, s, top, bottom);
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
@@ -188,7 +196,8 @@ export function drawDive(
   if (sc.lurker) drawLurker(ctx, X, Y, s, sc.lurker, T);
   sc.under?.(ctx, X, Y, s);
   // The boat overhead, the diver, and the bubbles.
-  if (top < 30 && !site.ceiling) drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
+  if (top < 30 && !site.ceiling && !site.bank)
+    drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
   if (d.sub) drawSub(ctx, X(d.x), Y(d.y), s * SUB_SIZE, d, T);
   else drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T, !!sc.white);
   ctx.fillStyle = 'rgba(230,248,255,.7)';
@@ -198,7 +207,7 @@ export function drawDive(
     ctx.fill();
   }
   // The dark round the diver's lamp, deeper the deeper it is.
-  const k = darkAt(d.y);
+  const k = (site.look?.dark ?? darkAt)(d.y);
   if (k > 0.01) {
     // The submarine's lamps light more, and further ahead of it.
     const lx = X(d.x + (d.sub ? d.face * 70 : 0));
@@ -227,6 +236,7 @@ export function drawDive(
       drawLootGlint(ctx, X, Y, s, l, i, T, found(i), !!sc.pearl);
   });
   if (sc.lurker) drawLurkerGlow(ctx, X, Y, s, sc.lurker, T);
+  sc.over?.(ctx, X, Y, s);
   // The spears in flight, a ring round what the next throw goes for, and what was caught.
   ctx.strokeStyle = '#E8E2D0';
   ctx.lineCap = 'round';

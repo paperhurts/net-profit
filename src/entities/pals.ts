@@ -980,17 +980,20 @@ export function drawNaga(
   gait: number,
   swing: boolean,
   size: number,
-  inWater: boolean,
+  inWater: boolean | 'under',
 ): void {
   const { ctx, T } = v;
   const Z = v.zoom * size;
   const dir = Math.cos(h) - Math.sin(h) >= 0 ? 1 : -1;
   const X = (dx: number) => x + dx * dir * Z;
+  // Under the water (a dive, side on) his tail streams out behind him as at sea, but all of him shows.
+  const tailOut = !!inWater;
+  const atSea = inWater === true;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   // The tail: curled on the ground behind him ashore, stretched out under the surface at sea.
-  const wave = (i: number) => Math.sin(ph * 2 + i * 1.3) * (inWater ? 1.6 : 1.1 * gait);
-  const tail: [number, number][] = inWater
+  const wave = (i: number) => Math.sin(ph * 2 + i * 1.3) * (tailOut ? 1.6 : 1.1 * gait);
+  const tail: [number, number][] = tailOut
     ? [
         [0, 0],
         [-7, 1],
@@ -1006,7 +1009,7 @@ export function drawNaga(
         [-22, -10],
       ];
   const pts = tail.map(([tx, ty], i): [number, number] => [X(tx), y + (ty + wave(i)) * Z]);
-  ctx.globalAlpha = inWater ? 0.45 : 1;
+  ctx.globalAlpha = atSea ? 0.45 : 1;
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i] as [number, number];
     const b = pts[i + 1] as [number, number];
@@ -1020,7 +1023,7 @@ export function drawNaga(
     ctx.beginPath();
     ctx.arc((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 0.6 * Z, 0.8 * Z, 0, Math.PI * 2);
     ctx.fill();
-    if (!inWater) {
+    if (!atSea) {
       // Red spines along the top of the tail.
       ctx.strokeStyle = NAGA.spine;
       ctx.lineWidth = 0.8 * Z;
@@ -1044,8 +1047,8 @@ export function drawNaga(
   ctx.fill();
   ctx.globalAlpha = 1;
   // Above the water, or standing on his tail: he bobs a little at sea.
-  const by = inWater ? y + Math.sin(T * 2.2) * 0.8 * Z - 2 * Z : y - 8 * Z;
-  if (inWater) {
+  const by = tailOut ? y + Math.sin(T * 2.2) * 0.8 * Z - 2 * Z : y - 8 * Z;
+  if (atSea) {
     ctx.save();
     ctx.beginPath();
     ctx.rect(x - 40 * Z, y - 70 * Z, 80 * Z, 70 * Z + 0.5);
@@ -1198,7 +1201,7 @@ export function drawNaga(
   ctx.beginPath();
   ctx.arc(X(3.7), Y(-19), 0.6 * Z, 0, Math.PI * 2);
   ctx.fill();
-  if (inWater) ctx.restore();
+  if (atSea) ctx.restore();
 }
 
 /** The cage at the monkey camp: bamboo bars lashed with rope under a thatch, the naga in it until he is freed. */

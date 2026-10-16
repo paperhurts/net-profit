@@ -3,12 +3,13 @@
  * goes in under the boat, and how its water is kept to (walls, floor, and
  * anything solid in it). The trench in the deep is one; the wreck off island
  * 5 is another (world/wreck.ts), under the ice floe the third
- * (world/icedive.ts), and the submarine's patches of the far deep the rest (world/subsea.ts).
+ * (world/icedive.ts), the submarine's patches of the far deep the rest (world/subsea.ts), and island 11's black lagoon,
+ * dived from its bank (world/lagoondive.ts).
  */
 
 import { ENTRY, inWater, keepInWater, TD, TW } from './trench';
 
-export type DiveSiteId = 'trench' | 'wreck' | 'ice' | 'sub';
+export type DiveSiteId = 'trench' | 'wreck' | 'ice' | 'sub' | 'lagoon';
 
 export type DiveSite = {
   id: DiveSiteId;
@@ -27,6 +28,18 @@ export type DiveSite = {
   ceiling?: boolean;
   /** A sea floor across it, for a site that is open water down to the bottom (the submarine's). */
   floor?: (x: number) => number;
+  /** Dived from a bank ashore, not from the boat: no hull overhead. */
+  bank?: boolean;
+  /**
+   * Its own water, for a site that is not the open sea's: its colour at a depth, how dark round the lamp, the colour
+   * over the surface, and the specks drifting in it; no sun shafts.
+   */
+  look?: {
+    water: (y: number) => string;
+    dark: (y: number) => number;
+    sky: string;
+    snow: string;
+  };
 };
 
 export const TRENCH_SITE: DiveSite = {
