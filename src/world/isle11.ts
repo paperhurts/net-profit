@@ -59,6 +59,8 @@ export const RUINS11 = {
 } as const;
 /** The portal stands at the plaza's back (its far corner on the screen), facing the viewer. */
 export const PORTAL11 = { x: RUINS11.x - 52, y: RUINS11.y - 52, r: 34 } as const;
+/** Just in front of the portal, on its step: where it is walked into, and where the figure comes back out. */
+export const PORTAL11_FRONT = { x: PORTAL11.x + 34, y: PORTAL11.y + 34 } as const;
 /** The broken columns round the plaza's edge: where each stands, and how much of it is left standing. */
 export const COLUMNS11: readonly { x: number; y: number; h: number }[] = [
   [-1, -0.2],

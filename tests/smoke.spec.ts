@@ -361,6 +361,11 @@ type Np = {
     }
   >;
   forgotten: { up: boolean; state: string; hit(power: number): void };
+  forgotten2: { up: boolean; state: string; hp: number; hit(power: number): void };
+  cryptWon: boolean;
+  CRYPT: number;
+  SKULL_DOOR: { x: number; y: number };
+  PORTAL11_FRONT: { x: number; y: number };
   allies: { list: { kind: string }[] };
   bonesPal: { shown: boolean; free: boolean };
   lancers: { list: { state: string }[] };
@@ -5817,6 +5822,83 @@ test("island 11's black lagoon: dive in off its bank, its creatures come for you
   // Kept.
   await page.reload();
   await page.waitForFunction(() => window.__np?.skullKey === true, null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test("island 11's old portal: into the Old One's ruins, the skull key opens the crypt, and the Forgotten One yields", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    soulArmour: true,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    skullKey: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // The Old One beaten, the portal is awake: walk into it.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const p = window.__np.PORTAL11_FRONT;
+    w.x = p.x;
+    w.y = p.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the portal', { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 16, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Old One');
+  // The skull door at the back of his ruins, and the key opens it.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SKULL_DOOR;
+    w.x = d.x + 22;
+    w.y = d.y + 22;
+  });
+  await expect(page.locator('#climb')).toHaveText('Open the skull door', { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.CRYPT, null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#toast')).toContainText('fooled you', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.hordes[window.__np.CRYPT]?.list.length)).toBe(15);
+  await page.waitForFunction(() => window.__np.forgotten2.up, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.forgotten2.hp)).toBe(9);
+  // Beaten, he yields, alive; with his crypt clear it is won.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    const h = n.hordes[n.CRYPT];
+    // Twice: a skeleton's shield takes the first.
+    if (h) for (const k of [0, 1]) for (const u of h.list) h.hit(u, 99 + k, n.walker.x, n.walker.y);
+    n.forgotten2.hit(99);
+  });
+  await page.waitForFunction(() => window.__np.cryptWon, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.forgotten2.state)).toBe('yield');
+  await expect(page.locator('#toast')).toContainText('something to show you');
+  // Home through the portal, out on island 11 in front of it.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  const out = await page.evaluate(() => {
+    const w = window.__np.walker;
+    const p = window.__np.PORTAL11_FRONT;
+    return Math.hypot(w.x - p.x, w.y - p.y);
+  });
+  expect(out).toBeLessThan(5);
+  await expect(page.locator('#log')).toContainText('The Forgotten One again');
   expect(errors).toEqual([]);
 });
 
