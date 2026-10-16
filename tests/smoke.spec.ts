@@ -106,6 +106,11 @@ type Np = {
   sunken: { on: boolean; list: { x: number; y: number; coins: number }[] };
   talkToOldMan(): void;
   honey: number;
+  scope: { i: number; name: string } | null;
+  openScope(): void;
+  closeScope(): void;
+  HQ_SCOPE: { x: number; y: number };
+  mapBeasts(): { x: number; y: number; name: string }[];
   hiveDay: number;
   HIVE10: { x: number; y: number; z: number };
   hiveAt(): [number, number];
@@ -6485,6 +6490,66 @@ test("the Forgotten One's ending: he shows you round, gives you Gigantis and his
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
   await expect(page.locator('#log')).toContainText('your headquarters');
   await expect(page.locator('#log')).toContainText('Portable scanner');
+  expect(errors).toEqual([]);
+});
+
+test("the observatory: your headquarters' telescope turns to each leviathan, live, and they are all on the sea map", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.mapBeasts().map((b) => b.name))).toEqual([
+    'Leviathan',
+    'Cthuluviathan',
+    'Anglerfish',
+    'Gulper',
+    'Shark King',
+    'Reaper',
+    'Star',
+    'Deep One',
+  ]);
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  // Up to the telescope by the courtyard's wall, and look through it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HQ_SCOPE.x - 18;
+    n.walker.y = n.HQ_SCOPE.y + 18;
+  });
+  await expect(page.locator('#climb')).toHaveText('Look through the telescope', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#scope')).toBeVisible();
+  await expect(page.locator('#scopeName')).toHaveText('The leviathan at the buoys');
+  await expect(page.locator('#scopeWhere')).toContainText('home water');
+  await expect(page.locator('#scopeCount')).toHaveText('1 of 8');
+  await page.locator('#scopeNext').click();
+  await expect(page.locator('#scopeName')).toHaveText('The Cthuluviathan');
+  await expect(page.locator('#scopeWhere')).toContainText('Asleep in its sunken city');
+  // A tap on the lens turns it on too; back the other way with the arrow.
+  await page.mouse.click(195, 200);
+  await expect(page.locator('#scopeName')).toHaveText('The anglerfish');
+  await page.locator('#scopePrev').click();
+  await expect(page.locator('#scopeName')).toHaveText('The Cthuluviathan');
+  await page.locator('#scopeDone').click();
+  await expect(page.locator('#scope')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.scope)).toBeNull();
   expect(errors).toEqual([]);
 });
 
