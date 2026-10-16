@@ -305,8 +305,13 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
 #crowCard .fact{margin:10px 4px 4px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:700;line-height:1.35}
 #crowCard .fact b{display:block;font-size:16px;font-weight:800;margin-bottom:2px}
 #crowCard .go{display:block;width:100%;height:48px;margin-top:10px;font-size:16px}
-#bargeCard .go{display:block;width:100%;height:50px;margin-top:6px;font-size:18px}
+#bargeCard .go{display:block;width:100%;height:50px;margin-top:6px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:19px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#bargeCard .go:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #bargeCard .go:disabled{opacity:.45}
+#bargeCard .planks{display:flex;flex-direction:column;box-sizing:border-box;max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+#bargeCard .planks > *{flex:none}
+#bargeCard #bargeList{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -10px;padding:0 10px}
+#bargeCard .gobar{margin:0 -10px;padding:2px 10px 0;border-top:2px solid var(--plank-edge)}
 #bargeCard .foe{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #bargeCard .foe small{margin:2px 0 0}
 #bargeCard .count{display:flex;align-items:center;gap:8px;flex:none}
@@ -511,8 +516,10 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
     <p class="tnote">Pick an arena and up to 10 to fight, then Fight! Beat them all for a coin, and get better.</p>
     <div class="boat"><b>Arena</b><div class="bchips" id="bargeSize"></div></div>
     <div id="bargeList"></div>
-    <p class="tnote" id="bargeTotal"></p>
-    <button class="go" id="bargeGo">Fight!</button>
+    <div class="gobar">
+      <p class="tnote" id="bargeTotal"></p>
+      <button class="go" id="bargeGo">Fight!</button>
+    </div>
   </div>
 </section>
 <section id="boats" hidden aria-label="Boats">

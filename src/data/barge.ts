@@ -2,8 +2,9 @@
  * The Battle Barge, the kid's (his sixth list): "a place called the Battle Barge, free; customize the size of the map
  * in there, and all enemies can be summoned, a maximum of 10"; his answers: open anywhere, on the islands and out at
  * sea; it pays a coin, but it is mostly to get better, and for fun; you spawn in and pick what you fight and how many.
- * Built in stages, the owner's call: this first one has the on-foot enemies, up to ten at once, in a small, medium or
- * large arena, and the bosses come after.
+ * Built in stages, the owner's call: the first had the camps' and the undead's on-foot enemies, up to ten at once, in a
+ * small, medium or large arena; the second adds the rest of those on foot, island 10's gorillas and gators, island 3's
+ * swordsman and his three little demons, and the lancers from the ruins; and the bosses come after.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -17,27 +18,44 @@ export const ARENA_NAMES: Readonly<Record<ArenaSize, string>> = {
   large: 'Large',
 };
 
-/** The on-foot enemies: the monkeys' and the hired men's camps, and the undead of Gigantis and the lagoon. */
+/**
+ * The on-foot enemies, in the card's order, island by island: the monkeys' and the hired men's camps, island 10's
+ * gorillas and gators, island 3's swordsman and demons, and the undead of Gigantis, its lancers and the lagoon's.
+ */
 export type BargeFoe =
   | 'monkey'
   | 'hired'
+  | 'gorilla'
+  | 'gator'
+  | 'swordsman'
+  | 'red'
+  | 'blue'
+  | 'green'
   | 'skeleton'
   | 'archer'
   | 'zombie'
   | 'ghost'
   | 'necro'
+  | 'lancer'
   | 'lagoon';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
+  'gorilla',
+  'gator',
+  'swordsman',
+  'red',
+  'blue',
+  'green',
   'skeleton',
   'archer',
   'zombie',
   'ghost',
   'necro',
+  'lancer',
   'lagoon',
 ];
-/** The ones that are the undead's (entities/undead.ts); the rest are camps (entities/monkeys.ts). */
+/** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
   'skeleton',
   'archer',
@@ -46,15 +64,24 @@ export const UNDEAD_FOES: readonly BargeFoe[] = [
   'necro',
   'lagoon',
 ];
+/** The ones that are island 3's fighters (entities/fighter.ts): the swordsman and the three little demons. */
+export const FIGHTER_FOES: readonly BargeFoe[] = ['swordsman', 'red', 'blue', 'green'];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
   monkey: ['Monkeys', 'Bonk you and throw coconuts. 2 hits each.'],
   hired: ["The Heron's hired men", 'Punch and throw stones. 3 hits each.'],
+  gorilla: ['Gorillas', 'Slam the ground for 3 hearts: get out of the red ring. 7 hits.'],
+  gator: ['Gators', 'When the jaws open wide, step away. 10 hits.'],
+  swordsman: ['Swordsmen', 'Fast, dash in, and block one spear. 12 hits.'],
+  red: ['Red demons', 'Slash, and block one spear. 4 hits.'],
+  blue: ['Blue demons', 'Keep back and call up monkeys. 4 hits.'],
+  green: ['Green demons', 'Slash and call up monkeys. 4 hits.'],
   skeleton: ['Skeletons', 'Swords and shields: the shield takes the first hit. 4 hits.'],
   archer: ['Skeleton archers', 'Shoot arrows from far off. 3 hits.'],
   zombie: ['Zombies', 'Slow, and tough. 8 hits.'],
   ghost: ['Ghosts', 'Keep back and send cold wisps. 3 hits.'],
   necro: ['Necromancers', 'Raise skeletons out of the floor. 6 hits.'],
+  lancer: ['Lancers', 'Slow, with long lances: 2 hearts a thrust. 10 hits.'],
   lagoon: ['Lagoon creatures', 'Quick, with claws. 2 hits.'],
 };
 
@@ -67,7 +94,9 @@ export type BargeSetup = { size: ArenaSize; pick: BargePick };
 
 /** Nobody picked. */
 export function noPick(): BargePick {
-  return { monkey: 0, hired: 0, skeleton: 0, archer: 0, zombie: 0, ghost: 0, necro: 0, lagoon: 0 };
+  const p = {} as BargePick;
+  for (const k of BARGE_FOES) p[k] = 0;
+  return p;
 }
 /** To start: a medium arena, three monkeys and two skeletons. */
 export function defaultBarge(): BargeSetup {
