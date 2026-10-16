@@ -19,7 +19,7 @@ describe('the scanner', () => {
     for (const k of Object.keys(RESOLVE)) expect(isScanKind(k)).toBe(true);
   });
 
-  it("says what the kid said they are afraid of: Star bigger stuff, the Reaper honey", () => {
+  it('says what the kid said they are afraid of: Star bigger stuff, the Reaper honey', () => {
     expect(SCANS.meteor.weak).toMatch(/bigger/i);
     expect(SCANS.reaper.weak).toMatch(/honey/i);
     expect(SCANS.reaperland.weak).toMatch(/honey/i);
