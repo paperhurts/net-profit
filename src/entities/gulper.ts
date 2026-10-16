@@ -12,6 +12,11 @@
  * lost hold). After a hunt it sinks and rests a while. A harpoon in its head
  * makes it flinch and slow; four in one hunt and it is driven off, down into
  * the dark for a good while.
+ *
+ * Its water is something it is given (the stretch it prowls, how near a boat sets it hunting, how far it follows, how
+ * long a hunt lasts, whether it comes back once driven off, and what keeps it in), the deep's east side by default; the
+ * Battle Barge at sea gives each of its copies the ring, where it hunts at once, never tires of it, and once driven off
+ * is gone.
  */
 
 import { rgba } from '../core/color';
@@ -44,21 +49,71 @@ export const REST = 20;
 export const LINKS = 20;
 export const LINK = 20;
 
-export type GulperState = 'prowl' | 'hunt' | 'rest';
+/** away: driven off where it does not come back, going down into the dark for good. */
+export type GulperState = 'prowl' | 'hunt' | 'rest' | 'away';
 
-/** Whether a point is in its water, or within pad of it. */
-export function inZone(x: number, y: number, pad = 0): boolean {
-  return x > ZONE.x0 - pad && x < ZONE.x1 + pad && y > ZONE.y0 - pad && y < ZONE.y1 + pad;
+/** Its water: the stretch it prowls, what sets it hunting and for how long, whether it comes back, what keeps it in. */
+export type GulperWater = {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  notice: number;
+  leash: number;
+  huntMax: number;
+  returns: boolean;
+  keep(p: { x: number; y: number }): void;
+};
+/** The deep's east side, never past the deep's end or into the home water, as it always was. */
+export const EAST_DEEP: GulperWater = {
+  ...ZONE,
+  notice: NOTICE,
+  leash: LEASH,
+  huntMax: HUNT_MAX,
+  returns: true,
+  keep(p) {
+    p.x = clamp(p.x, WS + 40, WS + DEEP - 40);
+    p.y = clamp(p.y, -DEEP + 40, WS + DEEP - 40);
+  },
+};
+/** The Battle Barge's ring at sea: it prowls round its middle, hunts at once, never tires of it, and is kept in. */
+export function seaZone(ring: { x: number; y: number; r: number }): GulperWater {
+  const k = ring.r * 0.6;
+  return {
+    x0: ring.x - k,
+    x1: ring.x + k,
+    y0: ring.y - k,
+    y1: ring.y + k,
+    notice: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+    huntMax: Number.POSITIVE_INFINITY,
+    returns: false,
+    keep(p) {
+      const dx = p.x - ring.x;
+      const dy = p.y - ring.y;
+      const d = Math.hypot(dx, dy);
+      const max = ring.r - 40;
+      if (d > max) {
+        p.x = ring.x + (dx / d) * max;
+        p.y = ring.y + (dy / d) * max;
+      }
+    },
+  };
+}
+
+/** Whether a point is in the deep's east side, or within pad of it. */
+export function inZone(x: number, y: number, pad = 0, z: GulperWater = EAST_DEEP): boolean {
+  return x > z.x0 - pad && x < z.x1 + pad && y > z.y0 - pad && y < z.y1 + pad;
 }
 
 export class Gulper implements Entity {
   state: GulperState = 'prowl';
-  x = (ZONE.x0 + ZONE.x1) / 2;
-  y = (ZONE.y0 + ZONE.y1) / 2;
+  x: number;
+  y: number;
   h = Math.PI / 2;
   v = PROWL_SPEED;
-  tx = this.x;
-  ty = this.y;
+  tx: number;
+  ty: number;
   /** Seconds in this state, of lunge left after a bite, and of rest left. */
   t = 0;
   lunge = 0;
@@ -77,12 +132,18 @@ export class Gulper implements Entity {
   /** It has given up and gone down. */
   onGiveUp: (() => void) | null = null;
 
-  constructor() {
+  constructor(
+    readonly zone: GulperWater = EAST_DEEP,
+    at: { x: number; y: number } = { x: (zone.x0 + zone.x1) / 2, y: (zone.y0 + zone.y1) / 2 },
+  ) {
+    this.x = this.tx = at.x;
+    this.y = this.ty = at.y;
     for (let i = 0; i < LINKS; i++) this.body.push({ x: this.x, y: this.y - i * LINK });
   }
 
   /** Back to its water and prowling, as when the game starts over or the boat is eaten. */
   reset(): void {
+    if (this.state === 'away') return;
     this.state = 'rest';
     this.cool = REST;
     this.t = 0;
@@ -91,16 +152,28 @@ export class Gulper implements Entity {
 
   update(dt: number, w: World): void {
     const b = w.boat;
+    const z = this.zone;
     this.t += dt;
     const d = Math.hypot(b.x - this.x, b.y - this.y);
-    if (this.state === 'prowl') {
+    if (this.state === 'away') {
+      // Driven off for good: down into the dark, swimming away.
+      this.steer(
+        this.x + Math.cos(this.h) * 100,
+        this.y + Math.sin(this.h) * 100,
+        PROWL_SPEED * 2,
+        0,
+        dt,
+      );
+      this.up += (0 - this.up) * Math.min(1, dt * 1.5);
+      this.gape += (0 - this.gape) * Math.min(1, dt * 6);
+    } else if (this.state === 'prowl') {
       if (Math.hypot(this.tx - this.x, this.ty - this.y) < 60) {
-        this.tx = ZONE.x0 + w.rng() * (ZONE.x1 - ZONE.x0);
-        this.ty = ZONE.y0 + w.rng() * (ZONE.y1 - ZONE.y0);
+        this.tx = z.x0 + w.rng() * (z.x1 - z.x0);
+        this.ty = z.y0 + w.rng() * (z.y1 - z.y0);
       }
       this.steer(this.tx, this.ty, PROWL_SPEED, 0.8, dt);
       this.up += (0 - this.up) * Math.min(1, dt * 1.5);
-      if (w.started && d < NOTICE && pastBuoys(b.x, b.y) && inZone(b.x, b.y, LEASH * 0.5)) {
+      if (w.started && d < z.notice && pastBuoys(b.x, b.y) && inZone(b.x, b.y, z.leash * 0.5, z)) {
         this.state = 'hunt';
         this.t = 0;
         this.lunge = 0;
@@ -131,7 +204,10 @@ export class Gulper implements Entity {
         this.onBite?.();
       }
       const gone =
-        !pastBuoys(b.x, b.y) || !inZone(b.x, b.y, LEASH) || d > NOTICE * 1.8 || this.t > HUNT_MAX;
+        !pastBuoys(b.x, b.y) ||
+        !inZone(b.x, b.y, z.leash, z) ||
+        d > z.notice * 1.8 ||
+        this.t > z.huntMax;
       if (gone) {
         this.state = 'rest';
         this.cool = REST;
@@ -140,9 +216,9 @@ export class Gulper implements Entity {
       }
     } else {
       this.cool -= dt;
-      this.steer((ZONE.x0 + ZONE.x1) / 2, (ZONE.y0 + ZONE.y1) / 2, PROWL_SPEED * 1.6, 0.9, dt);
+      this.steer((z.x0 + z.x1) / 2, (z.y0 + z.y1) / 2, PROWL_SPEED * 1.6, 0.9, dt);
       this.up += (0 - this.up) * Math.min(1, dt * 1.2);
-      if (this.cool <= 0 && inZone(this.x, this.y)) {
+      if (this.cool <= 0 && inZone(this.x, this.y, 0, z)) {
         this.state = 'prowl';
         this.t = 0;
       }
@@ -179,7 +255,7 @@ export class Gulper implements Entity {
     this.resolve = Math.max(0, this.resolve - power);
     this.v *= 0.35;
     if (this.resolve > 0) return false;
-    this.state = 'rest';
+    this.state = this.zone.returns ? 'rest' : 'away';
     this.cool = AWAY;
     this.t = 0;
     return true;
@@ -192,9 +268,8 @@ export class Gulper implements Entity {
     this.v += (speed - this.v) * Math.min(1, dt * 2);
     this.x += Math.cos(this.h) * this.v * dt;
     this.y += Math.sin(this.h) * this.v * dt;
-    // Never past the deep's end or into the home water.
-    this.x = clamp(this.x, WS + 40, WS + DEEP - 40);
-    this.y = clamp(this.y, -DEEP + 40, WS + DEEP - 40);
+    // Never out of its water: past the deep's end or into the home water, or out of the ring.
+    this.zone.keep(this);
   }
 
   /** On the radar: its head, wherever it swims. */

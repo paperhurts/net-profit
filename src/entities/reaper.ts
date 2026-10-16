@@ -21,6 +21,10 @@
  * gear). Sail far from where he found you, go back inside the buoys or tie up,
  * and he gives up, whole, and goes back to roaming. He holds off while the game
  * says another great beast is after the boat.
+ *
+ * His water is something he is given (his loop, how near a boat brings him hunting, how far he follows, and what keeps
+ * him off the islands and in the sea), the deep and the far deep by default; the Battle Barge at sea gives each of its
+ * copies a little loop round its own spot, where he hunts at once, never gives up, and keeps inside the ring.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -74,6 +78,60 @@ const SHORE = 90;
 /** A boat past the buoys this close is hunted; this far from where he found it, he gives up. */
 export const NOTICE = 650;
 export const LEASH = 1600;
+
+/** His water: the loop he roams, how near a boat sets him hunting, how far he follows it, and what keeps him in. */
+export type ReaperWater = {
+  route: readonly { x: number; y: number }[];
+  notice: number;
+  leash: number;
+  keep(p: { x: number; y: number }): void;
+};
+/** The deep and the far deep, off every island and never past the far deep's end, as he always was. */
+export const DEEP_WATER: ReaperWater = {
+  route: ROUTE,
+  notice: NOTICE,
+  leash: LEASH,
+  keep(p) {
+    for (const i of ISLANDS) {
+      const r = Math.hypot(p.x - i.x, p.y - i.y) || 1;
+      const min = i.r + SHORE;
+      if (r < min) {
+        p.x = i.x + ((p.x - i.x) / r) * min;
+        p.y = i.y + ((p.y - i.y) / r) * min;
+      }
+    }
+    const lo = 60 - DEEP - FAR;
+    const hi = WS + DEEP + FAR - 60;
+    p.x = clamp(p.x, lo, hi);
+    p.y = clamp(p.y, lo, hi);
+  },
+};
+/** A little loop round a spot in a ring of open sea, for the Battle Barge: hunting at once, never giving up, kept in. */
+export const SEA_LOOP = 260;
+export function seaWater(
+  at: { x: number; y: number },
+  ring: { x: number; y: number; r: number },
+): ReaperWater {
+  const route = [0, 1, 2, 3].map((i) => ({
+    x: at.x + Math.cos((i * Math.PI) / 2) * SEA_LOOP,
+    y: at.y + Math.sin((i * Math.PI) / 2) * SEA_LOOP,
+  }));
+  return {
+    route,
+    notice: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+    keep(p) {
+      const dx = p.x - ring.x;
+      const dy = p.y - ring.y;
+      const d = Math.hypot(dx, dy);
+      const max = ring.r - 60;
+      if (d > max) {
+        p.x = ring.x + (dx / d) * max;
+        p.y = ring.y + (dy / d) * max;
+      }
+    },
+  };
+}
 /** Seconds after he gives up before he will hunt again. */
 export const CALM = 25;
 /** Sighted from this far: about a phone's screen. */
@@ -126,8 +184,8 @@ export type Fan = { x: number; y: number; a0: number; a1: number };
 
 export class Reaper implements Entity {
   state: ReaperState = 'roam';
-  x: number = (ROUTE[0] as { x: number }).x;
-  y: number = (ROUTE[0] as { y: number }).y;
+  x: number;
+  y: number;
   h = Math.PI / 2;
   v = ROAM_SPEED;
   t = 0;
@@ -166,6 +224,12 @@ export class Reaper implements Entity {
   onGiveUp: (() => void) | null = null;
   /** Whether he must hold off: the game says while another great beast is after the boat. */
   holdOff: (() => boolean) | null = null;
+
+  constructor(readonly water: ReaperWater = DEEP_WATER) {
+    const p = water.route[0] as { x: number; y: number };
+    this.x = p.x;
+    this.y = p.y;
+  }
 
   get angry(): boolean {
     return this.resolve <= RESOLVE.reaper / 2;
@@ -240,7 +304,7 @@ export class Reaper implements Entity {
   private nearestLeg(): number {
     let best = 0;
     let bd = Number.POSITIVE_INFINITY;
-    ROUTE.forEach((p, i) => {
+    this.water.route.forEach((p, i) => {
       const d = Math.hypot(p.x - this.x, p.y - this.y);
       if (d < bd) {
         bd = d;
@@ -266,7 +330,14 @@ export class Reaper implements Entity {
     const hold = this.holdOff?.() ?? false;
     if (this.state === 'roam') {
       this.roam(dt);
-      if (w.started && !w.docked && !hold && this.calm <= 0 && d < NOTICE && pastBuoys(b.x, b.y)) {
+      if (
+        w.started &&
+        !w.docked &&
+        !hold &&
+        this.calm <= 0 &&
+        d < this.water.notice &&
+        pastBuoys(b.x, b.y)
+      ) {
         this.from = { x: this.x, y: this.y };
         this.side = angDiff(Math.atan2(b.y - this.y, b.x - this.x), this.h) >= 0 ? 1 : -1;
         this.go('stalk');
@@ -305,7 +376,7 @@ export class Reaper implements Entity {
     if (
       w.docked ||
       !pastBuoys(b.x, b.y) ||
-      Math.hypot(b.x - this.from.x, b.y - this.from.y) > LEASH
+      Math.hypot(b.x - this.from.x, b.y - this.from.y) > this.water.leash
     ) {
       this.giveUp(true);
       this.onGiveUp?.();
@@ -321,8 +392,9 @@ export class Reaper implements Entity {
 
   private roam(dt: number): void {
     this.up += (0.3 - this.up) * Math.min(1, dt * 2);
-    const p = ROUTE[this.leg] as { x: number; y: number };
-    if (Math.hypot(p.x - this.x, p.y - this.y) < 150) this.leg = (this.leg + 1) % ROUTE.length;
+    const route = this.water.route;
+    const p = route[this.leg] as { x: number; y: number };
+    if (Math.hypot(p.x - this.x, p.y - this.y) < 150) this.leg = (this.leg + 1) % route.length;
     this.swim(p.x, p.y, ROAM_SPEED, 1.2, dt);
   }
 
@@ -489,20 +561,9 @@ export class Reaper implements Entity {
     this.y += Math.sin(this.h) * this.v * dt;
   }
 
-  /** Never on an island, never past the far deep's end. */
+  /** Never on an island, never out of his water. */
   private keepOff(): void {
-    for (const i of ISLANDS) {
-      const r = Math.hypot(this.x - i.x, this.y - i.y) || 1;
-      const min = i.r + SHORE;
-      if (r < min) {
-        this.x = i.x + ((this.x - i.x) / r) * min;
-        this.y = i.y + ((this.y - i.y) / r) * min;
-      }
-    }
-    const lo = 60 - DEEP - FAR;
-    const hi = WS + DEEP + FAR - 60;
-    this.x = clamp(this.x, lo, hi);
-    this.y = clamp(this.y, lo, hi);
+    this.water.keep(this);
   }
 
   /** On the radar while he is about. */
