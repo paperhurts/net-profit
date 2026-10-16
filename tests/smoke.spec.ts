@@ -5650,6 +5650,9 @@ test('island 11: tie up at its pier, walk up into the jungle, and look at the po
     w.y = p.y + 50;
   });
   await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
+  // A message waits behind another for 4 seconds at most, and the portal's shows for longer: let it go first, as
+  // walking from the portal to the lagoon would.
+  await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
   await page.evaluate(() => {
     const w = window.__np.walker;
     const i = window.__np.ISLE11;
