@@ -80,7 +80,32 @@ export function inRuins11(x: number, y: number, pad = 0): boolean {
   return Math.abs(x - RUINS11.x) < h && Math.abs(y - RUINS11.y) < h;
 }
 
-/** Where the crow let go from the boat waits for it: on the sand toward home, where the pier will come in. */
+/** The pier, out from the beach toward home (+y), square to the world; the boat ties up at its end. */
+const PIER_ROOT = ISLE11.y + shoreR11(Math.PI / 2) - 34;
+export const PIER11 = {
+  x0: ISLE11.x - 10,
+  x1: ISLE11.x + 10,
+  y0: PIER_ROOT,
+  y1: PIER_ROOT + 170,
+} as const;
+export const PIER11_Z = 7;
+
+export function onPier11(x: number, y: number): boolean {
+  return x >= PIER11.x0 && x <= PIER11.x1 && y >= PIER11.y0 && y <= PIER11.y1;
+}
+
+/** Entering this ring sells the hold and opens the shop. */
+export const DOCK11 = { x: ISLE11.x, y: PIER11.y1 + 70, r: 125 } as const;
+/** The boat's berth for a hull of this scale: bow in at the pier's end. */
+export function berth11(k: number): { x: number; y: number; h: number } {
+  return { x: ISLE11.x, y: PIER11.y1 + 6 + 34 * k, h: -Math.PI / 2 };
+}
+/** Where the figure lands, at the end of the pier. */
+export const LANDING11 = { x: ISLE11.x, y: PIER11.y1 - 10 } as const;
+/** A stack of crates and a barrel at the pier's root, on the side away from the crow's perch: the catch flies there. */
+export const CRATES11 = { x: ISLE11.x - 42, y: PIER_ROOT - 14 } as const;
+
+/** Where the crow let go from the boat waits for it: on the sand toward home, beside the pier's root. */
 export const PERCH11 = {
   x: ISLE11.x + 26,
   y: ISLE11.y + shoreR11(Math.PI / 2) - 24,
@@ -153,6 +178,21 @@ export function onIsle11Ground(x: number, y: number): boolean {
   return d < shoreR11(a) - SHORE_IN11 && !inLagoon11(x, y, 4);
 }
 
+/** Island 11 underfoot: its ground or its pier. */
+export function onIsle11(x: number, y: number): boolean {
+  return onIsle11Ground(x, y) || onPier11(x, y);
+}
+
+/** The height of what is underfoot on island 11: the pier's planks, or the ground. */
+export function groundZ11(x: number, y: number): number {
+  return onPier11(x, y) && !onIsle11Ground(x, y) ? PIER11_Z : 0;
+}
+
+/** Near enough the lagoon's edge to look in, from its dry ground. */
+export function byLagoon11(x: number, y: number, reach: number): boolean {
+  return inLagoon11(x, y, reach) && !inLagoon11(x, y, 4);
+}
+
 /** Within this of its shore a boat sees it: a sighting. */
 export const SIGHT11 = 760;
 
@@ -161,13 +201,18 @@ export function nearIsle11(x: number, y: number, pad: number): boolean {
   return Math.hypot(x - ISLE11.x, y - ISLE11.y) < ISLE11.r + 90 + pad;
 }
 
-/** Keep a hull off island 11's shore, wherever it is round it. */
+/** Keep a hull off island 11's shore, wherever it is round it, and off the pier. */
 export function pushOffIsle11(s: { x: number; y: number; v: number }, pad: number): void {
   const [a, d] = polar11(s.x, s.y);
   const r = shoreR11(a) + pad;
   if (d < r && d > 0) {
     s.x = ISLE11.x + Math.cos(a) * r;
     s.y = ISLE11.y + Math.sin(a) * r;
+    s.v *= 0.6;
+  }
+  const half = 10 + pad * 0.6;
+  if (s.y > PIER11.y0 && s.y < PIER11.y1 + pad * 0.4 && Math.abs(s.x - ISLE11.x) < half) {
+    s.x = ISLE11.x + (s.x >= ISLE11.x ? half : -half);
     s.v *= 0.6;
   }
 }

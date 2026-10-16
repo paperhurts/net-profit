@@ -4,17 +4,21 @@
  * and palms leaning out over the sand. The black lagoon on the right is still black water in a muddy rim of reeds.
  * The ruins on the far side are a plaza of old grey paving gone green with moss, broken columns round it, and at its
  * back the portal: a ring of carved stone with a skull at its top, standing on a round step, dark inside for now.
+ * The pier comes in from home with crates and a barrel at its root, where the catch goes.
  */
 
 import type { DrawView } from '../entities/entity';
 import {
   BEACH_W11,
   COLUMNS11,
+  CRATES11,
   FERNS11,
   ISLE11,
   LAGOON11,
   lagoonR11,
   PALMS11,
+  PIER11,
+  PIER11_Z,
   PORTAL11,
   RUINS11,
   shoreR11,
@@ -402,6 +406,37 @@ function drawPortal11(v: DrawView): void {
   drawSkull(ctx, sx, cy - R - 1 * Z, 6 * Z);
 }
 
+/** The pier, out over the shallows toward home on posts. */
+function drawPier11(v: DrawView): void {
+  const { x0, y0, x1, y1 } = PIER11;
+  for (let y = y0 + 20; y < y1; y += 34) v.box(x0 - 1, y, 3, 3, -6, PIER11_Z, '#5E3D1C', '#7A5230');
+  v.box(x0, y0, x1 - x0, y1 - y0, PIER11_Z - 2, PIER11_Z, '#8A6A43', '#B48A5A');
+}
+
+/** Crates and a barrel at the pier's root, a vine creeping up the bottom crate. */
+function drawCrates11(v: DrawView): void {
+  const { x, y } = CRATES11;
+  v.box(x - 10, y - 8, 16, 16, 0, 14, '#B97F45', '#DDAA66');
+  v.box(x - 4, y - 2, 12, 12, 14, 24, '#C98B4E', '#E6B877');
+  v.isoEllipse(x + 14, y + 10, 6, 0);
+  v.ctx.fillStyle = '#7A5230';
+  v.ctx.fill();
+  v.box(x + 9, y + 5, 10, 10, 0, 13, '#7A5230', '#9A6A3E');
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  ctx.strokeStyle = '#3E7A35';
+  ctx.lineWidth = 1.4 * Z;
+  ctx.beginPath();
+  ctx.moveTo(px(x - 10, y + 8), py(x - 10, y + 8, 0));
+  ctx.quadraticCurveTo(
+    px(x - 7, y + 8) + 3 * Z,
+    py(x - 7, y + 8, 7),
+    px(x - 2, y + 8),
+    py(x - 2, y + 8, 13),
+  );
+  ctx.stroke();
+}
+
 /** The reeds' places round the lagoon's rim. */
 const REEDS11: readonly [number, number][] = Array.from({ length: 22 }, (_, i) => {
   const a = (i / 22) * Math.PI * 2 + (i % 3) * 0.05;
@@ -431,5 +466,8 @@ export function isle11Solids(v: DrawView): Solid[] {
   });
   if (on(PORTAL11.x, PORTAL11.y, 90))
     out.push({ d: PORTAL11.x + PORTAL11.y, f: () => drawPortal11(v) });
+  out.push({ d: PIER11.x0 + PIER11.y0, f: () => drawPier11(v) });
+  if (on(CRATES11.x, CRATES11.y, 40))
+    out.push({ d: CRATES11.x + CRATES11.y + 10, f: () => drawCrates11(v) });
   return out;
 }

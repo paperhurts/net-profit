@@ -41,6 +41,9 @@ type Np = {
   crowGoShown: boolean;
   guide: { state: string; x: number; y: number };
   PERCH11: { x: number; y: number };
+  DOCK11: { x: number; y: number };
+  ISLE11: { x: number; y: number; r: number };
+  PORTAL11: { x: number; y: number; r: number };
   first: number[];
   pondLine: { state: string; sp: number };
   pondShown: boolean;
@@ -5586,12 +5589,12 @@ test('the far far sea: held at its buoys without a crow; with one, let it go and
     return Math.hypot(g.x - q.x, g.y - q.y);
   });
   expect(off).toBeLessThan(1);
-  // The boat comes close: island 11 is sighted, and the crow flies back to the rail.
+  // The boat comes close, off to the side of the pier's dock: island 11 is sighted, and the crow flies back to the rail.
   await page.evaluate(() => {
     const b = window.__np.boat;
     const q = window.__np.PERCH11;
-    b.x = q.x;
-    b.y = q.y + 220;
+    b.x = q.x + 250;
+    b.y = q.y + 120;
   });
   await page.waitForFunction(() => window.__np.isle11Seen, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('island 11');
@@ -5601,5 +5604,60 @@ test('the far far sea: held at its buoys without a crow; with one, let it go and
   await page.reload();
   await page.waitForFunction(() => window.__np?.isle11Seen === true, null, { timeout: 5000 });
   expect(await page.evaluate(() => window.__np.farFarOpen)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('island 11: tie up at its pier, walk up into the jungle, and look at the portal and the black lagoon', async ({
+  context,
+  page,
+}) => {
+  // A flagship out in the far far sea, south of island 11's pier, sailing for it.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('island 11');
+  const y0 = await page.evaluate(() => window.__np.walker.y);
+  // Up the pier (north, -y) and in among the trees.
+  const sx = 1;
+  const sy = -0.5;
+  const n = Math.hypot(sx, sy);
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX + (sx / n) * 60, CY + (sy / n) * 60, { steps: 3 });
+  await page.waitForTimeout(2600);
+  await page.mouse.up();
+  const y1 = await page.evaluate(() => window.__np.walker.y);
+  expect(y1).toBeLessThan(y0 - 100);
+  // By the portal it says what it is; by the lagoon too.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const p = window.__np.PORTAL11;
+    w.x = p.x + 50;
+    w.y = p.y + 50;
+  });
+  await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const i = window.__np.ISLE11;
+    // On the lagoon's rim, on the side toward the middle of the island.
+    w.x = i.x + 102;
+    w.y = i.y - 89;
+  });
+  await expect(page.locator('#toast')).toContainText('black lagoon', { timeout: 9000 });
+  await expect(page.locator('#log')).toContainText('Island 11 found');
   expect(errors).toEqual([]);
 });

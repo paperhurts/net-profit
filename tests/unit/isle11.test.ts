@@ -1,21 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { GUIDE_CALL, GUIDE_HIGH, GuideCrow } from '../../src/entities/crows';
+import { dockAt, groundZ, ISLE11_DOCK, onLand, walkable } from '../../src/entities/walker';
 import { DEEP, FAR, FARFAR, IX, IY, pastFarFar, seaEdge, WS } from '../../src/world/island';
 import { ISLE6 } from '../../src/world/isle6';
 import { ISLE10, shoreR10 } from '../../src/world/isle10';
 import {
+  berth11,
+  byLagoon11,
   COLUMNS11,
+  CRATES11,
+  DOCK11,
   FERNS11,
   ISLE11,
   inLagoon11,
   inRuins11,
   insideIsle11,
   LAGOON11,
+  LANDING11,
   lagoonR11,
   nearIsle11,
   onIsle11Ground,
   PALMS11,
   PERCH11,
+  PIER11,
+  PIER11_Z,
   PORTAL11,
   polar11,
   pushOffIsle11,
@@ -129,6 +137,59 @@ describe('island 11, out in the far far sea', () => {
     expect(s.v).toBeLessThan(200);
     expect(insideIsle11(s.x, s.y, 10)).toBe(false);
     expect(insideIsle11(ISLE11.x, ISLE11.y, 0)).toBe(true);
+  });
+});
+
+describe("island 11's pier, and ashore", () => {
+  it('runs a pier out from the sand toward home, its end in the water and its dock in the far far sea', () => {
+    expect(onIsle11Ground(ISLE11.x, PIER11.y0 + 2)).toBe(true);
+    expect(onIsle11Ground(ISLE11.x, PIER11.y1 - 2)).toBe(false);
+    expect(PIER11.y1 - PIER11.y0).toBeGreaterThan(140);
+    expect(pastFarFar(DOCK11.x, DOCK11.y)).toBe(true);
+    const [a, d] = polar11(DOCK11.x, DOCK11.y);
+    expect(d).toBeGreaterThan(shoreR11(a) + 60);
+    // The boat's berth is in the dock ring, bow in at the pier's end.
+    const b = berth11(1);
+    expect(Math.hypot(b.x - DOCK11.x, b.y - DOCK11.y)).toBeLessThan(DOCK11.r);
+    expect(b.y).toBeGreaterThan(PIER11.y1);
+    expect(dockAt(DOCK11.x, DOCK11.y)).toBe(ISLE11_DOCK);
+  });
+
+  it('lands the figure on the pier, up off the water, and lets it walk ashore up the middle', () => {
+    expect(onLand(LANDING11.x, LANDING11.y)).toBe(true);
+    expect(groundZ(LANDING11.x, LANDING11.y)).toBe(PIER11_Z);
+    for (let y = LANDING11.y; y > ISLE11.y + 200; y -= 10)
+      expect(walkable(ISLE11.x, y, 0)).toBe(true);
+    expect(groundZ(ISLE11.x, ISLE11.y + 300)).toBe(0);
+  });
+
+  it("puts the crates at the pier's root, clear of the pier and the crow's perch", () => {
+    expect(onIsle11Ground(CRATES11.x, CRATES11.y)).toBe(true);
+    expect(CRATES11.x + 19).toBeLessThan(PIER11.x0);
+    expect(Math.hypot(CRATES11.x - PERCH11.x, CRATES11.y - PERCH11.y)).toBeGreaterThan(50);
+    expect(PERCH11.x).toBeGreaterThan(PIER11.x1 + 8);
+  });
+
+  it('keeps the figure out of the lagoon, the trees, the columns and the portal, but walks the plaza', () => {
+    expect(onLand(LAGOON11.x, LAGOON11.y)).toBe(false);
+    for (const [x, y] of TREES11.slice(0, 10)) expect(walkable(x, y, 0)).toBe(false);
+    for (const c of COLUMNS11) expect(walkable(c.x, c.y, 0)).toBe(false);
+    expect(walkable(PORTAL11.x, PORTAL11.y, 0)).toBe(false);
+    expect(walkable(RUINS11.x + 20, RUINS11.y + 20, 0)).toBe(true);
+    // Its rim can be walked, near enough to look in.
+    const a = 2.2;
+    const r = lagoonR11(a) + 16;
+    const x = LAGOON11.x + Math.cos(a) * r;
+    const y = LAGOON11.y + Math.sin(a) * r;
+    expect(onLand(x, y)).toBe(true);
+    expect(byLagoon11(x, y, 40)).toBe(true);
+    expect(byLagoon11(ISLE11.x, ISLE11.y + 400, 40)).toBe(false);
+  });
+
+  it('keeps a hull off the pier', () => {
+    const s = { x: ISLE11.x + 3, y: (PIER11.y0 + PIER11.y1) / 2 + 40, v: 100 };
+    pushOffIsle11(s, 20);
+    expect(Math.abs(s.x - ISLE11.x)).toBeGreaterThanOrEqual(10);
   });
 });
 
