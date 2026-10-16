@@ -21,6 +21,10 @@
  * he rolls over at the surface and dies, dramatically, as the game tells it.
  * Sail away from the reef, or be eaten, and he sinks back to his reef, whole.
  * Past half beaten he is angry: shorter warnings and less time between.
+ *
+ * His water is something he is given (a reef: where he circles, how big the island there is, what wakes him, how far he
+ * follows, and what keeps him in), island 5's by default; the Battle Barge at sea gives each of its copies a spot on the
+ * open sea, where he rises at once, never gives up, and keeps inside the arena's ring.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -31,6 +35,53 @@ import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 /** A boat this close to the reef wakes him; this far off it, he gives up. */
 export const NOTICE = 700;
 export const LEASH = 1400;
+
+/** His water: where he circles, the island there he keeps off, what wakes him, how far he follows, what keeps him in. */
+export type Reef = {
+  x: number;
+  y: number;
+  r: number;
+  notice: number;
+  leash: number;
+  keep(p: { x: number; y: number }): void;
+};
+/** Island 5's reef of bones, and never past the far deep's end, as he always was. */
+export const ISLE5_REEF: Reef = {
+  x: ISLE5.x,
+  y: ISLE5.y,
+  r: ISLE5.r,
+  notice: NOTICE,
+  leash: LEASH,
+  keep(p) {
+    const lo = 40 - DEEP - FAR;
+    const hi = WS + DEEP + FAR - 40;
+    p.x = clamp(p.x, lo, hi);
+    p.y = clamp(p.y, lo, hi);
+  },
+};
+/** A spot on the open sea in a ring of water, for the Battle Barge: up at once, never giving up, kept inside the ring. */
+export function seaReef(
+  at: { x: number; y: number },
+  ring: { x: number; y: number; r: number },
+): Reef {
+  return {
+    x: at.x,
+    y: at.y,
+    r: 0,
+    notice: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+    keep(p) {
+      const dx = p.x - ring.x;
+      const dy = p.y - ring.y;
+      const d = Math.hypot(dx, dy);
+      const max = ring.r - 40;
+      if (d > max) {
+        p.x = ring.x + (dx / d) * max;
+        p.y = ring.y + (dy / d) * max;
+      }
+    },
+  };
+}
 /** Harpoon hits to beat him. */
 export const KING_RESOLVE = 6;
 /** He stalks the boat at about this distance, this fast, for this long between attacks. */
@@ -83,8 +134,8 @@ export type KingState =
 
 export class SharkKing implements Entity {
   state: KingState = 'wait';
-  x: number = ISLE5.x + ISLE5.r + 120;
-  y: number = ISLE5.y;
+  x: number;
+  y: number;
   h = Math.PI / 2;
   v = 0;
   t = 0;
@@ -117,6 +168,11 @@ export class SharkKing implements Entity {
   onBeaten: (() => void) | null = null;
   /** He has died. */
   onDead: (() => void) | null = null;
+
+  constructor(readonly reef: Reef = ISLE5_REEF) {
+    this.x = reef.x + reef.r + 120;
+    this.y = reef.y;
+  }
 
   /** In the fight. */
   get fighting(): boolean {
@@ -190,22 +246,23 @@ export class SharkKing implements Entity {
     if (this.lastH !== null && dt > 0)
       this.turn += (clamp(angDiff(b.h, this.lastH) / dt, -3, 3) - this.turn) * Math.min(1, dt * 6);
     this.lastH = b.h;
-    const fromReef = Math.hypot(b.x - ISLE5.x, b.y - ISLE5.y);
+    const reef = this.reef;
+    const fromReef = Math.hypot(b.x - reef.x, b.y - reef.y);
     if (this.state === 'wait') {
       this.up += (0 - this.up) * Math.min(1, dt * 2);
       // Round and round the reef, deep down.
-      const a = Math.atan2(this.y - ISLE5.y, this.x - ISLE5.x) + dt * 0.25;
-      this.x = ISLE5.x + Math.cos(a) * (ISLE5.r + 120);
-      this.y = ISLE5.y + Math.sin(a) * (ISLE5.r + 120);
+      const a = Math.atan2(this.y - reef.y, this.x - reef.x) + dt * 0.25;
+      this.x = reef.x + Math.cos(a) * (reef.r + 120);
+      this.y = reef.y + Math.sin(a) * (reef.r + 120);
       this.h = a + Math.PI / 2;
-      if (w.started && fromReef < NOTICE) {
+      if (w.started && fromReef < reef.notice) {
         this.state = 'rise';
         this.t = 0;
         this.onRise?.();
       }
       return;
     }
-    if (fromReef > LEASH) {
+    if (fromReef > reef.leash) {
       this.reset();
       return;
     }
@@ -370,18 +427,18 @@ export class SharkKing implements Entity {
     this.y += Math.sin(this.h) * this.v * dt;
   }
 
-  /** Never on the reef, never past the far deep's end. */
+  /** Never on the reef's island, never out of his water (past the far deep's end, or the arena's ring). */
   private keepOff(): void {
-    const r = Math.hypot(this.x - ISLE5.x, this.y - ISLE5.y) || 1;
-    const min = ISLE5.r + 40;
-    if (r < min) {
-      this.x = ISLE5.x + ((this.x - ISLE5.x) / r) * min;
-      this.y = ISLE5.y + ((this.y - ISLE5.y) / r) * min;
+    const reef = this.reef;
+    if (reef.r > 0) {
+      const r = Math.hypot(this.x - reef.x, this.y - reef.y) || 1;
+      const min = reef.r + 40;
+      if (r < min) {
+        this.x = reef.x + ((this.x - reef.x) / r) * min;
+        this.y = reef.y + ((this.y - reef.y) / r) * min;
+      }
     }
-    const lo = 40 - DEEP - FAR;
-    const hi = WS + DEEP + FAR - 40;
-    this.x = clamp(this.x, lo, hi);
-    this.y = clamp(this.y, lo, hi);
+    reef.keep(this);
   }
 
   /** The ring where the trident will land and the churn of a charge, on the water; the fin or the whole of him, and the trident, above it. */

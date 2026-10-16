@@ -16,6 +16,10 @@
  * where it waits as Cthulhu. Sail away from its water, or be sunk, and it sinks
  * back to sleep, whole. Past half it is angry: its eye stays shut less and it
  * shoots more often.
+ *
+ * Its water is something it is given (a home: where it sleeps, what wakes it, how far it follows, and whether, beaten,
+ * it drags the boat under), off the temple by default; the Battle Barge at sea gives each of its copies a spot of its
+ * own, where it rises at once, never gives up, and beaten sinks away on its own.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -27,6 +31,27 @@ export const LAIR6 = { x: TEMPLE.x + 420, y: TEMPLE.y } as const;
 /** A boat this near its lair wakes it; this far off it, it gives up. */
 export const NOTICE = 650;
 export const LEASH = 1300;
+
+/** Where it lives: its lair, how near a boat wakes it, how far off one it gives up, and whether it drags a boat under. */
+export type DeepHome = {
+  x: number;
+  y: number;
+  notice: number;
+  leash: number;
+  drags: boolean;
+};
+/** Off island 6's temple, as it always was. */
+export const LAIR6_HOME: DeepHome = { ...LAIR6, notice: NOTICE, leash: LEASH, drags: true };
+/** A spot on the open sea, for the Battle Barge: up at once, never giving up, and beaten it sinks on its own. */
+export function seaDeepHome(at: { x: number; y: number }): DeepHome {
+  return {
+    x: at.x,
+    y: at.y,
+    notice: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+    drags: false,
+  };
+}
 /** Harpoon hits in its eye to beat it. */
 export const DEEP_RESOLVE = 10;
 /** It wades this fast, and keeps within this of its lair. */
@@ -57,7 +82,8 @@ export const EYE_EVERY_ANGRY = 3.6;
 export const RISE_T = 1.4;
 export const DRAG_T = 2.4;
 
-export type DeepState = 'sleep' | 'rise' | 'fight' | 'drag' | 'down';
+/** sink: beaten where it drags nothing under, going down on its own. */
+export type DeepState = 'sleep' | 'rise' | 'fight' | 'drag' | 'sink' | 'down';
 
 export type Log = {
   x0: number;
@@ -72,8 +98,8 @@ export type Log = {
 
 export class DeepOne implements Entity {
   state: DeepState = 'sleep';
-  x: number = LAIR6.x;
-  y: number = LAIR6.y;
+  x: number;
+  y: number;
   h = Math.PI;
   t = 0;
   resolve = DEEP_RESOLVE;
@@ -106,6 +132,11 @@ export class DeepOne implements Entity {
   onBeaten: (() => void) | null = null;
   onDragged: (() => void) | null = null;
 
+  constructor(readonly home: DeepHome = LAIR6_HOME) {
+    this.x = home.x;
+    this.y = home.y;
+  }
+
   get fighting(): boolean {
     return this.state === 'rise' || this.state === 'fight';
   }
@@ -121,7 +152,7 @@ export class DeepOne implements Entity {
 
   /** Back to sleep in its lair, whole, as when the boat sails off or sinks. */
   reset(): void {
-    if (this.state === 'down' || this.state === 'drag') return;
+    if (this.state === 'down' || this.state === 'drag' || this.state === 'sink') return;
     this.state = 'sleep';
     this.t = 0;
     this.up = 0;
@@ -130,8 +161,8 @@ export class DeepOne implements Entity {
     this.eyeT = 0;
     this.grab = null;
     this.logs.length = 0;
-    this.x = LAIR6.x;
-    this.y = LAIR6.y;
+    this.x = this.home.x;
+    this.y = this.home.y;
   }
 
   /** Beaten for good at the surface, as a save remembers: it waits below. */
@@ -170,7 +201,7 @@ export class DeepOne implements Entity {
     this.eye = false;
     this.eyeT = 0;
     if (this.resolve > 0) return false;
-    this.state = 'drag';
+    this.state = this.home.drags ? 'drag' : 'sink';
     this.t = 0;
     this.logs.length = 0;
     this.grab = null;
@@ -187,25 +218,27 @@ export class DeepOne implements Entity {
     this.lastH = b.h;
     this.updateLogs(dt, w);
     if (this.state === 'down') return;
-    if (this.state === 'drag') {
+    if (this.state === 'drag' || this.state === 'sink') {
       this.up = Math.max(0, 1 - this.t / DRAG_T);
       if (this.t >= DRAG_T) {
+        const dragged = this.state === 'drag';
         this.state = 'down';
-        this.onDragged?.();
+        if (dragged) this.onDragged?.();
       }
       return;
     }
-    const fromLair = Math.hypot(b.x - LAIR6.x, b.y - LAIR6.y);
+    const home = this.home;
+    const fromLair = Math.hypot(b.x - home.x, b.y - home.y);
     if (this.state === 'sleep') {
       this.up += (0.12 - this.up) * Math.min(1, dt);
-      if (w.started && fromLair < NOTICE) {
+      if (w.started && fromLair < home.notice) {
         this.state = 'rise';
         this.t = 0;
         this.onRise?.();
       }
       return;
     }
-    if (fromLair > LEASH) {
+    if (fromLair > home.leash) {
       this.reset();
       return;
     }
@@ -226,10 +259,10 @@ export class DeepOne implements Entity {
     if (!this.grab?.held && d > BODY_R + hull + 30) {
       this.x += (dx / d) * WADE * dt;
       this.y += (dy / d) * WADE * dt;
-      const lr = Math.hypot(this.x - LAIR6.x, this.y - LAIR6.y);
+      const lr = Math.hypot(this.x - home.x, this.y - home.y);
       if (lr > HOME_R) {
-        this.x = LAIR6.x + ((this.x - LAIR6.x) / lr) * HOME_R;
-        this.y = LAIR6.y + ((this.y - LAIR6.y) / lr) * HOME_R;
+        this.x = home.x + ((this.x - home.x) / lr) * HOME_R;
+        this.y = home.y + ((this.y - home.y) / lr) * HOME_R;
       }
     }
     // The eye, opening and shutting.
@@ -322,7 +355,12 @@ export class DeepOne implements Entity {
   /** The rings where logs and the grab will land, on the water; it, its tentacles and the logs, above. */
   /** On the radar once it has risen; asleep in its lair it is not. */
   radar(blip: Blipper): void {
-    if (this.state === 'rise' || this.state === 'fight' || this.state === 'drag')
+    if (
+      this.state === 'rise' ||
+      this.state === 'fight' ||
+      this.state === 'drag' ||
+      this.state === 'sink'
+    )
       blip(this.x, this.y, 'threat');
   }
 

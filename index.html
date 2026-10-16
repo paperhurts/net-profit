@@ -271,6 +271,9 @@ body.cine #scanBtn,body.icing #scanBtn{display:none}
 /* The observatory's telescope: the lens is drawn on the canvas; over it, this catches taps (one turns it to the next) and holds the card. */
 #scope{position:fixed;inset:0;z-index:7}
 #scope[hidden]{display:none}
+/* Out at the Battle Barge at sea the boat is off the sea map, and there is no fishing, diving or radio, only the fight. */
+body.seafight #mapBtn{visibility:hidden}
+body.seafight #radioBtn,body.seafight #seineBtn,body.seafight #potBtn,body.seafight #diveBtn,body.seafight #iceBtn,body.seafight #iglooBtn{display:none}
 body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw,body.scoping #scanBtn,body.scoping #honeyBtn,body.scoping #sprayBtn,body.scoping #bargeBtn,body.scoping #toast,body.scoping .snack{visibility:hidden}
 #scope .scopeCard{position:absolute;left:calc(16px + env(safe-area-inset-left));right:calc(16px + env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom));
   max-width:420px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:10px;border-radius:16px;background:#FFF6E5;color:#143642;border:3px solid #B88E36;box-shadow:0 4px 0 rgba(0,0,0,.3)}
@@ -554,6 +557,7 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
   <div class="planks">
     <h2>Battle Barge <button class="pill icon" id="bargeClose" aria-label="Close the Battle Barge">✕</button></h2>
     <p class="tnote">Pick an arena and up to 10 to fight, then Fight! Beat them all for a coin, and get better.</p>
+    <div class="boat" id="bargeWhereRow"><b>Where</b><div class="bchips" id="bargeWhere"></div></div>
     <div class="boat"><b>Arena</b><div class="bchips" id="bargeSize"></div></div>
     <div id="bargeList"></div>
     <div class="gobar">
