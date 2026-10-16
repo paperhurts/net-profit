@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   ARENA_SIZES,
   arenaSpots,
+  BARGE_DROP,
   BARGE_FOES,
+  BARGE_LEAN,
   BARGE_MAX,
   BOSS_FOES,
   bargeAdd,
   bargeTotal,
+  bargeZoom,
   defaultBarge,
   FIGHTER_FOES,
   FOE_NAMES,
@@ -109,5 +112,19 @@ describe('the Battle Barge: its arenas', () => {
           }
       }
     }
+  });
+});
+
+describe('the Battle Barge camera', () => {
+  it('stands further back the bigger the arena, leans a little toward the figure, and sits the deck a little low', () => {
+    const [small, medium, large] = [150, 200, 260].map(bargeZoom) as [number, number, number];
+    expect(small).toBeGreaterThan(medium);
+    expect(medium).toBeGreaterThan(large);
+    expect(large).toBeGreaterThan(0.5);
+    expect(small).toBeLessThan(1);
+    expect(BARGE_LEAN).toBeGreaterThan(0);
+    expect(BARGE_LEAN).toBeLessThan(0.5);
+    expect(BARGE_DROP).toBeGreaterThan(0);
+    expect(BARGE_DROP).toBeLessThan(0.1);
   });
 });

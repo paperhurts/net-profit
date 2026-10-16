@@ -150,6 +150,18 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
 export const BARGE_MAX = 10;
 export const BARGE_PRIZE = 1;
 
+/**
+ * The camera on the barge, the owner's (2026-10-16: "bc my character is centered on screen I don't get a good view of the
+ * fight"): it frames the arena, leaning only this much toward the figure, comes out further than ashore for a bigger
+ * arena (its zoom times this, by the arena's radius), and sits the deck this far (of the screen's height) lower, so the
+ * bosses that tower up at its back stand clear under the hearts.
+ */
+export const BARGE_LEAN = 0.3;
+export const BARGE_DROP = 0.05;
+export function bargeZoom(r: number): number {
+  return r <= 150 ? 0.82 : r <= 200 ? 0.7 : 0.6;
+}
+
 export type BargePick = Record<BargeFoe, number>;
 export type BargeSetup = { size: ArenaSize; pick: BargePick };
 
