@@ -36,6 +36,11 @@ type Np = {
   muffin: { line: number; near: boolean; saying(): string | null };
   bakerAt: [number, number];
   isle10Seen: boolean;
+  isle11Seen: boolean;
+  farFarOpen: boolean;
+  crowGoShown: boolean;
+  guide: { state: string; x: number; y: number };
+  PERCH11: { x: number; y: number };
   first: number[];
   pondLine: { state: string; sp: number };
   pondShown: boolean;
@@ -5531,5 +5536,70 @@ test("island 10's treasure submarine: bought from the old man, it dives in the f
   await page.reload();
   await page.waitForFunction(() => window.__np?.sub === true, null, { timeout: 5000 });
   expect(await page.evaluate((k) => window.__np.subFound.patches[k], key)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('the far far sea: held at its buoys without a crow; with one, let it go and it flies for island 11', async ({
+  context,
+  page,
+}) => {
+  // A flagship in the far deep's north-east corner, past island 10, sailing out to the far far buoys.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    pelicanBeaten: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7700, y: -2700, h: 0, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.farFarOpen)).toBe(false);
+  await page.evaluate(() => {
+    window.__np.boat.v = 250;
+  });
+  await expect(page.locator('#toast')).toContainText('far far buoys', { timeout: 6000 });
+  // Held at them: the far deep ends at 7800 here.
+  expect(await page.evaluate(() => window.__np.boat.x)).toBeLessThanOrEqual(7760);
+  await expect(page.locator('#crowGo')).toBeHidden();
+  // With one of island 10's crows on the rail the way is open; out past the buoys, it can be let go.
+  await page.evaluate(() => {
+    window.__np.crowsOwned = 3;
+    const b = window.__np.boat;
+    b.x = 8050;
+    b.y = -3250;
+    b.v = 0;
+  });
+  expect(await page.evaluate(() => window.__np.farFarOpen)).toBe(true);
+  await expect(page.locator('#toast')).toContainText('far far sea', { timeout: 4000 });
+  await expect(page.locator('#crowGo')).toBeVisible({ timeout: 3000 });
+  await page.click('#crowGo');
+  expect(await page.evaluate(() => window.__np.guide.state)).toBe('out');
+  await expect(page.locator('#crowGo')).toBeHidden();
+  await expect(page.locator('#toast')).toContainText('flies for land');
+  // It flies for island 11 and waits on its sand.
+  await page.waitForFunction(() => window.__np.guide.state === 'perch', null, { timeout: 12000 });
+  const off = await page.evaluate(() => {
+    const g = window.__np.guide;
+    const q = window.__np.PERCH11;
+    return Math.hypot(g.x - q.x, g.y - q.y);
+  });
+  expect(off).toBeLessThan(1);
+  // The boat comes close: island 11 is sighted, and the crow flies back to the rail.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    const q = window.__np.PERCH11;
+    b.x = q.x;
+    b.y = q.y + 220;
+  });
+  await page.waitForFunction(() => window.__np.isle11Seen, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('island 11');
+  await page.waitForFunction(() => window.__np.guide.state === 'aboard', null, { timeout: 8000 });
+  await expect(page.locator('#log')).toContainText('Island 11 found');
+  // Found, it stays found (sighting saves), and the far far sea stays open.
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.isle11Seen === true, null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.farFarOpen)).toBe(true);
   expect(errors).toEqual([]);
 });

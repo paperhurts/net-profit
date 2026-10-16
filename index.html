@@ -207,6 +207,10 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 #diveBtn{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:#1F5F8A;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
 #diveBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+/* Out in the far far sea with a crow on the rail: let it go, and it flies for land. */
+#crowGo{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+  background:#2B2F3A;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
+#crowGo:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #surfaceBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
 /* Ice fishing: Ice fish by the floe and Drop the line under it where Dive is; Back to the boat where Swim back up is. */
 #iceBtn,#iceDrop{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
@@ -406,6 +410,7 @@ body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,bo
 <button class="pill" id="aboard" hidden>Back aboard</button>
 <button class="pill" id="climb" hidden>Climb the tower</button>
 <button class="pill" id="diveBtn" hidden>Dive into the trench</button>
+<button class="pill" id="crowGo" hidden>Let a crow go</button>
 <button class="pill" id="surfaceBtn" hidden>Swim back up</button>
 <button class="pill" id="iceBtn" hidden>Ice fish</button>
 <button class="pill" id="iglooBtn" hidden>Build an igloo</button>

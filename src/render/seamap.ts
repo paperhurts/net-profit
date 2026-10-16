@@ -15,10 +15,9 @@ import {
   SAILED_CELL,
   SAILED_N,
   type Sailed,
-  SEA_MIN,
   SEA_SPAN,
 } from '../state/sailed';
-import { DEEP, IX, IY, WS } from '../world/island';
+import { DEEP, FAR, FARFAR, IX, IY, WS } from '../world/island';
 
 export type MapIsle = {
   x: number;
@@ -29,6 +28,8 @@ export type MapIsle = {
   /** Its sand and what grows or stands on it. */
   sand: string;
   top: string;
+  /** Its name goes over it, not under, where another island's name is under its neighbour. */
+  nameAbove?: boolean;
 };
 
 /** A place to go back to that is not an island: where, and its name on the map. */
@@ -42,9 +43,25 @@ export type MapView = {
   marks?: readonly MapMark[];
   /** Seconds, for the boat's pulse. */
   T: number;
+  /**
+   * The far far sea is open: the map shows it, out past the far far buoys. Until then it shows the sea out to the far
+   * deep's edge, as it always has, so the islands are as big on it as they were.
+   */
+  farFar?: boolean;
 };
 
-const SEA = { far: '#0E3B4B', deep: '#17596B', home: '#2C8EA1', fog: '#1A3440' };
+const SEA = {
+  farFar: '#0A3242',
+  far: '#0E3B4B',
+  deep: '#17596B',
+  home: '#2C8EA1',
+  fog: '#1A3440',
+};
+
+/** How far past the buoys the map runs, with the far far sea or without. */
+export function mapReach(farFar: boolean): number {
+  return DEEP + FAR + (farFar ? FARFAR : 0);
+}
 
 /** World to map: a quarter turn of the iso view's diamond, unsquashed. */
 export class Projection {
@@ -53,8 +70,9 @@ export class Projection {
     readonly cx: number,
     readonly cy: number,
     size: number,
+    span: number = SEA_SPAN,
   ) {
-    this.s = size / (2 * SEA_SPAN);
+    this.s = size / (2 * span);
   }
   x(x: number, y: number): number {
     return this.cx + (x - IX - (y - IY)) * this.s;
@@ -124,12 +142,17 @@ export class SeaMap {
   /** Draw it all into a canvas of w by h device pixels. */
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, v: MapView): void {
     const size = Math.min(w, h) * 0.96;
-    const p = new Projection(w / 2, h / 2, size);
+    const reach = mapReach(!!v.farFar);
+    const p = new Projection(w / 2, h / 2, size, WS + 2 * reach);
     ctx.clearRect(0, 0, w, h);
-    // The three waters, and the buoys between them.
-    const far = SEA_MIN + SEA_SPAN;
+    // The waters, and the buoys between them.
+    if (v.farFar) {
+      ctx.fillStyle = SEA.farFar;
+      square(ctx, p, -reach, -reach, WS + reach, WS + reach);
+      ctx.fill();
+    }
     ctx.fillStyle = SEA.far;
-    square(ctx, p, SEA_MIN, SEA_MIN, far, far);
+    square(ctx, p, -DEEP - FAR, -DEEP - FAR, WS + DEEP + FAR, WS + DEEP + FAR);
     ctx.fill();
     ctx.fillStyle = SEA.deep;
     square(ctx, p, -DEEP, -DEEP, WS + DEEP, WS + DEEP);
@@ -140,6 +163,11 @@ export class SeaMap {
     const k = size / 400;
     ctx.setLineDash([3 * k, 4 * k]);
     ctx.lineWidth = 1.6 * k;
+    if (v.farFar) {
+      ctx.strokeStyle = '#D9D2BE';
+      square(ctx, p, -DEEP - FAR, -DEEP - FAR, WS + DEEP + FAR, WS + DEEP + FAR);
+      ctx.stroke();
+    }
     ctx.strokeStyle = '#8A2A30';
     square(ctx, p, -DEEP, -DEEP, WS + DEEP, WS + DEEP);
     ctx.stroke();
@@ -147,8 +175,11 @@ export class SeaMap {
     square(ctx, p, 0, 0, WS, WS);
     ctx.stroke();
     ctx.setLineDash([]);
-    // The islands.
+    // The islands, those within the sea shown.
+    const shown = (isle: MapIsle) =>
+      Math.max(Math.abs(isle.x - WS / 2), Math.abs(isle.y - WS / 2)) < WS / 2 + reach;
     for (const isle of v.isles) {
+      if (!shown(isle)) continue;
       const x = p.x(isle.x, isle.y);
       const y = p.y(isle.x, isle.y);
       const r = Math.max(3 * k, isle.r * p.s * Math.SQRT2);
@@ -162,16 +193,17 @@ export class SeaMap {
       ctx.fill();
     }
     // Fog over all of it the boat has not seen.
-    ctx.drawImage(this.fogFor(v.sailed, w, h, p), 0, 0);
+    ctx.drawImage(this.fogFor(v.sailed, w, h, p, reach), 0, 0);
     // Names, over the fog, for the islands found.
     ctx.font = `800 ${Math.round(11 * k)}px Grandstander, ui-rounded, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.lineJoin = 'round';
     for (const isle of v.isles) {
-      if (!isle.name) continue;
+      if (!isle.name || !shown(isle)) continue;
       const x = p.x(isle.x, isle.y);
-      const y = p.y(isle.x, isle.y) + Math.max(3 * k, isle.r * p.s * Math.SQRT2) + 3 * k;
+      const r = Math.max(3 * k, isle.r * p.s * Math.SQRT2) + 3 * k;
+      const y = p.y(isle.x, isle.y) + (isle.nameAbove ? -r - 11 * k : r);
       ctx.lineWidth = 3 * k;
       ctx.strokeStyle = 'rgba(8,24,32,.85)';
       ctx.strokeText(isle.name, x, y);
@@ -207,10 +239,10 @@ export class SeaMap {
   }
 
   /** The fog, drawn once for each new stretch of sea sailed. */
-  private fogFor(s: Sailed, w: number, h: number, p: Projection): HTMLCanvasElement {
+  private fogFor(s: Sailed, w: number, h: number, p: Projection, reach: number): HTMLCanvasElement {
     let n = 0;
     for (const b of s) n = (n * 31 + b) | 0;
-    const key = `${w}x${h}:${n}`;
+    const key = `${w}x${h}:${reach}:${n}`;
     if (this.fog && this.fogKey === key) return this.fog;
     const c = this.fog ?? document.createElement('canvas');
     c.width = w;
@@ -218,8 +250,7 @@ export class SeaMap {
     const f = c.getContext('2d') as CanvasRenderingContext2D;
     f.clearRect(0, 0, w, h);
     f.fillStyle = SEA.fog;
-    const far = SEA_MIN + SEA_SPAN;
-    square(f, p, SEA_MIN, SEA_MIN, far, far);
+    square(f, p, -reach, -reach, WS + reach, WS + reach);
     f.fill();
     // Clear a soft round hole at each cell sailed; neighbours overlap into open water.
     f.globalCompositeOperation = 'destination-out';

@@ -31,9 +31,26 @@ export function pastFar(x: number, y: number): boolean {
   return x < -DEEP || x > WS + DEEP || y < -DEEP || y > WS + DEEP;
 }
 
-/** How far past the buoys a hull may go: none, the deep, or the far deep too. */
-export function seaEdge(flagship: boolean, farOpen: boolean): number {
-  return flagship ? DEEP + (farOpen ? FAR : 0) : 0;
+/**
+ * Past the far deep's end, the kid's far far buoys (his fifth list: "a bigger ocean, past a third line of buoys"), and
+ * past them the far far sea, this far again on every side: where island 11 is, past island 10 (the owner's call,
+ * 2026-10-16). It is open sea with no land in sight, so the flagship is held at the far far buoys until it carries a
+ * crow from island 10, the kind of bird sailors once let go to find land.
+ */
+export const FARFAR = 2400;
+/** The far far buoys stand this often along the far deep's end. */
+export const FARFAR_BUOY_GAP = 400;
+
+/** Past the far far buoys too, out in the far far sea. */
+export function pastFarFar(x: number, y: number): boolean {
+  const e = DEEP + FAR;
+  return x < -e || x > WS + e || y < -e || y > WS + e;
+}
+
+/** How far past the buoys a hull may go: none, the deep, the far deep too, or the far far sea as well. */
+export function seaEdge(flagship: boolean, farOpen: boolean, farFarOpen = false): number {
+  if (!flagship) return 0;
+  return DEEP + (farOpen ? FAR + (farFarOpen ? FARFAR : 0) : 0);
 }
 /** Island radius. */
 export const IR = 210;

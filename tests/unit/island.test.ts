@@ -6,6 +6,8 @@ import {
   DOCK,
   FAR,
   FAR_BUOY_GAP,
+  FARFAR,
+  FARFAR_BUOY_GAP,
   IR,
   IX,
   IY,
@@ -14,6 +16,7 @@ import {
   PX0,
   pastBuoys,
   pastFar,
+  pastFarFar,
   pushOut,
   seaEdge,
   WS,
@@ -56,6 +59,21 @@ describe('the buoys', () => {
     expect(FAR).toBeGreaterThanOrEqual(1600);
     expect(FAR % FAR_BUOY_GAP).toBe(0);
     expect((WS + DEEP * 2) % FAR_BUOY_GAP).toBe(0);
+  });
+
+  it('end at a third line, the far far buoys, and past them the far far sea: once the far deep is, and with a crow', () => {
+    const e = DEEP + FAR;
+    expect(pastFarFar(-e, IY)).toBe(false);
+    expect(pastFarFar(-e - 1, IY)).toBe(true);
+    expect(pastFarFar(WS + e + 1, -e - 1)).toBe(true);
+    expect(pastFarFar(WS + e, WS + e)).toBe(false);
+    expect(seaEdge(false, true, true)).toBe(0);
+    expect(seaEdge(true, false, true)).toBe(DEEP);
+    expect(seaEdge(true, true, false)).toBe(e);
+    expect(seaEdge(true, true, true)).toBe(e + FARFAR);
+    // Room for an island as big as island 6 in a corner, with sea round it.
+    expect(FARFAR).toBeGreaterThanOrEqual(2000);
+    expect((WS + 2 * e) % FARFAR_BUOY_GAP).toBe(0);
   });
 });
 

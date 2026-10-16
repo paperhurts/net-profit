@@ -304,3 +304,115 @@ export class Crows implements Entity {
   /** The game draws them at the feeder (render/crows.ts). */
   draw(_v: DrawView, _layer: Layer): void {}
 }
+
+/**
+ * The crow let go in the far far sea, the owner's call for the kid's "the crows are needed for island 11": out there
+ * no land is in sight any way you look, and, as sailors once did with ravens, a crow let go from the boat flies for
+ * land. It sets off from the rail, climbs, and flies straight for island 11; there it comes down on the sand where
+ * the pier will be and waits, pecking about, until the boat comes close, then flies back out to its place on the rail.
+ */
+export type GuideState = 'aboard' | 'out' | 'perch' | 'back';
+/** It flies for land at this, faster than round the feeder: a long way to go. */
+export const GUIDE_FLY = 230;
+/** How high it flies out there, and how near land it starts coming down. */
+export const GUIDE_HIGH = 80;
+export const GUIDE_DOWN = 320;
+/** The boat this near its perch calls it back. */
+export const GUIDE_CALL = 300;
+
+export class GuideCrow implements Entity {
+  state: GuideState = 'aboard';
+  x = 0;
+  y = 0;
+  z = 0;
+  face = 1;
+  flap = 0;
+  peck = 0;
+  t = 0;
+  /** It reached land; it came back to the boat. */
+  onArrive: (() => void) | null = null;
+  onBack: (() => void) | null = null;
+
+  constructor(private readonly perch: { readonly x: number; readonly y: number }) {}
+
+  /** Off it goes from this seat on the rail. Whether it went (it can only go from the rail). */
+  letGo(from: { x: number; y: number; z: number }): boolean {
+    if (this.state !== 'aboard') return false;
+    this.state = 'out';
+    this.t = 0;
+    this.x = from.x;
+    this.y = from.y;
+    this.z = from.z;
+    return true;
+  }
+
+  /** Not out: back on the rail, as after a reload. */
+  reset(): void {
+    this.state = 'aboard';
+    this.t = 0;
+  }
+
+  /** Away from the boat: flying out, waiting on land, or flying back. */
+  get away(): boolean {
+    return this.state !== 'aboard';
+  }
+
+  update(dt: number, w: World): void {
+    if (this.state === 'aboard') return;
+    this.t += dt;
+    this.flap += dt * (this.state === 'perch' ? 2 : 14);
+    this.peck += dt * 5;
+    const b = w.boat;
+    switch (this.state) {
+      case 'out': {
+        const d = Math.hypot(this.perch.x - this.x, this.perch.y - this.y);
+        // Up off the rail to its height, and down again over the last of the way.
+        const z = d < GUIDE_DOWN ? (GUIDE_HIGH * d) / GUIDE_DOWN : GUIDE_HIGH;
+        if (this.fly(this.perch.x, this.perch.y, z, dt, d < GUIDE_DOWN ? 4 : 1.2)) {
+          this.z = 0;
+          this.state = 'perch';
+          this.t = 0;
+          this.onArrive?.();
+        }
+        break;
+      }
+      case 'perch':
+        if (Math.hypot(b.x - this.perch.x, b.y - this.perch.y) < GUIDE_CALL) {
+          this.state = 'back';
+          this.t = 0;
+        }
+        break;
+      case 'back': {
+        const d = Math.hypot(b.x - this.x, b.y - this.y);
+        if (this.fly(b.x, b.y, 12 + Math.min(60, d * 0.4), dt) || d < 10) {
+          this.state = 'aboard';
+          this.t = 0;
+          this.onBack?.();
+        }
+        break;
+      }
+    }
+  }
+
+  /** A wingbeat's flying toward (x, y), rising or falling toward z at this rate; whether it is there. */
+  private fly(x: number, y: number, z: number, dt: number, rise = 3): boolean {
+    const dx = x - this.x;
+    const dy = y - this.y;
+    const d = Math.hypot(dx, dy);
+    const step = GUIDE_FLY * dt;
+    if (Math.abs(dx - dy) > 2) this.face = Math.sign(dx - dy);
+    this.z += (z - this.z) * Math.min(1, dt * rise);
+    if (d <= step) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      return true;
+    }
+    this.x += (dx / d) * step;
+    this.y += (dy / d) * step;
+    return false;
+  }
+
+  /** The game draws it (render/crows.ts drawGuide). */
+  draw(_v: DrawView, _layer: Layer): void {}
+}

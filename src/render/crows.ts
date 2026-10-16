@@ -6,7 +6,7 @@
  * over one being petted. The ones that are the figure's ride on the boat's rail, bobbing and now and then flapping.
  */
 
-import { type Crow, PETTED_T, TRAY_Z } from '../entities/crows';
+import { type Crow, type GuideCrow, PETTED_T, TRAY_Z } from '../entities/crows';
 import type { DrawView } from '../entities/entity';
 import { FEEDER10 } from '../world/isle10';
 
@@ -323,4 +323,21 @@ export function drawCrowsAboard(
     if (ph < 0.6) drawFlying(v.ctx, sx, sy + 4 * Z, face, ph * 18, Z);
     else drawSitting(v.ctx, sx, sy, face, ph > 4 && ph < 4.5 ? 0.5 : 0, ph > 5.5 ? 0.35 : 0, Z);
   }
+}
+
+/** The crow let go in the far far sea: flying for land, waiting on its sand, or flying back to the boat. */
+export function drawGuide(v: DrawView, g: GuideCrow): void {
+  if (g.state === 'aboard') return;
+  const { ctx, px, py } = v;
+  const Z = v.zoom * CROW_K;
+  const hk = Math.max(0, 1 - g.z / 140);
+  ctx.fillStyle = `rgba(0,0,0,${0.08 + 0.12 * hk})`;
+  blob(ctx, px(g.x, g.y), py(g.x, g.y, 0), (3 + 2 * hk) * Z, (1 + 0.6 * hk) * Z);
+  ctx.fill();
+  const sx = px(g.x, g.y);
+  const sy = py(g.x, g.y, g.z);
+  if (g.state === 'perch') {
+    const bob = Math.max(0, Math.sin(g.peck * 1.3)) ** 3;
+    drawSitting(ctx, sx, sy, g.face, bob, 0, Z);
+  } else drawFlying(ctx, sx, sy, g.face, g.flap, Z);
 }
