@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   BARGE_MAX,
   defaultBarge,
+  FRAME_H,
+  FRAME_W,
   noSeaPick,
   parseBarge,
   SEA_ARENA,
   SEA_FOES,
   SEA_NAMES,
   SEA_RING,
+  SEA_ZOOM_MAX,
+  SEA_ZOOM_MIN,
   seaAdd,
   seaBuoys,
+  seaFrame,
   seaSpots,
   seaStart,
   seaTotal,
@@ -232,5 +237,63 @@ describe('the sea bosses, given a home', () => {
     expect(dragged).toBe(0);
     d.reset();
     expect(d.state).toBe('down');
+  });
+});
+
+describe('the camera at sea', () => {
+  const K = Math.SQRT1_2;
+  const sx = (dx: number, dy: number) => (dx - dy) * K;
+  const sy = (dx: number, dy: number, z = 0) => (dx + dy) * K * 0.5 - z;
+
+  it('looks at the middle of the boat and a boss, and stands back to fit both into the band', () => {
+    const W = 390;
+    const H = 780;
+    const pts = [
+      { dx: 0, dy: 0, r: 110, tall: 50 },
+      { dx: -400, dy: -400, r: 170, tall: 110 },
+    ];
+    const f = seaFrame(pts, W, H);
+    // Between the two, up the screen toward the boss.
+    expect(f.dx).toBeLessThan(0);
+    expect(f.dy).toBeLessThan(0);
+    expect(f.dx).toBeGreaterThan(-400);
+    // Every padded point lands inside the band at that zoom, round its middle.
+    for (const p of pts) {
+      const x = (sx(p.dx, p.dy) - sx(f.dx, f.dy)) * f.zoom;
+      const y = (sy(p.dx, p.dy) - sy(f.dx, f.dy)) * f.zoom;
+      expect(Math.abs(x) + p.r * K * f.zoom).toBeLessThanOrEqual((W * FRAME_W) / 2 + 1e-6);
+      expect(y + p.r * K * 0.5 * f.zoom).toBeLessThanOrEqual((H * FRAME_H) / 2 + 1e-6);
+      expect(y - (p.r * K * 0.5 + (p.tall ?? 0)) * f.zoom).toBeGreaterThanOrEqual(
+        -(H * FRAME_H) / 2 - 1e-6,
+      );
+    }
+  });
+
+  it('takes in a boss flying high above the water', () => {
+    const low = seaFrame(
+      [
+        { dx: 0, dy: 0, r: 100 },
+        { dx: -200, dy: -200, r: 100 },
+      ],
+      390,
+      780,
+    );
+    const high = seaFrame(
+      [
+        { dx: 0, dy: 0, r: 100 },
+        { dx: -200, dy: -200, z: 300, r: 100 },
+      ],
+      390,
+      780,
+    );
+    expect(high.zoom).toBeLessThan(low.zoom);
+  });
+
+  it('with only the boat, looks at the boat', () => {
+    const f = seaFrame([{ dx: 0, dy: 0, r: 110 }], 390, 780);
+    expect(f.dx).toBeCloseTo(0, 6);
+    expect(f.dy).toBeCloseTo(0, 6);
+    expect(f.zoom).toBeGreaterThan(1);
+    expect(SEA_ZOOM_MIN).toBeLessThan(SEA_ZOOM_MAX);
   });
 });

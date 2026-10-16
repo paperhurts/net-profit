@@ -208,12 +208,57 @@ export const SEA_RING: Readonly<Record<ArenaSize, number>> = {
 /** A buoy every so far round the ring. */
 export const SEA_BUOY_GAP = 150;
 /**
- * The camera at sea, the owner's point on the barge's (the fight off the screen while the boat sits in its middle): it
- * stands back to this of the sea's zoom, and leans this far toward the nearest boss still in the fight within SEA_LOOK.
+ * The camera at sea, the owner's point, twice (2026-10-16, on the barge: "bc my character is centered on screen I don't
+ * get a good view of the fight"; and at sea: the boat still in the middle, a boss half off the side and the bottom of the
+ * screen empty). It frames the fight: the boat and every boss still in it within SEA_LOOK, as a box on the screen, the
+ * camera on the box's middle and the zoom that fits it into the band between the top bar and the buttons (FRAME_W of
+ * the screen's width and FRAME_H of its height, its middle FRAME_MID of the height above the screen's), but never out
+ * past SEA_ZOOM_MIN of the sea's zoom nor in past SEA_ZOOM_MAX.
  */
-export const SEA_ZOOM = 0.8;
-export const SEA_LEAN = 0.4;
-export const SEA_LOOK = 900;
+export const SEA_LOOK = 1100;
+export const FRAME_W = 0.86;
+export const FRAME_H = 0.44;
+export const FRAME_MID = 0.015;
+export const SEA_ZOOM_MIN = 0.45;
+export const SEA_ZOOM_MAX = 0.9;
+
+/** One thing kept in frame, from the boat: where, how high it is, how far round it reaches, and how tall it stands. */
+export type FramePoint = { dx: number; dy: number; z?: number; r: number; tall?: number };
+
+/**
+ * Where the camera looks (a point on the sea, from the boat) and the zoom (screen pixels to a world unit) that fits all
+ * of them into the band on a w by h screen, by the isometric projection (core/iso.ts).
+ */
+export function seaFrame(
+  pts: readonly FramePoint[],
+  w: number,
+  h: number,
+): { dx: number; dy: number; zoom: number } {
+  const K = Math.SQRT1_2;
+  let x0 = Number.POSITIVE_INFINITY;
+  let x1 = Number.NEGATIVE_INFINITY;
+  let y0 = Number.POSITIVE_INFINITY;
+  let y1 = Number.NEGATIVE_INFINITY;
+  for (const p of pts) {
+    const sx = (p.dx - p.dy) * K;
+    const sy = (p.dx + p.dy) * K * 0.5 - (p.z ?? 0);
+    x0 = Math.min(x0, sx - p.r * K);
+    x1 = Math.max(x1, sx + p.r * K);
+    y0 = Math.min(y0, sy - p.r * K * 0.5 - (p.tall ?? 0));
+    y1 = Math.max(y1, sy + p.r * K * 0.5);
+  }
+  if (!(x1 > x0) || !(y1 > y0)) return { dx: 0, dy: 0, zoom: Number.POSITIVE_INFINITY };
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+  // The sea point that projects to the box's middle.
+  const a = cx / K;
+  const b = (2 * cy) / K;
+  return {
+    dx: (a + b) / 2,
+    dy: (b - a) / 2,
+    zoom: Math.min((w * FRAME_W) / (x1 - x0), (h * FRAME_H) / (y1 - y0)),
+  };
+}
 
 /** The ring's buoys, from its middle, for a ring of radius r. */
 export function seaBuoys(r: number): { x: number; y: number }[] {
