@@ -407,6 +407,8 @@ type Np = {
   cryptWon: boolean;
   castleHQ: boolean;
   scanner: number;
+  scanned: string[];
+  scanAt: string | null;
   saveCode: string;
   cloudState: string;
   fgScene: { t: number; cap: string; flag: number } | null;
@@ -5081,6 +5083,57 @@ test('online: the game keeps itself under a save code, the code brings it to ano
   await page.locator('#carryIn').fill(seal);
   await page.locator('#carryLoad').click();
   await expect(page.locator('#carryNote')).toContainText('own code');
+  expect(errors).toEqual([]);
+});
+
+test('the scanner: a zombie on the Battle Barge, scanned, says how to beat it, and is kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    scanner: 1,
+    barge: { size: 'small', pick: { zombie: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.small, null, {
+    timeout: 3000,
+  });
+  // Near it, the scanner aims at what the spear would.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const z = n.hordes[n.ARENAS.small ?? -1]?.list[0];
+    if (!z) return;
+    n.walker.x = z.x + 45;
+    n.walker.y = z.y + 45;
+    n.setHearts(9);
+  });
+  await page.waitForFunction(() => window.__np.scanAt === 'zombie', null, { timeout: 3000 });
+  await expect(page.locator('#scanBtn')).toBeVisible();
+  await page.locator('#scanBtn').click();
+  await expect(page.locator('#scanOut')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('#scanName')).toHaveText('A zombie');
+  await expect(page.locator('#scanBeat')).toContainText('winds up');
+  await expect(page.locator('#scanWeak')).toContainText('slow');
+  await expect(page.locator('#scanCount')).toHaveText('New! 1 kind of creature scanned.');
+  expect(await page.evaluate(() => window.__np.scanned)).toEqual(['zombie']);
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').scanned,
+  );
+  expect(saved).toEqual(['zombie']);
+  // A tap puts it away; without a scanner there is no button.
+  await page.locator('#scanOut').click();
+  await expect(page.locator('#scanOut')).toBeHidden();
+  await page.evaluate(() => {
+    window.__np.scanner = 0;
+  });
+  await expect(page.locator('#scanBtn')).toBeHidden();
   expect(errors).toEqual([]);
 });
 
