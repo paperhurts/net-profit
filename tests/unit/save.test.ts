@@ -807,6 +807,13 @@ describe('islands 8 and 9', () => {
     s.isle11Seen = true;
     expect(parseSave(serializeSave(s), bounds).isle11Seen).toBe(true);
   });
+
+  it('read Caterman as not yet with you in an old save, and keep him once he is', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.catermanFree).toBe(false);
+    s.catermanFree = true;
+    expect(parseSave(serializeSave(s), bounds).catermanFree).toBe(true);
+  });
 });
 
 describe("island 10's spider and pelican", () => {

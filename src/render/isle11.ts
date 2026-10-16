@@ -10,6 +10,7 @@
 import type { DrawView } from '../entities/entity';
 import {
   BEACH_W11,
+  CLEARING11,
   COLUMNS11,
   CRATES11,
   FERNS11,
@@ -23,6 +24,7 @@ import {
   RUINS11,
   shoreR11,
   TREES11,
+  WORKSHOP11,
 } from '../world/isle11';
 import { drawPalm7 } from './isle7';
 import type { Solid } from './layers';
@@ -121,6 +123,35 @@ export function drawIsle11Flat(v: DrawView): void {
       ctx.stroke();
     }
     ctx.restore();
+  }
+  // The brother's clearing: trodden grass, paler, with bare earth and dark scorch marks where his zaps have landed.
+  if (v.onScreen(CLEARING11.x, CLEARING11.y, (CLEARING11.r + 40) * Z)) {
+    v.isoEllipse(CLEARING11.x, CLEARING11.y, CLEARING11.r + 8);
+    ctx.fillStyle = '#4F7F3E';
+    ctx.fill();
+    v.isoEllipse(CLEARING11.x, CLEARING11.y, CLEARING11.r);
+    ctx.fillStyle = '#6A9450';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(140,110,70,.35)';
+    for (const [u, w, r] of [
+      [-30, 20, 26],
+      [40, -10, 20],
+      [10, 50, 16],
+    ] as const) {
+      v.isoEllipse(CLEARING11.x + u, CLEARING11.y + w, r);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(40,30,40,.38)';
+    for (const [u, w, r] of [
+      [-60, -20, 7],
+      [22, 30, 6],
+      [55, 40, 8],
+      [-10, -55, 6],
+      [70, -40, 5],
+    ] as const) {
+      v.isoEllipse(CLEARING11.x + u, CLEARING11.y + w, r);
+      ctx.fill();
+    }
   }
   // The ruins' plaza: old paving in squares, moss creeping over it, and the round step the portal stands on.
   const { x: rx, y: ry, half } = RUINS11;
@@ -437,6 +468,98 @@ function drawCrates11(v: DrawView): void {
   ctx.stroke();
 }
 
+/**
+ * Caterman's workshop: a little hut of riveted metal, a door on the side toward the clearing, a round window with
+ * (while he is home) two green eyes peeking out of it, a solar panel and a dish on the roof, and lights that blink.
+ */
+function drawWorkshop11(v: DrawView, home: boolean): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  const { x0, y0, x1, y1 } = WORKSHOP11;
+  const H = 30;
+  v.box(x0, y0, x1 - x0, y1 - y0, 0, H, '#8E9AA6', '#B7C2CC');
+  // Rivets along the front faces.
+  ctx.fillStyle = '#6E7A86';
+  for (let k = 1; k < 6; k++) {
+    const x = x0 + ((x1 - x0) * k) / 6;
+    ctx.beginPath();
+    ctx.arc(px(x, y1), py(x, y1, H - 3), 0.9 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // The door, on the face toward the clearing (+y), near its right end.
+  const face = (u0: number, u1: number, z0: number, z1: number) => {
+    ctx.beginPath();
+    ctx.moveTo(px(u0, y1), py(u0, y1, z0));
+    ctx.lineTo(px(u1, y1), py(u1, y1, z0));
+    ctx.lineTo(px(u1, y1), py(u1, y1, z1));
+    ctx.lineTo(px(u0, y1), py(u0, y1, z1));
+    ctx.closePath();
+  };
+  face(x1 - 16, x1 - 5, 0, 20);
+  ctx.fillStyle = '#4E5A66';
+  ctx.fill();
+  ctx.fillStyle = '#F2C14E';
+  ctx.beginPath();
+  ctx.arc(px(x1 - 7, y1), py(x1 - 7, y1, 10), 0.9 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  // The round window on the other front face (+x), and his eyes in it while he is home.
+  const wx = px(x1, (y0 + y1) / 2);
+  const wy = py(x1, (y0 + y1) / 2, 18);
+  ctx.fillStyle = '#2A3440';
+  ctx.beginPath();
+  ctx.ellipse(wx, wy, 5 * Z, 4.6 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#C9D2DA';
+  ctx.lineWidth = 1.2 * Z;
+  ctx.stroke();
+  if (home && Math.sin(T * 0.9) > -0.85) {
+    ctx.fillStyle = '#7CFF8A';
+    for (const e of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(wx + e * 1.8 * Z, wy, 0.9 * Z, 1.2 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Lights along the top edge, blinking in turn.
+  const cols = ['#FF5A4A', '#F2C14E', '#7FF3FF'];
+  for (let k = 0; k < 3; k++) {
+    const x = x0 + 8 + k * 9;
+    const on = Math.floor(T * 2 + k) % 3 === 0;
+    ctx.fillStyle = on ? (cols[k] as string) : 'rgba(60,66,72,.8)';
+    ctx.beginPath();
+    ctx.arc(px(x, y1), py(x, y1, H - 7), 1.3 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // A solar panel tilted on the roof, and a dish on a post.
+  ctx.fillStyle = '#2E4A7A';
+  ctx.beginPath();
+  ctx.moveTo(px(x0 + 4, y0 + 4), py(x0 + 4, y0 + 4, H + 2));
+  ctx.lineTo(px(x0 + 22, y0 + 4), py(x0 + 22, y0 + 4, H + 2));
+  ctx.lineTo(px(x0 + 22, y0 + 18), py(x0 + 22, y0 + 18, H + 8));
+  ctx.lineTo(px(x0 + 4, y0 + 18), py(x0 + 4, y0 + 18, H + 8));
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#8FB0CF';
+  ctx.lineWidth = 0.7 * Z;
+  ctx.stroke();
+  const dx = px(x1 - 8, y0 + 10);
+  const dy = py(x1 - 8, y0 + 10, H);
+  ctx.strokeStyle = '#8E9AA6';
+  ctx.lineWidth = 1.4 * Z;
+  ctx.beginPath();
+  ctx.moveTo(dx, dy);
+  ctx.lineTo(dx, dy - 8 * Z);
+  ctx.stroke();
+  ctx.fillStyle = '#DDE4EA';
+  ctx.beginPath();
+  ctx.ellipse(dx, dy - 10 * Z, 6 * Z, 3.2 * Z, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#B7C2CC';
+  ctx.beginPath();
+  ctx.arc(dx + 1 * Z, dy - 10.5 * Z, 1 * Z, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 /** The reeds' places round the lagoon's rim. */
 const REEDS11: readonly [number, number][] = Array.from({ length: 22 }, (_, i) => {
   const a = (i / 22) * Math.PI * 2 + (i % 3) * 0.05;
@@ -445,7 +568,7 @@ const REEDS11: readonly [number, number][] = Array.from({ length: 22 }, (_, i) =
 });
 
 /** Everything on island 11 that stands up: trees, palms, ferns, reeds, the columns and the portal. */
-export function isle11Solids(v: DrawView): Solid[] {
+export function isle11Solids(v: DrawView, catermanHome = true): Solid[] {
   if (!v.onScreen(ISLE11.x, ISLE11.y, (ISLE11.r + 260) * v.zoom)) return [];
   const out: Solid[] = [];
   const on = (x: number, y: number, m = 100) => v.onScreen(x, y, m * v.zoom);
@@ -467,6 +590,8 @@ export function isle11Solids(v: DrawView): Solid[] {
   if (on(PORTAL11.x, PORTAL11.y, 90))
     out.push({ d: PORTAL11.x + PORTAL11.y, f: () => drawPortal11(v) });
   out.push({ d: PIER11.x0 + PIER11.y0, f: () => drawPier11(v) });
+  if (on(WORKSHOP11.x0, WORKSHOP11.y0, 80))
+    out.push({ d: WORKSHOP11.x1 + WORKSHOP11.y1, f: () => drawWorkshop11(v, catermanHome) });
   if (on(CRATES11.x, CRATES11.y, 40))
     out.push({ d: CRATES11.x + CRATES11.y + 10, f: () => drawCrates11(v) });
   return out;

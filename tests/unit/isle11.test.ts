@@ -1,17 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import { WEARERS } from '../../src/data/badges';
 import { GUIDE_CALL, GUIDE_HIGH, GuideCrow } from '../../src/entities/crows';
+import { HERON9_HP, Heron } from '../../src/entities/heron';
+import { CATERMAN_HP, Pal, POWER, REACH } from '../../src/entities/pals';
 import { dockAt, groundZ, ISLE11_DOCK, onLand, walkable } from '../../src/entities/walker';
 import { DEEP, FAR, FARFAR, IX, IY, pastFarFar, seaEdge, WS } from '../../src/world/island';
 import { ISLE6 } from '../../src/world/isle6';
 import { ISLE10, shoreR10 } from '../../src/world/isle10';
 import {
+  BEACH_W11,
   berth11,
   byLagoon11,
+  byWorkshop11,
+  CLEARING11,
   COLUMNS11,
   CRATES11,
   DOCK11,
   FERNS11,
   ISLE11,
+  inClearing11,
   inLagoon11,
   inRuins11,
   insideIsle11,
@@ -28,10 +35,13 @@ import {
   polar11,
   pushOffIsle11,
   RUINS11,
+  SHOP_DOOR11,
   SIGHT11,
   shoreR11,
   TREES11,
+  WORKSHOP11,
 } from '../../src/world/isle11';
+import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
 /** The furthest the shore gets from the middle, all the way round. */
@@ -250,5 +260,71 @@ describe('the crow let go in the far far sea', () => {
     fly(g, near, 10);
     expect(g.state).toBe('aboard');
     expect(back).toBe(1);
+  });
+});
+
+describe("the Heron's brother and Caterman", () => {
+  it("has an open clearing for the brother's fight, inland, clear of the trees, the lagoon, the ruins and the pier", () => {
+    const [a, d] = polar11(CLEARING11.x, CLEARING11.y);
+    expect(d + CLEARING11.r).toBeLessThan(shoreR11(a) - BEACH_W11);
+    for (const [x, y] of [...TREES11, ...PALMS11]) expect(inClearing11(x, y, 10)).toBe(false);
+    expect(inLagoon11(CLEARING11.x, CLEARING11.y, CLEARING11.r + 40)).toBe(false);
+    expect(inRuins11(CLEARING11.x, CLEARING11.y, CLEARING11.r + 20)).toBe(false);
+    expect(Math.abs(CLEARING11.x - ISLE11.x)).toBeGreaterThan(CLEARING11.r + 54);
+    // On the left of the screen (-x, +y), the far side from the lagoon.
+    expect(CLEARING11.y - CLEARING11.x).toBeGreaterThan(ISLE11.y - ISLE11.x + 300);
+    for (let k = 0; k < 16; k++) {
+      const t = (k / 16) * Math.PI * 2;
+      expect(walkable(CLEARING11.x + Math.cos(t) * 80, CLEARING11.y + Math.sin(t) * 80, 0)).toBe(
+        true,
+      );
+    }
+  });
+
+  it("puts Caterman's workshop at the clearing's back, on dry ground, out of the fight, its door to the clearing", () => {
+    for (const [x, y] of [
+      [WORKSHOP11.x0, WORKSHOP11.y0],
+      [WORKSHOP11.x1, WORKSHOP11.y1],
+    ] as const)
+      expect(onIsle11Ground(x, y)).toBe(true);
+    // Behind the clearing, up the screen.
+    expect(WORKSHOP11.x1 + WORKSHOP11.y1).toBeLessThan(CLEARING11.x + CLEARING11.y);
+    // The brother stalks within the clearing's edge, less a margin; the hut is past that.
+    const corner = Math.hypot(WORKSHOP11.x1 - CLEARING11.x, WORKSHOP11.y1 - CLEARING11.y);
+    expect(corner).toBeGreaterThan(CLEARING11.r - 24);
+    expect(
+      walkable((WORKSHOP11.x0 + WORKSHOP11.x1) / 2, (WORKSHOP11.y0 + WORKSHOP11.y1) / 2, 0),
+    ).toBe(false);
+    expect(walkable(SHOP_DOOR11.x, SHOP_DOOR11.y, 0)).toBe(true);
+    for (const [x, y] of TREES11) expect(byWorkshop11(x, y, 20)).toBe(false);
+  });
+
+  it('makes the brother a heron with two hands, as tough as the Heron in his nest', () => {
+    const b = new Heron(CLEARING11, HERON9_HP);
+    b.hands = true;
+    expect(b.hp).toBe(HERON9_HP);
+    const f = fakeView();
+    for (const s of b.solids(f.v)) s.f();
+    const plain = fakeView();
+    for (const s of new Heron(CLEARING11, HERON9_HP).solids(plain.v)) s.f();
+    expect(f.calls.arc ?? 0).toBeGreaterThan(plain.calls.arc ?? 0);
+  });
+
+  it('makes Caterman a companion with 3 hit points, a blaster that hits for 2 and the longest reach', () => {
+    const c = new Pal('caterman');
+    expect(c.maxHp).toBe(CATERMAN_HP);
+    expect(CATERMAN_HP).toBe(3);
+    expect(POWER.caterman).toBe(2);
+    for (const k of ['cat', 'warrior', 'bones', 'naga', 'baby'] as const)
+      expect(REACH.caterman).toBeGreaterThan(REACH[k]);
+    expect(WEARERS).toContain('caterman');
+    c.come(SHOP_DOOR11.x, SHOP_DOOR11.y);
+    const f = fakeView();
+    c.drawBody(f.v);
+    expect(f.calls.fill ?? 0).toBeGreaterThan(10);
+    c.state = 'away';
+    const a = fakeView();
+    c.drawAboard(a.v, { x: 0, y: 0, h: 0 }, 1);
+    expect(a.calls.fill ?? 0).toBeGreaterThan(10);
   });
 });

@@ -130,6 +130,7 @@ import {
   PALMS11,
   PORTAL11,
   TREES11,
+  WORKSHOP11,
 } from '../world/isle11';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -527,6 +528,8 @@ export const PROPS: readonly Prop[] = [
     CRATES11.y + 15,
     CRATES11.x + CRATES11.y + 10,
   ),
+  // Caterman's workshop, at the back of the Heron's brother's clearing.
+  prop(WORKSHOP11.x0, WORKSHOP11.y0, WORKSHOP11.x1, WORKSHOP11.y1, WORKSHOP11.x1 + WORKSHOP11.y1),
   ...ROCKS6.map((p) => prop(p[0] - 9, p[1] - 7, p[0] + 9, p[1] + 7, p[0] + p[1])),
   ...CHESTS6.map((p) => prop(p[0] - 7, p[1] - 5, p[0] + 7, p[1] + 5, p[0] + p[1], 0, 1.5)),
   // Island 7: the trading post, the tower, the palms, the monkey camp and the portal's two feet.

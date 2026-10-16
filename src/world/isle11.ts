@@ -105,6 +105,44 @@ export const LANDING11 = { x: ISLE11.x, y: PIER11.y1 - 10 } as const;
 /** A stack of crates and a barrel at the pier's root, on the side away from the crow's perch: the catch flies there. */
 export const CRATES11 = { x: ISLE11.x - 42, y: PIER_ROOT - 14 } as const;
 
+/**
+ * The clearing on the left of the screen, the Heron's brother's: trodden grass, open, where he stalks and zaps as his
+ * brother does on a tower roof (the kid's: "the same as the Heron but two hands, and never beaten"). Its middle, and
+ * how far out it is open.
+ */
+const CLEARING_A = 2.65;
+export const CLEARING11 = {
+  x: ISLE11.x + Math.cos(CLEARING_A) * 330,
+  y: ISLE11.y + Math.sin(CLEARING_A) * 330,
+  r: 115,
+} as const;
+/** In the clearing, give or take pad. */
+export function inClearing11(x: number, y: number, pad = 0): boolean {
+  return Math.hypot(x - CLEARING11.x, y - CLEARING11.y) < CLEARING11.r + pad;
+}
+/**
+ * Caterman's workshop, the kid's "technology cat-human": a little metal hut at the clearing's back (up the screen from
+ * it), with a dish on the roof and lights that blink. A box square to the world, and its door, on the side facing the
+ * viewer, where he comes out.
+ */
+const SHOP_AT = { x: CLEARING11.x - 112, y: CLEARING11.y - 112 } as const;
+export const WORKSHOP11 = {
+  x0: SHOP_AT.x - 22,
+  x1: SHOP_AT.x + 22,
+  y0: SHOP_AT.y - 18,
+  y1: SHOP_AT.y + 18,
+} as const;
+export const SHOP_DOOR11 = { x: WORKSHOP11.x1 + 12, y: WORKSHOP11.y1 + 12 } as const;
+/** By the workshop, give or take pad. */
+export function byWorkshop11(x: number, y: number, pad = 0): boolean {
+  return (
+    x > WORKSHOP11.x0 - pad &&
+    x < WORKSHOP11.x1 + pad &&
+    y > WORKSHOP11.y0 - pad &&
+    y < WORKSHOP11.y1 + pad
+  );
+}
+
 /** Where the crow let go from the boat waits for it: on the sand toward home, beside the pier's root. */
 export const PERCH11 = {
   x: ISLE11.x + 26,
@@ -134,6 +172,7 @@ function scatter(
     const x = ISLE11.x + Math.cos(a) * d;
     const y = ISLE11.y + Math.sin(a) * d;
     if (inLagoon11(x, y, 26) || inRuins11(x, y, 22)) continue;
+    if (inClearing11(x, y, 14) || byWorkshop11(x, y, 30)) continue;
     // Keep the way up from where the pier will be, and the crow's perch, open.
     if (Math.abs(x - ISLE11.x) < 54 && y > ISLE11.y + 180) continue;
     if (Math.hypot(x - PERCH11.x, y - PERCH11.y) < 50) continue;

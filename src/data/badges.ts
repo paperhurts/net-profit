@@ -25,6 +25,7 @@ export const WEARERS: readonly Wearer[] = [
   'naga',
   'necro',
   'baby',
+  'caterman',
 ];
 
 export const BADGES: Readonly<Record<BadgeKind, { name: string; price: number; blurb: string }>> = {
