@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { RESOLVE } from '../../src/data/harpoon';
-import { isScanKind, SCAN_KINDS, SCANS } from '../../src/data/scans';
+import {
+  isScanKind,
+  SCAN_EGGS,
+  SCAN_HP,
+  SCAN_KINDS,
+  SCANNER_LEVELS,
+  SCANS,
+  scannerLevel,
+} from '../../src/data/scans';
 import { type Bounds, parseSave, serializeSave } from '../../src/state/save';
 
 describe('the scanner', () => {
@@ -17,6 +25,15 @@ describe('the scanner', () => {
 
   it('scans every beast the harpoon can aim at', () => {
     for (const k of Object.keys(RESOLVE)) expect(isScanKind(k)).toBe(true);
+  });
+
+  it('gets better as more kinds are scanned: further at 5, eggs at 10, hit points at 18', () => {
+    expect([0, 4, 5, 9, 10, 17, 18, 36].map(scannerLevel)).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
+    expect(SCANNER_LEVELS[SCAN_EGGS - 1]?.said).toMatch(/eggs/);
+    expect(SCANNER_LEVELS[SCAN_HP - 1]?.said).toMatch(/hit points/);
+    // Every level is reachable: there are more kinds to scan than the last level asks for.
+    expect(SCAN_KINDS.length).toBeGreaterThan(SCANNER_LEVELS[SCANNER_LEVELS.length - 1]?.at ?? 0);
+    expect(SCANS.egg.beat).toMatch(/hatch/);
   });
 
   it('says what the kid said they are afraid of: Star bigger stuff, the Reaper honey', () => {

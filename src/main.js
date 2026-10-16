@@ -66,7 +66,7 @@ import { Sunken } from './entities/sunken';
 import { isNewVersion } from './state/update';
 import { gameCode, gameLink, gameSummary, looksLikeSave, packGame, unpackGame } from './state/share';
 import { CLOUD_EVERY, getGame, makeCode, putGame, readCode } from './state/cloud';
-import { isScanKind, SCAN_SEA, SCAN_TIME, SCANS } from './data/scans';
+import { isScanKind, SCAN_EGGS, SCAN_HP, SCAN_REACH, SCAN_SEA, SCAN_SEA_FAR, SCAN_TIME, SCANNER_LEVELS, scannerLevel, SCANS } from './data/scans';
 import { skipTo, STEPS, stepsDone, TESTER_KEY, testerFromHash } from './ui/tester';
 import { SeaMap } from './render/seamap';
 import { Tank, TANK_W, tankKinds } from './render/tank';
@@ -214,7 +214,7 @@ let savedTrip = null, saveOff = false, updateReady = false; // saveOff: another 
 { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
   const s = parseSave(raw, SAVE_BOUNDS);
   coins = s.coins; earned = s.earned; muted = s.muted; lv.net = s.lv.net; lv.hold = s.lv.hold; lv.engine = s.lv.engine;
-  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; isle5Stage = s.isle5Stage; isle6Seen = s.isle6Seen; chests6 = s.chests6; isle6Stage = s.isle6Stage; isle7Seen = s.isle7Seen; soulArmour = s.soulArmour; isle7Stage = s.isle7Stage; flag = s.flag; gulperSeen = s.gulperSeen; meteorSeen = s.meteorSeen; reaperSeen = s.reaperSeen; reaperLandSeen = s.reaperLandSeen; reaperRematch = s.reaperRematch; oldOwed = s.oldOwed; snacks = s.snacks; bugSpray = s.bugSpray; pelicanBeaten = s.pelicanBeaten; bread = s.bread; feederFull = s.feederFull; crowsOwned = s.crows; finder = s.finder; sunkenDay = s.sunkenDay; sunkenFound = s.sunkenFound; badges = s.badges; sub = s.sub; subFound = s.subFound; reaperEgg = s.reaperEgg; eggDay = s.eggDay; crew = s.crew; junk = s.junk; muffins = s.muffins; leggy.count = s.leggy; iceSeen = s.iceSeen; iceRuns = s.iceRuns; lionSeen = s.lionSeen; lionCaught = s.lionCaught; aquarium = s.aquarium; bases = s.bases; pots = s.pots; trenchSeen = s.trenchSeen; trenchDeep = s.trenchDeep; trenchLoot = s.trenchLoot; iceLoot = s.iceLoot; pearlDay = s.pearlDay; wreckChest = s.wreckChest; stormSeen = s.stormSeen; lurkerSeen = s.lurkerSeen; lurkerStung = s.lurkerStung; charter = s.charter; chartersRun = s.chartersRun; nagaFree = s.nagaFree; isle8Seen = s.isle8Seen; isle10Seen = s.isle10Seen; isle11Seen = s.isle11Seen; catermanFree = s.catermanFree; skullKey = s.skullKey; cryptWon = s.cryptWon; castleHQ = s.castleHQ; scanner = s.scanner; scanned = s.scanned; saveCode = s.saveCode || newCode(); codeTold = s.codeTold; barge = s.barge; bargeWins = s.bargeWins; heronStage = s.heronStage; heronFled = s.heronFled; charLook = s.look; otterFed0 = s.otterFed; neilFed0 = s.neilFed; radioDay = s.radioDay; nagaCage = nagaFree ? 1 : 0; spear = s.spear; armour = s.armour; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; sailed.set(decodeSailed(s.sailed)); }
+  paint = s.paint; levSeen = s.levSeen; whaleSeen = s.whaleSeen; mantaSeen = s.mantaSeen; cthuluSeen = s.cthuluSeen; anglerSeen = s.anglerSeen; petted = s.petted; isle2Seen = s.isle2Seen; isle3Seen = s.isle3Seen; isle3Stage = s.isle3Stage; isle4Stage = s.isle4Stage; isle5Seen = s.isle5Seen; isle5Stage = s.isle5Stage; isle6Seen = s.isle6Seen; chests6 = s.chests6; isle6Stage = s.isle6Stage; isle7Seen = s.isle7Seen; soulArmour = s.soulArmour; isle7Stage = s.isle7Stage; flag = s.flag; gulperSeen = s.gulperSeen; meteorSeen = s.meteorSeen; reaperSeen = s.reaperSeen; reaperLandSeen = s.reaperLandSeen; reaperRematch = s.reaperRematch; oldOwed = s.oldOwed; snacks = s.snacks; bugSpray = s.bugSpray; pelicanBeaten = s.pelicanBeaten; bread = s.bread; feederFull = s.feederFull; crowsOwned = s.crows; finder = s.finder; sunkenDay = s.sunkenDay; sunkenFound = s.sunkenFound; badges = s.badges; sub = s.sub; subFound = s.subFound; reaperEgg = s.reaperEgg; eggDay = s.eggDay; crew = s.crew; junk = s.junk; muffins = s.muffins; leggy.count = s.leggy; iceSeen = s.iceSeen; iceRuns = s.iceRuns; lionSeen = s.lionSeen; lionCaught = s.lionCaught; aquarium = s.aquarium; bases = s.bases; pots = s.pots; trenchSeen = s.trenchSeen; trenchDeep = s.trenchDeep; trenchLoot = s.trenchLoot; iceLoot = s.iceLoot; pearlDay = s.pearlDay; wreckChest = s.wreckChest; stormSeen = s.stormSeen; lurkerSeen = s.lurkerSeen; lurkerStung = s.lurkerStung; charter = s.charter; chartersRun = s.chartersRun; nagaFree = s.nagaFree; isle8Seen = s.isle8Seen; isle10Seen = s.isle10Seen; isle11Seen = s.isle11Seen; catermanFree = s.catermanFree; skullKey = s.skullKey; cryptWon = s.cryptWon; castleHQ = s.castleHQ; scanner = s.scanner ? Math.max(s.scanner, scannerLevel(s.scanned.length)) : 0; scanned = s.scanned; saveCode = s.saveCode || newCode(); codeTold = s.codeTold; barge = s.barge; bargeWins = s.bargeWins; heronStage = s.heronStage; heronFled = s.heronFled; charLook = s.look; otterFed0 = s.otterFed; neilFed0 = s.neilFed; radioDay = s.radioDay; nagaCage = nagaFree ? 1 : 0; spear = s.spear; armour = s.armour; masks = s.masks; towerTaken = s.towerTaken; turtleSeen = s.turtleSeen; turtleSwims = s.turtleSwims; Object.assign(gear, s.gear); Object.assign(driven, s.driven); Object.assign(snook, s.snook); wood = s.wood; build = s.build; s.log.forEach((n,i) => { log[i] = n; }); order = s.order; market = s.market; day = s.day; s.first.forEach((n,i) => { first[i] = n; }); savedTrip = s.trip; keyMode = s.keys; sailed.set(decodeSailed(s.sailed)); }
 setMuted(muted);
 // A save from before the sea map: open the water such a player must know, round home and each island found.
 if (earned > 0 && sailedCount(sailed) === 0) seedSailed(sailed, [[isle2Seen, ISLE2], [isle3Seen, ISLE3], [isle3Stage >= 4, ISLE4], [isle5Seen, ISLE5], [isle6Seen, ISLE6], [isle7Seen, ISLE7], [isle10Seen, ISLE10], [isle11Seen, ISLE11], [isle8Seen, ISLE8], [isle8Seen, ISLE9]].filter(([f]) => f).map(([, i]) => i));
@@ -1030,7 +1030,7 @@ function stabFlash(to, tz){ for (let k = 0; k < 7; k++){ const a = -0.9 + k*0.3;
 let reloadAt = 0;
 // With the survival knife, as far as the spear or the knife reaches, whichever is further.
 function weaponRange(){ return Math.max(spearAt(spear)?.range ?? 0, hasKnife(armour) ? KNIFE.range : 0); }
-function spearTarget(){ const sp = {range: weaponRange()}; if (walker.state !== 'ashore' || !sp.range) return null;
+function spearTarget(range = weaponRange()){ const sp = {range}; if (walker.state !== 'ashore' || !sp.range) return null;
   if (floor === TEMPLE6){ const k = cth.nearestTent(walker.x, walker.y, sp.range); if (k) return k;
     return cth.up && Math.hypot(cth.x - walker.x, cth.y - walker.y) <= sp.range ? cth : null; }
   if (floor === HALL || floor === DEMON){ let best = null, bd = sp.range;
@@ -1767,7 +1767,7 @@ function drawEggAboard(){ const p = eggSeat(), sx = px(p.x, p.y), sy = py(p.x, p
   ctx.strokeStyle = '#C9A46A'; ctx.lineWidth = 1.6*Z; for (const q of [6, 4.5]){ ctx.beginPath(); ctx.ellipse(sx, sy, q*Z, q*.5*Z, 0, 0, Math.PI*2); ctx.stroke(); }
   // In its scene it is drawn a little bigger again, so the shaking and the cracks read on a phone.
   const s = .55*Z*(1 + r.swell)*(t === null ? 1 : 1 + .35*cineK());
-  if (t === null || t < POP_T){ drawReaperEgg(ctx, sx, sy + 1*Z - r.hop*2.5*Z, s, r.wob, r.crack); return; }
+  if (t === null || t < POP_T){ eggGlow(sx, sy - 4*Z, 18*Z); drawReaperEgg(ctx, sx, sy + 1*Z - r.hop*2.5*Z, s, r.wob, r.crack); return; }
   // Out: the bottom of his shell in the coil of rope, and him in it, looking about, a tiny roar as he comes out.
   ctx.save(); ctx.beginPath(); ctx.rect(sx - 40*Z, sy - 1.3*8.4*s + 1*Z, 80*Z, 40*Z); ctx.clip(); drawReaperEgg(ctx, sx, sy + 1*Z, s, 0, 1); ctx.restore();
   const u = t - POP_T, look = Math.sin(u*2.2)*.5 > 0 ? -1 : 1;
@@ -1807,7 +1807,7 @@ function tapBaby(){ audio(); if (baby.shown && Math.hypot(walker.x - baby.x, wal
 baby.onSplash = (x, y) => { for (let k=0;k<6;k++) sparks.push({x, y, vx:(Math.random()-.5)*50, vy:(Math.random()-.5)*50, z:2, vz:30+Math.random()*30, age:0, life:.5, c:'#E8F6FF'}); };
 function drawNestHere(){ drawReaperNest(drawView, NEST6.x, NEST6.y, NEST6.r);
   if (reaperEgg < 2){ const sx = px(NEST6.x, NEST6.y), sy = py(NEST6.x, NEST6.y, 3);
-    drawReaperEgg(ctx, sx, sy, .78*Z, landReaper.state === 'sleep' && T % 7 < .5 ? Math.sin(T*30)*.1 : 0);
+    eggGlow(sx, sy - 6*Z, 22*Z); drawReaperEgg(ctx, sx, sy, .78*Z, landReaper.state === 'sleep' && T % 7 < .5 ? Math.sin(T*30)*.1 : 0);
     // It sparkles a little, so it is found.
     const tw = (Math.sin(T*3) + 1)/2; ctx.fillStyle = `rgba(255,248,210,${.35 + tw*.5})`; star(sx + 6*Z, sy - 11*Z, (1.5 + tw*1.6)*Z); } }
 function puff(x, y){ for (let i=0;i<16;i++) sparks.push({x, y, vx:(Math.random()-.5)*90, vy:(Math.random()-.5)*90, z:14, vz:30+Math.random()*40, age:0, life:.8+Math.random()*.5, c:'#B98AFF'}); }
@@ -3430,16 +3430,32 @@ function scanKindOf(t){ if (!t) return null; const has = (c) => !!c && Array.isA
   return null; }
 // What the scanner would scan now, if anything: the nearest beast in reach of the boat, or what the spear would aim at.
 function scanTarget(){ if (scanner < 1 || !started || scanning || cine || fgScene || oldScene || mapOpen || wrapped()) return null;
-  if (walker.aboard){ if (docked || swallowT > 0) return null; let best = null, bd = SCAN_SEA;
-    for (const [k, , m] of beasts()){ if (!m || !isScanKind(k)) continue; const d = Math.hypot(m.x - boat.x, m.y - boat.y); if (d < bd){ bd = d; best = {kind: k, x: m.x, y: m.y, z: BEAST_Z[k]}; } }
-    return best; }
+  const far = scanner >= 2, egg = eggToScan();
+  if (walker.aboard){ if (docked || swallowT > 0) return null; let best = null, bd = far ? SCAN_SEA_FAR : SCAN_SEA;
+    for (const [k, e, m] of beasts()){ if (!m || !isScanKind(k)) continue; const d = Math.hypot(m.x - boat.x, m.y - boat.y); if (d < bd){ bd = d; best = {kind: k, x: m.x, y: m.y, z: BEAST_Z[k], obj: e}; } }
+    return best || (egg && reaperEgg === 2 ? {kind: 'egg', ...eggSeat()} : null); }
   if (walker.state !== 'ashore') return null;
-  const t = spearTarget(), kind = scanKindOf(t); return kind ? {kind, x: t.x, y: t.y, z: 18} : null; }
+  const reach = weaponRange()*(far ? SCAN_REACH : 1), t = spearTarget(reach), kind = scanKindOf(t);
+  if (kind) return {kind, x: t.x, y: t.y, z: 18, obj: t};
+  return egg && reaperEgg < 2 && walker.dock === ISLE6_DOCK && floor < 0 && Math.hypot(walker.x - NEST6.x, walker.y - NEST6.y) <= Math.max(reach, 90) ? {kind: 'egg', x: NEST6.x, y: NEST6.y, z: 6} : null; }
+// The Reaper's egg, to scan once the scanner scans eggs, until it has: it glows blue till then.
+function eggToScan(){ return scanner >= SCAN_EGGS && reaperEgg < 3 && !scanned.includes('egg'); }
+// Blue, not light: over the white cabin a lighter glow only goes white. A ring pulses out from it, so it reads small.
+function eggGlow(sx, sy, r){ if (!eggToScan()) return; ctx.save();
+  const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r), a = .5 + Math.sin(T*3)*.15;
+  g.addColorStop(0, `rgba(40,170,255,${a})`); g.addColorStop(.6, `rgba(40,170,255,${a*.45})`); g.addColorStop(1, 'rgba(40,170,255,0)'); ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI*2); ctx.fill();
+  const k = (T*.8) % 1; ctx.strokeStyle = `rgba(127,224,255,${.9*(1 - k)})`; ctx.lineWidth = 2*Z;
+  ctx.beginPath(); ctx.ellipse(sx, sy, r*(.5 + k*.7), r*(.5 + k*.7)*.6, 0, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }
 function startScan(){ audio(); const s = scanTarget(); if (!s) return; scanning = {...s, t: 0}; sfx.zap(); }
 function updateScan(dt){ if (scanOutT > 0){ scanOutT -= dt; if (scanOutT <= 0) hideScan(); }
-  if (!scanning) return; scanning.t += dt; if (scanning.t >= SCAN_TIME){ const k = scanning.kind; scanning = null; showScan(k); } }
-function showScan(kind){ const sc = SCANS[kind], fresh = !scanned.includes(kind);
-  if (fresh){ scanned.push(kind); save(); }
+  if (!scanning) return; scanning.t += dt; if (scanning.t >= SCAN_TIME){ const k = scanning.kind, o = scanning.obj; scanning = null; showScan(k, o); } }
+function showScan(kind, obj){ const sc = SCANS[kind], fresh = !scanned.includes(kind), was = scanner;
+  if (fresh){ scanned.push(kind); scanner = Math.max(scanner, scannerLevel(scanned.length)); save(); }
+  // A better scanner shows how much fight is left in it: the harpoon's hits at sea, hit points on foot.
+  const hp = was >= SCAN_HP && obj ? (typeof obj.resolve === 'number' ? ['Hits left', obj.resolve] : typeof obj.hp === 'number' ? ['Hit points', Math.ceil(obj.hp)] : null) : null;
+  $('scanHpP').hidden = !hp; if (hp){ $('scanHpL').textContent = hp[0]; $('scanHp').textContent = String(Math.max(0, hp[1])); }
+  $('scanUp').hidden = scanner === was; if (scanner !== was) $('scanUp').textContent = SCANNER_LEVELS[scanner - 1]?.said ?? '';
   $('scanName').textContent = sc.name; $('scanBeat').textContent = sc.beat;
   $('scanWeakP').hidden = !sc.weak; $('scanWeak').textContent = sc.weak || '';
   $('scanCount').textContent = `${fresh ? 'New! ' : ''}${scanned.length} kind${scanned.length === 1 ? '' : 's'} of creature scanned.`;

@@ -43,6 +43,7 @@ export const SCAN_KINDS = [
   'forgotten',
   'oldone',
   'brother',
+  'egg',
 ] as const;
 export type ScanKind = (typeof SCAN_KINDS)[number];
 
@@ -62,6 +63,28 @@ export const isScanKind = (k: unknown): k is ScanKind =>
 export const SCAN_TIME = 0.9;
 /** How far the scanner reaches from the boat. On foot it reaches as far as the spear. */
 export const SCAN_SEA = 260;
+
+/**
+ * What a better scanner does, the kid's ("all": further, eggs, hit points): by how many kinds it has scanned. At 5 it
+ * reaches further, at 10 it scans eggs (which glow blue until it has), at 18 it shows how much fight is left in what it
+ * scans. What it says, the time it gets better.
+ */
+export const SCANNER_LEVELS: readonly { at: number; said: string }[] = [
+  { at: 0, said: '' },
+  { at: 5, said: 'Your scanner got better: it reaches further now!' },
+  { at: 10, said: 'Your scanner got better: it can scan eggs now. They glow blue.' },
+  { at: 18, said: 'Your scanner got better: it shows hit points now!' },
+];
+/** The scanner's level for so many kinds scanned, from 1. */
+export function scannerLevel(kinds: number): number {
+  return SCANNER_LEVELS.filter((l) => kinds >= l.at).length;
+}
+/** Reaching further: on foot, this many times as far as the spear; at sea, this far from the boat. */
+export const SCAN_REACH = 1.5;
+export const SCAN_SEA_FAR = 420;
+/** It scans eggs from this level, and shows hit points from this one. */
+export const SCAN_EGGS = 3;
+export const SCAN_HP = 4;
 
 /** What the scanner says of each: what the game does, the warning to watch for, when it can be hit, and with what. */
 export const SCANS: Record<ScanKind, Scan> = {
@@ -225,6 +248,10 @@ export const SCANS: Record<ScanKind, Scan> = {
     name: 'The Old One',
     beat: 'Fifty hits, from the shore. His hand rises over a green ring where you stand: step out before it slams. He calls lagoon creatures five at a time: beat the close ones first.',
     weak: "Tar cancels a slam he's about to bring down.",
+  },
+  egg: {
+    name: "The Reaper's egg",
+    beat: 'Not one to beat: one to keep! Carry it aboard from its nest, and at the next dawn it hatches into a baby Reaper of your own.',
   },
   brother: {
     name: "The Heron's brother",
