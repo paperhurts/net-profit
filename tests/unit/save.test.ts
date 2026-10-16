@@ -847,6 +847,20 @@ describe('islands 8 and 9', () => {
     s.cryptWon = true;
     expect(parseSave(serializeSave(s), bounds).cryptWon).toBe(true);
   });
+
+  it('read Gigantis as not yet yours, and no scanner, in an old save, and keep both once given', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.castleHQ).toBe(false);
+    expect(s.scanner).toBe(0);
+    s.castleHQ = true;
+    s.scanner = 1;
+    const t = parseSave(serializeSave(s), bounds);
+    expect(t.castleHQ).toBe(true);
+    expect(t.scanner).toBe(1);
+    expect(
+      parseSave(JSON.stringify({ ...JSON.parse(serializeSave(s)), scanner: -2 }), bounds).scanner,
+    ).toBe(0);
+  });
 });
 
 describe("island 10's spider and pelican", () => {

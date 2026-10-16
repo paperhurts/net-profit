@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { World } from '../../src/entities/entity';
-import { FORGOTTEN_HP, Forgotten, KNEEL } from '../../src/entities/forgotten';
+import { FORGOTTEN_HP, Forgotten, GUIDE, KNEEL } from '../../src/entities/forgotten';
 import { walkable } from '../../src/entities/walker';
 import {
   CASTLE_SPAWNS,
@@ -112,6 +112,50 @@ describe('the Forgotten One again', () => {
     expect(b.state).toBe('yield');
     b.update(DT, w);
     expect(said).toBe(1);
+  });
+
+  it('yielded, gets up and walks with the figure: not to be fought, no skulls or ray, at his own pace', () => {
+    const b = new Forgotten(crypt, CRYPT_FORGOTTEN, 9);
+    b.kneel();
+    const w: World = baseWorld({ figure: at(60, 60) });
+    const goal = { x: b.x + 120, y: b.y };
+    b.guide(goal.x, goal.y);
+    expect(b.state).toBe('guide');
+    expect(b.up).toBe(false);
+    // Up off his knees first.
+    for (let i = 0; i < (KNEEL - 0.1) / DT; i++) b.update(DT, w);
+    expect(b.x).toBeCloseTo(CRYPT_FORGOTTEN.x);
+    const x0 = b.x;
+    for (let i = 0; i < 1 / DT; i++) b.update(DT, w);
+    expect(b.moving).toBe(true);
+    expect(b.x - x0).toBeGreaterThan(GUIDE * 0.8);
+    expect(b.x - x0).toBeLessThan(GUIDE * 1.2);
+    // There, he stops; never once a skull or the ray, the figure right by him all the while.
+    for (let i = 0; i < 4 / DT; i++) b.update(DT, w);
+    expect([b.x, b.y]).toEqual([goal.x, goal.y]);
+    expect(b.moving).toBe(false);
+    expect(b.skulls).toHaveLength(0);
+    expect(b.state).toBe('guide');
+    b.hit(5);
+    expect(b.state).toBe('guide');
+    // He runs, when he runs at the Old One, and can be anywhere: outside his crypt too.
+    const far = { x: crypt.x + crypt.r * 3, y: crypt.y };
+    b.guide(far.x, far.y, GUIDE * 4);
+    for (let i = 0; i < 1 / DT; i++) b.update(DT, w);
+    expect(Math.hypot(b.x - goal.x, b.y - goal.y)).toBeGreaterThan(GUIDE * 3.5);
+    b.beaten();
+    expect(b.state).toBe('gone');
+  });
+
+  it('draws walking with the figure, and running', () => {
+    const f = fakeView();
+    const b = new Forgotten(crypt, CRYPT_FORGOTTEN, 9);
+    b.guide(b.x + 50, b.y);
+    b.update(DT, baseWorld({ figure: at(60, 60) }));
+    b.drawBody(f.v);
+    b.guide(b.x + 50, b.y, GUIDE * 4);
+    b.drawBody(f.v);
+    expect(f.calls.stroke ?? 0).toBeGreaterThan(6);
   });
 
   it('draws kneeling, his sword point down', () => {
