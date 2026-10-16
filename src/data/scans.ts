@@ -2,8 +2,8 @@
  * The portable scanner, the kid's (the Forgotten One's gift, island 11): point it at a creature and it tells you how to
  * beat it, and what it is afraid of. "Yes, and tells weakness of it, like Star: he is afraid of bigger stuff, or the
  * Reaper: afraid of honey." What it says of each, here, is what the game does: the warning to watch for, when it can be
- * hit, and with what. The two weaknesses the kid gave are his, ahead of the game (asked: where honey comes from, and
- * what bigger stuff Star fears).
+ * hit, and with what. The two weaknesses the kid gave are his: honey is in the game (data/snacks.ts HONEY); Star's
+ * fear of bigger stuff is still ahead of it.
  */
 
 /** Everything the scanner knows: the sea's beasts by the harpoon's names for them, then those met on foot. */
@@ -116,7 +116,7 @@ export const SCANS: Record<ScanKind, Scan> = {
   reaper: {
     name: 'The Reaper',
     beat: 'Faster than any boat. A red fan on the water means his tail is coming: turn hard out of it. After a sweep he rears up roaring, the only time the harpoon reaches him. Five hits.',
-    weak: 'Afraid of honey.',
+    weak: 'Afraid of honey: hold up a jar and he runs off. The old man sells it, and the forest bees make it.',
   },
   king: {
     name: 'The Skeleton Shark King',
@@ -207,7 +207,7 @@ export const SCANS: Record<ScanKind, Scan> = {
   reaperland: {
     name: 'The Reaper on land',
     beat: "Thirty hits. A red fan on the sand means his tail: step out. A red line from his snout means he'll charge: step off it. After either he rears up, the only time a spear gets past his scales.",
-    weak: 'Afraid of honey.',
+    weak: 'Afraid of honey: hold up a jar and he runs off. The old man sells it, and the forest bees make it.',
   },
   skeleton: {
     name: 'A skeleton',

@@ -21,6 +21,7 @@ import {
   REACH,
   Reaper,
   ROUTE,
+  SHY_T,
   SPAN,
   SWEEP_HIT,
   SWEEP_T,
@@ -214,6 +215,33 @@ describe('the Reaper', () => {
     run(r, w, AWAY + 1);
     expect(r.state).toBe('roam');
     expect(r.resolve).toBe(RESOLVE.reaper);
+  });
+
+  it('stops dead at a jar of honey and shakes the boat, then is off and away with no harm done, and back whole', () => {
+    const r = new Reaper();
+    const w = near(300);
+    // Roaming, not after the boat: nothing to scare.
+    expect(r.scare()).toBe(false);
+    run(r, w, 0.2);
+    expect(r.hunting).toBe(true);
+    let swept = 0;
+    r.onSweep = () => swept++;
+    expect(r.scare()).toBe(true);
+    expect([r.state, r.fled, r.fan]).toEqual(['shy', true, null]);
+    expect(r.scare()).toBe(false);
+    const at = { x: r.x, y: r.y };
+    run(r, w, SHY_T - 0.1);
+    expect(r.state).toBe('shy');
+    expect(Math.hypot(r.x - at.x, r.y - at.y)).toBeLessThan(20);
+    run(r, w, 0.2);
+    expect(r.state).toBe('away');
+    expect(r.hunting).toBe(false);
+    // Off away from the boat, fast.
+    const d0 = Math.hypot(r.x - w.boat.x, r.y - w.boat.y);
+    run(r, w, 2);
+    expect(Math.hypot(r.x - w.boat.x, r.y - w.boat.y)).toBeGreaterThan(d0 + 300);
+    run(r, w, AWAY);
+    expect([r.state, r.fled, r.resolve, swept]).toEqual(['roam', false, RESOLVE.reaper, 0]);
   });
 
   it('sweeps twice, there and back, when he is angry, with the warnings shorter', () => {

@@ -107,7 +107,19 @@ export const SINK_T = 0.6;
 /** His length, head to tail. */
 export const REAPER_LEN = 240;
 
-export type ReaperState = 'roam' | 'stalk' | 'coil' | 'sweep' | 'lunge' | 'rear' | 'sink' | 'away';
+/** Stopped dead by a jar of honey, shaking the boat, this long before he runs. */
+export const SHY_T = 1.6;
+
+export type ReaperState =
+  | 'roam'
+  | 'stalk'
+  | 'coil'
+  | 'sweep'
+  | 'lunge'
+  | 'rear'
+  | 'sink'
+  | 'shy'
+  | 'away';
 
 /** The fan his tail will sweep: from his head, the tail's angle from a0 round to a1. */
 export type Fan = { x: number; y: number; a0: number; a1: number };
@@ -127,6 +139,8 @@ export class Reaper implements Entity {
   fan: Fan | null = null;
   /** The way along his loop he is heading. */
   leg = 0;
+  /** Off and away from a jar of honey, not a harpoon: the game splashes after him, and gives no prize. */
+  fled = false;
   /** Where he found the boat, which the leash is from. */
   private from = { x: 0, y: 0 };
   private calm = 0;
@@ -195,12 +209,26 @@ export class Reaper implements Entity {
     return true;
   }
 
+  /**
+   * A jar of honey held up at him, the kid's: "he stops and shakes your boat and runs splashing". Only while he is after
+   * the boat. He stops dead, shakes it for SHY_T, then is off and away as if driven off, but with no prize, and back to
+   * roaming after the same while. Returns whether it took.
+   */
+  scare(): boolean {
+    if (!this.hunting || this.state === 'shy') return false;
+    this.fan = null;
+    this.fled = true;
+    this.go('shy');
+    return true;
+  }
+
   private go(s: ReaperState): void {
     this.state = s;
     this.t = 0;
   }
 
   private giveUp(whole: boolean): void {
+    this.fled = false;
     if (whole) this.resolve = RESOLVE.reaper;
     this.fan = null;
     this.calm = CALM;
@@ -244,6 +272,13 @@ export class Reaper implements Entity {
         this.go('stalk');
         this.onHunt?.();
       }
+      this.keepOff();
+      return;
+    }
+    if (this.state === 'shy') {
+      // Stopped dead, up out of the water, staring at the honey; the game shakes the boat.
+      this.up += (0.6 - this.up) * Math.min(1, dt * 3);
+      if (this.t >= SHY_T) this.go('away');
       this.keepOff();
       return;
     }
@@ -482,7 +517,7 @@ export class Reaper implements Entity {
     }
     if (!v.onScreen(this.x, this.y, 400 * v.zoom)) return;
     const s = this.state;
-    const out = s === 'sweep' || s === 'rear';
+    const out = s === 'sweep' || s === 'rear' || s === 'shy';
     if (layer === 'surface') {
       if (this.fan)
         drawFan(
@@ -521,6 +556,13 @@ export class Reaper implements Entity {
       );
     else if (s === 'sweep')
       drawReaperBody(v, this.x, this.y, 4, this.h, 0, { ...o, mouth: 0.8, legs: 'swim' });
+    // Stopped dead by the honey: up at the surface, jaw shut, shaking all over.
+    else if (s === 'shy')
+      drawReaperBody(v, this.x + Math.sin(this.t * 38) * 3, this.y, 6, this.h, 0, {
+        ...o,
+        mouth: 0.1,
+        legs: 'swim',
+      });
     else drawReaperFin(v, this.x, this.y, this.h, this.up / 0.3, this.angry, v.T, REAPER_LEN);
   }
 

@@ -4,6 +4,7 @@ import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { JUNK_MAX } from '../../src/data/junk';
 import { SKIPPER } from '../../src/data/look';
+import { HONEY_MAX } from '../../src/data/snacks';
 import { SPEAR_MAX } from '../../src/data/spear';
 import { LEGGY_MAX } from '../../src/entities/leggy';
 import {
@@ -874,6 +875,20 @@ describe("island 10's spider and pelican", () => {
     expect([back.bugSpray, back.pelicanBeaten, back.bread]).toEqual([12, true, 1]);
     const silly = parseSave(JSON.stringify({ ...s, bugSpray: 500, bread: -2 }), bounds);
     expect([silly.bugSpray, silly.bread]).toEqual([30, 0]);
+  });
+});
+
+describe('honey for the Reapers', () => {
+  it('an old save has none and the hive never visited; they keep, the jars within the bag', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.honey, s.hiveDay]).toEqual([0, 0]);
+    s.honey = 3;
+    s.hiveDay = 12;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.honey, back.hiveDay]).toEqual([3, 12]);
+    const silly = parseSave(JSON.stringify({ ...s, honey: 99, hiveDay: -4 }), bounds);
+    expect([silly.honey, silly.hiveDay]).toEqual([HONEY_MAX, 0]);
+    expect(parseSave(JSON.stringify({ ...s, honey: 'lots' }), bounds).honey).toBe(0);
   });
 });
 

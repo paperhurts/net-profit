@@ -204,6 +204,26 @@ export const WEB10: { a: Point; b: Point; x: number; y: number; z: number; r: nu
   return { a, b, x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, z: 24, r: gap / 2 - 4 };
 })();
 
+/**
+ * The forest's beehive, the owner's (2026-10-16): honey for the Reapers, a jar a day. It hangs under the canopy of the
+ * forest's oak nearest the island's middle, at the forest's edge by the meadow, so it is found from the tower and is
+ * clear of the gorillas deeper in. Forest trees are oaks but every third (drawn as pines). Its tree, and the hive hung
+ * a little in front of the trunk (toward the viewer) at the canopy's underside.
+ */
+export const HIVE10: { tree: Point; i: number; x: number; y: number; z: number } = (() => {
+  let i = 0;
+  let bd = Number.POSITIVE_INFINITY;
+  TREES10.forEach(([x, y], k) => {
+    const d = Math.hypot(x - ISLE10.x, y - ISLE10.y);
+    if (k % 3 !== 1 && d < bd) {
+      bd = d;
+      i = k;
+    }
+  });
+  const tree = TREES10[i] as Point;
+  return { tree, i, x: tree[0] + 7, y: tree[1] + 7, z: 22 + (i % 4) * 4 };
+})();
+
 /** A few lone trees and rocks out on the prairie. */
 export const OAKS10: readonly Point[] = scatter(1027, 5, 150, 'prairie');
 export const ROCKS10: readonly Point[] = scatter(1031, 7, 110, 'prairie', OAKS10);

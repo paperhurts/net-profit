@@ -96,6 +96,9 @@ export const FLEE_T = 1.6;
 /** Back to his nest, at this pace. */
 export const HOME_SPEED = 110;
 
+/** Stopped dead by a jar of honey, shaking, this long before he runs for the sea. */
+export const SHY_T = 1.4;
+
 export type LandReaperState =
   | 'sleep'
   | 'rise'
@@ -110,6 +113,9 @@ export type LandReaperState =
   | 'home'
   | 'beaten'
   | 'flee'
+  | 'shy'
+  | 'run'
+  | 'away'
   | 'gone';
 
 /** The line of a charge: from where he crouched, along to where he will stop. */
@@ -296,8 +302,25 @@ export class LandReaper implements Entity {
       this.state !== 'home' &&
       this.state !== 'beaten' &&
       this.state !== 'flee' &&
+      this.state !== 'shy' &&
+      this.state !== 'run' &&
+      this.state !== 'away' &&
       this.state !== 'gone'
     );
+  }
+
+  /**
+   * A jar of honey held up at him, the kid's (the Reaper is afraid of it): only while he is after the figure. He stops
+   * dead and shakes all over for SHY_T, then runs splashing into the sea, and stays away until the figure leaves his
+   * ground, when he is back asleep by his nest, whole. It is not a win: no egg for it. Returns whether it took.
+   */
+  scare(): boolean {
+    if (!this.awake) return false;
+    this.fan = null;
+    this.dash = null;
+    this.stunT = 0;
+    this.go('shy');
+    return true;
   }
 
   /** Reared up: the only time a spear gets past his scales. */
@@ -391,6 +414,21 @@ export class LandReaper implements Entity {
       }
       return;
     }
+    if (this.state === 'shy') {
+      this.up = Math.max(0, this.up - dt * 3);
+      this.ease(dt);
+      if (this.t >= SHY_T) this.go('run');
+      return;
+    }
+    if (this.state === 'run') {
+      // As he flees when beaten: down the sand, into the water, splashing, and away under it.
+      const a = this.lair.seaward(this.x, this.y);
+      this.walk(this.x + Math.cos(a) * 200, this.y + Math.sin(a) * 200, FLEE_SPEED, dt, false);
+      if (!this.inSea) this.wet = this.t;
+      this.ease(dt);
+      if (this.t - this.wet >= FLEE_T || this.t >= 12) this.go('away');
+      return;
+    }
     if (this.state === 'flee') {
       // Off down the sand to the nearest water, into the sea, and away under it.
       const a = this.lair.seaward(this.x, this.y);
@@ -411,6 +449,7 @@ export class LandReaper implements Entity {
       this.reset();
       return;
     }
+    if (this.state === 'away') return;
     if (this.state === 'sleep') {
       if (fromNest < L.wake) {
         this.go('rise');
@@ -687,7 +726,7 @@ export class LandReaper implements Entity {
 
   /** The fan or the line on the sand, and his shadow. */
   draw(v: DrawView, layer: Layer): void {
-    if (layer !== 'surface' || this.state === 'gone') return;
+    if (layer !== 'surface' || this.state === 'gone' || this.state === 'away') return;
     if (!v.onScreen(this.x, this.y, 300 * v.zoom)) return;
     const { ctx } = v;
     if (this.fan)
@@ -711,9 +750,9 @@ export class LandReaper implements Entity {
     }
   }
 
-  /** Gone down the sand into the water, fleeing. */
+  /** Gone down the sand into the water, fleeing or running from honey. */
   private get inSea(): boolean {
-    if (this.state !== 'flee') return false;
+    if (this.state !== 'flee' && this.state !== 'run') return false;
     return this.lair.inSea(this.x, this.y);
   }
 
@@ -740,14 +779,15 @@ export class LandReaper implements Entity {
 
   /** Him, for the game's sorted solids: asleep, getting up, prowling, sweeping, charging, reared up, or going. */
   drawBody(v: DrawView): void {
-    if (this.state === 'gone' || !v.onScreen(this.x, this.y, 260 * v.zoom)) return;
+    if (this.state === 'gone' || this.state === 'away' || !v.onScreen(this.x, this.y, 260 * v.zoom))
+      return;
     const s = this.state;
     const size = LAND_LEN / 240;
     // Standing, his middle is this high off the sand, so his feet are on it.
     const stand = 50 * size;
     const T = this.gait / 6;
     const o = { T, flash: this.flash, angry: this.awake && this.angry, len: LAND_LEN };
-    if (s === 'flee' && this.inSea) {
+    if ((s === 'flee' || s === 'run') && this.inSea) {
       // Under the water, only his fin, going.
       const k = clamp(1 - (this.t - this.wet) / FLEE_T, 0, 1);
       drawReaperFin(v, this.x, this.y, this.h, k, false, v.T, LAND_LEN);
@@ -762,6 +802,15 @@ export class LandReaper implements Entity {
         asleep: true,
       });
       this.drawZs(v);
+      return;
+    }
+    if (s === 'shy') {
+      // Stopped dead by the honey, shaking all over, jaw shut.
+      drawReaperBody(v, this.x + Math.sin(this.t * 38) * 2.5, this.y, stand, this.drawH, 0, {
+        ...o,
+        mouth: 0.1,
+        legs: 'walk',
+      });
       return;
     }
     if (s === 'beaten') {

@@ -51,6 +51,29 @@ export function parseSprays(n: unknown): number {
     : 0;
 }
 
+/**
+ * Honey, the kid's: both Reapers are afraid of it ("he stops and shakes your boat and runs splashing"). The owner's
+ * call (2026-10-16): the old man sells it, a jar for 3,000, and the bees in the forest make it too, a jar a day from
+ * their hive. A jar is used up each time; the bag holds so many.
+ */
+export const HONEY = {
+  name: 'Honey',
+  price: 3000,
+  blurb: 'A jar of honey. The Reaper is afraid of it! Tap the jar near him and he runs off.',
+} as const;
+export const HONEY_MAX = 5;
+/** At sea a jar works whenever the Reaper is after the boat, wherever he is circling; ashore, this near the figure. */
+export const HONEY_LAND = 170;
+/** How near the forest's beehive the figure must be to take a jar. */
+export const HIVE_REACH = 60;
+
+/** Jars of honey from the save, a whole number 0..HONEY_MAX; anything else is none. */
+export function parseHoney(n: unknown): number {
+  return typeof n === 'number' && Number.isFinite(n)
+    ? Math.max(0, Math.min(HONEY_MAX, Math.floor(n)))
+    : 0;
+}
+
 export type Snacks = Record<SnackKind, number>;
 
 export function noSnacks(): Snacks {

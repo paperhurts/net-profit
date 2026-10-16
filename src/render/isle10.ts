@@ -13,6 +13,7 @@ import {
   CRATES10,
   CYPRESS10,
   FOREST_A,
+  HIVE10,
   ISLE10,
   MEADOW_R,
   OAKS10,
@@ -340,11 +341,82 @@ function drawCrates10(v: DrawView): void {
   v.box(x + 9, y + 5, 10, 10, 0, 13, '#7A5230', '#9A6A3E');
 }
 
+/**
+ * The forest's beehive, hung on a short twig under its oak's leaves: a golden teardrop of comb in bands, its dark way
+ * in near the bottom, and bees going round it. full: there is a jar to take today, and honey shines at its foot.
+ */
+export function drawHive10(v: DrawView, full: boolean): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  const { x, y, z } = HIVE10;
+  const sx = px(x, y);
+  const top = py(x, y, z + 8);
+  const sy = py(x, y, z);
+  // Its shadow on the ground, and the twig it hangs from.
+  ctx.fillStyle = 'rgba(0,0,0,.16)';
+  ctx.beginPath();
+  ctx.ellipse(sx, py(x, y, 0), 7 * Z, 3 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#6B4A2A';
+  ctx.lineWidth = 1.6 * Z;
+  ctx.beginPath();
+  ctx.moveTo(sx - 4 * Z, top - 3 * Z);
+  ctx.lineTo(sx + 2 * Z, top);
+  ctx.stroke();
+  // The comb: bands from the top down, widest a little below the middle.
+  const bands = [3.5, 5.5, 6.6, 6.2, 4.6];
+  bands.forEach((w, k) => {
+    ctx.fillStyle = k % 2 ? '#D9A23A' : '#E8B84A';
+    ctx.beginPath();
+    ctx.ellipse(sx, top + (k + 0.5) * 3.2 * Z, w * Z, 2.2 * Z, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.fillStyle = '#4A2E14';
+  ctx.beginPath();
+  ctx.ellipse(sx + 1 * Z, top + 12.5 * Z, 1.6 * Z, 1.2 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (full) {
+    ctx.fillStyle = '#F2B632';
+    ctx.beginPath();
+    ctx.ellipse(
+      sx - 2 * Z,
+      top + 16.5 * Z + Math.sin(T * 2) * 0.6 * Z,
+      1.2 * Z,
+      1.8 * Z,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  // Bees, round and round it.
+  const n = full ? 6 : 3;
+  for (let k = 0; k < n; k++) {
+    const a = T * (1.6 + k * 0.23) + k * 2.1;
+    const bx = sx + Math.cos(a) * (10 + (k % 3) * 3) * Z;
+    const by = sy - 2 * Z + Math.sin(a * 1.3) * 7 * Z;
+    ctx.fillStyle = '#F2C230';
+    ctx.beginPath();
+    ctx.ellipse(bx, by, 1.6 * Z, 1.1 * Z, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2A2014';
+    ctx.fillRect(bx - 0.3 * Z, by - 1.1 * Z, 0.7 * Z, 2.2 * Z);
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.beginPath();
+    ctx.ellipse(bx, by - 1.4 * Z, 1 * Z, 0.6 * Z, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 /** What stands on island 10, for the game's depth-sorted solids. */
-/** flag10, once the pelican is beaten: the player's flag on top of the tower, drawn at a point. */
+/**
+ * flag10, once the pelican is beaten: the player's flag on top of the tower, drawn at a point. hiveFull: the forest's
+ * beehive has a jar to take today.
+ */
 export function isle10Solids(
   v: DrawView,
   flag10: ((x: number, y: number) => void) | null = null,
+  hiveFull = false,
 ): Solid[] {
   if (!v.onScreen(ISLE10.x, ISLE10.y, (ISLE10.r + 260) * v.zoom)) return [];
   const out: Solid[] = [];
@@ -362,6 +434,8 @@ export function isle10Solids(
   for (const [x, y] of ROCKS10)
     if (on(x, y))
       out.push({ d: x + y, f: () => v.box(x - 8, y - 6, 16, 12, 0, 9, '#9A9486', '#B4AE9F') });
+  if (on(HIVE10.x, HIVE10.y))
+    out.push({ d: HIVE10.x + HIVE10.y, f: () => drawHive10(v, hiveFull) });
   out.push({ d: TOWER10.x + TOWER10.y, f: () => drawTower10(v, flag10) });
   out.push({ d: PIER10.x0 + PIER10.y0, f: () => drawPier10(v) });
   out.push({ d: CRATES10.x + CRATES10.y + 10, f: () => drawCrates10(v) });
