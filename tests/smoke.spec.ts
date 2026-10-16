@@ -4508,6 +4508,40 @@ test('the Forgotten One: through the halls to his throne room, his bones join yo
   expect(errors).toEqual([]);
 });
 
+test('Star is afraid of anything bigger: the Deep One rises, and Star shoots up into space until it has gone', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3700, y: -1600, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.deep.fighting, null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.serpent.state === 'scared', null, { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.serpent.state === 'space', null, { timeout: 5000 });
+  // Told once the Deep One's own warning has had its turn.
+  await expect(page.locator('#toast')).toContainText('into space', { timeout: 6000 });
+  // Away from the Deep One's water: it sinks back to sleep, and Star falls back to its loop.
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 2400;
+    b.y = -400;
+    b.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.serpent.state === 'drop', null, { timeout: 8000 });
+  await page.waitForFunction(() => window.__np.serpent.state === 'haunt', null, { timeout: 4000 });
+  expect(errors).toEqual([]);
+});
+
 test('the Deep One: harpooned down, it drags the boat under to its temple, where Cthulhu waits', async ({
   context,
   page,

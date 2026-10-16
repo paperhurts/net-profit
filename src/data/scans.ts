@@ -2,8 +2,8 @@
  * The portable scanner, the kid's (the Forgotten One's gift, island 11): point it at a creature and it tells you how to
  * beat it, and what it is afraid of. "Yes, and tells weakness of it, like Star: he is afraid of bigger stuff, or the
  * Reaper: afraid of honey." What it says of each, here, is what the game does: the warning to watch for, when it can be
- * hit, and with what. The two weaknesses the kid gave are his: honey is in the game (data/snacks.ts HONEY); Star's
- * fear of bigger stuff is still ahead of it.
+ * hit, and with what. The two weaknesses the kid gave are his, and both are in the game: honey (data/snacks.ts HONEY),
+ * and Star off to space when something bigger is near (entities/meteor.ts).
  */
 
 /** Everything the scanner knows: the sea's beasts by the harpoon's names for them, then those met on foot. */
@@ -111,7 +111,7 @@ export const SCANS: Record<ScanKind, Scan> = {
   meteor: {
     name: 'Star, the meteor serpent',
     beat: "Its head glows red-hot and an orange ring shows on the water where you'll be: steer out before it dives. Harpoon it while it thrashes in the water. Four hits drive it off.",
-    weak: 'Afraid of anything bigger than it.',
+    weak: 'Afraid of anything bigger than it: when the Deep One rises, Star flies off to space until it has gone.',
   },
   reaper: {
     name: 'The Reaper',

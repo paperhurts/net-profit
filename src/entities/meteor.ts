@@ -6,7 +6,12 @@
  * shows on the water where the boat will be (the warning), and it dives head-first into the ring. Steer out
  * of it. After a dive it thrashes in the water a moment before it takes off again, and that is when the
  * harpoon reaches it: four hits, as the kid wrote, and it is driven off for a good while, leaving a shard of
- * its head behind. It holds off while the Deep One is up, so the two never come at once.
+ * its head behind. It holds off while the Reaper hunts, so the two never come at once.
+ *
+ * It is afraid of anything bigger than it, the kid's: "he stops and goes to space until he is gone". When the game says
+ * something bigger is near (the Deep One up out of the water; the owner's call: big creatures only, and the walkable big
+ * ship once there is one, never the boat's upgrades), it stops dead in the air, then shoots straight up into space and
+ * stays there, out of sight, until that has been gone a little while; then it falls back like a meteor to its loop.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -37,6 +42,13 @@ export const DOWN_T = 2.6;
 export const TAKEOFF_T = 1;
 /** What a dive costs the boat, of its 100: the kid's six damage, its hardest hitter. */
 export const DIVE_HIT = 35;
+/** Afraid: stopped in the air this long; then up into space, this long and this high; back once whatever was bigger has
+ * been gone this long; and the fall back down to its loop. */
+export const SCARED_T = 0.6;
+export const UP_T = 1.4;
+export const SPACE_Z = 1600;
+export const CLEAR_T = 2;
+export const DROP_T = 1.3;
 /** Sighted from this far: about a phone's screen. */
 export const SIGHT = 650;
 /** Its length, head to tail, how many pieces it is drawn in, and how big it is drawn. */
@@ -44,7 +56,21 @@ export const SERPENT_LEN = 300;
 const SEGS = 16;
 const SIZE = 1.8;
 
-export type MeteorState = 'haunt' | 'hunt' | 'aim' | 'fall' | 'down' | 'takeoff' | 'away';
+export type MeteorState =
+  | 'haunt'
+  | 'hunt'
+  | 'aim'
+  | 'fall'
+  | 'down'
+  | 'takeoff'
+  | 'scared'
+  | 'up'
+  | 'space'
+  | 'drop'
+  | 'away';
+
+/** Fleeing from something bigger: stopped, going up, up in space, or falling back. */
+const AFRAID: readonly MeteorState[] = ['scared', 'up', 'space', 'drop'];
 
 export class MeteorSerpent implements Entity {
   state: MeteorState = 'haunt';
@@ -64,6 +90,8 @@ export class MeteorSerpent implements Entity {
   private lastH: number | null = null;
   private seen = false;
   private bit = false;
+  /** How long whatever was bigger has been gone, up in space. */
+  private clear = 0;
   /** Where its head has been, for its body to follow. */
   private readonly trail: { x: number; y: number; z: number }[] = [];
   /** Sighted the first time. */
@@ -76,8 +104,13 @@ export class MeteorSerpent implements Entity {
   onHit: (() => void) | null = null;
   /** It hit the water, wherever. */
   onSplash: ((x: number, y: number) => void) | null = null;
-  /** Whether it must hold off: the game says while the Deep One is up. */
+  /** Whether it must hold off: the game says while the Reaper hunts. */
   holdOff: (() => boolean) | null = null;
+  /** Whether something bigger than it is near: the game says. */
+  scaredOf: (() => boolean) | null = null;
+  /** It saw something bigger, and is off to space; and it is up there, out of sight. */
+  onScared: (() => void) | null = null;
+  onSpace: (() => void) | null = null;
 
   get angry(): boolean {
     return this.resolve <= RESOLVE.meteor / 2;
@@ -90,12 +123,17 @@ export class MeteorSerpent implements Entity {
 
   /** In the hunt, or diving. */
   get hunting(): boolean {
-    return this.state !== 'haunt' && this.state !== 'away';
+    return this.state !== 'haunt' && this.state !== 'away' && !this.afraid;
   }
 
-  /** Back to its loop over the island, whole, as when the boat sails off or is eaten. */
+  /** Fleeing from something bigger, or up in space. */
+  get afraid(): boolean {
+    return AFRAID.includes(this.state);
+  }
+
+  /** Back to its loop over the island, whole, as when the boat sails off or is eaten. Up in space it stays there. */
   reset(): void {
-    if (this.state === 'away') return;
+    if (this.state === 'away' || this.afraid) return;
     this.state = 'haunt';
     this.t = 0;
     this.ring = null;
@@ -164,7 +202,52 @@ export class MeteorSerpent implements Entity {
       this.onSight?.();
     }
     const hold = this.holdOff?.() ?? false;
+    const scared = this.scaredOf?.() ?? false;
+    if (scared && this.state !== 'away' && !this.afraid) {
+      this.ring = null;
+      this.go('scared');
+      this.onScared?.();
+    }
     switch (this.state) {
+      case 'scared':
+        // Stopped dead in the air, staring.
+        this.z += (Math.max(this.z, 80) - this.z) * Math.min(1, dt * 3);
+        if (this.t >= SCARED_T) {
+          this.from = { x: this.x, y: this.y, z: this.z };
+          this.go('up');
+        }
+        break;
+      case 'up': {
+        // Straight up, faster and faster, head first, into space.
+        const k = clamp(this.t / UP_T, 0, 1);
+        this.z = this.from.z + (SPACE_Z - this.from.z) * k * k;
+        if (k >= 1) {
+          this.clear = 0;
+          this.go('space');
+          this.onSpace?.();
+        }
+        break;
+      }
+      case 'space':
+        // Out of sight, waiting for whatever was bigger to be gone a while; then over its loop, ready to fall.
+        this.clear = scared ? 0 : this.clear + dt;
+        if (this.clear >= CLEAR_T) {
+          this.x = ISLE6.x + Math.cos(this.a) * HAUNT_R;
+          this.y = ISLE6.y + Math.sin(this.a) * HAUNT_R;
+          this.trail.length = 0;
+          this.go('drop');
+        }
+        break;
+      case 'drop': {
+        // Back down like a falling star, slowing to its loop's height.
+        const k = clamp(this.t / DROP_T, 0, 1);
+        this.z = HAUNT_Z + (SPACE_Z - HAUNT_Z) * (1 - k) * (1 - k);
+        if (k >= 1) {
+          this.resolve = RESOLVE.meteor;
+          this.go('haunt');
+        }
+        break;
+      }
       case 'haunt': {
         this.a += HAUNT_TURN * dt;
         const tx = ISLE6.x + Math.cos(this.a) * HAUNT_R;
@@ -192,7 +275,7 @@ export class MeteorSerpent implements Entity {
           this.go('haunt');
           break;
         }
-        // The Deep One is up: back to its loop until it is done, hurt as it was.
+        // The Reaper is after the boat: back to its loop until he is done, hurt as it was.
         if (hold && this.state === 'hunt') {
           this.go('haunt');
           break;
@@ -326,7 +409,7 @@ export class MeteorSerpent implements Entity {
 
   /** On the radar while it is about. */
   radar(blip: Blipper): void {
-    if (this.state !== 'away') blip(this.x, this.y, 'threat');
+    if (this.state !== 'away' && this.state !== 'space') blip(this.x, this.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {
@@ -335,7 +418,7 @@ export class MeteorSerpent implements Entity {
       if (this.hunting) v.indicator(this.x, this.y, '#7A3A1E', 'pirate', this.state === 'aim');
       return;
     }
-    if (!v.onScreen(this.x, this.y, 500)) return;
+    if (this.state === 'space' || !v.onScreen(this.x, this.y, 500)) return;
     const { ctx, px, py, T } = v;
     const Z = v.zoom;
     if (layer === 'surface') {
@@ -362,11 +445,11 @@ export class MeteorSerpent implements Entity {
     const sp = pts.map((p) => ({ x: px(p.x, p.y), y: py(p.x, p.y, p.z + 6) }));
     const W = (c: string) => (this.flash > 0 ? '#FFFFFF' : c);
     const S = Z * SIZE;
-    const glow =
-      this.state === 'aim' ? clamp(this.t / this.aimT, 0, 1) : this.state === 'fall' ? 1 : 0;
+    const meteor = this.state === 'fall' || this.state === 'up' || this.state === 'drop';
+    const glow = this.state === 'aim' ? clamp(this.t / this.aimT, 0, 1) : meteor ? 1 : 0;
     const hot = Math.min(1, glow * 2.5);
     // A trail of fire behind the head as it falls.
-    if (this.state === 'fall' || (this.state === 'aim' && glow > 0.5)) {
+    if (meteor || (this.state === 'aim' && glow > 0.5)) {
       for (let i = 1; i < 6; i++) {
         const q = sp[i] as { x: number; y: number };
         ctx.fillStyle = `rgba(255,${120 + i * 20},40,${0.45 - i * 0.07})`;
