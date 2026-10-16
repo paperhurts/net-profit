@@ -113,6 +113,7 @@ type Np = {
   closeScope(): void;
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
+  walkerAt: [number, number];
   seaFight: { x: number; y: number; h: number; r: number } | null;
   seaWon: boolean;
   seaBoss: Record<
@@ -5425,6 +5426,54 @@ test("island 10's swamp: the swamp monster wakes with a roar and waves; a bear c
   await page.waitForFunction(() => window.__np.swamp10.cubs[0]?.state === 'roll', null, {
     timeout: 2000,
   });
+  expect(errors).toEqual([]);
+});
+
+test('ashore with a tall column of bubbles, the message goes beside it and the figure stands low, clear of both', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 5,
+    junk: 12,
+    isle4Stage: 1,
+    isle10Seen: true,
+    snacks: { apple: 9, carrot: 9, banana: 9 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const a = Math.atan2(n.OLDMAN10.y - n.WEB.y, n.OLDMAN10.x - n.WEB.x);
+    n.walker.x = n.WEB.x + Math.cos(a) * 60;
+    n.walker.y = n.WEB.y + Math.sin(a) * 60;
+  });
+  await expect(page.locator('#toast')).toContainText('hung you in his web', { timeout: 8000 });
+  await page.waitForTimeout(1200);
+  const at = await page.evaluate(() => {
+    const t = document.querySelector('#toast')?.getBoundingClientRect();
+    const r = document.querySelector('#rchips')?.getBoundingClientRect();
+    return {
+      side: document.querySelector('#toast')?.classList.contains('side'),
+      right: t ? t.right : 0,
+      bottom: t ? t.bottom : 0,
+      column: r ? r.left : 0,
+      walker: window.__np.walkerAt,
+      h: innerHeight,
+    };
+  });
+  expect(at.side).toBe(true);
+  // Beside the column, not under it.
+  expect(at.right).toBeLessThanOrEqual(at.column);
+  // The figure low on the screen, below the message.
+  expect(at.walker[1]).toBeGreaterThan(at.h * 0.55);
+  expect(at.walker[1]).toBeGreaterThan(at.bottom);
   expect(errors).toEqual([]);
 });
 

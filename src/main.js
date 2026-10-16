@@ -99,7 +99,7 @@ import { nextSpear, spearAt } from './data/spear';
 import { drivePrize, HARPOON_LEVEL, HARPOON_POWER, HARPOON_RANGE, HARPOON_RELOAD, noDriven, RESOLVE, TROPHY } from './data/harpoon';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
 import { assignSlots, formation, formUp, spreadOut } from './entities/spread';
-import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK, ISLE8_DOCK, ISLE10_DOCK, ISLE11_DOCK, tarDock, WALK_FULL, WALK_ZOOM, Walker, groundZ, onLand as landAt, walkable, walkerDepth, walkStep } from './entities/walker';
+import { dockAt, HOME_DOCK, ISLE2_DOCK, ISLE3_DOCK, ISLE6_DOCK, ISLE7_DOCK, ISLE8_DOCK, ISLE10_DOCK, ISLE11_DOCK, tarDock, WALK_DROP, WALK_FULL, WALK_ZOOM, Walker, groundZ, onLand as landAt, walkable, walkerDepth, walkStep } from './entities/walker';
 import { CAMP, CHEST, DOCK2, FIRE, HUTS, ISLE2, NAGA_CAGE, PALMS2, POST, TOTEM, TOWER } from './world/isle2';
 import { DIVE3, DOCK3, DOOR3, ISLE3, MAT, onPlanks, pushOffTown, TRADER_MID } from './world/isle3';
 import { atTar, ISLE4, MONSTER, SUMMONER, TAR_R, TAR_STOP } from './world/isle4';
@@ -2494,15 +2494,22 @@ const toasts = new ToastQueue(); let toastShown = null;
 // pri 0 is routine, 1 an event, 2 danger; danger interrupts, the rest wait their turn.
 function toast(msg, ms=2600, pri=0){ toasts.push(msg, ms, pri, performance.now()/1000); }
 function renderToast(){ const m = toasts.tick(performance.now()/1000); if (m === toastShown) return; toastShown = m;
-  if (m){ elToast.textContent = m; elToast.style.top = toastTop(); elToast.classList.add('show'); } else elToast.classList.remove('show'); }
-// A message sits below the bubbles at the top, which grow a row for each of hearts, the hull and the market.
-const TOAST_TOP = 140;
-function toastTop(){ let b = 0;
-  for (const el of [$('order'), $('rchips'), $('charter')]){ const r = el.getBoundingClientRect(); if (r.height) b = Math.max(b, r.bottom); }
-  return b + 10 > TOAST_TOP ? (b + 10) + 'px' : ''; }
+  if (m){ elToast.textContent = m; placeToast(); elToast.classList.add('show'); } else elToast.classList.remove('show'); }
+// A message sits below the bubbles at the top, which grow a row for each of hearts, the hull and the market. When the
+// right-hand column stands much taller than the left (hearts, snacks, the hull, the time of day...), the message goes
+// beside it instead, on the left under the order, so it never comes down over the figure or the fight (the owner's,
+// 2026-10-16: "the text covers the action all the time").
+const TOAST_TOP = 140, TOAST_SIDE = 160, TOAST_WIDE = 360;
+function placeToast(){ let left = 0;
+  for (const el of [$('order'), $('charter')]){ const r = el.getBoundingClientRect(); if (r.height) left = Math.max(left, r.bottom); }
+  const rc = $('rchips').getBoundingClientRect(), gap = rc.left - 22;
+  const side = rc.height > 0 && rc.bottom > left + 60 && gap >= TOAST_SIDE;
+  elToast.classList.toggle('side', side); elToast.style.maxWidth = side ? Math.min(gap, TOAST_WIDE) + 'px' : '';
+  const b = side ? left : Math.max(left, rc.height ? rc.bottom : 0);
+  elToast.style.top = b + 10 > TOAST_TOP ? (b + 10) + 'px' : ''; }
 // The bubbles change as hearts, the hull and the market come and go; the message moves with them.
 hudCharter();
-if (typeof ResizeObserver !== 'undefined'){ const ro = new ResizeObserver(() => { placeCharter(); elToast.style.top = toastTop(); }); ro.observe($('order')); ro.observe($('rchips')); ro.observe($('charter')); }
+if (typeof ResizeObserver !== 'undefined'){ const ro = new ResizeObserver(() => { placeCharter(); placeToast(); }); ro.observe($('order')); ro.observe($('rchips')); ro.observe($('charter')); }
 // The boat's health, shown past the buoys and whenever it is not whole.
 const HEART_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13C3 9 1 7 1 4.5A3.5 3.5 0 0 1 8 3a3.5 3.5 0 0 1 7 1.5C15 7 13 9 8 13z" fill="#E4572E"/></svg>';
 function hudHull(){ const show = pastBuoys(boat.x, boat.y) || hp < HP_MAX || swallowT > 0, v = Math.ceil(hp), key = show ? v : -2;
@@ -4017,7 +4024,7 @@ function update(dt){
   if (seaView > .001){ lx += (boat.x + seaCam.x - lx)*seaView; ly += (boat.y + seaCam.y - ly)*seaView; }
   if (cine){ const c = cineK(), e = cine.kind === 'egg' ? eggSeat() : cine.kind === 'heron' ? ESCAPE_VIEW : {x: ISLE4.x - 70, y: ISLE4.y - 70}; lx = lx*(1-c) + e.x*c; ly = ly*(1-c) + e.y*c; }
   if (kingDying()){ const c = clamp(Math.min(king.t, 12 - king.t)/.8, 0, 1); lx = lx*(1-c) + king.x*c; ly = ly*(1-c) + king.y*c; }
-  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK()) + H*BARGE_DROP*bargeView - H*FRAME_MID*seaView;
+  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK()) + H*BARGE_DROP*bargeView - H*FRAME_MID*seaView + H*WALK_DROP*walkView*(1 - bargeView);
   cam.x += (lx-cam.x)*Math.min(1, dt*3.5); cam.y += (ly-cam.y)*Math.min(1, dt*3.5);
 }
 
