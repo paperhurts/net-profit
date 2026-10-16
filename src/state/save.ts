@@ -14,7 +14,7 @@ import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { type Look, parseLook, SKIPPER } from '../data/look';
 import { isScanKind, type ScanKind } from '../data/scans';
-import { noSnacks, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
+import { noSnacks, parseHoney, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
 import { CROWS } from '../entities/crows';
 import { LEGGY_MAX } from '../entities/leggy';
@@ -147,6 +147,9 @@ export type SaveData = {
   snacks: Snacks;
   /** Sprays of his bug spray left, for the swamp's spider. */
   bugSpray: number;
+  /** Jars of honey in the bag, for the Reapers, and the day the forest's bees last gave one, 0 for never. */
+  honey: number;
+  hiveDay: number;
   /** Muffins left uneaten that grew legs and follow you (entities/leggy.ts), six at most. */
   leggy: number;
   /** The ice floe in the far deep found, and how many times the line has gone down through its hole. */
@@ -357,6 +360,8 @@ export function defaultSave(b: Bounds): SaveData {
     muffins: [],
     snacks: noSnacks(),
     bugSpray: 0,
+    honey: 0,
+    hiveDay: 0,
     leggy: 0,
     iceSeen: false,
     iceRuns: 0,
@@ -529,6 +534,9 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   // Missing in a save from before the old man's store, read as an empty bag.
   d.snacks = parseSnacks(o.snacks);
   d.bugSpray = parseSprays(o.bugSpray);
+  // Missing in a save from before honey, read as none and the hive never visited.
+  d.honey = parseHoney(o.honey);
+  d.hiveDay = Math.max(0, int(o.hiveDay));
   // Missing in a save from before muffins grew legs, read as none.
   d.leggy = between(int(o.leggy), 0, LEGGY_MAX);
   d.iceSeen = !!o.iceSeen;
@@ -689,6 +697,8 @@ export function serializeSave(d: SaveData): string {
     muffins: d.muffins,
     snacks: d.snacks,
     bugSpray: d.bugSpray,
+    honey: d.honey,
+    hiveDay: d.hiveDay,
     leggy: d.leggy,
     iceSeen: d.iceSeen,
     iceRuns: d.iceRuns,

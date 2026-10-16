@@ -105,6 +105,13 @@ type Np = {
   sunkenFound: number;
   sunken: { on: boolean; list: { x: number; y: number; coins: number }[] };
   talkToOldMan(): void;
+  honey: number;
+  hiveDay: number;
+  HIVE10: { x: number; y: number; z: number };
+  hiveAt(): [number, number];
+  tapHive(): void;
+  honeyNow(): void;
+  honeyAt: 'sea' | 'land' | null;
   crowAsk: { q: { q: string; right: string } } | null;
   gorillas: { roused: boolean; list: { x: number; y: number; state: string; hp: number }[] };
   WEB: { x: number; y: number };
@@ -5641,6 +5648,157 @@ test("island 10's birdfeeder: the bread brings the crows, and one answered right
   await page.reload();
   await page.waitForFunction(() => window.__np?.crowsOwned === 1, null, { timeout: 5000 });
   expect(await page.evaluate(() => window.__np.feederFull)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("honey: the old man sells a jar, and the forest's bees give one a day", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 3000,
+    spear: 3,
+    day: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle6Seen: true,
+    isle7Seen: true,
+    isle8Seen: true,
+    isle10Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.OLDMAN10.x + 30;
+    n.walker.y = n.OLDMAN10.y + 24;
+  });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__np.talkToOldMan());
+  await expect(page.locator('#store10')).toBeVisible();
+  await expect(page.locator('#store10Shelf [data-buy="honey"]')).toContainText('3000');
+  await page.locator('#store10Shelf [data-buy="honey"]').click();
+  expect(await page.evaluate(() => [window.__np.honey, window.__np.coins])).toEqual([1, 0]);
+  await expect(page.locator('#toast')).toContainText('bees in the forest');
+  await page.locator('#store10Close').click();
+  // Up to the beehive under its oak at the forest's edge: a jar from the bees.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HIVE10.x + 24;
+    n.walker.y = n.HIVE10.y + 24;
+  });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__np.tapHive());
+  expect(await page.evaluate(() => [window.__np.honey, window.__np.hiveDay])).toEqual([2, 4]);
+  await expect(page.locator('#toast')).toContainText('afraid of honey');
+  // Only one a day: a tap right on the hive says so.
+  const [hx, hy] = await page.evaluate(() => window.__np.hiveAt());
+  await page.mouse.click(hx, hy);
+  await expect(page.locator('#toast')).toContainText('tomorrow');
+  expect(await page.evaluate(() => window.__np.honey)).toBe(2);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.honey, saved.hiveDay]).toEqual([2, 4]);
+  expect(errors).toEqual([]);
+});
+
+test('honey: the Reaper at sea stops dead, shakes the boat and runs off splashing, for no prize', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 50,
+    honey: 1,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 5500, h: Math.PI, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#honeyBtn')).toBeHidden();
+  await page.evaluate(() => {
+    window.__np.reaper.x = 2400;
+    window.__np.reaper.y = 5900;
+  });
+  await page.waitForFunction(() => window.__np.honeyAt === 'sea', null, { timeout: 4000 });
+  await expect(page.locator('#honeyBtn')).toBeVisible();
+  await expect(page.locator('#honeyBtn b')).toHaveText('1');
+  await page.locator('#honeyBtn').click();
+  expect(await page.evaluate(() => [window.__np.reaper.state, window.__np.honey])).toEqual([
+    'shy',
+    0,
+  ]);
+  await expect(page.locator('#toast')).toContainText('shakes your boat');
+  await expect(page.locator('#honeyBtn')).toBeHidden();
+  await page.waitForFunction(() => window.__np.reaper.state === 'away', null, { timeout: 4000 });
+  expect(await page.evaluate(() => [window.__np.driven.reaper ?? 0, window.__np.coins])).toEqual([
+    0, 50,
+  ]);
+  expect(errors).toEqual([]);
+});
+
+test('honey: the Reaper on land stops dead, shakes, runs into the sea, and is back asleep when you go: no egg', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    honey: 2,
+    isle2Seen: true,
+    isle3Seen: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle5Seen: true,
+    isle5Stage: 1,
+    isle6Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: -1320, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const b = window.__np.boat;
+    b.x = 2400;
+    b.y = -1320;
+    b.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 4000 });
+  await page.locator('#ashore').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 5000 });
+  const landed = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
+  await page.evaluate(() => {
+    const { walker: w, NEST6: n } = window.__np;
+    w.x = n.x + 110;
+    w.y = n.y + 90;
+  });
+  await page.waitForFunction(() => window.__np.landReaper.awake, null, { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.honeyAt === 'land', null, { timeout: 3000 });
+  await page.locator('#honeyBtn').click();
+  expect(await page.evaluate(() => [window.__np.landReaper.state, window.__np.honey])).toEqual([
+    'shy',
+    1,
+  ]);
+  await expect(page.locator('#toast')).toContainText('beat him to win his egg');
+  await page.waitForFunction(() => window.__np.landReaper.state === 'away', null, {
+    timeout: 15000,
+  });
+  expect(await page.evaluate(() => window.__np.reaperEgg)).toBe(0);
+  // Back aboard: he is asleep by his nest again.
+  await page.evaluate(([x, y]) => {
+    const { walker: w } = window.__np;
+    w.x = x ?? w.x;
+    w.y = y ?? w.y;
+  }, landed);
+  await page.locator('#aboard').click({ timeout: 8000 });
+  await page.waitForFunction(() => window.__np.landReaper.state === 'sleep', null, {
+    timeout: 4000,
+  });
   expect(errors).toEqual([]);
 });
 

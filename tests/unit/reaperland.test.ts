@@ -20,6 +20,7 @@ import {
   REAR_T,
   REST,
   RISE_T,
+  SHY_T,
   SIGHT_R,
   SPAN,
   WAKE_R,
@@ -236,6 +237,32 @@ describe('the Reaper on land', () => {
     g.beatenForGood();
     run(g, baseWorld({ figure: inland(40) }), 2);
     expect(g.state).toBe('gone');
+  });
+
+  it('at a jar of honey stops dead and shakes, runs into the sea, and is back asleep when the figure leaves: no win', () => {
+    const asleep = new LandReaper();
+    expect(asleep.scare()).toBe(false);
+    const { r, w } = awake();
+    let beaten = 0;
+    r.onBeaten = () => beaten++;
+    r.hp = 3;
+    expect(r.scare()).toBe(true);
+    expect([r.state, r.awake, r.fan, r.dash]).toEqual(['shy', false, null, null]);
+    run(r, w, SHY_T + 0.05);
+    expect(r.state).toBe('run');
+    run(r, w, 15, () => r.state === 'away');
+    expect(r.state).toBe('away');
+    const a = Math.atan2(r.y - ISLE6.y, r.x - ISLE6.x);
+    expect(Math.hypot(r.x - ISLE6.x, r.y - ISLE6.y)).toBeGreaterThan(shoreR(a));
+    // Away while the figure stays, whatever it does.
+    w.figure = inland(10);
+    run(r, w, 5);
+    expect(r.state).toBe('away');
+    expect(beaten).toBe(0);
+    // The figure leaves his ground: he is back by his nest, asleep and whole.
+    w.figure = null;
+    run(r, w, 0.1);
+    expect([r.state, r.hp, r.x, r.y]).toEqual(['sleep', LAND_HP, REST.x, REST.y]);
   });
 
   it('back for a rematch, from the tester panel: asleep by his nest again, whole, and he wakes as before', () => {
