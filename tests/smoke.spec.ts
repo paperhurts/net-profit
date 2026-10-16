@@ -2521,10 +2521,12 @@ test('the flotilla: the warrior, the bones, the necromancer and the tarling sail
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
-  // Out at sea, each on its craft, the four of them round the boat.
-  await page.waitForFunction(() => window.__np.flotilla.crafts.every((c) => c.placed), null, {
-    timeout: 3000,
-  });
+  // Out at sea, each on its craft, the four of them round the boat; the swan waits for Caterman.
+  await page.waitForFunction(
+    () => window.__np.flotilla.crafts.every((c) => c.placed === (c.kind !== 'swan')),
+    null,
+    { timeout: 3000 },
+  );
   const sea = await page.evaluate(() => {
     const { flotilla: f, boat: b } = window.__np;
     return {
@@ -2533,8 +2535,8 @@ test('the flotilla: the warrior, the bones, the necromancer and the tarling sail
       riding: ['warrior', 'bones', 'necro', 'tarling'].map((r) => f.riding(r)),
     };
   });
-  expect(sea.kinds).toEqual(['airboat', 'catamaran', 'windsurf', 'banana']);
-  for (const g of sea.gaps) expect(g).toBeLessThan(260);
+  expect(sea.kinds).toEqual(['airboat', 'catamaran', 'windsurf', 'banana', 'swan']);
+  for (const g of sea.gaps.slice(0, 4)) expect(g).toBeLessThan(260);
   expect(sea.riding).toEqual([true, true, true, true]);
   // Ashore at island 2's berth: they step off and walk with the figure; the craft wait.
   await page.evaluate(() => {
@@ -2549,7 +2551,9 @@ test('the flotilla: the warrior, the bones, the necromancer and the tarling sail
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   await page.waitForFunction(() => window.__np.warriorPal.shown, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.flotilla.riding('warrior'))).toBe(false);
-  expect(await page.evaluate(() => window.__np.flotilla.crafts.every((c) => c.placed))).toBe(true);
+  expect(
+    await page.evaluate(() => window.__np.flotilla.crafts.filter((c) => c.placed).length),
+  ).toBe(4);
   expect(errors).toEqual([]);
 });
 
@@ -2595,6 +2599,8 @@ test('the Boats card: the kid puts a friend on a boat, the two swap, and it is k
     catamaran: null,
     windsurf: 'bones',
     banana: 'warrior',
+    swan: 'caterman',
+    swan2: null,
   });
   await page.locator('#boatsClose').click();
   await expect(page.locator('#boats')).toBeHidden();
@@ -5786,5 +5792,67 @@ test("island 11's heron: the Heron's brother zaps in his clearing, can't be beat
   await page.reload();
   await page.waitForFunction(() => window.__np?.catermanFree === true, null, { timeout: 5000 });
   expect(await page.evaluate(() => window.__np.brother.up)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("Caterman's swan paddle boat: he pedals it at sea, and the kid puts a friend in the seat beside him", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle8Seen: true,
+    heronStage: 2,
+    heronFled: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    catermanFree: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  // Out at sea, Caterman on his swan and the necromancer on his catamaran.
+  await page.waitForFunction(
+    () => window.__np.flotilla.crafts.find((c) => c.kind === 'swan')?.placed,
+    null,
+    { timeout: 3000 },
+  );
+  expect(await page.evaluate(() => window.__np.flotilla.riding('caterman'))).toBe(true);
+  const gap = await page.evaluate(() => {
+    const { flotilla: f, boat: b } = window.__np;
+    const s = f.crafts.find((c) => c.kind === 'swan');
+    return s ? Math.hypot(s.x - b.x, s.y - b.y) : 1e9;
+  });
+  expect(gap).toBeLessThan(260);
+  // The Boats card has the swan, with its two seats side by side.
+  await page.waitForFunction(() => document.getElementById('boatsBtn')?.hidden === false, null, {
+    timeout: 3000,
+  });
+  await page.locator('#boatsBtn').dispatchEvent('click');
+  await expect(page.locator('#boats')).toBeVisible();
+  await expect(page.locator('#boatsList .boat')).toHaveCount(5);
+  const swan = page.locator('#boatsList .boat').last();
+  await expect(swan).toContainText('Swan paddle boat');
+  await expect(swan.locator('.seat')).toHaveText(['Right seat', 'Left seat']);
+  await expect(page.locator('#boatsList .rchip.on[data-craft="swan"]')).toHaveText('Caterman');
+  await expect(page.locator('#boatsList .rchip.on[data-craft="swan2"]')).toHaveText('Nobody');
+  // The necromancer beside him: his catamaran is left empty.
+  await page.locator('#boatsList [data-craft="swan2"][data-rider="necro"]').click();
+  await expect(page.locator('#boatsList .rchip.on[data-craft="swan2"]')).toHaveText('Necromancer');
+  await expect(page.locator('#boatsList .rchip.on[data-craft="catamaran"]')).toHaveText('Nobody');
+  await page.locator('#boatsClose').click();
+  await page.waitForFunction(
+    () => !window.__np.flotilla.crafts.find((c) => c.kind === 'catamaran')?.placed,
+    null,
+    { timeout: 3000 },
+  );
+  // Kept: a reload finds the two of them on the swan.
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => window.__np.flotilla.crew)).toMatchObject({
+    catamaran: null,
+    swan: 'caterman',
+    swan2: 'necro',
+  });
   expect(errors).toEqual([]);
 });
