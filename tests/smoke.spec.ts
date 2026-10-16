@@ -355,7 +355,7 @@ type Np = {
   hordes: Record<
     number,
     {
-      list: { x: number; y: number; guard: boolean; kind: string; state: string }[];
+      list: { x: number; y: number; guard: boolean; kind: string; state: string; hp: number }[];
       cleared: boolean;
       hit(u: unknown, power: number, fx: number, fy: number): boolean;
     }
@@ -5134,6 +5134,71 @@ test('the scanner: a zombie on the Battle Barge, scanned, says how to beat it, a
     window.__np.scanner = 0;
   });
   await expect(page.locator('#scanBtn')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the scanner gets better: it scans the egg aboard, and at 18 kinds shows hit points', async ({
+  context,
+  page,
+}) => {
+  // Sixteen kinds scanned already: a scanner of an older game is brought up to the eggs level on load.
+  const kinds = ['guard', 'cthulu', 'angler', 'gulper', 'meteor', 'reaper', 'king', 'deep'];
+  kinds.push('hired', 'monkey', 'hiredman', 'gorilla', 'gator', 'spider', 'pelican', 'sorcerer');
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    scanner: 1,
+    scanned: kinds,
+    day: 3,
+    reaperEgg: 2,
+    eggDay: 3,
+    barge: { size: 'small', pick: { zombie: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.scanner)).toBe(3);
+  // The Reaper's egg aboard, with nothing else about, is what it scans at sea.
+  await page.waitForFunction(() => window.__np.scanAt === 'egg', null, { timeout: 3000 });
+  await page.locator('#scanBtn').click();
+  await expect(page.locator('#scanName')).toHaveText("The Reaper's egg");
+  await expect(page.locator('#scanBeat')).toContainText('hatches');
+  await expect(page.locator('#scanUp')).toBeHidden();
+  await page.locator('#scanOut').click();
+  // Once scanned it is not scanned again.
+  await page.waitForFunction(() => window.__np.scanAt === null, null, { timeout: 3000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.small, null, {
+    timeout: 3000,
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const z = n.hordes[n.ARENAS.small ?? -1]?.list[0];
+    if (!z) return;
+    n.walker.x = z.x + 45;
+    n.walker.y = z.y + 45;
+    n.setHearts(9);
+  });
+  // The eighteenth kind: it says it got better, and from the next scan on it shows hit points.
+  await page.waitForFunction(() => window.__np.scanAt === 'zombie', null, { timeout: 3000 });
+  await page.locator('#scanBtn').click();
+  await expect(page.locator('#scanName')).toHaveText('A zombie');
+  await expect(page.locator('#scanUp')).toContainText('hit points');
+  await expect(page.locator('#scanHpP')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.scanner)).toBe(4);
+  await page.locator('#scanOut').click();
+  await page.waitForFunction(() => window.__np.scanAt === 'zombie', null, { timeout: 3000 });
+  await page.locator('#scanBtn').click();
+  await expect(page.locator('#scanHpP')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('#scanHpL')).toHaveText('Hit points');
+  const hp = await page.evaluate(
+    () => window.__np.hordes[window.__np.ARENAS.small ?? -1]?.list[0]?.hp,
+  );
+  await expect(page.locator('#scanHp')).toHaveText(String(Math.ceil(hp ?? 0)));
+  await expect(page.locator('#scanUp')).toBeHidden();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.scanner, saved.scanned.length]).toEqual([4, 18]);
   expect(errors).toEqual([]);
 });
 
