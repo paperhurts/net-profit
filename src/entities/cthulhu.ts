@@ -69,9 +69,13 @@ export class Cthulhu implements Entity {
   /** It is beaten and has crumbled. */
   onBeaten: (() => void) | null = null;
 
-  constructor(readonly room: Room) {
-    this.x = room.x - room.r * 0.35;
-    this.y = room.y - room.r * 0.35;
+  /** At the back of its room, or at start (the Battle Barge's). */
+  constructor(
+    readonly room: Room,
+    start?: { x: number; y: number },
+  ) {
+    this.x = start?.x ?? room.x - room.r * 0.35;
+    this.y = start?.y ?? room.y - room.r * 0.35;
   }
 
   /** In the fight: there to be speared. */
