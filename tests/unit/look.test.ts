@@ -11,6 +11,7 @@ import {
   presetOf,
   SKINS,
   SKIPPER,
+  wornArmour,
 } from '../../src/data/look';
 import { Walker } from '../../src/entities/walker';
 import { fakeView } from './helpers/view';
@@ -23,6 +24,19 @@ describe('choose your character', () => {
     for (const p of PRESETS) expect(presetOf(p.look)).toBe(p.id);
     // None of them is the Honor Guard look: that is the player's to put on.
     for (const p of PRESETS) expect(p.look.honorGuard).toBe(false);
+  });
+
+  it("hides the shipwright's armour when asked, keeps the Honor Guard look on top, and saves the choice", () => {
+    const hg = 'honor guard';
+    const space = 'space armour';
+    expect(wornArmour(SKIPPER, hg, space)).toBe(space);
+    expect(wornArmour({ ...SKIPPER, hideArmour: true }, hg, space)).toBeNull();
+    expect(wornArmour({ ...SKIPPER, honorGuard: true, hideArmour: true }, hg, space)).toBe(hg);
+    expect(wornArmour(SKIPPER, hg, null)).toBeNull();
+    // An old save has the armour showing; the choice is kept; and it is not part of who a preset is.
+    expect(parseLook({ skin: 1 }).hideArmour).toBe(false);
+    expect(parseLook({ ...SKIPPER, hideArmour: true }).hideArmour).toBe(true);
+    for (const p of PRESETS) expect(presetOf({ ...p.look, hideArmour: true })).toBe(p.id);
   });
 
   it('knows a look changed from a preset is your own', () => {

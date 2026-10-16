@@ -52,7 +52,7 @@ import { WarlockBoat } from './entities/warlockboat';
 import { CAGE, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, NEST9, ROOF, ROOF3, ROOF7, ROOF8, ROOF10, ROOMS, RUINS, STEP, stairs, TEMPLE6, THRONE, TOWERS } from './world/tower';
 import { Spears } from './entities/spears';
 import { ARMOURS, armourAt, nextArmour, heartsFor, hasKnife, HONOR_GUARD, knifeUse, KNIFE } from './data/armour';
-import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, PRESETS, presetOf, SKINS, SKIPPER } from './data/look';
+import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, PRESETS, presetOf, SKINS, SKIPPER, wornArmour } from './data/look';
 import { decodeSailed, encodeSailed, noSailed, sail, sailAll, sailedCount, sailedShare, seedSailed } from './state/sailed';
 import { drawRadar } from './render/radar';
 import { inRange } from './world/radar';
@@ -2561,7 +2561,7 @@ function drawCharPreview(){ const el = $('charPreview'), c2 = el.getContext('2d'
   const v = {...drawView, ctx: c2, zoom: Zp, dark: 0, T: T0, px: pxp, py: pyp, onScreen: () => true, glow(){}, light(){},
     isoEllipse: (x, y, r, z = 0) => { c2.beginPath(); c2.ellipse(pxp(x, y), pyp(x, y, z), r*Zp, r*Zp/2, 0, 0, Math.PI*2); } };
   p.z = 0; p.look = charLook; p.shirt = PAINTS[paint].hull; p.armed = spear > 0; p.knife = hasKnife(armour);
-  p.armour = charLook.honorGuard ? ARMOURS[HONOR_GUARD - 1].look : armourAt(armour)?.look ?? null;
+  p.armour = wornArmour(charLook, ARMOURS[HONOR_GUARD - 1].look, armourAt(armour)?.look ?? null);
   p.h = Math.PI/4 + Math.sin(T0*.9)*1.25;
   p.drawPortrait(v);
   if (charOpen) requestAnimationFrame(drawCharPreview); }
@@ -2573,6 +2573,9 @@ function renderChar(){ const cur = presetOf(charLook);
   const swatches = (label, key, cols) => `<div class="crow"><small>${label}</small><div class="bchips">${cols.map((c, i) => `<button class="swatch${charLook[key] === i ? ' on' : ''}" data-key="${key}" data-val="${i}" style="background:${typeof c === 'string' ? c : c[0]}" aria-label="${label} ${i + 1}"></button>`).join('')}</div></div>`;
   $('charOptions').innerHTML = swatches('Skin', 'skin', SKINS) + row('Hair', 'hair', HAIRS) + swatches('Hair colour', 'hairColour', HAIR_COLOURS)
     + row('Hat', 'hat', HATS) + swatches('Hat colour', 'hatColour', HAT_COLOURS) + row('Face', 'face', FACES)
+    // The armour from the shipwright, shown over the look or hidden so the look shows; its hearts stay either way.
+    + (armourAt(armour) ? `<div class="crow"><small>Your armour (${armourAt(armour).name}): hidden, its hearts still count</small><div class="bchips">`
+      + `<button class="rchip${charLook.hideArmour ? '' : ' on'}" data-key="hideArmour" data-val="">Show it</button><button class="rchip${charLook.hideArmour ? ' on' : ''}" data-key="hideArmour" data-val="1">Hide it</button></div></div>` : '')
     + `<div class="crow"><small>Honor Guard armour, to look at</small><div class="bchips"><button class="rchip${charLook.honorGuard ? ' on' : ''}" data-key="honorGuard" data-val="${charLook.honorGuard ? '' : '1'}">${charLook.honorGuard ? 'Wearing it' : 'Wear it'}</button></div></div>`; }
 function openChar(){ audio(); sfx.click(); renderChar(); $('charCard').hidden = false; if (!charOpen){ charOpen = true; requestAnimationFrame(drawCharPreview); } }
 function closeChar(){ sfx.click(); $('charCard').hidden = true; charOpen = false; }
@@ -2580,9 +2583,9 @@ $('charBtn').addEventListener('click', openChar);
 $('charIntro').addEventListener('click', openChar);
 $('charClose').addEventListener('click', closeChar);
 $('charCard').addEventListener('click', (e) => { const b = e.target.closest('[data-preset], [data-key]'); if (!b) return;
-  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look}; }
+  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour}; }
   else { const k = b.dataset.key, val = b.dataset.val;
-    charLook = {...charLook, [k]: k === 'honorGuard' ? val === '1' : ['skin', 'hairColour', 'hatColour'].includes(k) ? +val : val}; }
+    charLook = {...charLook, [k]: k === 'honorGuard' || k === 'hideArmour' ? val === '1' : ['skin', 'hairColour', 'hatColour'].includes(k) ? +val : val}; }
   sfx.click(); renderChar(); save(); });
 
 $('badgesClose').addEventListener('click', () => { sfx.click(); $('badges').hidden = true; });
@@ -3809,7 +3812,7 @@ function drawWorldObjects(){
     list.push({d: b.hut.x+b.hut.y+b.hut.half, f: () => drawBaseHut(drawView, b, built, PAINTS[paint].roof, built ? (sx, sy) => drawFlagAt(sx, sy, 18*Z, 12*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1) : null)}); }
   list.push(...scene.solids(drawView), ...bushSolids(drawView));
   // The Honor Guard look, picked on the character screen, shows over whatever armour is worn; the hearts are the armour's.
-  walker.armour = charLook.honorGuard ? ARMOURS[HONOR_GUARD - 1].look : armourAt(armour)?.look ?? null; walker.knife = hasKnife(armour); walker.look = charLook;
+  walker.armour = wornArmour(charLook, ARMOURS[HONOR_GUARD - 1].look, armourAt(armour)?.look ?? null); walker.knife = hasKnife(armour); walker.look = charLook;
   if (walker.shown){ walker.shirt = PAINTS[paint].hull;
     list.push({d: walker.sortDepth(build, pierD, dog ? {x: dog.x, y: dog.y, d: pets.depth()} : null), f: () => { walker.draw(drawView, 'solids'); if (wrapped()) drawCocoon(drawView, walker.x, walker.y, walker.z, T); }}); }
   list.sort((a,b) => a.d-b.d); for (const o of list) o.f();

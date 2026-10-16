@@ -6,6 +6,7 @@
  * hearts come from the armour the shipwright sells.
  *
  * Skipper is the figure as it has always been, in the yellow sou'wester, so a game from before this keeps its look.
+ * And whatever is picked, the armour bought from the shipwright can be hidden, so the pick is what is seen.
  */
 
 export type HatKind = 'souwester' | 'cap' | 'fishing' | 'cowboy' | 'none';
@@ -21,6 +22,12 @@ export type Look = {
   face: FaceKind;
   /** The Honor Guard armour, worn as a look: gold, the red plume and the cape. */
   honorGuard: boolean;
+  /**
+   * The armour bought from the shipwright, hidden, so the figure is seen as picked here and not inside it: the
+   * owner's report (2026-10-16), the space armour's helmet covering every bit of the face, hair and hat. Its hearts
+   * stay. Not part of who a preset is: picking one keeps it as it was.
+   */
+  hideArmour: boolean;
 };
 
 export const SKINS = ['#F3CDA9', '#E2AE84', '#C68B5E', '#9A6440', '#6B4228'] as const;
@@ -73,6 +80,7 @@ export const SKIPPER: Look = {
   hatColour: 0,
   face: 'dots',
   honorGuard: false,
+  hideArmour: false,
 };
 
 /** The people on the pick screen: the old figure first, then the kid's three, named by us. */
@@ -89,6 +97,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       hatColour: 1,
       face: 'grin',
       honorGuard: false,
+      hideArmour: false,
     },
   },
   {
@@ -102,6 +111,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       hatColour: 2,
       face: 'smile',
       honorGuard: false,
+      hideArmour: false,
     },
   },
   {
@@ -115,6 +125,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       hatColour: 5,
       face: 'smile',
       honorGuard: false,
+      hideArmour: false,
     },
   },
 ];
@@ -129,6 +140,7 @@ export function presetOf(l: Look): string | null {
     a.hatColour === b.hatColour &&
     a.face === b.face &&
     a.honorGuard === b.honorGuard;
+  // Whether the bought armour shows is not part of who a preset is.
   return PRESETS.find((p) => same(p.look, l))?.id ?? null;
 }
 
@@ -151,5 +163,12 @@ export function parseLook(o: unknown): Look {
     hatColour: index(r.hatColour, HAT_COLOURS.length, SKIPPER.hatColour),
     face: pick(r.face, FACES, SKIPPER.face),
     honorGuard: r.honorGuard === true,
+    hideArmour: r.hideArmour === true,
   };
+}
+
+/** What the figure wears over its look: the Honor Guard look if picked, else the bought armour unless hidden. */
+export function wornArmour<A>(l: Look, honorGuard: A, bought: A | null): A | null {
+  if (l.honorGuard) return honorGuard;
+  return l.hideArmour ? null : bought;
 }

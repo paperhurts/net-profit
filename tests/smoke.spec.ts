@@ -23,6 +23,7 @@ type Np = {
   clock: number;
   phase: string;
   walker: {
+    armour: unknown;
     speedK: number;
     state: string;
     x: number;
@@ -226,7 +227,14 @@ type Np = {
   DOOR8: { x: number; y: number };
   heronStage: number;
   heronFled: boolean;
-  charLook: { skin: number; hair: string; hat: string; face: string; honorGuard: boolean };
+  charLook: {
+    skin: number;
+    hair: string;
+    hat: string;
+    face: string;
+    honorGuard: boolean;
+    hideArmour: boolean;
+  };
   charOpen: boolean;
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
   nest: { up: boolean; state: string; hit(power: number): void };
@@ -1102,6 +1110,42 @@ test('choose your character: from the start, pick Hank or make your own, and it 
   expect(errors).toEqual([]);
 });
 
+test("choose your character: the shipwright's armour can be hidden, so the look you picked shows, hearts and all", async ({
+  context,
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await context.addInitScript(
+    (s: string) => {
+      if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
+    },
+    JSON.stringify({ muted: true, coins: 100, spear: 1, armour: 4 }),
+  );
+  await page.goto('./');
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  await page.waitForTimeout(300);
+  // In space armour the figure wears its helmet over everything.
+  expect(await page.evaluate(() => window.__np.walker.armour !== null)).toBe(true);
+  await page.locator('#charBtn').dispatchEvent('click');
+  await expect(page.locator('#charCard')).toBeVisible();
+  await expect(page.locator('#charOptions')).toContainText('Space armour');
+  await page.click('#charOptions [data-key="hideArmour"][data-val="1"]');
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__np.charLook.hideArmour)).toBe(true);
+  expect(await page.evaluate(() => window.__np.walker.armour)).toBeNull();
+  // Picking a preset keeps it hidden; the hearts are the armour's still.
+  await page.click('#charPresets [data-preset="coral"]');
+  expect(await page.evaluate(() => window.__np.charLook.hideArmour)).toBe(true);
+  expect(await page.evaluate(() => window.__np.maxHearts)).toBe(7);
+  // Shown again, it is back on.
+  await page.click('#charOptions [data-key="hideArmour"][data-val=""]');
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__np.walker.armour !== null)).toBe(true);
+  await page.click('#charClose');
+  expect(errors).toEqual([]);
+});
 test('Honor Guard: the shipwright has it once the Heron is beaten on island 9, and it is nine hearts', async ({
   context,
   page,
