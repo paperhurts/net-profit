@@ -76,6 +76,10 @@ export class Sorcerer implements Entity {
 
   /** Seconds left stuck with tar on its face: it hangs where it is, and casts nothing. */
   stunT = 0;
+  /** How far from its home the figure is still in its fight; on the Battle Barge, the whole arena. */
+  field = RING + 60;
+  /** Where round its ring it starts: on the Battle Barge, two or more fly the ring apart. */
+  a0 = -Math.PI / 2;
   /** Casts since it got angry, for the ring; and until it calls monkeys again. */
   private casts = 0;
   private callT = 0;
@@ -108,9 +112,9 @@ export class Sorcerer implements Entity {
     this.state = 'wait';
     this.hp = this.hpMax;
     this.t = 0;
-    this.a = -Math.PI / 2;
-    this.x = this.home.x;
-    this.y = this.home.y - RING;
+    this.a = this.a0;
+    this.x = this.home.x + Math.cos(this.a0) * RING;
+    this.y = this.home.y + Math.sin(this.a0) * RING;
     this.cast = 1.5;
     this.swoop = SWOOP_EVERY;
     this.casts = 0;
@@ -149,7 +153,7 @@ export class Sorcerer implements Entity {
     const f = w.figure;
     this.t += dt;
     this.flash = Math.max(0, this.flash - dt);
-    const onRoof = f !== null && Math.hypot(f.x - this.home.x, f.y - this.home.y) < RING + 60;
+    const onRoof = f !== null && Math.hypot(f.x - this.home.x, f.y - this.home.y) < this.field;
     if (this.state === 'wait') {
       if (onRoof) {
         this.state = 'fly';

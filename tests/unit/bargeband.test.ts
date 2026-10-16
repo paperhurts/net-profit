@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { arenaSpots } from '../../src/data/barge';
 import { BLUE, Fighter, SWORDSMAN } from '../../src/entities/fighter';
+import { Forgotten } from '../../src/entities/forgotten';
 import { GATOR_HP, GATOR_LEASH, Gators } from '../../src/entities/gators';
 import { GORILLA_LEASH, GORILLA_WARN, Gorillas } from '../../src/entities/gorillas';
+import { Heron } from '../../src/entities/heron';
 import { LANCER_HP, Lancers } from '../../src/entities/lancers';
+import { Pelican } from '../../src/entities/pelican';
+import { RING, Sorcerer } from '../../src/entities/sorcerer';
 import { ARENAS, entry, ROOMS, type Room } from '../../src/world/tower';
 import { baseWorld } from './helpers/world';
 
@@ -105,5 +109,54 @@ describe("island 3's fighters on the Battle Barge", () => {
     expect(blue.up).toBe(true);
     for (let t = 0; t < 2; t += DT) blue.update(DT, world(e));
     expect(called).toHaveLength(1);
+  });
+});
+
+describe('the bosses on the Battle Barge', () => {
+  it('start each at its own spot, two sorcerers apart round their ring', () => {
+    const [a, b] = spots as [{ x: number; y: number }, { x: number; y: number }];
+    const s1 = new Sorcerer(R);
+    const s2 = new Sorcerer(R);
+    for (const [s, at] of [
+      [s1, a],
+      [s2, b],
+    ] as const) {
+      s.field = R.r + 80;
+      s.a0 = Math.atan2(at.y - R.y, at.x - R.x);
+      s.reset();
+    }
+    expect(Math.hypot(s1.x - R.x, s1.y - R.y)).toBeCloseTo(RING);
+    expect(Math.hypot(s1.x - s2.x, s1.y - s2.y)).toBeGreaterThan(20);
+    const h = new Heron(R, 14, a);
+    expect([h.x, h.y]).toEqual([a.x, a.y]);
+    h.x += 50;
+    h.reset();
+    expect([h.x, h.y]).toEqual([a.x, a.y]);
+    const p = new Pelican(R, b);
+    expect(p.nest).toEqual(b);
+    expect([p.x, p.y]).toEqual([b.x, b.y]);
+    const f = new Forgotten(R, a);
+    expect([f.x, f.y]).toEqual([a.x, a.y]);
+  });
+
+  it('the sorcerer fights a figure anywhere on the large deck, and keeps its hurt when the figure runs to the edge', () => {
+    const s = new Sorcerer(R);
+    s.field = R.r + 80;
+    s.reset();
+    const e = entry(big);
+    s.update(DT, world(e));
+    expect(s.up).toBe(true);
+    s.hit(3);
+    for (let t = 0; t < 1; t += DT) s.update(DT, world({ x: R.x + R.r * 0.7, y: R.y + R.r * 0.7 }));
+    expect(s.up).toBe(true);
+    expect(s.hp).toBe(s.hpMax - 3);
+    // On its own roof, the figure that far off is gone, and it waits again, whole.
+    const roof = new Sorcerer(R);
+    roof.update(DT, world({ x: R.x + 40, y: R.y }));
+    expect(roof.up).toBe(true);
+    roof.hit(3);
+    roof.update(DT, world({ x: R.x + R.r * 0.7, y: R.y + R.r * 0.7 }));
+    expect(roof.state).toBe('wait');
+    expect(roof.hp).toBe(roof.hpMax);
   });
 });

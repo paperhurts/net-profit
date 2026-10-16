@@ -83,9 +83,13 @@ export class Pelican implements Entity {
   onHit: ((n: number, by: 'scoop' | 'fish') => void) | null = null;
   onBeaten: (() => void) | null = null;
 
-  constructor(readonly room: Room) {
+  /** On its nest at the back of its room, or at nest (the Battle Barge's). */
+  constructor(
+    readonly room: Room,
+    nest?: { x: number; y: number },
+  ) {
     const D = Math.SQRT1_2;
-    this.nest = { x: room.x - room.r * 0.5 * D, y: room.y - room.r * 0.5 * D };
+    this.nest = nest ?? { x: room.x - room.r * 0.5 * D, y: room.y - room.r * 0.5 * D };
     this.x = this.nest.x;
     this.y = this.nest.y;
     this.ringX = this.x;

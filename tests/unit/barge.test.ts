@@ -4,6 +4,7 @@ import {
   arenaSpots,
   BARGE_FOES,
   BARGE_MAX,
+  BOSS_FOES,
   bargeAdd,
   bargeTotal,
   defaultBarge,
@@ -52,10 +53,14 @@ describe('the Battle Barge: picking a fight', () => {
   it('names every enemy on the card, and its undead are the undead the castle has', () => {
     for (const k of BARGE_FOES) expect(FOE_NAMES[k][0].length).toBeGreaterThan(2);
     for (const k of UNDEAD_FOES) expect(UNDEAD[k as keyof typeof UNDEAD]).toBeDefined();
-    expect(BARGE_FOES.filter((k) => !UNDEAD_FOES.includes(k) && !FIGHTER_FOES.includes(k))).toEqual(
-      ['monkey', 'hired', 'gorilla', 'gator', 'lancer'],
-    );
+    expect(
+      BARGE_FOES.filter(
+        (k) => !UNDEAD_FOES.includes(k) && !FIGHTER_FOES.includes(k) && !BOSS_FOES.includes(k),
+      ),
+    ).toEqual(['monkey', 'hired', 'gorilla', 'gator', 'lancer']);
     expect(FIGHTER_FOES).toEqual(['swordsman', 'red', 'blue', 'green']);
+    // The bosses come last on the card.
+    expect(BARGE_FOES.slice(-BOSS_FOES.length)).toEqual([...BOSS_FOES]);
     // Each kind once, and none picked to start but the start's.
     expect(new Set(BARGE_FOES).size).toBe(BARGE_FOES.length);
     expect(Object.keys(noPick()).sort()).toEqual([...BARGE_FOES].sort());
