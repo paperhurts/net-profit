@@ -25,6 +25,7 @@
 import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
 import type { ArmourLook } from '../data/armour';
+import { HAIR_COLOURS, HAT_COLOURS, type Look, SKINS, SKIPPER } from '../data/look';
 import { AQUARIUM, AQUARIUM_FROM, AQUARIUM_MID } from '../world/aquarium';
 import { BASES, polePoint } from '../world/bases';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
@@ -647,11 +648,8 @@ export type WalkState = 'aboard' | 'mooring' | 'off' | 'ashore' | 'on';
 /** A footprint: where, which way the foot pointed, which foot, and when. */
 export type Print = { x: number; y: number; h: number; side: number; t: number };
 
-/** The figure's colours: a navy pair of trousers, a sou'wester, and skin. */
+/** The figure's trousers, navy; its skin, hair and hat are its look (data/look.ts). */
 const TROUSERS = '#2E3A4A';
-const HAT = '#F5C531';
-const BRIM = '#D9A21C';
-const SKIN = '#E2AE84';
 /** The chemistry suit. */
 const SUIT = '#E9C02A';
 const SUIT_DARK = '#B8901A';
@@ -693,6 +691,8 @@ export class Walker implements Entity {
   shirt = '#E4572E';
   /** The armour it wears from the shipwright, or null. */
   armour: ArmourLook | null = null;
+  /** Who it is: the character picked, its skin, hair, hat and face. */
+  look: Look = SKIPPER;
   /** The figure has hopped onto the pier. */
   onLand: (() => void) | null = null;
   /** The figure is back aboard. */
@@ -1197,18 +1197,15 @@ export class Walker implements Entity {
       }
       return;
     }
-    ctx.fillStyle = SKIN;
+    const look = this.look;
+    const helmet = !!arm && arm.helm !== 'none';
+    this.drawHairBack(v, hx, hy, fx, fy, look);
+    ctx.fillStyle = SKINS[look.skin] ?? (SKINS[1] as string);
     ctx.beginPath();
     ctx.arc(hx, hy, 3.8 * Z, 0, Math.PI * 2);
     ctx.fill();
-    if (fy > -0.1) {
-      ctx.fillStyle = '#2A1A08';
-      for (const e of [-1, 1]) {
-        ctx.beginPath();
-        ctx.arc(hx + (fx * 1.6 + e * 1.4) * Z, hy + 0.6 * Z, 0.65 * Z, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+    if (fy > -0.1) this.drawFace(v, hx, hy, fx, look);
+    if (!helmet && !this.diving) this.drawHairTop(v, hx, hy, fx, fy, look);
     if (this.diving) {
       // A brass diving helmet with a round glass port toward where it looks, and bubbles going up.
       ctx.fillStyle = '#C9973A';
@@ -1325,13 +1322,269 @@ export class Walker implements Entity {
       ctx.stroke();
       return;
     }
-    ctx.fillStyle = BRIM;
+    this.drawHat(v, hx, hy, fx, fy, look);
+  }
+
+  /** The figure on its own, as the character screen shows it: at its place, facing its way, standing. */
+  drawPortrait(v: DrawView): void {
+    this.drawParts(v);
+  }
+
+  /** Hair that hangs behind the head: long hair down the back, pigtails out at the sides. */
+  private drawHairBack(
+    v: DrawView,
+    hx: number,
+    hy: number,
+    fx: number,
+    fy: number,
+    look: Look,
+  ): void {
+    if (look.hair !== 'long' && look.hair !== 'pigtails') return;
+    const { ctx } = v;
+    const Z = v.zoom;
+    ctx.fillStyle = HAIR_COLOURS[look.hairColour] ?? (HAIR_COLOURS[0] as string);
+    if (look.hair === 'long') {
+      // Facing us, it falls in two locks beside the face to the shoulders; facing away, down the back.
+      if (fy > -0.1) {
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.ellipse(
+            hx + side * 3.5 * Z - fx * 0.6 * Z,
+            hy + 1.6 * Z,
+            1.9 * Z,
+            4.4 * Z,
+            side * 0.12,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        }
+      } else {
+        ctx.beginPath();
+        ctx.ellipse(hx, hy + 2.2 * Z, 4.4 * Z, 6 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(
+        hx + side * 4.6 * Z,
+        hy + 1.6 * Z - (fy < 0 ? 0.4 * Z : 0),
+        1.8 * Z,
+        2.8 * Z,
+        side * 0.3,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+  }
+
+  /** Hair on top of the head, when nothing covers it: a short crop, spikes, or a long fringe. */
+  private drawHairTop(
+    v: DrawView,
+    hx: number,
+    hy: number,
+    fx: number,
+    fy: number,
+    look: Look,
+  ): void {
+    if (look.hair === 'none') return;
+    const covered = look.hat === 'souwester' || look.hat === 'fishing' || look.hat === 'cowboy';
+    const { ctx } = v;
+    const Z = v.zoom;
+    const colour = HAIR_COLOURS[look.hairColour] ?? (HAIR_COLOURS[0] as string);
+    ctx.fillStyle = colour;
+    if (covered) {
+      // Under a hat, only a little shows at the sides.
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(hx + side * 3.3 * Z, hy - 0.4 * Z, 1 * Z, 1.8 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+    // A cap of hair over the top, toward the back when it faces us.
+    const back = fy > -0.1 ? 1.1 : 0;
     ctx.beginPath();
-    ctx.ellipse(hx, hy - 2.2 * Z, 6.2 * Z, 2.6 * Z, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      hx - fx * 0.4 * Z,
+      hy - 1.4 * Z - back * 0.2 * Z,
+      4.1 * Z,
+      3.1 * Z,
+      0,
+      Math.PI,
+      Math.PI * 2,
+    );
     ctx.fill();
-    ctx.fillStyle = HAT;
+    if (fy <= -0.1) {
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.2 * Z, 3.9 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (look.hair === 'spiky') {
+      for (let i = -2; i <= 2; i++) {
+        const bx = hx + i * 1.6 * Z;
+        const by = hy - 3.4 * Z + Math.abs(i) * 0.5 * Z;
+        ctx.beginPath();
+        ctx.moveTo(bx - 1 * Z, by + 0.6 * Z);
+        ctx.lineTo(bx + i * 0.5 * Z, by - 3 * Z + Math.abs(i) * 0.6 * Z);
+        ctx.lineTo(bx + 1 * Z, by + 0.6 * Z);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    if ((look.hair === 'long' || look.hair === 'pigtails') && fy > -0.1) {
+      // A fringe across the forehead.
+      ctx.beginPath();
+      ctx.ellipse(hx + fx * 0.6 * Z, hy - 2.2 * Z, 3.4 * Z, 1.2 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /** The face, toward where it looks: eyes, and a smile, a grin, freckles or glasses. */
+  private drawFace(v: DrawView, hx: number, hy: number, fx: number, look: Look): void {
+    const { ctx } = v;
+    const Z = v.zoom;
+    const ex = (e: number) => hx + (fx * 1.6 + e * 1.4) * Z;
+    const ey = hy + 0.6 * Z;
+    ctx.fillStyle = '#2A1A08';
+    for (const e of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(ex(e), ey, 0.65 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const mx = hx + fx * 1.6 * Z;
+    if (look.face === 'smile' || look.face === 'grin') {
+      ctx.strokeStyle = '#5A2A1A';
+      ctx.lineWidth = 0.6 * Z;
+      ctx.beginPath();
+      ctx.arc(
+        mx,
+        hy + 1.6 * Z,
+        look.face === 'grin' ? 1.6 * Z : 1.1 * Z,
+        0.15 * Math.PI,
+        0.85 * Math.PI,
+      );
+      ctx.stroke();
+      if (look.face === 'grin') {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(mx, hy + 1.8 * Z, 1.3 * Z, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.fill();
+      }
+    }
+    if (look.face === 'freckles') {
+      ctx.fillStyle = 'rgba(150,80,40,.7)';
+      for (const e of [-1, 1])
+        for (const [dx, dy] of [
+          [0, 0],
+          [0.7, 0.4],
+          [-0.5, 0.5],
+        ] as const) {
+          ctx.beginPath();
+          ctx.arc(ex(e) + (e * 0.4 + dx) * Z, ey + (1.3 + dy) * Z, 0.28 * Z, 0, Math.PI * 2);
+          ctx.fill();
+        }
+    }
+    if (look.face === 'glasses') {
+      ctx.strokeStyle = '#1E2227';
+      ctx.lineWidth = 0.45 * Z;
+      for (const e of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(ex(e), ey, 1.15 * Z, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(ex(-1) + 1.15 * Z, ey);
+      ctx.lineTo(ex(1) - 1.15 * Z, ey);
+      ctx.stroke();
+    }
+  }
+
+  /** The hat, in its colour: the sou'wester, a cap with its peak where it looks, a fishing hat, a cowboy hat. */
+  private drawHat(v: DrawView, hx: number, hy: number, fx: number, fy: number, look: Look): void {
+    if (look.hat === 'none') return;
+    const { ctx } = v;
+    const Z = v.zoom;
+    const [hat, brim] =
+      HAT_COLOURS[look.hatColour] ?? (HAT_COLOURS[0] as readonly [string, string]);
+    if (look.hat === 'souwester') {
+      ctx.fillStyle = brim;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy - 2.2 * Z, 6.2 * Z, 2.6 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hat;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy - 2.6 * Z, 4 * Z, 3.6 * Z, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    if (look.hat === 'cap') {
+      // The peak sticks out the way it looks: in front of the crown when it faces us, behind it when it faces away.
+      const peak = () => {
+        ctx.fillStyle = brim;
+        ctx.beginPath();
+        ctx.ellipse(
+          hx + fx * 3.2 * Z,
+          hy - 2 * Z + (fy > 0 ? 0.6 * Z : -0.4 * Z),
+          3.4 * Z,
+          1.3 * Z,
+          fx * 0.2,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      };
+      if (fy <= 0) peak();
+      ctx.fillStyle = hat;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy - 2 * Z, 4.1 * Z, 3.4 * Z, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = brim;
+      ctx.beginPath();
+      ctx.arc(hx, hy - 5.3 * Z, 0.7 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      if (fy > 0) peak();
+      return;
+    }
+    if (look.hat === 'fishing') {
+      // A soft bucket hat: a sloping brim all round, a rounded crown, a band.
+      ctx.fillStyle = brim;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy - 2 * Z, 5.4 * Z, 2.2 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hat;
+      ctx.beginPath();
+      ctx.moveTo(hx - 3.6 * Z, hy - 2.2 * Z);
+      ctx.quadraticCurveTo(hx - 3.4 * Z, hy - 6.4 * Z, hx, hy - 6.4 * Z);
+      ctx.quadraticCurveTo(hx + 3.4 * Z, hy - 6.4 * Z, hx + 3.6 * Z, hy - 2.2 * Z);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(hx - 3.6 * Z, hy - 3.4 * Z, 7.2 * Z, 1 * Z);
+      return;
+    }
+    // A cowboy hat: a wide brim turned up at the sides, a tall crown with a dent in its top, a band.
+    ctx.fillStyle = brim;
     ctx.beginPath();
-    ctx.ellipse(hx, hy - 2.6 * Z, 4 * Z, 3.6 * Z, 0, Math.PI, Math.PI * 2);
+    ctx.ellipse(hx, hy - 2.4 * Z, 7.6 * Z, 2.2 * Z, 0, 0, Math.PI * 2);
     ctx.fill();
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(hx + side * 6.6 * Z, hy - 3.6 * Z, 1.4 * Z, 2 * Z, side * -0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = hat;
+    ctx.beginPath();
+    ctx.moveTo(hx - 3.4 * Z, hy - 2.6 * Z);
+    ctx.lineTo(hx - 3 * Z, hy - 7.8 * Z);
+    ctx.quadraticCurveTo(hx, hy - 6.6 * Z, hx + 3 * Z, hy - 7.8 * Z);
+    ctx.lineTo(hx + 3.4 * Z, hy - 2.6 * Z);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.fillRect(hx - 3.3 * Z, hy - 4 * Z, 6.6 * Z, 1.1 * Z);
   }
 }
