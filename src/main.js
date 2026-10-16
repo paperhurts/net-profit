@@ -132,7 +132,7 @@ import { GATOR_PRIZE, Gators } from './entities/gators';
 import { GORILLA_PRIZE, Gorillas } from './entities/gorillas';
 import { Pelican } from './entities/pelican';
 import { Swamp10 } from './entities/swamp10';
-import { offWeb, SPIDER_PRIZE, SPRAY_RANGE, Spider10, WEB, WEB_HOLD, WEB_STUCK, WEB_THICK } from './entities/spider10';
+import { offWeb, SPIDER_HP, SPIDER_PRIZE, SPRAY_RANGE, Spider10, WEB, WEB_HOLD, WEB_STUCK, WEB_THICK, webBetween } from './entities/spider10';
 import { OldMan } from './entities/oldman';
 import { drawOldMan, drawShack10 } from './render/oldman';
 import { APPLE_PACE, BANANA_HEARTS, BUG_SPRAY, CARROT_POWER, DAD_JOKES, noSnacks, SNACK_FOR, SNACK_KINDS, SNACK_MAX, SNACKS, SPRAY_MAX } from './data/snacks';
@@ -1038,6 +1038,8 @@ function spearTarget(){ const sp = {range: weaponRange()}; if (walker.state !== 
     // The Reaper only reared up: his scales turn a spear the rest of the time.
     for (const r of bargeBoss.reaper) if (r.open && Math.hypot(r.x - walker.x, r.y - walker.y) <= sp.range) consider(r);
     for (const a of bargeBoss.anchorer) if (a.up && Math.hypot(a.x - walker.x, a.y - walker.y) <= sp.range) consider(a);
+    // The spider down out of his web: a spear only bounces off him.
+    for (const sd of bargeBoss.spider) if (sd.awake && Math.hypot(sd.x - walker.x, sd.y - walker.y) <= sp.range) consider(sd);
     return best; }
   if (hordes[floor]){ const u = hordes[floor].target(walker.x, walker.y, sp.range);
     // In the throne room the Forgotten One too, if he is nearer than any but a necromancer; and in the crypt.
@@ -1096,7 +1098,7 @@ function throwSpear(target){ if (walker.state !== 'ashore' || T < reloadAt || ol
   for (const c of [cth, ...bargeBoss.cthulhu]) if (c.tents.includes(f)){ send(walker.x, walker.y, walker.z + 20, f, 24, () => { c.hitTent(f, sp.power); soulHit(); }); return; }
   if (f instanceof Forgotten){ send(walker.x, walker.y, walker.z + 20, f, 40, () => { f.hit(sp.power); soulHit(); }); return; }
   if (f instanceof OldOne){ send(walker.x, walker.y, walker.z + 20, f, 110, () => { f.hit(sp.power); soulHit(); }); return; }
-  if (f === spider10){ send(walker.x, walker.y, walker.z + 20, f, 8, () => { sfx.clang(); addText(spider10.x, spider10.y, 22, 'Tink!', '#E8E0C8', 16, 1);
+  if (f instanceof Spider10){ send(walker.x, walker.y, walker.z + 20, f, 8, () => { sfx.clang(); addText(f.x, f.y, 22, 'Tink!', '#E8E0C8', 16, 1);
     if (!spearTinkTold){ spearTinkTold = true; toasts.clear(); toast('Tink! Your spear bounces off the spider. Only bug spray beats him: the old man on the prairie sells it.', 4200, 2); } }); return; }
   for (const gs of [gorillas, bargeGorillas]) if (gs.list.includes(f)){ send(walker.x, walker.y, walker.z + 20, f, 20, () => { if (gs.hit(f, sp.power)) soulHit(); }); return; }
   for (const gs of [gators, bargeGators]) if (gs.list.includes(f)){ send(walker.x, walker.y, walker.z + 20, f, 6, () => { if (gs.hit(f, sp.power, walker.x, walker.y)) soulHit(); }); return; }
@@ -1595,7 +1597,7 @@ let webT = 0, webAt = null, webFree = 0, sprayAt = 0, sprayFx = null, spiderTold
 spider10.onDrop = () => { sfx.skitter(); if (!spiderTold){ spiderTold = true; toasts.clear();
   toast(bugSpray > 0 ? 'A giant spider! Get close and tap the spray can: bug spray is the only thing that beats him.' : 'A giant spider! Nothing hurts him but bug spray, and you have none: run! The old man on the prairie sells it.', 4200, 2); } };
 spider10.onGrab = () => bonked('web');
-spider10.onHang = () => { if (walker.state !== 'ashore') return; webT = WEB_HOLD; webAt = {x: WEB.x, y: WEB.y};
+spider10.onHang = () => { if (walker.state !== 'ashore') return; webT = WEB_HOLD; webAt = {x: WEB.x, y: WEB.y, web: WEB};
   if (!webTold){ webTold = true; toasts.clear(); toast('The spider wrapped you up and hung you in his web! Wriggle... and you drop free. Bug spray beats him: the old man sells it.', 4200, 2); } };
 spider10.onSprayed = () => sfx.shriek();
 spider10.onBeaten = () => { coins += SPIDER_PRIZE; earned += SPIDER_PRIZE; sfx.orderFilled(); addText(spider10.x, spider10.y, 30, '+' + SPIDER_PRIZE, C.coin, 22, 1.8); toasts.clear();
@@ -1603,21 +1605,25 @@ spider10.onBeaten = () => { coins += SPIDER_PRIZE; earned += SPIDER_PRIZE; sfx.o
   spiderBeatTold = true; hud(); save(); };
 // The spider's hold on the figure: towed behind him as he drags it home, then stuck in his web a moment; and the web
 // itself sticks a figure that walks into it, and wakes him.
+/** The spiders the figure could meet where it is: island 10's on its island, or the Battle Barge's on the barge. */
+function spidersHere(){ return walker.state !== 'ashore' ? [] : tower === BARGE ? bargeBoss.spider : walker.dock === ISLE10_DOCK ? [spider10] : []; }
 function updateSpider(dt){ webFree = Math.max(0, webFree - dt); if (sprayFx){ sprayFx.t += dt; if (sprayFx.t > .45) sprayFx = null; }
-  if (walker.state !== 'ashore' || walker.dock !== ISLE10_DOCK){ webT = 0; return; }
-  if (spider10.state === 'drag'){ const [tx, ty] = spider10.towed; walker.x = tx; walker.y = ty; return; }
+  const ss = spidersHere(); if (!ss.length){ webT = 0; return; }
+  const dragger = ss.find(sd => sd.state === 'drag'); if (dragger){ const [tx, ty] = dragger.towed; walker.x = tx; walker.y = ty; return; }
   if (webT > 0){ webT -= dt; if (webAt){ walker.x = webAt.x; walker.y = webAt.y; }
     if (webT <= 0){ webT = 0; webFree = 2;
-      // Dropped free on the near side of the web, toward the island's middle.
-      const nx = ISLE10.x - WEB.x, ny = ISLE10.y - WEB.y, d = Math.hypot(nx, ny) || 1;
-      walker.x = WEB.x + nx/d*14; walker.y = WEB.y + ny/d*14; addText(walker.x, walker.y, 30, 'Free!', '#F4F1E6', 16, 1.1); }
+      // Dropped free on the near side of the web, toward the island's middle, or the barge's.
+      const wb = webAt?.web ?? WEB, mid = tower === BARGE ? ROOMS[BARGE.first] : ISLE10, nx = mid.x - wb.x, ny = mid.y - wb.y, d = Math.hypot(nx, ny) || 1;
+      walker.x = wb.x + nx/d*14; walker.y = wb.y + ny/d*14; addText(walker.x, walker.y, 30, 'Free!', '#F4F1E6', 16, 1.1); }
     return; }
-  if (spider10.here && webFree <= 0 && offWeb(walker.x, walker.y) < WEB_THICK){ webT = WEB_STUCK; webAt = {x: walker.x, y: walker.y}; sfx.skitter();
-    addText(walker.x, walker.y, 30, 'Stuck!', '#F4F1E6', 16, 1.1); spider10.alert(); } }
-function wrapped(){ return walker.state === 'ashore' && walker.dock === ISLE10_DOCK && (webT > 0 || spider10.state === 'drag'); }
+  for (const sd of ss) if (sd.here && webFree <= 0 && offWeb(walker.x, walker.y, sd.web) < WEB_THICK){ webT = WEB_STUCK; webAt = {x: walker.x, y: walker.y, web: sd.web}; sfx.skitter();
+    addText(walker.x, walker.y, 30, 'Stuck!', '#F4F1E6', 16, 1.1); sd.alert(); break; } }
+function wrapped(){ const ss = spidersHere(); return ss.length > 0 && (webT > 0 || ss.some(sd => sd.state === 'drag')); }
 // The spray can, over the throw button: shown with bug spray in the bag and the spider in reach.
 const elSpray = $('sprayBtn'); let sprayShown = false;
-function sprayTarget(){ return walker.state === 'ashore' && walker.dock === ISLE10_DOCK && bugSpray > 0 && !wrapped() && spider10.here && Math.hypot(spider10.x - walker.x, spider10.y - walker.y) <= SPRAY_RANGE ? spider10 : null; }
+function sprayTarget(){ if (bugSpray <= 0 || wrapped()) return null; let best = null, bd = SPRAY_RANGE;
+  for (const sd of spidersHere()){ const d = Math.hypot(sd.x - walker.x, sd.y - walker.y); if (sd.here && d <= bd){ bd = d; best = sd; } }
+  return best; }
 function sprayNow(){ audio(); const s = sprayTarget(); if (!s || T < sprayAt) return; sprayAt = T + .6; bugSpray--; sfx.spray(); walker.throwAt(s.x, s.y);
   sprayFx = {t: 0, x0: walker.x, y0: walker.y, x1: s.x, y1: s.y}; s.spray(); hudSpray(); save(); }
 elSpray.addEventListener('pointerdown', e => { if (e.button > 0) return; sprayNow(); });
@@ -1865,7 +1871,7 @@ const bargeGorillas = new Gorillas([], Infinity), bargeGators = new Gators([], I
 let bargeFighters = [];
 // And its bosses, the third stage, each made for the fight at its own spot: the leviathan sorcerer, the Forgotten One,
 // the Heron and the giant pelican. Pick two and they fight together.
-const bargeBoss = {sorcerer: [], forgotten: [], heron: [], pelican: [], cthulhu: [], oldone: [], reaper: [], anchorer: []};
+const bargeBoss = {sorcerer: [], forgotten: [], heron: [], pelican: [], cthulhu: [], oldone: [], reaper: [], anchorer: [], spider: []};
 const bargeBosses = () => BOSS_FOES.flatMap(k => bargeBoss[k]);
 /** Beaten, on the barge: fallen, flown off, sunk or on his knees. */
 const BOSS_DOWN = ['fall', 'gone', 'flee', 'sink', 'yield', 'melt'];
@@ -1906,6 +1912,13 @@ function bargeBossAt(kind, room, at){ const R = ROOMS[room];
     b.onBeaten = (x, y) => { burst({x, y}); bargeDown(x, y); }; return b; }
   if (kind === 'heron'){ const b = new Heron(R, HERON_HP, at);
     b.onHit = (by) => bonked(by); b.onZap = () => sfx.zap(); b.onCast = () => sfx.portal(); b.onPop = heron.onPop;
+    b.onBeaten = () => bargeDown(b.x, b.y); return b; }
+  if (kind === 'spider'){
+    // His web strung across the deck between two posts, square to the way in, and he comes down out of it at once.
+    const a = Math.atan2(at.y - R.y, at.x - R.x), ox = -Math.sin(a)*26, oy = Math.cos(a)*26;
+    const web = webBetween([at.x + ox, at.y + oy], [at.x - ox, at.y - oy]), b = new Spider10(web, Infinity, Infinity);
+    b.onDrop = () => sfx.skitter(); b.onGrab = () => bonked('web'); b.onSprayed = () => sfx.shriek();
+    b.onHang = () => { if (walker.state !== 'ashore') return; webT = WEB_HOLD; webAt = {x: web.x, y: web.y, web}; };
     b.onBeaten = () => bargeDown(b.x, b.y); return b; }
   if (kind === 'anchorer'){ const b = new Anchorer(seaMoat(R, at));
     b.onWake = () => { sfx.cthuluWake(); shake = Math.max(shake, .5); }; b.onHit = (by) => bonked(by); b.onWindup = () => sfx.tentacle(); b.onThud = anchorer.onThud;
@@ -2116,7 +2129,7 @@ function drawEggWords(){ const t = cine.t, p = eggSeat(), ex = px(p.x, p.y), ey 
   const u = t - POP_T - .15; if (u < 0) return; const a = Math.min(1, u/.2, (EGG_CINE - .3 - t)/.4);
   word('Congratulations!', W/2, H*.2, Math.min(W/9, 46)*pop(u), '#F2C230', -.04, a);
   word('It\'s a baby Reaper!', W/2, H*.2 + Math.min(W/9, 46)*1.05, Math.min(W/13, 32)*pop(Math.max(0, u - .2)), '#BFE0FF', .03, u < .2 ? 0 : a); }
-function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || forgotten2.up || boss.up || boss3.up || boss7.up || heron.up || heron9.up || brother.up || nest.up || swordsman.up || demons.some(d => d.up) || anchorer.up || landReaper.awake || cth.up || lancers.roused || gators.roused || gorillas.roused || bargeLancers.roused || bargeGators.roused || bargeGorillas.roused || bargeFighters.some(f => f.up) || bargeBosses().some(b => b.up) || bargeBoss.reaper.some(r => r.awake) || spider10.awake || pelican.up || oldOne.up || !!oldScene || pullT > 0; }
+function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || forgotten2.up || boss.up || boss3.up || boss7.up || heron.up || heron9.up || brother.up || nest.up || swordsman.up || demons.some(d => d.up) || anchorer.up || landReaper.awake || cth.up || lancers.roused || gators.roused || gorillas.roused || bargeLancers.roused || bargeGators.roused || bargeGorillas.roused || bargeFighters.some(f => f.up) || bargeBosses().some(b => b.up) || bargeBoss.reaper.some(r => r.awake) || bargeBoss.spider.some(sd => sd.awake) || spider10.awake || pelican.up || oldOne.up || !!oldScene || pullT > 0; }
 warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
   toast(isle3Stage >= 2 ? 'Down at the tower\'s foot again. The portal is still turning.' : 'Down to the foot of the tower, under the sea.', 3000, 1); }
@@ -2752,7 +2765,10 @@ function closeBarge(){ $('bargeCard').hidden = true; }
 function renderBarge(){ const total = bargeTotal(barge.pick);
   $('bargeSize').innerHTML = ARENA_SIZES.map(k => `<button class="rchip${barge.size === k ? ' on' : ''}" data-size="${k}">${ARENA_NAMES[k]}</button>`).join('');
   $('bargeList').innerHTML = BARGE_FOES.map(k => { const [n, d] = FOE_NAMES[k];
-    return `${k === BOSS_FOES[0] ? '<p class="tnote">Bosses</p>' : ''}<div class="boat foe"><div><b>${n}</b><small>${d}</small></div><div class="count"><button class="rchip" data-foe="${k}" data-d="-1" aria-label="One fewer ${n}">−</button><span>${barge.pick[k]}</span><button class="rchip" data-foe="${k}" data-d="1" aria-label="One more ${n}"${total >= BARGE_MAX ? ' disabled' : ''}>+</button></div></div>`; }).join('');
+    // The spider only with bug spray in the bag: three sprays a spider.
+    const noSpray = k === 'spider' && bugSpray < SPIDER_HP * (barge.pick.spider + 1);
+    const why = noSpray ? (bugSpray ? ` You have ${bugSpray} sprays: not enough for another.` : ' You have no bug spray: the old man on island 10 sells it.') : '';
+    return `${k === BOSS_FOES[0] ? '<p class="tnote">Bosses</p>' : ''}<div class="boat foe"><div><b>${n}</b><small>${d}${why}</small></div><div class="count"><button class="rchip" data-foe="${k}" data-d="-1" aria-label="One fewer ${n}">−</button><span>${barge.pick[k]}</span><button class="rchip" data-foe="${k}" data-d="1" aria-label="One more ${n}"${total >= BARGE_MAX || noSpray ? ' disabled' : ''}>+</button></div></div>`; }).join('');
   $('bargeTotal').textContent = total ? `${total} of ${BARGE_MAX} picked.` : 'Pick at least one to fight.';
   $('bargeGo').disabled = !total; }
 $('bargeBtn').addEventListener('click', openBarge);
@@ -4363,7 +4379,7 @@ function drawRoom(){
     for (let k=0;k<4;k++) box(st.x-16+k*5, st.y-16+k*5, 26-k*5, 26-k*5, 0, 6+k*6, '#8F9893', '#C3CAC5');
     isoEllipse(st.x, st.y, 24 + Math.sin(T*4)*2); ctx.strokeStyle = 'rgba(156,240,192,.7)'; ctx.lineWidth = 2.5*Z; ctx.stroke(); }
   // Who is in the room, back to front.
-  const actors = [{d: walker.x + walker.y, f: () => walker.draw(drawView, 'solids')}];
+  const actors = [{d: walker.x + walker.y, f: () => { walker.draw(drawView, 'solids'); if (wrapped()) drawCocoon(drawView, walker.x, walker.y, walker.z, T); }}];
   if (hordes[floor]) for (const u of hordes[floor].list) if (u.state !== 'gone') actors.push({d: u.x + u.y, f: () => hordes[floor].drawUnit(drawView, u)});
   if (floor === RUINS){ actors.push({d: POOL.x + POOL.y, f: () => oldOne.drawBody(drawView)});
     for (const c of COLUMNS) actors.push({d: c.x + c.y + c.r, f: () => drawColumn(drawView, c.x, c.y, c.r, c.h)});
@@ -4395,7 +4411,12 @@ function drawRoom(){
     // The Reaper's red fan and line on the deck under everyone, then him.
     for (const r of bargeBoss.reaper){ r.draw(drawView, 'surface'); if (r.state !== 'gone') actors.push({d: r.x + r.y, f: () => r.drawBody(drawView)}); }
     // The Anchorer's red ring on the deck, then it, wading in the sea off the side; its anchor flies over everything.
-    for (const a of bargeBoss.anchorer){ a.draw(drawView, 'surface'); if (a.state !== 'gone') actors.push({d: a.x + a.y, f: () => a.drawBody(drawView)}); } }
+    for (const a of bargeBoss.anchorer){ a.draw(drawView, 'surface'); if (a.state !== 'gone') actors.push({d: a.x + a.y, f: () => a.drawBody(drawView)}); }
+    // Each spider's web between its two posts, whole until he is beaten, and him.
+    for (const sd of bargeBoss.spider){ const w = sd.web;
+      for (const [x, y] of [w.a, w.b]) actors.push({d: x + y, f: () => box(x - 3, y - 3, 6, 6, 0, w.z + 30, '#6E4A2A', '#8F6A43')});
+      actors.push({d: w.x + w.y + .6, f: () => drawWeb(drawView, sd.here, w)});
+      if (sd.state !== 'gone') actors.push({d: sd.x + sd.y + .7, f: () => drawSpider(drawView, sd)}); } }
   if (floor === HALL && swordsman.state !== 'gone') actors.push({d: swordsman.x + swordsman.y, f: () => swordsman.drawBody(drawView)});
   if (floor === TEMPLE6){ if (cth.state !== 'gone') actors.push({d: cth.x + cth.y, f: () => cth.drawBody(drawView)});
     for (const k of cth.tents) actors.push({d: k.x + k.y, f: () => cth.drawTent(drawView, k)}); }
@@ -4412,7 +4433,7 @@ function drawRoom(){
   if (R.kind === 'nest') drawNestFront(drawView, R);
   // The front rim, so the room reads as a room.
   if (!roof && R.kind !== 'demon' && R.kind !== 'arena'){ isoEllipse(R.x, R.y, R.r+4); ctx.strokeStyle = R.kind === 'hall' ? '#24413F' : '#2A2E34'; ctx.lineWidth = 6*Z; ctx.stroke(); }
-  scene.draw(drawView, 'air'); if (floor === RUINS) oldOne.draw(drawView, 'air'); drawFlies();
+  scene.draw(drawView, 'air'); if (floor === RUINS) oldOne.draw(drawView, 'air'); if (sprayFx && tower === BARGE) drawSprayPuff(drawView, sprayFx.x0, sprayFx.y0, sprayFx.x1, sprayFx.y1, sprayFx.t / .45); drawFlies();
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = q.c || (Math.random() < .5 ? '#FFFFFF' : '#E8D9FF'); star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
   drawTexts();
   if (redFlash > 0){ ctx.fillStyle = `rgba(200,20,30,${redFlash*.8})`; ctx.fillRect(0, 0, W, H); }

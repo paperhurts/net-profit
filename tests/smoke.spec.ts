@@ -378,8 +378,24 @@ type Np = {
   bargeLancers: Band;
   bargeFighters: { spec: { look: string }; state: string; hit(power: number): boolean }[];
   bargeBoss: Record<
-    'sorcerer' | 'forgotten' | 'heron' | 'pelican' | 'cthulhu' | 'oldone' | 'reaper' | 'anchorer',
-    { up: boolean; low?: boolean; open?: boolean; state: string; hit(power: number): unknown }[]
+    | 'sorcerer'
+    | 'forgotten'
+    | 'heron'
+    | 'pelican'
+    | 'cthulhu'
+    | 'oldone'
+    | 'reaper'
+    | 'anchorer'
+    | 'spider',
+    {
+      up: boolean;
+      low?: boolean;
+      open?: boolean;
+      state: string;
+      x: number;
+      y: number;
+      hit(power: number): unknown;
+    }[]
   >;
   cryptWon: boolean;
   CRYPT: number;
@@ -6214,6 +6230,55 @@ test('the Battle Barge: the Tar Anchorer wades round the barge, throws its ancho
   });
   await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 5000 });
   await expect(page.locator('#toast')).toContainText('beat them all');
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge: the giant spider in a web on the deck, beaten only by bug spray', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    bugSpray: 6,
+    barge: { size: 'medium', pick: { spider: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  // Down he comes at once; up close, the spray can shows, and three sprays beat him.
+  for (let i = 0; i < 30; i++) {
+    const done = await page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(9);
+      const sd = n.bargeBoss.spider[0];
+      if (!sd || sd.state === 'fall' || sd.state === 'gone') return true;
+      if (sd.state === 'chase' || sd.state === 'hurt') {
+        n.walker.x = sd.x + 30;
+        n.walker.y = sd.y + 30;
+      }
+      return false;
+    });
+    if (done) break;
+    if (await page.evaluate(() => window.__np.sprayShown))
+      await page.dispatchEvent('#sprayBtn', 'pointerdown', { button: 0, pointerType: 'touch' });
+    await page.waitForTimeout(400);
+  }
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.bugSpray)).toBe(3);
+  // With no bug spray left in the bag, the card will not add him.
+  await page.evaluate(() => {
+    window.__np.bugSpray = 0;
+  });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeList')).toContainText('You have no bug spray');
+  await expect(page.locator('#bargeList [data-foe="spider"][data-d="1"]')).toBeDisabled();
   expect(errors).toEqual([]);
 });
 

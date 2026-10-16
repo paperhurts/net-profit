@@ -8,34 +8,34 @@
  */
 
 import type { DrawView } from '../entities/entity';
-import { SPIDER_FALL, type Spider10, WEB } from '../entities/spider10';
+import { SPIDER_FALL, type Spider10, WEB, type Web } from '../entities/spider10';
 
 const SPIDER_K = 2.6;
 const SILK = 'rgba(240,240,232,.75)';
 
 /** A point in the web's upright plane: u along the strand from its middle, at height z. */
-function webPt(v: DrawView, u: number, z: number): [number, number] {
-  const [ax, ay] = WEB.a;
-  const [bx, by] = WEB.b;
+function webPt(v: DrawView, u: number, z: number, web: Web = WEB): [number, number] {
+  const [ax, ay] = web.a;
+  const [bx, by] = web.b;
   const L = Math.hypot(bx - ax, by - ay) || 1;
-  const x = WEB.x + ((bx - ax) / L) * u;
-  const y = WEB.y + ((by - ay) / L) * u;
+  const x = web.x + ((bx - ax) / L) * u;
+  const y = web.y + ((by - ay) / L) * u;
   return [v.px(x, y), v.py(x, y, z)];
 }
 
 const SPOKES = 10;
 const RZ = 17;
 
-export function drawWeb(v: DrawView, whole: boolean): void {
+export function drawWeb(v: DrawView, whole: boolean, web: Web = WEB): void {
   const { ctx } = v;
-  const R = WEB.r;
+  const R = web.r;
   ctx.strokeStyle = SILK;
   ctx.lineWidth = Math.max(0.6, 0.45 * v.zoom);
   ctx.lineCap = 'round';
   const rim = (k: number, i: number): [number, number] => {
     const a = (i / SPOKES) * Math.PI * 2;
     // A little sag in each ring between its spokes.
-    return webPt(v, Math.cos(a) * R * k, WEB.z + Math.sin(a) * RZ * k - (k > 0 ? 0.6 : 0));
+    return webPt(v, Math.cos(a) * R * k, web.z + Math.sin(a) * RZ * k - (k > 0 ? 0.6 : 0), web);
   };
   const line = (p: [number, number], q: [number, number]) => {
     ctx.beginPath();
@@ -43,7 +43,7 @@ export function drawWeb(v: DrawView, whole: boolean): void {
     ctx.lineTo(q[0], q[1]);
     ctx.stroke();
   };
-  const hub = webPt(v, 0, WEB.z);
+  const hub = webPt(v, 0, web.z, web);
   if (!whole) {
     // Torn: a few spokes left hanging, and a broken ring.
     for (const i of [1, 4, 7]) line(hub, rim(0.7, i));
@@ -57,10 +57,10 @@ export function drawWeb(v: DrawView, whole: boolean): void {
     return;
   }
   // Anchor threads out to the trunks, and down to the mud.
-  line(rim(1, 0), webPt(v, R + 4, WEB.z));
-  line(rim(1, SPOKES / 2), webPt(v, -R - 4, WEB.z));
-  line(rim(1, SPOKES * 0.25), webPt(v, R * 0.3, WEB.z + RZ + 8));
-  line(rim(1, SPOKES * 0.75), webPt(v, -R * 0.2, 0));
+  line(rim(1, 0), webPt(v, R + 4, web.z, web));
+  line(rim(1, SPOKES / 2), webPt(v, -R - 4, web.z, web));
+  line(rim(1, SPOKES * 0.25), webPt(v, R * 0.3, web.z + RZ + 8, web));
+  line(rim(1, SPOKES * 0.75), webPt(v, -R * 0.2, 0, web));
   for (let i = 0; i < SPOKES; i++) line(hub, rim(1, i));
   for (const k of [0.25, 0.42, 0.59, 0.76, 0.93]) {
     ctx.beginPath();
@@ -83,7 +83,7 @@ export function drawSpider(v: DrawView, s: Spider10): void {
   const W = (c: string) => (s.flash > 0 ? '#FFFFFF' : c);
   // His thread, from the hub down to him.
   if (s.state === 'drop' || s.state === 'climb' || s.state === 'web') {
-    const [hx, hy] = webPt(v, 0, WEB.z + 3);
+    const [hx, hy] = webPt(v, 0, s.web.z + 3, s.web);
     ctx.strokeStyle = SILK;
     ctx.lineWidth = Math.max(0.6, 0.4 * v.zoom);
     ctx.beginPath();

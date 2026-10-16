@@ -11,6 +11,7 @@ import { LANCER_HP, Lancers } from '../../src/entities/lancers';
 import { Pelican } from '../../src/entities/pelican';
 import { deckLair, ISLE6_LAIR, LAND_LEN, LandReaper, LEASH_R } from '../../src/entities/reaperland';
 import { RING, Sorcerer } from '../../src/entities/sorcerer';
+import { offWeb, Spider10, WEB, webBetween } from '../../src/entities/spider10';
 import { ARENAS, entry, ROOMS, type Room } from '../../src/world/tower';
 import { baseWorld } from './helpers/world';
 
@@ -208,5 +209,26 @@ describe('the Tar Anchorer, on the Battle Barge', () => {
     }
     expect(d0).toBeGreaterThan(THROW_RANGE);
     expect(whirled).toBe(true);
+  });
+});
+
+describe('the giant spider, on the Battle Barge', () => {
+  it('hangs in a web between two posts on the deck, comes down at once, and only spray beats him', () => {
+    const at = spots[1] as { x: number; y: number };
+    const web = webBetween([at.x + 26, at.y - 26], [at.x - 26, at.y + 26]);
+    expect([web.x, web.y]).toEqual([at.x, at.y]);
+    expect(web.z).toBe(WEB.z);
+    expect(offWeb(at.x, at.y, web)).toBeLessThan(1);
+    const sd = new Spider10(web, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    expect([sd.x, sd.y]).toEqual([web.x, web.y]);
+    // Island 10's keeps his swamp web.
+    expect(new Spider10().web).toBe(WEB);
+    // From the far side of the deck, he drops and comes, and never goes back for being too far.
+    const e = entry(big);
+    for (let t = 0; t < 3; t += DT) sd.update(DT, world(e));
+    expect(sd.state).toBe('chase');
+    expect(sd.awake).toBe(true);
+    for (let i = 0; i < 3; i++) sd.spray();
+    expect(sd.state).toBe('fall');
   });
 });
