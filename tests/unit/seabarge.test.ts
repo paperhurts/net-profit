@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BARGE_MAX,
   defaultBarge,
+  noSeaPick,
   parseBarge,
   SEA_ARENA,
   SEA_FOES,
@@ -14,7 +15,9 @@ import {
   seaTotal,
 } from '../../src/data/barge';
 import { DeepOne, LAIR6, seaDeepHome } from '../../src/entities/deepone';
+import { EAST_DEEP, Gulper, seaZone } from '../../src/entities/gulper';
 import { ISLE6_HAUNT, MeteorSerpent, seaHaunt } from '../../src/entities/meteor';
+import { DEEP_WATER, Reaper, ROUTE, seaWater } from '../../src/entities/reaper';
 import { ISLE5_REEF, SharkKing, seaReef } from '../../src/entities/sharkking';
 import { DEEP, FAR, FARFAR, WS } from '../../src/world/island';
 import { ROOMS } from '../../src/world/tower';
@@ -26,11 +29,11 @@ describe('the Battle Barge at sea: picking a fight', () => {
   it('starts on foot, with Star picked for the sea', () => {
     const b = defaultBarge();
     expect(b.where).toBe('foot');
-    expect(b.sea).toEqual({ meteor: 1, king: 0, deep: 0 });
+    expect(b.sea).toEqual({ meteor: 1, king: 0, deep: 0, reaper: 0, gulper: 0 });
   });
 
   it('keeps the sea pick to ten all told, and never below none', () => {
-    let p = { meteor: 0, king: 0, deep: 0 };
+    let p = noSeaPick();
     p = seaAdd(p, 'king', 7);
     p = seaAdd(p, 'deep', 7);
     expect(seaTotal(p)).toBe(BARGE_MAX);
@@ -50,7 +53,7 @@ describe('the Battle Barge at sea: picking a fight', () => {
       sea: { king: 2.6, deep: 30, kraken: 4, meteor: -1 },
     });
     expect(sea.where).toBe('sea');
-    expect(sea.sea).toEqual({ meteor: 0, king: 2, deep: BARGE_MAX - 2 });
+    expect(sea.sea).toEqual({ meteor: 0, king: 2, deep: BARGE_MAX - 2, reaper: 0, gulper: 0 });
     expect(parseBarge({ where: 'moon' }).where).toBe('foot');
   });
 
@@ -117,6 +120,49 @@ describe('the sea bosses, given a home', () => {
     expect(new DeepOne().x).toBe(LAIR6.x);
     expect(new SharkKing().reef).toBe(ISLE5_REEF);
     expect(new MeteorSerpent().haunt).toBe(ISLE6_HAUNT);
+    const r = new Reaper();
+    expect(r.water).toBe(DEEP_WATER);
+    expect([r.x, r.y]).toEqual([ROUTE[0]?.x, ROUTE[0]?.y]);
+    expect(new Gulper().zone).toBe(EAST_DEEP);
+  });
+
+  it('set the Reaper and the gulper on the boat at once in the ring, never tiring of it, kept inside', () => {
+    const w = baseWorld({ boat: { ...boat } });
+    const r = new Reaper(seaWater(at, ring));
+    const g = new Gulper(seaZone(ring), at);
+    expect([g.x, g.y]).toEqual([at.x, at.y]);
+    for (let i = 0; i < 60 * 30; i++) {
+      // The boat runs round the ring's edge, and never gets far.
+      const a = i * 0.004;
+      w.boat.x = ring.x + Math.cos(a) * (ring.r - 100);
+      w.boat.y = ring.y + Math.sin(a) * (ring.r - 100);
+      r.update(DT, w);
+      g.update(DT, w);
+      expect(Math.hypot(r.x - ring.x, r.y - ring.y)).toBeLessThanOrEqual(ring.r - 60 + 1e-6);
+      expect(Math.hypot(g.x - ring.x, g.y - ring.y)).toBeLessThanOrEqual(ring.r - 40 + 1e-6);
+    }
+    expect(r.hunting).toBe(true);
+    // Thirty seconds and the gulper is still after it: at home it gives up after fourteen.
+    expect(g.state).toBe('hunt');
+  });
+
+  it('drives the gulper off for good at sea, and back after a while at home', () => {
+    const w = baseWorld({ boat: { ...boat } });
+    const sea = new Gulper(seaZone(ring), at);
+    for (let i = 0; i < 60 && sea.state !== 'hunt'; i++) sea.update(DT, w);
+    expect(sea.state).toBe('hunt');
+    sea.resolve = 1;
+    expect(sea.harpoon(1)).toBe(true);
+    expect(sea.state).toBe('away');
+    expect(sea.mark()).toBeNull();
+    sea.reset();
+    for (let i = 0; i < 60 * 40; i++) sea.update(DT, w);
+    expect(sea.state).toBe('away');
+    const home = new Gulper();
+    home.state = 'hunt';
+    home.resolve = 1;
+    expect(home.harpoon(1)).toBe(true);
+    expect(home.state).toBe('rest');
   });
 
   it('wake at once at a spot on the open sea, however far off the boat is, and never give up', () => {

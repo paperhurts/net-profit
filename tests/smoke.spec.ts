@@ -116,7 +116,7 @@ type Np = {
   seaFight: { x: number; y: number; h: number; r: number } | null;
   seaWon: boolean;
   seaBoss: Record<
-    'meteor' | 'king' | 'deep',
+    'meteor' | 'king' | 'deep' | 'reaper' | 'gulper',
     {
       state: string;
       x: number;
@@ -6838,7 +6838,74 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
   // The setup is kept, at sea.
   await page.reload();
   await page.waitForFunction(() => window.__np?.barge?.where === 'sea', null, { timeout: 5000 });
-  expect(await page.evaluate(() => window.__np.barge.sea)).toEqual({ meteor: 0, king: 1, deep: 1 });
+  expect(await page.evaluate(() => window.__np.barge.sea)).toEqual({
+    meteor: 0,
+    king: 1,
+    deep: 1,
+    reaper: 0,
+    gulper: 0,
+  });
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge at sea: the Reaper run off with honey, and the gulper harpooned', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    honey: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { reaper: 1, gulper: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeList')).toContainText('The Reaper');
+  await expect(page.locator('#bargeList')).toContainText('The gulper');
+  await expect(page.locator('#bargeTotal')).toHaveText('2 of 10 picked.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // Both come for the boat at once.
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      return n.seaBoss.reaper[0]?.state !== 'roam' && n.seaBoss.gulper[0]?.state === 'hunt';
+    },
+    null,
+    { timeout: 4000 },
+  );
+  // The honey: he stops, shakes the boat, and is off out of the fight.
+  await expect(page.locator('#honeyBtn')).toBeVisible({ timeout: 2000 });
+  await page.locator('#honeyBtn').click();
+  await page.waitForFunction(() => window.__np.seaBoss.reaper[0]?.state === 'shy', null, {
+    timeout: 2000,
+  });
+  expect(await page.evaluate(() => window.__np.honey)).toBe(0);
+  await page.waitForFunction(() => window.__np.seaBoss.reaper[0]?.state === 'away', null, {
+    timeout: 4000,
+  });
+  expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
+  // The gulper up at the surface ahead of the bow, one hit from driven off.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.seaBoss.gulper[0];
+    if (!g) return;
+    g.x = n.boat.x + Math.cos(n.boat.h) * 160;
+    g.y = n.boat.y + Math.sin(n.boat.h) * 160;
+    g.up = 1;
+    g.resolve = 1;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'gulper', null, { timeout: 2000 });
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.seaBoss.gulper[0]?.state)).toBe('away');
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  // Home again.
+  await page.locator('#leave').click();
+  await page.waitForFunction(() => !window.__np.seaFight, null, { timeout: 2000 });
+  expect(Math.abs((await page.evaluate(() => window.__np.boat.x)) - 3000)).toBeLessThan(40);
   expect(errors).toEqual([]);
 });
 

@@ -35,9 +35,9 @@ import { Cthuluviathan, LAIR as CTHULU_LAIR, SIGHT_RADIUS as CTHULU_SIGHT } from
 import { LENS, LEVIATHANS, nextSeen, SCOPE_AT, SCOPE_REACH, SCOPE_SWING, seaZone } from './data/observatory';
 import { fare as charterFare, newCharter, SHIRTS, SIGHTS, see as seeSight, wishList } from './fishing/charter';
 import { Anglerfish } from './entities/anglerfish';
-import { Gulper } from './entities/gulper';
+import { Gulper, seaZone as gulperRing } from './entities/gulper';
 import { DIVE_HIT, MeteorSerpent, seaHaunt } from './entities/meteor';
-import { Reaper, SWEEP_HIT as REAPER_HIT } from './entities/reaper';
+import { Reaper, SWEEP_HIT as REAPER_HIT, seaWater } from './entities/reaper';
 import { BODY_R as LR_BODY, deckLair, LandReaper } from './entities/reaperland';
 import { IceRun, IceSeal, icePool, leftToCatch, SEAL_CHANCE } from './fishing/icefish';
 import { drawSealDive, FLOE_TOP, NEIL_FEEDS, Neil, nearNeil } from './entities/seal';
@@ -242,6 +242,7 @@ async function cloudOffer(){ cloudOffered = true; const got = await getGame(save
   askLoad(un.json, 'Played on further on another device'); }
 // The Battle Barge at sea (below): where the boat came from, its ring's size, and whether the fight is won.
 let seaFight = null, seaWon = false, seaView = 0; const seaLook = {x: 0, y: 0};
+const seaBoss = {meteor: [], king: [], deep: [], reaper: [], gulper: []};
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ const at = seaFight || boat; // out at the Battle Barge at sea, the boat is kept where it came from
   return started ? {x: Math.round(at.x), y: Math.round(at.y), h: +at.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
@@ -1669,6 +1670,7 @@ function hudSpray(){ const show = !!sprayTarget(); if (show !== sprayShown){ spr
 const elHoney = $('honeyBtn'); let honeyShown = false, honeySplashT = 0;
 function honeyTarget(){ if (honey <= 0 || !started || cine || diving || icing || wrapped()) return null;
   if (walker.aboard){ if (docked || swallowT > 0) return null;
+    if (seaFight) return seaBoss.reaper.find(r => r.hunting && r.state !== 'shy') ?? null;
     return reaper.hunting && reaper.state !== 'shy' ? reaper : null; }
   if (walker.state !== 'ashore') return null; let best = null, bd = HONEY_LAND;
   for (const lr of [landReaper, ...bargeBoss.reaper]){ const d = Math.hypot(lr.x - walker.x, lr.y - walker.y); if (lr.awake && d < bd){ bd = d; best = lr; } }
@@ -1676,6 +1678,7 @@ function honeyTarget(){ if (honey <= 0 || !started || cine || diving || icing ||
 function honeyNow(){ audio(); const r = honeyTarget(); if (!r || !r.scare()) return; honey--; sfx.reaperRoar(); shake = Math.max(shake, .5); toasts.clear();
   setTimeout(() => sfx.splash(), 1500);
   if (r === reaper) toast("You hold up the honey. The Reaper stops dead! He shakes your boat... and runs off, splashing! He'll be back.", 4200, 2);
+  else if (seaBoss.reaper.includes(r)) toast('You hold up the honey. The Reaper stops dead! He shakes your boat... and runs off, splashing, out of the fight!', 3600, 2);
   else if (r === landReaper && reaperEgg < 1) toast("You hold up the honey. The Reaper stops dead, shakes all over, and runs off into the sea, splashing! He'll be back by his nest: beat him to win his egg.", 4800, 2);
   else toast('You hold up the honey. The Reaper stops dead, shakes all over, and runs off, splashing!', 3600, 2);
   hudHoney(); save(); }
@@ -1686,8 +1689,8 @@ function hudHoney(){ const show = !!honeyTarget(); if (show !== honeyShown){ hon
 function honeySplash(x, y, n){ for (let k = 0; k < n; k++) sparks.push({x: x + (Math.random()-.5)*40, y: y + (Math.random()-.5)*40, vx: (Math.random()-.5)*70, vy: (Math.random()-.5)*70, z: 2, vz: 50 + Math.random()*60, age: 0, life: .5 + Math.random()*.3, c: '#E8F6FF'}); }
 // While he shakes the boat it shakes, and as he runs the water flies up round him.
 function updateHoney(dt){ hudHoney(); honeySplashT -= dt; const now = honeySplashT <= 0; if (now) honeySplashT = .08;
-  if (reaper.state === 'shy'){ shake = Math.max(shake, .35); if (now) honeySplash(boat.x, boat.y, 2); }
-  if (reaper.fled && reaper.state === 'away' && reaper.t < 3 && now) honeySplash(reaper.x, reaper.y, 5);
+  for (const r of [reaper, ...seaBoss.reaper]){ if (r.state === 'shy'){ shake = Math.max(shake, .35); if (now) honeySplash(boat.x, boat.y, 2); }
+    if (r.fled && r.state === 'away' && r.t < 3 && now) honeySplash(r.x, r.y, 5); }
   for (const lr of [landReaper, ...bargeBoss.reaper]){ if (lr.state === 'shy') shake = Math.max(shake, .2);
     if (lr.state === 'run' && now && lr.lair.inSea(lr.x, lr.y)) honeySplash(lr.x, lr.y, 4); } }
 // The forest's beehive on island 10 (world/isle10.ts HIVE10): a jar of honey a day, for the Reapers.
@@ -1955,7 +1958,6 @@ const bargeDown = (x, y) => { sfx.spearHit(); addText(x, y, 30, 'Down!', '#D8FFE
 // its own spot round the ring's back, given a home there where it wakes at once and never gives up, and fought from the
 // boat with the harpoon. They see the world with the fight always on, while the sea's own hunters, far off, leave the
 // boat alone.
-const seaBoss = {meteor: [], king: [], deep: []};
 const seaBosses = () => SEA_FOES.flatMap(k => seaBoss[k]);
 const seaWorld = Object.create(world); seaWorld.started = true;
 /** Beaten, at sea: driven off, dying or dead, sinking or sunk; and, besides, gone from sight, and no longer minded. */
@@ -1964,7 +1966,7 @@ const seaGone = (b) => b.state === 'dead' || b.state === 'down' || (b.state === 
 /** Each still in the fight, what kind it is, and where the harpoon would strike it now. */
 function seaMarks(){ return seaFight ? SEA_FOES.flatMap(k => seaBoss[k].filter(b => !seaGone(b)).map(b => [k, b, b.mark()])) : []; }
 let seaSpaceTold = false;
-const seaBand = {update(dt){ if (seaFight) for (const b of seaBosses()) if (!seaGone(b)) b.update(dt, seaWorld); },
+const seaBand = {update(dt){ if (!seaFight) return; for (const b of seaBosses()) if (!seaGone(b)) b.update(dt, seaWorld); seaCheck(); },
   draw(v, layer){ if (!seaFight) return; if (layer === 'surface') drawSeaRing(v, SEA_ARENA, seaFight.r); for (const b of seaBosses()) if (!seaGone(b)) b.draw(v, layer); },
   radar(blip){ if (seaFight) for (const b of seaBosses()) if (!seaGone(b)) b.radar(blip); }};
 /** One of the sea bosses at its spot in the ring, with its blows and sounds, which are its own island's. */
@@ -1975,7 +1977,12 @@ function seaBossAt(kind, at){
     m.onScared = () => { sfx.meteorDive(); addText(m.x, m.y, m.z + 40, 'Too big! Off to space!', '#FFD27A', 18, 2); };
     m.onSpace = () => { if (seaSpaceTold) return; seaSpaceTold = true; toast("Star saw the Deep One and shot up into space! He'll be back once it's beaten.", 3600, 1); };
     m.onWarn = serpent.onWarn; m.onHit = serpent.onHit; m.onSplash = serpent.onSplash; return m; }
-  if (kind === 'king'){ const k = new SharkKing(seaReef(at, {...SEA_ARENA, r: seaFight.r}));
+  const ring = {...SEA_ARENA, r: seaFight.r};
+  if (kind === 'reaper'){ const r = new Reaper(seaWater(at, ring));
+    r.onWarn = reaper.onWarn; r.onSweep = reaper.onSweep; r.onRear = reaper.onRear; return r; }
+  if (kind === 'gulper'){ const g = new Gulper(gulperRing(ring), at);
+    g.onHunt = () => sfx.gulperHunt(); g.onBite = gulper.onBite; return g; }
+  if (kind === 'king'){ const k = new SharkKing(seaReef(at, ring));
     k.onRise = () => { sfx.cthuluWake(); shake = Math.max(shake, .4); };
     k.onWarn = king.onWarn; k.onBite = king.onBite; k.onTrident = king.onTrident; k.onSplash = king.onSplash;
     k.onBeaten = () => { sfx.cthuluWake(); shake = Math.max(shake, .6); }; return k; }
