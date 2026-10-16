@@ -16,14 +16,38 @@
  * And, the kid's: the airboat tows the banana boat. With both out, the banana takes no station of its own but rides a
  * rope's length behind the airboat's stern, swinging in behind it like a trailer; with the airboat ashore or unmanned,
  * the banana runs on its own little outboard.
+ *
+ * The fifth, the kid's too (2026-10-16): a swan paddle boat for two, "two friends pedal it together", Caterman's, who
+ * comes with you after island 11's heron. It takes the next station free, as the others do; the seat beside him is
+ * the kid's to fill or leave empty, and it is out on the water with either seat taken.
  */
 
 import { angDiff, clamp } from '../core/math';
-import { CRAFTS, type CraftKind, type Crew, DEFAULT_CREW, type Rider } from '../data/crew';
+import {
+  CRAFTS,
+  type CraftKind,
+  type Crew,
+  craftOfSeat,
+  DEFAULT_CREW,
+  type Rider,
+  SEATS,
+  type Seat,
+  seatsOf,
+} from '../data/crew';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 import { steerShip } from './ship';
 
-export { CRAFTS, type CraftKind, type Crew, DEFAULT_CREW, RIDERS, type Rider } from '../data/crew';
+export {
+  CRAFTS,
+  type CraftKind,
+  type Crew,
+  DEFAULT_CREW,
+  RIDERS,
+  type Rider,
+  SEATS,
+  type Seat,
+  seatsOf,
+} from '../data/crew';
 
 /** How big the craft are drawn and reckoned, against the hull's units. */
 export const CRAFT_SCALE = 1.15;
@@ -35,7 +59,10 @@ export const AIR_STERN = 15;
 export const ROPE = 22;
 export const BANANA_HALF = 23;
 
-/** The stations, in the hull's units: this far ahead of the boat's middle, this far out to its side (right +). */
+/**
+ * The stations, in the hull's units: this far ahead of the boat's middle, this far out to its side (right +). Four
+ * are enough for five craft: with all five out the airboat tows the banana, which takes none.
+ */
 export const STATIONS: readonly { along: number; across: number }[] = [
   { along: 75, across: 52 },
   { along: 75, across: -52 },
@@ -61,7 +88,7 @@ export class Craft {
 
 export class Flotilla implements Entity {
   readonly crafts: readonly Craft[] = CRAFTS.map((k) => new Craft(k));
-  /** Who rides which: one rider to a craft, or nobody. */
+  /** Who rides which: one rider to a seat, or nobody. */
   crew: Crew = { ...DEFAULT_CREW };
   /** Whether a rider is yours yet; the game knows. */
   free: (r: Rider) => boolean = () => false;
@@ -72,26 +99,32 @@ export class Flotilla implements Entity {
 
   /** The craft a rider sails, if it has one. */
   craftOf(r: Rider): Craft | null {
-    for (const c of this.crafts) if (this.crew[c.kind] === r) return c;
+    for (const s of SEATS)
+      if (this.crew[s] === r) return this.crafts.find((c) => c.kind === craftOfSeat(s)) ?? null;
     return null;
   }
 
-  /**
-   * Put a rider on a craft, or nobody (the rider goes back to the deck). One the rider leaves gets whoever was on
-   * this craft, so the two swap and nobody is left out.
-   */
-  assign(kind: CraftKind, r: Rider | null): void {
-    const was = this.crew[kind];
-    if (r) for (const k of CRAFTS) if (k !== kind && this.crew[k] === r) this.crew[k] = was;
-    this.crew[kind] = r;
+  /** Who is on a craft's seats and yours, seat by seat (null for an empty one): the swan has two. */
+  ridersOf(kind: CraftKind): (Rider | null)[] {
+    return seatsOf(kind).map((s) => {
+      const r = this.crew[s];
+      return r && this.free(r) ? r : null;
+    });
   }
 
-  /** The craft out on the water: crewed by a rider who is yours. */
+  /**
+   * Put a rider on a seat, or nobody (the rider goes back to the deck). One the rider leaves gets whoever was on this
+   * seat, so the two swap and nobody is left out.
+   */
+  assign(seat: Seat, r: Rider | null): void {
+    const was = this.crew[seat];
+    if (r) for (const k of SEATS) if (k !== seat && this.crew[k] === r) this.crew[k] = was;
+    this.crew[seat] = r;
+  }
+
+  /** The craft out on the water: with a rider who is yours on a seat. */
   active(): Craft[] {
-    return this.crafts.filter((c) => {
-      const r = this.crew[c.kind];
-      return !!r && this.free(r);
-    });
+    return this.crafts.filter((c) => this.ridersOf(c.kind).some((r) => r));
   }
 
   /** A station off a boat at this heading and hull scale. */

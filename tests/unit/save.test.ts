@@ -566,7 +566,14 @@ describe('the leviathans driven off', () => {
     delete old.crew;
     const s = parseSave(JSON.stringify(old), bounds);
     expect(s.crew).toEqual(DEFAULT_CREW);
-    s.crew = { airboat: 'tarling', catamaran: null, windsurf: 'necro', banana: 'warrior' };
+    s.crew = {
+      airboat: 'tarling',
+      catamaran: null,
+      windsurf: 'necro',
+      banana: 'warrior',
+      swan: 'caterman',
+      swan2: 'bones',
+    };
     expect(parseSave(serializeSave(s), bounds).crew).toEqual(s.crew);
   });
 

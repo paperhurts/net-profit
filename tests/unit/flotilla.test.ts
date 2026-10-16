@@ -26,7 +26,7 @@ const all = (f: Flotilla) => {
 describe('the flotilla', () => {
   it('starts with a rider on each craft, one craft each, and is on the water only for riders who are yours', () => {
     const f = new Flotilla();
-    expect(new Set(Object.values(DEFAULT_CREW)).size).toBe(RIDERS.length);
+    expect(new Set(Object.values(DEFAULT_CREW).filter((r) => r)).size).toBe(RIDERS.length);
     for (const r of RIDERS) expect(f.craftOf(r)).not.toBeNull();
     f.update(DT, baseWorld({ figure: null }));
     expect(f.crafts.filter((c) => c.placed)).toHaveLength(0);
@@ -43,6 +43,16 @@ describe('the flotilla', () => {
     expect(f.crew.banana).toBe('warrior');
     expect(f.craftOf('tarling')?.kind).toBe('airboat');
     for (const r of RIDERS) expect(Object.values(f.crew).filter((x) => x === r)).toHaveLength(1);
+    // The seat beside Caterman on the swan: the warrior leaves the banana empty, and the swan's own seat swaps too.
+    f.assign('swan2', 'warrior');
+    expect(f.crew.swan2).toBe('warrior');
+    expect(f.crew.banana).toBeNull();
+    expect(f.craftOf('warrior')?.kind).toBe('swan');
+    f.assign('swan', 'warrior');
+    expect(f.crew.swan).toBe('warrior');
+    expect(f.crew.swan2).toBe('caterman');
+    f.assign('banana', 'warrior');
+    f.assign('swan', 'caterman');
     // Nobody sends a rider back to the deck.
     f.assign('airboat', null);
     expect(f.craftOf('tarling')).toBeNull();
@@ -109,7 +119,7 @@ describe('the flotilla', () => {
       w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
       f.update(DT, w);
     }
-    // The three with stations of their own (the banana is on the airboat's rope).
+    // The four with stations of their own (the banana is on the airboat's rope).
     f.crafts
       .filter((c) => c.kind !== 'banana')
       .forEach((c, i) => {
@@ -153,7 +163,7 @@ describe('the flotilla', () => {
   it('draws every craft, with its rider at the seat, and under way with a wake', () => {
     const f = all(new Flotilla());
     f.update(DT, baseWorld({ figure: null }));
-    expect(CRAFTS).toHaveLength(4);
+    expect(CRAFTS).toHaveLength(5);
     for (const c of f.crafts) {
       const v = fakeView();
       const seats: number[] = [];
@@ -166,5 +176,53 @@ describe('the flotilla', () => {
       drawCraft(v.v, c, null);
       expect(seats).toHaveLength(1);
     }
+  });
+
+  it('puts the swan out with either seat taken, on the last station with all five out, two side by side pedalling', () => {
+    const f = new Flotilla();
+    f.free = (r: Rider) => r !== 'caterman';
+    f.update(DT, baseWorld({ figure: null }));
+    expect(f.crafts.find((c) => c.kind === 'swan')?.placed).toBe(false);
+    expect(f.ridersOf('swan')).toEqual([null, null]);
+    // Caterman not with you yet, but a friend beside his seat: the swan goes out with him.
+    f.assign('swan2', 'necro');
+    f.update(DT, baseWorld({ figure: null }));
+    expect(f.crafts.find((c) => c.kind === 'swan')?.placed).toBe(true);
+    expect(f.ridersOf('swan')).toEqual([null, 'necro']);
+    // All five out, the banana on its rope: the swan takes the fourth station, the last.
+    f.assign('catamaran', 'necro');
+    f.free = () => true;
+    const w: World = baseWorld({ figure: null });
+    // Far off, so each is over at its station at once.
+    w.boat.x += CATCH_UP + 100;
+    f.update(DT, w);
+    const swan = f.crafts.find((c) => c.kind === 'swan');
+    let st = Flotilla.station(3, w.boat, w.hullScale);
+    expect(Math.hypot((swan?.x ?? 0) - st.x, (swan?.y ?? 0) - st.y)).toBeLessThan(1);
+    expect(STATIONS).toHaveLength(4);
+    // Nobody on the airboat, the banana takes a station of its own, and there are still four out.
+    f.assign('airboat', null);
+    w.boat.x += CATCH_UP + 100;
+    f.update(DT, w);
+    expect(f.active()).toHaveLength(4);
+    st = Flotilla.station(3, w.boat, w.hullScale);
+    expect(Math.hypot((swan?.x ?? 0) - st.x, (swan?.y ?? 0) - st.y)).toBeLessThan(1);
+    // Drawn with both riders, side by side and pedalling harder under way.
+    const v = fakeView();
+    const at: { x: number; y: number; gait: number }[] = [];
+    const rider = (x: number, y: number, _z: number, _h: number, p?: { gait: number }) =>
+      at.push({ x, y, gait: p?.gait ?? -1 });
+    if (!swan) throw new Error('no swan');
+    swan.v = 200;
+    drawCraft(v.v, swan, rider, rider);
+    expect(at).toHaveLength(2);
+    expect(
+      Math.hypot((at[0]?.x ?? 0) - (at[1]?.x ?? 0), (at[0]?.y ?? 0) - (at[1]?.y ?? 0)),
+    ).toBeGreaterThan(8);
+    for (const a of at) expect(a.gait).toBe(1);
+    at.length = 0;
+    swan.v = 0;
+    drawCraft(v.v, swan, rider, null);
+    expect(at.map((a) => a.gait)).toEqual([0]);
   });
 });
