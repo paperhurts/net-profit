@@ -362,6 +362,17 @@ type Np = {
   >;
   forgotten: { up: boolean; state: string; hit(power: number): void };
   forgotten2: { up: boolean; state: string; hp: number; hit(power: number): void };
+  barge: { size: string; pick: Record<string, number> };
+  bargeWins: number;
+  bargeOn: boolean;
+  ARENAS: Record<string, number>;
+  bargeCamps: Record<
+    number,
+    Record<
+      string,
+      { list: { x: number; y: number }[]; hit(m: unknown, p: number, x: number, y: number): void }
+    >
+  >;
   cryptWon: boolean;
   CRYPT: number;
   SKULL_DOOR: { x: number; y: number };
@@ -5899,6 +5910,111 @@ test("island 11's old portal: into the Old One's ruins, the skull key opens the 
   });
   expect(out).toBeLessThan(5);
   await expect(page.locator('#log')).toContainText('The Forgotten One again');
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge from the boat: pick a fight, beat them all for a coin, and back aboard', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeCard')).toBeVisible();
+  // To start: three monkeys and two skeletons. Make it a small arena, and one ghost more.
+  await expect(page.locator('#bargeTotal')).toHaveText('5 of 10 picked.');
+  await page.locator('#bargeSize [data-size="small"]').click();
+  await page.locator('#bargeList [data-foe="ghost"][data-d="1"]').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('6 of 10 picked.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.small, null, {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  await expect(page.locator('#leave')).toHaveText('Leave the barge');
+  // Beat them all: a coin.
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    const f = n.floor;
+    const h = n.hordes[f];
+    if (h) for (const k of [0, 1]) for (const u of h.list) h.hit(u, 99 + k, n.walker.x, n.walker.y);
+    for (const c of Object.values(n.bargeCamps[f] ?? {}))
+      for (const m of c.list) c.hit(m, 99, n.walker.x, n.walker.y);
+  });
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1);
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  // Back aboard, where the boat was.
+  await page.locator('#leave').click();
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('aboard');
+  expect(await page.evaluate(() => window.__np.bargeOn)).toBe(false);
+  await expect(page.locator('#log')).toContainText('Battle Barge: 1 won');
+  // The setup is kept.
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.barge?.size === 'small', null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge from ashore: bonked out, back on the spot you stood on, nothing lost', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    barge: { size: 'medium', pick: { lagoon: 4 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const i = window.__np.ISLE11;
+    w.x = i.x + 40;
+    w.y = i.y + 200;
+  });
+  const at = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('4 of 10 picked.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  // One heart left, and four lagoon creatures coming: bonked out.
+  await page.evaluate(() => window.__np.setHearts(1));
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 15000 });
+  await expect(page.locator('#toast')).toContainText('Bonked out');
+  const back = await page.evaluate(() => ({
+    state: window.__np.walker.state,
+    x: window.__np.walker.x,
+    y: window.__np.walker.y,
+    hearts: window.__np.hearts,
+    max: window.__np.maxHearts,
+  }));
+  expect(back.state).toBe('ashore');
+  expect(Math.hypot(back.x - at.x, back.y - at.y)).toBeLessThan(2);
+  expect(back.hearts).toBe(back.max);
   expect(errors).toEqual([]);
 });
 

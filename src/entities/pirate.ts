@@ -134,8 +134,11 @@ export class Pirate implements Entity {
       this.onFlee?.();
     }
     const dBoat = Math.hypot(boat.x - p.x, boat.y - p.y);
+    // Safe at home, past the buoys, or while the game stands still for it (the figure off on the Battle Barge).
     const boatSafe =
-      Math.hypot(boat.x - DOCK.x, boat.y - DOCK.y) < SAFE_RADIUS || pastBuoys(boat.x, boat.y);
+      Math.hypot(boat.x - DOCK.x, boat.y - DOCK.y) < SAFE_RADIUS ||
+      pastBuoys(boat.x, boat.y) ||
+      !w.started;
     let tx = p.tx;
     let ty = p.ty;
     let speed = PIRATE_SPEED * 0.6;

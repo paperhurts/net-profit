@@ -7,6 +7,7 @@
 
 import { ARMOUR_MAX } from '../data/armour';
 import { type Badges, noBadges, parseBadges } from '../data/badges';
+import { type BargeSetup, defaultBarge, parseBarge } from '../data/barge';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
@@ -191,6 +192,10 @@ export type SaveData = {
   skullKey: boolean;
   /** The crypt behind the skull door won: the Forgotten One beaten again, and yielded. Missing in old saves and read as not. */
   cryptWon: boolean;
+  /** The Battle Barge's last setup, its arena and who to fight (data/barge.ts); missing in old saves, read as the start. */
+  barge: BargeSetup;
+  /** Fights won on the Battle Barge. Missing in old saves and read as none. */
+  bargeWins: number;
   /** Island 10's giant pelican has been beaten on top of its tower. Missing in old saves and read as not. */
   pelicanBeaten: boolean;
   /** Little loaves of bread the pelican left, for a birdfeeder. */
@@ -364,6 +369,8 @@ export function defaultSave(b: Bounds): SaveData {
     catermanFree: false,
     skullKey: false,
     cryptWon: false,
+    barge: defaultBarge(),
+    bargeWins: 0,
     pelicanBeaten: false,
     bread: 0,
     feederFull: false,
@@ -533,6 +540,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.catermanFree = !!o.catermanFree;
   d.skullKey = !!o.skullKey;
   d.cryptWon = !!o.cryptWon;
+  d.barge = parseBarge(o.barge);
+  d.bargeWins = typeof o.bargeWins === 'number' && o.bargeWins > 0 ? Math.floor(o.bargeWins) : 0;
   d.pelicanBeaten = !!o.pelicanBeaten;
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
   d.feederFull = !!o.feederFull;
@@ -678,6 +687,8 @@ export function serializeSave(d: SaveData): string {
     catermanFree: d.catermanFree,
     skullKey: d.skullKey,
     cryptWon: d.cryptWon,
+    barge: d.barge,
+    bargeWins: d.bargeWins,
     pelicanBeaten: d.pelicanBeaten,
     bread: d.bread,
     feederFull: d.feederFull,

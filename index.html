@@ -263,12 +263,12 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
-#tester,#boats,#badges,#charCard,#store10,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#boatsBtn[hidden],#badges[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#badges .planks,#charCard .planks,#store10 .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#badges h2,#charCard h2,#store10 h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#badges h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
-#tester .tnote,#boats .tnote,#badges .tnote,#charCard .tnote,#store10 .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
+#tester,#boats,#bargeCard,#badges,#charCard,#store10,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#bargeCard .planks,#badges .planks,#charCard .planks,#store10 .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#bargeCard h2,#badges h2,#charCard h2,#store10 h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester .tnote,#boats .tnote,#bargeCard .tnote,#badges .tnote,#charCard .tnote,#store10 .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
 #carry input{flex:1;min-width:0;height:40px;padding:0 10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);font:700 14px var(--font);box-shadow:inset 0 2px 0 rgba(0,0,0,.12)}
@@ -281,12 +281,12 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
 #tester .tstep.added{background:#3FB37A;color:#fff;opacity:1}
 #tester .tstep .tk{flex:none;font-size:13px}
 #testerBtn{border:2px dashed rgba(0,0,0,.35)}
-#boats .boat,#badges .boat{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
-#boats .boat b,#badges .boat b{display:block;font-size:15px;font-weight:800}
-#boats .boat small,#badges .boat small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:2px 0 8px}
+#boats .boat,#bargeCard .boat,#badges .boat{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
+#boats .boat b,#bargeCard .boat b,#badges .boat b{display:block;font-size:15px;font-weight:800}
+#boats .boat small,#bargeCard .boat small,#badges .boat small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:2px 0 8px}
 #boats .boat small.seat{margin:10px 0 5px;color:var(--card-fg)}
-#boats .bchips,#badges .bchips,#charCard .bchips{display:flex;flex-wrap:wrap;gap:6px}
-#boats .rchip,#badges .rchip,#charCard .rchip{height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 13px var(--font)}
+#boats .bchips,#bargeCard .bchips,#badges .bchips,#charCard .bchips{display:flex;flex-wrap:wrap;gap:6px}
+#boats .rchip,#bargeCard .rchip,#badges .rchip,#charCard .rchip{height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 13px var(--font)}
 #store10 .joke{margin:4px 4px 10px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:800;line-height:1.3}
 #store10 .joke small{display:block;margin-top:4px;font-size:12px;color:#8A5A34}
 #store10 .shelf{display:grid;gap:8px}
@@ -305,8 +305,17 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
 #crowCard .fact{margin:10px 4px 4px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:700;line-height:1.35}
 #crowCard .fact b{display:block;font-size:16px;font-weight:800;margin-bottom:2px}
 #crowCard .go{display:block;width:100%;height:48px;margin-top:10px;font-size:16px}
+#bargeCard .go{display:block;width:100%;height:50px;margin-top:6px;font-size:18px}
+#bargeCard .go:disabled{opacity:.45}
+#bargeCard .foe{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#bargeCard .foe small{margin:2px 0 0}
+#bargeCard .count{display:flex;align-items:center;gap:8px;flex:none}
+#bargeCard .count .rchip{width:38px;padding:0;font-size:18px}
+#bargeCard .count span{min-width:20px;text-align:center;font-weight:800;font-size:18px}
+#bargeCard #bargeTotal{text-align:center}
+#bargeBtn{position:fixed;left:calc(72px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center}
 #crowCard [hidden]{display:none}
-#boats .rchip.on,#badges .rchip.on,#charCard .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
+#boats .rchip.on,#bargeCard .rchip.on,#badges .rchip.on,#charCard .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
 #badges .boat b{display:flex;align-items:center;gap:8px}
 #badges .pin{width:22px;height:22px;flex:0 0 auto}
 #updateBtn{margin:0 0 10px;border:2px solid var(--fill)}
@@ -402,6 +411,7 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
 <div id="rchips"><div id="hearts" title="Your hearts" hidden></div><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><button class="snack" id="snackApple" data-snack="apple" title="An apple: walk faster for a while" aria-label="Eat an apple" hidden></button><button class="snack" id="snackCarrot" data-snack="carrot" title="A carrot: your spear hits harder for a while" aria-label="Eat a carrot" hidden></button><button class="snack" id="snackBanana" data-snack="banana" title="A banana: two hearts back" aria-label="Eat a banana" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div></div>
 <div id="toast" role="status"></div>
 <canvas id="radar" hidden aria-hidden="true"></canvas>
+<button class="pill icon" id="bargeBtn" hidden aria-label="Battle Barge" title="Battle Barge"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 16.5L20 4v3.2L9.5 17.7M5 14l5 5M3.6 20.4l3-3M16.5 16.5L4 4v3.2l10.5 10.5M19 14l-5 5M20.4 20.4l-3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <button class="pill icon" id="mapBtn" aria-label="Sea map" title="Sea map"><svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true"><path d="M2 4l6-2 8 3 6-2v15l-6 2-8-3-6 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 2v15M16 5v15" stroke="currentColor" stroke-width="2"/></svg></button>
 <button class="pill" id="cast" hidden>Cast · 10</button>
 <button class="pill" id="mend" hidden>Mend the net</button>
@@ -448,6 +458,7 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
       <button class="build" id="guideBtn"><span><b>Field guide</b><small>Every fish you have met.</small></span><span class="buy">Open</span></button>
       <button class="build" id="flagBtn"><span><b>Your flag</b><small>Design the flag you fly.</small></span><span class="fmini" id="flagMini"></span></button>
     </div>
+    <button class="build" id="bargeOpen" hidden><span><b>Battle Barge</b><small>Pick who to fight, and fight them.</small></span><span class="buy">Open</span></button>
     <button class="build" id="boatsBtn" hidden><span><b>Boats</b><small>Who rides which boat.</small></span><span class="buy">Open</span></button>
     <button class="build" id="charBtn"><span><b>Your character</b><small>Who you are, and how you look.</small></span><span class="buy">Open</span></button>
     <button class="build" id="badgesBtn" hidden><span><b>Badges</b><small>Who wears which badge.</small></span><span class="buy">Open</span></button>
@@ -494,6 +505,16 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
   </div>
 </section>
 
+<section id="bargeCard" hidden aria-label="Battle Barge">
+  <div class="planks">
+    <h2>Battle Barge <button class="pill icon" id="bargeClose" aria-label="Close the Battle Barge">✕</button></h2>
+    <p class="tnote">Pick an arena and up to 10 to fight, then Fight! Beat them all for a coin, and get better.</p>
+    <div class="boat"><b>Arena</b><div class="bchips" id="bargeSize"></div></div>
+    <div id="bargeList"></div>
+    <p class="tnote" id="bargeTotal"></p>
+    <button class="go" id="bargeGo">Fight!</button>
+  </div>
+</section>
 <section id="boats" hidden aria-label="Boats">
   <div class="planks">
     <h2>Boats <button class="pill icon" id="boatsClose" aria-label="Close the boats">✕</button></h2>

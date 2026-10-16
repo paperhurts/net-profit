@@ -29,7 +29,8 @@ export type RoomKind =
   | 'ruins'
   | 'nest'
   | 'perch'
-  | 'crypt';
+  | 'crypt'
+  | 'arena';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -72,6 +73,10 @@ export const ROOMS: readonly Room[] = [
   // Behind the skull door at the back of the ruins, opened with the key from island 11's lagoon: the crypt, where the
   // Forgotten One waits again.
   { x: -13500, y: -11300, r: ROOM_R + 60, roof: false, kind: 'crypt' },
+  // The Battle Barge's three arenas, the kid's: a round wooden barge out on the open sea, small, medium and large.
+  { x: -19500, y: -6000, r: 150, roof: false, kind: 'arena' },
+  { x: -19500, y: -7000, r: 200, roof: false, kind: 'arena' },
+  { x: -19500, y: -8200, r: 260, roof: false, kind: 'arena' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -96,6 +101,8 @@ export const THRONE = 15;
 export const RUINS = 16;
 /** The crypt behind the ruins' skull door. */
 export const CRYPT = 24;
+/** The Battle Barge's arenas, by size. */
+export const ARENAS = { small: 25, medium: 26, large: 27 } as const;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },

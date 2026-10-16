@@ -829,6 +829,18 @@ describe('islands 8 and 9', () => {
     expect(parseSave(serializeSave(s), bounds).skullKey).toBe(true);
   });
 
+  it("read the Battle Barge as its start in an old save, and keep the kid's setup and wins", () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.barge.size).toBe('medium');
+    expect(s.bargeWins).toBe(0);
+    s.barge = { size: 'large', pick: { ...s.barge.pick, zombie: 4 } };
+    s.bargeWins = 3;
+    const t = parseSave(serializeSave(s), bounds);
+    expect(t.barge.size).toBe('large');
+    expect(t.barge.pick.zombie).toBe(4);
+    expect(t.bargeWins).toBe(3);
+  });
+
   it('read the crypt as not won in an old save, and keep it won once it is', () => {
     const s = parseSave(legacy, bounds);
     expect(s.cryptWon).toBe(false);
