@@ -79,11 +79,59 @@ export function onSand4(x: number, y: number): boolean {
   return onIsle4(x, y) && !inTar(x, y);
 }
 
+/**
+ * The water it lives in, round a middle: the ring it wades in (hugging the shore, and no further out than out), the
+ * shore's radius, where it lurks to start, the figure being there at all, and the ground that wakes it. Island 4's
+ * tar by default; the Battle Barge gives it the sea round its deck.
+ */
+export type Moat = {
+  mid: { x: number; y: number };
+  shore: number;
+  out: number;
+  sand: number;
+  start: { x: number; y: number };
+  near(x: number, y: number): boolean;
+  wakes(x: number, y: number): boolean;
+  /** It wades round the ring rather than straight at where it is going: the sea round a deck, all one ring. */
+  round?: boolean;
+};
+
+/** Island 4's: the tar round the island, where the evil monkey summoned it. */
+export const ISLE4_MOAT: Moat = {
+  mid: ISLE4,
+  shore: SHORE_R,
+  out: OUT_R,
+  sand: SAND4,
+  start: MONSTER,
+  near: onIsle4,
+  wakes: onSand4,
+};
+
+/** The sea round a round deck: it rises off the deck's edge toward a spot on it, and wades round the rail. */
+export function seaMoat(
+  room: { x: number; y: number; r: number },
+  at: { x: number; y: number },
+): Moat {
+  const a = Math.atan2(at.y - room.y, at.x - room.x);
+  const shore = room.r + 46;
+  const on = (x: number, y: number) => Math.hypot(x - room.x, y - room.y) < room.r + 20;
+  return {
+    mid: { x: room.x, y: room.y },
+    shore,
+    out: shore,
+    sand: room.r,
+    start: { x: room.x + Math.cos(a) * shore, y: room.y + Math.sin(a) * shore },
+    near: on,
+    wakes: on,
+    round: true,
+  };
+}
+
 export class Anchorer implements Entity {
   state: AnchorerState = 'lurk';
   hp = ANCHORER_HP;
-  x: number = MONSTER.x;
-  y: number = MONSTER.y;
+  x: number;
+  y: number;
   /** Facing, toward the figure. */
   h = Math.PI / 4;
   t = 0;
@@ -112,6 +160,12 @@ export class Anchorer implements Entity {
   /** It is beaten and has melted away. */
   onBeaten: (() => void) | null = null;
 
+  /** In its water: island 4's tar, or the sea round the Battle Barge. */
+  constructor(readonly moat: Moat = ISLE4_MOAT) {
+    this.x = moat.start.x;
+    this.y = moat.start.y;
+  }
+
   /** Half beaten or more: it throws twice as often. */
   get angry(): boolean {
     return this.hp <= ANCHORER_HP / 2;
@@ -132,8 +186,8 @@ export class Anchorer implements Entity {
     if (this.state === 'gone') return;
     this.state = 'lurk';
     this.hp = ANCHORER_HP;
-    this.x = MONSTER.x;
-    this.y = MONSTER.y;
+    this.x = this.moat.start.x;
+    this.y = this.moat.start.y;
     this.t = 0;
     this.rise = LURK;
     this.flash = 0;
@@ -186,7 +240,7 @@ export class Anchorer implements Entity {
     this.t += dt;
     this.flash = Math.max(0, this.flash - dt * 5);
     if (this.state === 'gone') return;
-    const f = w.figure && onIsle4(w.figure.x, w.figure.y) ? w.figure : null;
+    const f = w.figure && this.moat.near(w.figure.x, w.figure.y) ? w.figure : null;
     if (f) {
       const d = Math.hypot(f.x - this.x, f.y - this.y) || 1;
       this.look = { x: (f.x - this.x) / d, y: (f.y - this.y) / d };
@@ -200,7 +254,7 @@ export class Anchorer implements Entity {
       return;
     }
     if (this.state === 'lurk') {
-      if (f && onSand4(f.x, f.y)) {
+      if (f && this.moat.wakes(f.x, f.y)) {
         this.state = 'rise';
         this.t = 0;
         this.onWake?.();
@@ -327,17 +381,27 @@ export class Anchorer implements Entity {
    * ring from it, a good way off, when it is out in the tar too.
    */
   private wade(f: { x: number; y: number }, dt: number): void {
-    const fa = Math.atan2(f.y - ISLE4.y, f.x - ISLE4.x);
-    const fr = Math.hypot(f.x - ISLE4.x, f.y - ISLE4.y);
+    const { mid, shore, out, sand } = this.moat;
+    const fa = Math.atan2(f.y - mid.y, f.x - mid.x);
+    const fr = Math.hypot(f.x - mid.x, f.y - mid.y);
     let ta = fa;
-    let tr = SHORE_R;
-    if (fr > SAND4) {
-      tr = Math.max(SHORE_R, Math.min(OUT_R, fr));
-      const ma = Math.atan2(this.y - ISLE4.y, this.x - ISLE4.x);
+    let tr = shore;
+    if (fr > sand) {
+      tr = Math.max(shore, Math.min(out, fr));
+      const ma = Math.atan2(this.y - mid.y, this.x - mid.x);
       ta = fa + Math.sign(angDiff(ma, fa) || 1) * (100 / tr);
     }
-    const tx = ISLE4.x + Math.cos(ta) * tr;
-    const ty = ISLE4.y + Math.sin(ta) * tr;
+    if (this.moat.round) {
+      // Round the ring toward where it is going, the short way.
+      const ma = Math.atan2(this.y - mid.y, this.x - mid.x);
+      const da = angDiff(ta, ma);
+      const a = ma + Math.sign(da) * Math.min(Math.abs(da), (WADE * dt) / tr);
+      this.x = mid.x + Math.cos(a) * tr;
+      this.y = mid.y + Math.sin(a) * tr;
+      return;
+    }
+    const tx = mid.x + Math.cos(ta) * tr;
+    const ty = mid.y + Math.sin(ta) * tr;
     const dx = tx - this.x;
     const dy = ty - this.y;
     const dl = Math.hypot(dx, dy);
@@ -347,10 +411,10 @@ export class Anchorer implements Entity {
       this.y += (dy / dl) * st;
     }
     // Always in the tar, never on the sand.
-    const r = Math.hypot(this.x - ISLE4.x, this.y - ISLE4.y) || 1;
-    const cr = Math.max(SHORE_R, Math.min(OUT_R, r));
-    this.x = ISLE4.x + ((this.x - ISLE4.x) / r) * cr;
-    this.y = ISLE4.y + ((this.y - ISLE4.y) / r) * cr;
+    const r = Math.hypot(this.x - mid.x, this.y - mid.y) || 1;
+    const cr = Math.max(shore, Math.min(out, r));
+    this.x = mid.x + ((this.x - mid.x) / r) * cr;
+    this.y = mid.y + ((this.y - mid.y) / r) * cr;
   }
 
   /** It, for the game's sorted solids: sunk, rising, fighting or melting. */

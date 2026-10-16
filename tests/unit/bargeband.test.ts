@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { arenaSpots } from '../../src/data/barge';
+import { Anchorer, ISLE4_MOAT, seaMoat, THROW_RANGE } from '../../src/entities/anchorer';
 import { Cthulhu } from '../../src/entities/cthulhu';
 import { BLUE, Fighter, SWORDSMAN } from '../../src/entities/fighter';
 import { Forgotten } from '../../src/entities/forgotten';
@@ -186,5 +187,26 @@ describe('the Reaper on land, on the Battle Barge', () => {
       expect(Math.hypot(r.x - R.x, r.y - R.y)).toBeLessThan(R.r + LAND_LEN / 2);
     }
     expect(r.awake).toBe(true);
+  });
+});
+
+describe('the Tar Anchorer, on the Battle Barge', () => {
+  it('rises in the sea off the deck, and from across the barge wades round the rail toward the figure', () => {
+    const at = spots[0] as { x: number; y: number };
+    const a = new Anchorer(seaMoat(R, at));
+    expect(Math.hypot(a.x - R.x, a.y - R.y)).toBeGreaterThan(R.r);
+    // Island 4's keeps its tar, as before.
+    expect(new Anchorer().moat).toBe(ISLE4_MOAT);
+    // The figure straight across the deck from it: it still comes round, never cutting over the deck.
+    const across = { x: R.x - (at.x - R.x) * 0.8, y: R.y - (at.y - R.y) * 0.8 };
+    const d0 = Math.hypot(a.x - across.x, a.y - across.y);
+    let whirled = false;
+    for (let t = 0; t < 20 && !whirled; t += DT) {
+      a.update(DT, world(across));
+      expect(Math.hypot(a.x - R.x, a.y - R.y)).toBeGreaterThan(R.r);
+      whirled = a.state === 'whirl';
+    }
+    expect(d0).toBeGreaterThan(THROW_RANGE);
+    expect(whirled).toBe(true);
   });
 });
