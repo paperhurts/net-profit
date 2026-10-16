@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { arenaSpots } from '../../src/data/barge';
+import { Cthulhu } from '../../src/entities/cthulhu';
 import { BLUE, Fighter, SWORDSMAN } from '../../src/entities/fighter';
 import { Forgotten } from '../../src/entities/forgotten';
 import { GATOR_HP, GATOR_LEASH, Gators } from '../../src/entities/gators';
@@ -137,6 +138,11 @@ describe('the bosses on the Battle Barge', () => {
     expect([p.x, p.y]).toEqual([b.x, b.y]);
     const f = new Forgotten(R, a);
     expect([f.x, f.y]).toEqual([a.x, a.y]);
+    const c = new Cthulhu(R, b);
+    expect([c.x, c.y]).toEqual([b.x, b.y]);
+    // Without a spot, at the back of its temple, as before.
+    const home = new Cthulhu(R);
+    expect(home.x).toBeCloseTo(R.x - R.r * 0.35);
   });
 
   it('the sorcerer fights a figure anywhere on the large deck, and keeps its hurt when the figure runs to the edge', () => {

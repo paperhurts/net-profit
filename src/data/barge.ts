@@ -6,7 +6,7 @@
  * small, medium or large arena; the second adds the rest of those on foot, island 10's gorillas and gators, island 3's
  * swordsman and his three little demons, and the lancers from the ruins; the third brings the bosses, a few at a time,
  * those that fight in a room of their own first: the leviathan sorcerer, the Forgotten One, the Heron and the giant
- * pelican.
+ * pelican; then Cthulhu from the drowned temple, and the Old One, who rises out of the sea at the barge's back.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -43,7 +43,9 @@ export type BargeFoe =
   | 'sorcerer'
   | 'forgotten'
   | 'heron'
-  | 'pelican';
+  | 'pelican'
+  | 'cthulhu'
+  | 'oldone';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
@@ -64,6 +66,8 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'forgotten',
   'heron',
   'pelican',
+  'cthulhu',
+  'oldone',
 ];
 /** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
@@ -77,7 +81,14 @@ export const UNDEAD_FOES: readonly BargeFoe[] = [
 /** The ones that are island 3's fighters (entities/fighter.ts): the swordsman and the three little demons. */
 export const FIGHTER_FOES: readonly BargeFoe[] = ['swordsman', 'red', 'blue', 'green'];
 /** The bosses, after the rest on the card, island by island. */
-export const BOSS_FOES: readonly BargeFoe[] = ['sorcerer', 'forgotten', 'heron', 'pelican'];
+export const BOSS_FOES: readonly BargeFoe[] = [
+  'sorcerer',
+  'forgotten',
+  'heron',
+  'pelican',
+  'cthulhu',
+  'oldone',
+];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
   monkey: ['Monkeys', 'Bonk you and throw coconuts. 2 hits each.'],
@@ -104,6 +115,11 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   pelican: [
     'The giant pelican',
     'Spits fish and dives at the red ring. Hit it on the ground. 15 hits.',
+  ],
+  cthulhu: ['Cthulhu', 'Sends tentacles up through the deck: spear them down. 10 hits.'],
+  oldone: [
+    'The Old One',
+    'Rises out of the sea, slams his hand down, and calls up lagoon creatures. 50 hits.',
   ],
 };
 

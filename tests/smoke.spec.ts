@@ -378,7 +378,7 @@ type Np = {
   bargeLancers: Band;
   bargeFighters: { spec: { look: string }; state: string; hit(power: number): boolean }[];
   bargeBoss: Record<
-    'sorcerer' | 'forgotten' | 'heron' | 'pelican',
+    'sorcerer' | 'forgotten' | 'heron' | 'pelican' | 'cthulhu' | 'oldone',
     { up: boolean; low?: boolean; state: string; hit(power: number): unknown }[]
   >;
   cryptWon: boolean;
@@ -6088,6 +6088,60 @@ test('the Battle Barge, stage 3: the sorcerer, the Forgotten One, the Heron and 
   await page.locator('#leave').click();
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.bargeBoss.heron.length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge: Cthulhu, and the Old One rising out of the sea with his lagoon creatures, all beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: { size: 'large', pick: { cthulhu: 1, oldone: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('2 of 10 picked.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.large, null, {
+    timeout: 3000,
+  });
+  // The Old One comes up out of the sea, and calls his creatures up onto the deck.
+  await page.evaluate(() => window.__np.setHearts(9));
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      return (
+        n.bargeBoss.oldone[0]?.up &&
+        n.bargeBoss.cthulhu[0]?.up &&
+        (n.hordes[n.floor]?.list.length ?? 0) >= 5
+      );
+    },
+    null,
+    { timeout: 6000 },
+  );
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    for (const k of ['cthulhu', 'oldone'] as const) for (const q of n.bargeBoss[k]) q.hit(99);
+  });
+  // Then his creatures, as they finish climbing aboard; won once the last is down.
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      n.setHearts(9);
+      const h = n.hordes[n.floor];
+      if (h) for (const u of h.list) h.hit(u, 99, n.walker.x, n.walker.y);
+      return n.bargeWins === 1;
+    },
+    null,
+    { timeout: 8000, polling: 200 },
+  );
+  await expect(page.locator('#toast')).toContainText('beat them all');
   expect(errors).toEqual([]);
 });
 
