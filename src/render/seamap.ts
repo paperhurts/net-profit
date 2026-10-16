@@ -41,6 +41,8 @@ export type MapView = {
   isles: readonly MapIsle[];
   /** Marked over the fog, with their names. */
   marks?: readonly MapMark[];
+  /** Every leviathan, live, once Gigantis's observatory is yours. */
+  beasts?: readonly MapMark[];
   /** Seconds, for the boat's pulse. */
   T: number;
   /**
@@ -100,6 +102,48 @@ function square(
 }
 
 /** A dive mark: dark water in a pale ring with bubbles coming up out of it, and its name under it. */
+/** A leviathan, as the observatory spots it: a red eye in a pulsing ring, and its name under it. */
+export function drawMapBeast(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  k: number,
+  name: string,
+  T: number,
+  above = false,
+): void {
+  const pulse = (T * 0.9) % 1;
+  ctx.strokeStyle = `rgba(255,110,80,${0.75 * (1 - pulse)})`;
+  ctx.lineWidth = 2 * k;
+  ctx.beginPath();
+  ctx.arc(x, y, (6 + pulse * 9) * k, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#3A0E0A';
+  ctx.strokeStyle = '#FF8A6A';
+  ctx.beginPath();
+  ctx.arc(x, y, 5.5 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#FFD27A';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 3 * k, 1.8 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1A0604';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 0.9 * k, 1.6 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = `800 ${Math.round(9 * k)}px Grandstander, ui-rounded, system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = above ? 'bottom' : 'top';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3 * k;
+  ctx.strokeStyle = 'rgba(8,24,32,.85)';
+  const ty = above ? y - 8 * k : y + 8 * k;
+  ctx.strokeText(name, x, ty);
+  ctx.fillStyle = '#FFB3A0';
+  ctx.fillText(name, x, ty);
+}
+
 export function drawMapMark(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -211,6 +255,15 @@ export class SeaMap {
       ctx.fillText(isle.name, x, y);
     }
     for (const m of v.marks ?? []) drawMapMark(ctx, p.x(m.x, m.y), p.y(m.x, m.y), k, m.name);
+    // Names that would sit on one already placed go over their mark instead.
+    const placed: { x: number; y: number }[] = [];
+    for (const m of v.beasts ?? []) {
+      const x = p.x(m.x, m.y);
+      const y = p.y(m.x, m.y);
+      const above = placed.some((q) => Math.abs(q.x - x) < 60 * k && Math.abs(q.y - y) < 14 * k);
+      drawMapBeast(ctx, x, y, k, m.name, v.T, above);
+      placed.push({ x, y: above ? y - 20 * k : y });
+    }
     // The boat: a pulse round it and an arrow the way it points.
     const bx = p.x(v.boat.x, v.boat.y);
     const by = p.y(v.boat.x, v.boat.y);
