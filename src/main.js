@@ -37,7 +37,7 @@ import { Anglerfish } from './entities/anglerfish';
 import { Gulper } from './entities/gulper';
 import { DIVE_HIT, MeteorSerpent } from './entities/meteor';
 import { Reaper, SWEEP_HIT as REAPER_HIT } from './entities/reaper';
-import { BODY_R as LR_BODY, LandReaper } from './entities/reaperland';
+import { BODY_R as LR_BODY, deckLair, LandReaper } from './entities/reaperland';
 import { IceRun, IceSeal, icePool, leftToCatch, SEAL_CHANCE } from './fishing/icefish';
 import { drawSealDive, FLOE_TOP, NEIL_FEEDS, Neil, nearNeil } from './entities/seal';
 import { drawIceScene } from './render/icefish';
@@ -1035,6 +1035,8 @@ function spearTarget(){ const sp = {range: weaponRange()}; if (walker.state !== 
     for (const p of bargeBoss.pelican) if (p.low && Math.hypot(p.x - walker.x, p.y - walker.y) <= sp.range) consider(p);
     for (const c of bargeBoss.cthulhu){ consider(c.nearestTent(walker.x, walker.y, sp.range)); if (c.up && Math.hypot(c.x - walker.x, c.y - walker.y) <= sp.range) consider(c); }
     for (const o of bargeBoss.oldone) if (o.up && Math.hypot(o.x - walker.x, o.y - walker.y) - 40 <= sp.range) consider(o);
+    // The Reaper only reared up: his scales turn a spear the rest of the time.
+    for (const r of bargeBoss.reaper) if (r.open && Math.hypot(r.x - walker.x, r.y - walker.y) <= sp.range) consider(r);
     return best; }
   if (hordes[floor]){ const u = hordes[floor].target(walker.x, walker.y, sp.range);
     // In the throne room the Forgotten One too, if he is nearer than any but a necromancer; and in the crypt.
@@ -1088,7 +1090,7 @@ function throwSpear(target){ if (walker.state !== 'ashore' || T < reloadAt || ol
   if (f === nest){ send(walker.x, walker.y, walker.z + 20, f, 28, () => { nest.hit(sp.power); soulHit(); }); return; }
   if (f instanceof Pelican){ send(walker.x, walker.y, walker.z + 20, f, 16, () => { if (f.hit(sp.power)) soulHit(); }); return; }
   if (f === anchorer){ send(walker.x, walker.y, walker.z + 20, f, 70, () => { f.hit(sp.power); soulHit(); }); return; }
-  if (f === landReaper){ send(walker.x, walker.y, walker.z + 20, f, 55, () => { if (landReaper.hit(sp.power, true)) soulHit(); }); return; }
+  if (f instanceof LandReaper){ send(walker.x, walker.y, walker.z + 20, f, 55, () => { if (f.hit(sp.power, true)) soulHit(); }); return; }
   if (f instanceof Cthulhu){ send(walker.x, walker.y, walker.z + 20, f, 90, () => { f.hit(sp.power); soulHit(); }); return; }
   for (const c of [cth, ...bargeBoss.cthulhu]) if (c.tents.includes(f)){ send(walker.x, walker.y, walker.z + 20, f, 24, () => { c.hitTent(f, sp.power); soulHit(); }); return; }
   if (f instanceof Forgotten){ send(walker.x, walker.y, walker.z + 20, f, 40, () => { f.hit(sp.power); soulHit(); }); return; }
@@ -1326,7 +1328,7 @@ warlock.findTarget = (x, y, range) => { let best = null, bd = range;
   for (const b of [boss, boss3, boss7, anchorer, cth, forgotten, forgotten2, ...bargeBoss.sorcerer, ...bargeBoss.forgotten, ...bargeBoss.cthulhu]) if (b.up) consider(fighterTarget(b, bossHead(b)), Math.hypot(b.x - x, b.y - y));
   for (const o of [oldOne, ...bargeBoss.oldone]) if (o.up) consider(fighterTarget(o, 120), Math.hypot(o.x - x, o.y - y));
   // The Reaper on land only reared up, when anything gets past his scales; tar then holds him up a little longer.
-  if (landReaper.open) consider({get x(){ return landReaper.x; }, get y(){ return landReaper.y; }, hit: (p) => landReaper.hit(p, true), stun: (s) => landReaper.stun(s), head: 55}, Math.hypot(landReaper.x - x, landReaper.y - y));
+  for (const lr of [landReaper, ...bargeBoss.reaper]) if (lr.open) consider({get x(){ return lr.x; }, get y(){ return lr.y; }, hit: (p) => lr.hit(p, true), stun: (s) => lr.stun(s), head: 55}, Math.hypot(lr.x - x, lr.y - y));
   for (const hn of [heron, heron9, brother, ...bargeBoss.heron]) if (!hn.shielded) for (const t of hn.targets()) consider({get x(){ return t.x; }, get y(){ return t.y; }, hit: (p) => hn.spear(t, p), stun: (s) => { if (t === hn) hn.stun(s); }, head: 60}, Math.hypot(t.x - x, t.y - y));
   if (nest.up) consider(fighterTarget(nest, 30), Math.hypot(nest.x - x, nest.y - y));
   for (const p of [pelican, ...bargeBoss.pelican]) if (p.low) consider(fighterTarget(p, 18), Math.hypot(p.x - x, p.y - y));
@@ -1862,7 +1864,7 @@ const bargeGorillas = new Gorillas([], Infinity), bargeGators = new Gators([], I
 let bargeFighters = [];
 // And its bosses, the third stage, each made for the fight at its own spot: the leviathan sorcerer, the Forgotten One,
 // the Heron and the giant pelican. Pick two and they fight together.
-const bargeBoss = {sorcerer: [], forgotten: [], heron: [], pelican: [], cthulhu: [], oldone: []};
+const bargeBoss = {sorcerer: [], forgotten: [], heron: [], pelican: [], cthulhu: [], oldone: [], reaper: []};
 const bargeBosses = () => BOSS_FOES.flatMap(k => bargeBoss[k]);
 /** Beaten, on the barge: fallen, flown off, sunk or on his knees. */
 const BOSS_DOWN = ['fall', 'gone', 'flee', 'sink', 'yield'];
@@ -1904,6 +1906,10 @@ function bargeBossAt(kind, room, at){ const R = ROOMS[room];
   if (kind === 'heron'){ const b = new Heron(R, HERON_HP, at);
     b.onHit = (by) => bonked(by); b.onZap = () => sfx.zap(); b.onCast = () => sfx.portal(); b.onPop = heron.onPop;
     b.onBeaten = () => bargeDown(b.x, b.y); return b; }
+  if (kind === 'reaper'){ const b = new LandReaper(deckLair(R, at));
+    b.onWake = () => { sfx.reaperRoar(); shake = Math.max(shake, .5); }; b.onWarn = (what) => what === 'sweep' ? sfx.reaperSwing() : sfx.jaws();
+    b.onHit = (by) => bonked(by); b.onBlow = landReaper.onBlow; b.onRear = () => { sfx.reaperRoar(); shake = Math.max(shake, .25); };
+    b.onHurt = () => sfx.spearHit(); b.onBeaten = () => bargeDown(b.x, b.y); return b; }
   if (kind === 'cthulhu'){ const b = new Cthulhu(R, at);
     b.onBonk = (by) => bonked(by); b.onRipple = () => sfx.tentacle(); b.onSink = () => sfx.spearHit();
     b.onBeaten = () => { burst(b); bargeDown(b.x, b.y); }; return b; }
@@ -2105,7 +2111,7 @@ function drawEggWords(){ const t = cine.t, p = eggSeat(), ex = px(p.x, p.y), ey 
   const u = t - POP_T - .15; if (u < 0) return; const a = Math.min(1, u/.2, (EGG_CINE - .3 - t)/.4);
   word('Congratulations!', W/2, H*.2, Math.min(W/9, 46)*pop(u), '#F2C230', -.04, a);
   word('It\'s a baby Reaper!', W/2, H*.2 + Math.min(W/9, 46)*1.05, Math.min(W/13, 32)*pop(Math.max(0, u - .2)), '#BFE0FF', .03, u < .2 ? 0 : a); }
-function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || forgotten2.up || boss.up || boss3.up || boss7.up || heron.up || heron9.up || brother.up || nest.up || swordsman.up || demons.some(d => d.up) || anchorer.up || landReaper.awake || cth.up || lancers.roused || gators.roused || gorillas.roused || bargeLancers.roused || bargeGators.roused || bargeGorillas.roused || bargeFighters.some(f => f.up) || bargeBosses().some(b => b.up) || spider10.awake || pelican.up || oldOne.up || !!oldScene || pullT > 0; }
+function inFight(){ return [monkeys, monkeys7, hired8, hired9, ...camps, demonMonkeys, roofMonkeys].some(c => c.list.some(m => m.state === 'chase')) || HORDES.some(h => h.list.some(u => Horde.up(u))) || forgotten.up || forgotten2.up || boss.up || boss3.up || boss7.up || heron.up || heron9.up || brother.up || nest.up || swordsman.up || demons.some(d => d.up) || anchorer.up || landReaper.awake || cth.up || lancers.roused || gators.roused || gorillas.roused || bargeLancers.roused || bargeGators.roused || bargeGorillas.roused || bargeFighters.some(f => f.up) || bargeBosses().some(b => b.up) || bargeBoss.reaper.some(r => r.awake) || spider10.awake || pelican.up || oldOne.up || !!oldScene || pullT > 0; }
 warlock.fighting = inFight;
 function dive(){ resetTowers(); towerWon = false; tower = DEPTHS; toRoom(HALL); walker.diving = true; applyStage(); sfx.hop();
   toast(isle3Stage >= 2 ? 'Down at the tower\'s foot again. The portal is still turning.' : 'Down to the foot of the tower, under the sea.', 3000, 1); }
@@ -3501,7 +3507,7 @@ function update(dt){
   tarling.free = isle4Stage >= 1; if (isle4Stage >= 1 && anchorer.state !== 'gone' && anchorer.state !== 'melt') anchorer.beaten();
   // The Reaper on land stays beaten; nothing walks through him; and his egg waits in the nest to be taken.
   if (reaperEgg >= 1 && !reaperRematch && landReaper.state !== 'gone' && landReaper.state !== 'beaten' && landReaper.state !== 'flee') landReaper.beatenForGood();
-  if (landReaper.awake && walker.state === 'ashore'){ const dx = walker.x - landReaper.x, dy = walker.y - landReaper.y, d = Math.hypot(dx, dy);
+  for (const lr of [landReaper, ...bargeBoss.reaper]) if (lr.awake && walker.state === 'ashore'){ const dx = walker.x - lr.x, dy = walker.y - lr.y, d = Math.hypot(dx, dy);
     if (d < LR_BODY && d > 0) walkStep(walker, dx/d*(LR_BODY - d), dy/d*(LR_BODY - d), build); }
   takeEgg();
   // Nothing walks through the tar monster.
@@ -4380,7 +4386,9 @@ function drawRoom(){
       if (p.state !== 'gone') actors.push({d: p.x + p.y + (p.z > 12 ? 1e6 : 0), f: () => drawPelican(drawView, p)}); }
     for (const c of bargeBoss.cthulhu){ if (c.state !== 'gone') actors.push({d: c.x + c.y, f: () => c.drawBody(drawView)});
       for (const k of c.tents) actors.push({d: k.x + k.y, f: () => c.drawTent(drawView, k)}); }
-    for (const o of bargeBoss.oldone) actors.push({d: o.x + o.y, f: () => o.drawBody(drawView)}); }
+    for (const o of bargeBoss.oldone) actors.push({d: o.x + o.y, f: () => o.drawBody(drawView)});
+    // The Reaper's red fan and line on the deck under everyone, then him.
+    for (const r of bargeBoss.reaper){ r.draw(drawView, 'surface'); if (r.state !== 'gone') actors.push({d: r.x + r.y, f: () => r.drawBody(drawView)}); } }
   if (floor === HALL && swordsman.state !== 'gone') actors.push({d: swordsman.x + swordsman.y, f: () => swordsman.drawBody(drawView)});
   if (floor === TEMPLE6){ if (cth.state !== 'gone') actors.push({d: cth.x + cth.y, f: () => cth.drawBody(drawView)});
     for (const k of cth.tents) actors.push({d: k.x + k.y, f: () => cth.drawTent(drawView, k)}); }
