@@ -834,7 +834,7 @@ describe('islands 8 and 9', () => {
     const s = parseSave(legacy, bounds);
     expect(s.barge.size).toBe('medium');
     expect(s.bargeWins).toBe(0);
-    s.barge = { size: 'large', pick: { ...s.barge.pick, zombie: 4 } };
+    s.barge = { ...s.barge, size: 'large', pick: { ...s.barge.pick, zombie: 4 } };
     s.bargeWins = 3;
     const t = parseSave(serializeSave(s), bounds);
     expect(t.barge.size).toBe('large');

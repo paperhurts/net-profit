@@ -12,6 +12,10 @@
  * something bigger is near (the Deep One up out of the water; the owner's call: big creatures only, and the walkable big
  * ship once there is one, never the boat's upgrades), it stops dead in the air, then shoots straight up into space and
  * stays there, out of sight, until that has been gone a little while; then it falls back like a meteor to its loop.
+ *
+ * Where it haunts is something it is given (the middle of its loop, how far out, what brings it hunting, how far it
+ * follows), island 6 by default; the Battle Barge at sea gives each of its copies a spot on the open sea, where it hunts
+ * at once and never gives up.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -26,6 +30,28 @@ export const HAUNT_TURN = 0.16;
 /** A boat this close to the island is hunted; this far off it gives up. */
 export const NOTICE = 1500;
 export const LEASH = 2100;
+
+/** Where it haunts: its loop's middle and how far out, how near a boat brings it hunting, how far off one it gives up. */
+export type Haunt = { x: number; y: number; r: number; notice: number; leash: number };
+/** Over island 6, as it always was. */
+export const ISLE6_HAUNT: Haunt = {
+  x: ISLE6.x,
+  y: ISLE6.y,
+  r: HAUNT_R,
+  notice: NOTICE,
+  leash: LEASH,
+};
+/** Its loop over a spot on the open sea, for the Battle Barge, this far out: hunting at once, never giving up. */
+export const SEA_HAUNT_R = 260;
+export function seaHaunt(at: { x: number; y: number }): Haunt {
+  return {
+    x: at.x,
+    y: at.y,
+    r: SEA_HAUNT_R,
+    notice: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+  };
+}
 /** Circling over the boat, close enough to stay on a phone's screen and faster than a flagship: how far out, how
  * high, how fast, and for how long before a dive. */
 export const CIRCLE_R = 150;
@@ -74,8 +100,8 @@ const AFRAID: readonly MeteorState[] = ['scared', 'up', 'space', 'drop'];
 
 export class MeteorSerpent implements Entity {
   state: MeteorState = 'haunt';
-  x = ISLE6.x + HAUNT_R;
-  y = ISLE6.y;
+  x: number;
+  y: number;
   z = HAUNT_Z;
   h = Math.PI / 2;
   t = 0;
@@ -111,6 +137,11 @@ export class MeteorSerpent implements Entity {
   /** It saw something bigger, and is off to space; and it is up there, out of sight. */
   onScared: (() => void) | null = null;
   onSpace: (() => void) | null = null;
+
+  constructor(readonly haunt: Haunt = ISLE6_HAUNT) {
+    this.x = haunt.x + haunt.r;
+    this.y = haunt.y;
+  }
 
   get angry(): boolean {
     return this.resolve <= RESOLVE.meteor / 2;
@@ -196,7 +227,8 @@ export class MeteorSerpent implements Entity {
     if (this.lastH !== null && dt > 0)
       this.turn += (clamp(angDiff(b.h, this.lastH) / dt, -3, 3) - this.turn) * Math.min(1, dt * 6);
     this.lastH = b.h;
-    const fromIsle = Math.hypot(b.x - ISLE6.x, b.y - ISLE6.y);
+    const home = this.haunt;
+    const fromIsle = Math.hypot(b.x - home.x, b.y - home.y);
     if (!this.seen && w.started && Math.hypot(b.x - this.x, b.y - this.y) < SIGHT) {
       this.seen = true;
       this.onSight?.();
@@ -232,8 +264,8 @@ export class MeteorSerpent implements Entity {
         // Out of sight, waiting for whatever was bigger to be gone a while; then over its loop, ready to fall.
         this.clear = scared ? 0 : this.clear + dt;
         if (this.clear >= CLEAR_T) {
-          this.x = ISLE6.x + Math.cos(this.a) * HAUNT_R;
-          this.y = ISLE6.y + Math.sin(this.a) * HAUNT_R;
+          this.x = home.x + Math.cos(this.a) * home.r;
+          this.y = home.y + Math.sin(this.a) * home.r;
           this.trail.length = 0;
           this.go('drop');
         }
@@ -250,10 +282,10 @@ export class MeteorSerpent implements Entity {
       }
       case 'haunt': {
         this.a += HAUNT_TURN * dt;
-        const tx = ISLE6.x + Math.cos(this.a) * HAUNT_R;
-        const ty = ISLE6.y + Math.sin(this.a) * HAUNT_R;
+        const tx = home.x + Math.cos(this.a) * home.r;
+        const ty = home.y + Math.sin(this.a) * home.r;
         this.fly(tx, ty, HAUNT_Z, clamp(Math.hypot(tx - this.x, ty - this.y) * 1.5, 120, 420), dt);
-        if (w.started && !w.docked && fromIsle < NOTICE && !hold) {
+        if (w.started && !w.docked && fromIsle < home.notice && !hold) {
           this.go('hunt');
           this.onHunt?.();
         }
@@ -261,7 +293,7 @@ export class MeteorSerpent implements Entity {
       }
       case 'away': {
         // Up and away over the island, out of sight, and back to its loop after a good while.
-        this.fly(ISLE6.x, ISLE6.y - 600, HAUNT_Z * 2, 220, dt);
+        this.fly(home.x, home.y - 600, HAUNT_Z * 2, 220, dt);
         if (this.t >= AWAY) {
           this.resolve = RESOLVE.meteor;
           this.go('haunt');
@@ -269,7 +301,7 @@ export class MeteorSerpent implements Entity {
         break;
       }
       default:
-        if (fromIsle > LEASH || w.docked) {
+        if (fromIsle > home.leash || w.docked) {
           this.ring = null;
           this.resolve = RESOLVE.meteor;
           this.go('haunt');

@@ -162,8 +162,119 @@ export function bargeZoom(r: number): number {
   return r <= 150 ? 0.82 : r <= 200 ? 0.7 : 0.6;
 }
 
+/**
+ * The Battle Barge at sea, the kid's (2026-10-16): the sea bosses get a Battle Barge of their own, "you customize your
+ * map of islands and stuff", all the sea bosses, fought from your own boat with the harpoon. Built in stages too: this
+ * first one is open water inside a ring of the barge's red and yellow buoys, far out past everything, and three of the
+ * sea bosses: Star, the Skeleton Shark King and the Deep One, each made for the fight at its own spot round the ring's
+ * back. The islands, the tar and the bridge on a map of your own come after, and the rest of the sea bosses with them.
+ */
+export type BargeWhere = 'foot' | 'sea';
+export type SeaFoe = 'meteor' | 'king' | 'deep';
+export const SEA_FOES: readonly SeaFoe[] = ['meteor', 'king', 'deep'];
+export const SEA_NAMES: Readonly<Record<SeaFoe, readonly [string, string]>> = {
+  meteor: [
+    'Star, the meteor serpent',
+    'Circles over the boat and dives into the ring: steer out of it. Harpoon him in the water. 4 hits.',
+  ],
+  king: [
+    'The Skeleton Shark King',
+    'Charges down his line and throws his trident at the ring. Harpoon him when he leaps. 6 hits.',
+  ],
+  deep: [
+    'The Deep One',
+    'Grabs the boat and throws logs. Harpoon the tentacle that holds you, and its eye when it opens. 10 hits.',
+  ],
+};
+/**
+ * Where the ring is: out on open water far west of the farthest buoys, clear of everything and of the barge's rooms;
+ * and how far across it is from its middle, by the card's size.
+ */
+export const SEA_ARENA = { x: -30000, y: 2400 } as const;
+export const SEA_RING: Readonly<Record<ArenaSize, number>> = {
+  small: 800,
+  medium: 1100,
+  large: 1500,
+};
+/** A buoy every so far round the ring. */
+export const SEA_BUOY_GAP = 150;
+/**
+ * The camera at sea, the owner's point on the barge's (the fight off the screen while the boat sits in its middle): it
+ * stands back to this of the sea's zoom, and leans this far toward the nearest boss still in the fight within SEA_LOOK.
+ */
+export const SEA_ZOOM = 0.8;
+export const SEA_LEAN = 0.4;
+export const SEA_LOOK = 900;
+
+/** The ring's buoys, from its middle, for a ring of radius r. */
+export function seaBuoys(r: number): { x: number; y: number }[] {
+  const n = Math.max(12, Math.round((Math.PI * 2 * r) / SEA_BUOY_GAP));
+  const out: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    out.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+  }
+  return out;
+}
+
+/** Where the boat comes in, from the ring's middle: at its front, toward the viewer, heading in. */
+export function seaStart(r: number): { x: number; y: number; h: number } {
+  const a = Math.PI / 4;
+  return { x: Math.cos(a) * r * 0.78, y: Math.sin(a) * r * 0.78, h: a + Math.PI };
+}
+
+/**
+ * Where n sea bosses start, from the ring's middle, in a ring of radius r: round its back, away from the boat, three
+ * in the nearest row, four in the next, the rest furthest back, each row spread round either side of the middle and
+ * neighbours about SEA_GAP apart, for they are big.
+ */
+export const SEA_GAP = 300;
+export function seaSpots(n: number, r: number): { x: number; y: number }[] {
+  const back = (-3 * Math.PI) / 4;
+  const rows: readonly { at: number; cap: number }[] = [
+    { at: 0.32, cap: 3 },
+    { at: 0.55, cap: 4 },
+    { at: 0.76, cap: BARGE_MAX },
+  ];
+  const out: { x: number; y: number }[] = [];
+  let left = n;
+  for (const row of rows) {
+    const k = Math.min(left, row.cap);
+    const rad = r * row.at;
+    const step = Math.min(0.9, SEA_GAP / rad);
+    for (let i = 0; i < k; i++) {
+      const a = back + (i - (k - 1) / 2) * step;
+      out.push({ x: Math.cos(a) * rad, y: Math.sin(a) * rad });
+    }
+    left -= k;
+    if (left <= 0) break;
+  }
+  return out;
+}
+
+export type SeaPick = Record<SeaFoe, number>;
+
+/** No sea boss picked. */
+export function noSeaPick(): SeaPick {
+  return { meteor: 0, king: 0, deep: 0 };
+}
+
+/** How many sea bosses are picked, all told. */
+export function seaTotal(p: SeaPick): number {
+  return SEA_FOES.reduce((n, k) => n + p[k], 0);
+}
+
+/** One more sea boss of a kind, or one fewer: never under none, and never past ten all told. */
+export function seaAdd(p: SeaPick, k: SeaFoe, d: number): SeaPick {
+  const out = { ...p };
+  if (d > 0) out[k] = p[k] + Math.min(d, BARGE_MAX - seaTotal(p));
+  else out[k] = Math.max(0, p[k] + d);
+  return out;
+}
+
 export type BargePick = Record<BargeFoe, number>;
-export type BargeSetup = { size: ArenaSize; pick: BargePick };
+/** The arena's size, on foot or at sea, who to fight on foot, and who at sea. */
+export type BargeSetup = { size: ArenaSize; pick: BargePick; where: BargeWhere; sea: SeaPick };
 
 /** Nobody picked. */
 export function noPick(): BargePick {
@@ -171,9 +282,14 @@ export function noPick(): BargePick {
   for (const k of BARGE_FOES) p[k] = 0;
   return p;
 }
-/** To start: a medium arena, three monkeys and two skeletons. */
+/** To start: a medium arena, three monkeys and two skeletons on foot; at sea, Star. */
 export function defaultBarge(): BargeSetup {
-  return { size: 'medium', pick: { ...noPick(), monkey: 3, skeleton: 2 } };
+  return {
+    size: 'medium',
+    pick: { ...noPick(), monkey: 3, skeleton: 2 },
+    where: 'foot',
+    sea: { ...noSeaPick(), meteor: 1 },
+  };
 }
 
 /** How many are picked, all told. */
@@ -189,10 +305,13 @@ export function bargeAdd(p: BargePick, k: BargeFoe, d: number): BargePick {
   return out;
 }
 
-/** A saved setup read back: a size it knows, counts that are whole and not below none, ten at most; missing, the start. */
+/**
+ * A saved setup read back: a size it knows, counts that are whole and not below none, ten at most; missing, the start.
+ * One saved before the sea's is on foot, with the sea's start.
+ */
 export function parseBarge(o: unknown): BargeSetup {
   if (!o || typeof o !== 'object') return defaultBarge();
-  const src = o as { size?: unknown; pick?: unknown };
+  const src = o as { size?: unknown; pick?: unknown; where?: unknown; sea?: unknown };
   const size = (ARENA_SIZES as readonly unknown[]).includes(src.size)
     ? (src.size as ArenaSize)
     : 'medium';
@@ -203,7 +322,16 @@ export function parseBarge(o: unknown): BargeSetup {
     if (typeof n === 'number' && Number.isFinite(n) && n > 0)
       pick = bargeAdd(pick, k, Math.floor(n));
   }
-  return { size, pick };
+  const where: BargeWhere = src.where === 'sea' ? 'sea' : 'foot';
+  let sea = noSeaPick();
+  if (src.sea && typeof src.sea === 'object') {
+    const q = src.sea as Record<string, unknown>;
+    for (const k of SEA_FOES) {
+      const n = q[k];
+      if (typeof n === 'number' && Number.isFinite(n) && n > 0) sea = seaAdd(sea, k, Math.floor(n));
+    }
+  } else sea = defaultBarge().sea;
+  return { size, pick, where, sea };
 }
 
 /**

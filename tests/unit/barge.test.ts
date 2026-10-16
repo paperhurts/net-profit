@@ -50,6 +50,8 @@ describe('the Battle Barge: picking a fight', () => {
     expect(parseBarge({ size: 'huge', pick: { skeleton: 50 } })).toEqual({
       size: 'medium',
       pick: { ...noPick(), skeleton: BARGE_MAX },
+      where: 'foot',
+      sea: defaultBarge().sea,
     });
   });
 

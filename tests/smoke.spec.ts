@@ -113,6 +113,26 @@ type Np = {
   closeScope(): void;
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
+  seaFight: { x: number; y: number; h: number; r: number } | null;
+  seaWon: boolean;
+  seaBoss: Record<
+    'meteor' | 'king' | 'deep',
+    {
+      state: string;
+      x: number;
+      y: number;
+      t: number;
+      up: number;
+      resolve: number;
+      eye: boolean;
+      eyeT: number;
+      grab: unknown;
+      grabCd: number;
+      holding: boolean;
+    }[]
+  >;
+  endSea(sunk: boolean): void;
+  SEA_ARENA: { x: number; y: number };
   mapBeasts(): { x: number; y: number; name: string }[];
   hiveDay: number;
   HIVE10: { x: number; y: number; z: number };
@@ -384,7 +404,7 @@ type Np = {
     y: number;
     hit(power: number): void;
   };
-  barge: { size: string; pick: Record<string, number> };
+  barge: { size: string; pick: Record<string, number>; where: string; sea: Record<string, number> };
   bargeWins: number;
   bargeOn: boolean;
   ARENAS: Record<string, number>;
@@ -6696,6 +6716,129 @@ test('the Battle Barge from the boat: pick a fight, beat them all for a coin, an
   // The setup is kept.
   await page.reload();
   await page.waitForFunction(() => window.__np?.barge?.size === 'small', null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shark King harpooned, and back', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [3, 0, 0, 0, 0, 0, 0, 0] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  // At sea: Star to start; make it the Deep One and the Shark King, in a small ring.
+  await page.locator('#bargeWhere [data-where="sea"]').click();
+  await expect(page.locator('#bargeList')).toContainText('The Skeleton Shark King');
+  await expect(page.locator('#bargeTotal')).toHaveText('1 of 10 picked.');
+  await page.locator('#bargeSize [data-size="small"]').click();
+  await page.locator('#bargeList [data-sea="meteor"][data-d="-1"]').click();
+  await page.locator('#bargeList [data-sea="deep"][data-d="1"]').click();
+  await page.locator('#bargeList [data-sea="king"][data-d="1"]').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('2 of 10 picked.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // Out in the ring, still aboard; the way home is the leave button.
+  const out = await page.evaluate(() => {
+    const n = window.__np;
+    return {
+      d: Math.hypot(n.boat.x - n.SEA_ARENA.x, n.boat.y - n.SEA_ARENA.y),
+      state: n.walker.state,
+    };
+  });
+  expect(out.d).toBeLessThan(800);
+  expect(out.state).toBe('aboard');
+  await expect(page.locator('#leave')).toHaveText('Leave the Battle Barge');
+  // Both wake at once.
+  await page.waitForFunction(
+    () =>
+      window.__np.seaBoss.deep[0]?.state === 'fight' &&
+      window.__np.seaBoss.king[0]?.state !== 'wait',
+    null,
+    { timeout: 4000 },
+  );
+  // The Shark King up out of the water by the bow with his trident, one hit from beaten.
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const k = n.seaBoss.king[0];
+    if (!k) return;
+    k.x = n.boat.x + Math.cos(n.boat.h) * 120;
+    k.y = n.boat.y + Math.sin(n.boat.h) * 120;
+    k.resolve = 1;
+    k.state = 'raise';
+    k.t = 0.2;
+    k.up = 0.9;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'king', null, { timeout: 2000 });
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await page.waitForFunction(() => window.__np.seaBoss.king[0]?.state === 'dying', null, {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
+  // Up beside the Deep One with its eye open, one hit from beaten: the harpoon sinks it, the boat free, and it is won.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.seaBoss.deep[0];
+    if (!d) return;
+    n.boat.x = d.x + 180;
+    n.boat.y = d.y + 40;
+    n.boat.v = 0;
+    d.grab = null;
+    d.grabCd = 99;
+    d.resolve = 1;
+    d.eye = true;
+    d.eyeT = 0;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'deep', null, { timeout: 2000 });
+  // The harpoon reloaded from the shot at the King.
+  await expect(page.locator('#throw')).not.toHaveClass(/wait/, { timeout: 4000 });
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.seaBoss.deep[0]?.state)).toBe('sink');
+  expect(await page.evaluate(() => window.__np.seaBoss.deep[0]?.holding)).toBe(false);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1);
+  expect(await page.evaluate(() => window.__np.bargeWins)).toBe(1);
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  // Saved meanwhile where the boat came from, not out in the ring.
+  const trip = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').trip,
+  );
+  expect(Math.abs(trip.x - 3000)).toBeLessThan(2);
+  // Another fight straight away from the crossed swords, then sunk: back where it was, the hull whole, the catch kept.
+  await expect(page.locator('#bargeBtn')).toBeVisible();
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeWhereRow')).toBeHidden();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(
+    () => !window.__np.seaWon && window.__np.seaBoss.king.length === 1,
+    null,
+    {
+      timeout: 3000,
+    },
+  );
+  await page.evaluate(() => window.__np.swallow('king'));
+  await page.waitForFunction(() => !window.__np.seaFight, null, { timeout: 6000 });
+  await expect(page.locator('#toast')).toContainText('Sunk!');
+  const home = await page.evaluate(() => ({
+    x: window.__np.boat.x,
+    y: window.__np.boat.y,
+    hp: window.__np.hp,
+    hold: window.__np.hold,
+  }));
+  expect(Math.abs(home.x - 3000)).toBeLessThan(40);
+  expect(Math.abs(home.y - 2900)).toBeLessThan(40);
+  expect(home.hp).toBe(100);
+  expect(home.hold).toBe(3);
+  expect(await page.evaluate(() => window.__np.harpoonTarget)).toBeNull();
+  // The setup is kept, at sea.
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.barge?.where === 'sea', null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.barge.sea)).toEqual({ meteor: 0, king: 1, deep: 1 });
   expect(errors).toEqual([]);
 });
 
