@@ -54,6 +54,14 @@ type Np = {
   };
   caterman: { shown: boolean; free: boolean; x: number; y: number };
   catermanFree: boolean;
+  lagoonFolk: {
+    list: { x: number; y: number; state: string; hp: number; out: boolean }[];
+    left: number;
+  };
+  divePals: { kind: string; x: number; y: number }[];
+  skullKey: boolean;
+  SKULL_KEY: { x: number; y: number };
+  diveThrow(): void;
   PORTAL11: { x: number; y: number; r: number };
   first: number[];
   pondLine: { state: string; sp: number };
@@ -5722,6 +5730,93 @@ test('island 11: tie up at its pier, walk up into the jungle, and look at the po
   });
   await expect(page.locator('#toast')).toContainText('black lagoon', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Island 11 found');
+  expect(errors).toEqual([]);
+});
+
+test("island 11's black lagoon: dive in off its bank, its creatures come for you, the naga swims down too, and the skull key is on the bottom", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    nagaFree: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // On the lagoon's rim with the scuba gear: it can be dived.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const i = window.__np.ISLE11;
+    w.x = i.x + 102;
+    w.y = i.y - 89;
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the lagoon', { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.naga.shown, null, { timeout: 4000 });
+  await page.click('#diveBtn');
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.diveSite)).toBe('lagoon');
+  await expect(page.locator('#toast')).toContainText('black lagoon');
+  expect(await page.evaluate(() => window.__np.divePals.map((p) => p.kind))).toEqual(['naga']);
+  expect(await page.evaluate(() => window.__np.lagoonFolk.left)).toBe(10);
+  // Down among them: one comes for the diver, and between the spear and the naga, they are beaten.
+  await page.evaluate(() => {
+    const d = window.__np.diver;
+    const c = window.__np.lagoonFolk.list[3];
+    if (!c) return;
+    d.x = c.x - 60;
+    d.y = c.y;
+    d.face = 1;
+  });
+  await page.waitForFunction(
+    () => window.__np.lagoonFolk.list.some((c) => c.state === 'come' || c.state === 'tell'),
+    null,
+    { timeout: 3000 },
+  );
+  await expect(page.locator('#toast')).toContainText('lagoon creature');
+  await page.waitForFunction(
+    () => {
+      window.__np.diver.air = window.__np.diver.airMax;
+      window.__np.diveThrow();
+      return window.__np.lagoonFolk.left < 10;
+    },
+    null,
+    { timeout: 8000, polling: 300 },
+  );
+  // The skull key, on the bottom.
+  await page.evaluate(() => {
+    const d = window.__np.diver;
+    const k = window.__np.SKULL_KEY;
+    d.x = k.x;
+    d.y = k.y - 12;
+    d.vx = 0;
+    d.vy = 0;
+  });
+  await page.waitForFunction(() => window.__np.skullKey, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('skull key');
+  // Back up onto the bank.
+  await page.click('#surfaceBtn');
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  await expect(page.locator('#toast')).toContainText('onto its bank');
+  await expect(page.locator('#log')).toContainText('Skull key found');
+  // Kept.
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.skullKey === true, null, { timeout: 5000 });
   expect(errors).toEqual([]);
 });
 

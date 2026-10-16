@@ -821,6 +821,13 @@ describe('islands 8 and 9', () => {
     s.catermanFree = true;
     expect(parseSave(serializeSave(s), bounds).catermanFree).toBe(true);
   });
+
+  it('read the skull key as still in the lagoon in an old save, and keep it once fetched', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.skullKey).toBe(false);
+    s.skullKey = true;
+    expect(parseSave(serializeSave(s), bounds).skullKey).toBe(true);
+  });
 });
 
 describe("island 10's spider and pelican", () => {
