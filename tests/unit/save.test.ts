@@ -3,6 +3,7 @@ import { ARMOUR_MAX } from '../../src/data/armour';
 import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { JUNK_MAX } from '../../src/data/junk';
+import { SKIPPER } from '../../src/data/look';
 import { SPEAR_MAX } from '../../src/data/spear';
 import { LEGGY_MAX } from '../../src/entities/leggy';
 import {
@@ -779,6 +780,13 @@ describe('islands 8 and 9', () => {
       HERON_STAGES,
     );
     expect(parseSave(JSON.stringify({ ...s, heronStage: -3 }), bounds).heronStage).toBe(0);
+  });
+
+  it('keep who the figure is: Skipper in an old save, and a picked look kept', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.look).toEqual(SKIPPER);
+    s.look = { ...SKIPPER, hat: 'cowboy', hair: 'spiky', honorGuard: true };
+    expect(parseSave(serializeSave(s), bounds).look).toEqual(s.look);
   });
 
   it("owe the Heron's escape to a save that beat him before it existed, and keep it played once it has", () => {

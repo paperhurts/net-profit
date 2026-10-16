@@ -218,6 +218,8 @@ type Np = {
   DOOR8: { x: number; y: number };
   heronStage: number;
   heronFled: boolean;
+  charLook: { skin: number; hair: string; hat: string; face: string; honorGuard: boolean };
+  charOpen: boolean;
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
   nest: { up: boolean; state: string; hit(power: number): void };
   nestHorde: { list: { state: string }[] };
@@ -1039,6 +1041,56 @@ test('armour: once there is a spear the shipwright sells leather armour, and it 
   expect(await page.evaluate(() => [window.__np.maxHearts, window.__np.coins])).toEqual([4, 800]);
   // Next on the shelf: diamond.
   await expect(card).toContainText('Diamond armour');
+  expect(errors).toEqual([]);
+});
+
+test('choose your character: from the start, pick Hank or make your own, and it is kept', async ({
+  context,
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await context.addInitScript(
+    (s: string) => {
+      if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
+    },
+    JSON.stringify({ muted: true, coins: 100 }),
+  );
+  await page.goto('./');
+  await page.waitForTimeout(400);
+  // An old save is the figure as it always was.
+  expect(await page.evaluate(() => window.__np.charLook.hat)).toBe('souwester');
+  await page.click('#charIntro');
+  await expect(page.locator('#charCard')).toBeVisible();
+  await expect(page.locator('#charName')).toHaveText('Skipper');
+  await page.click('#charPresets [data-preset="hank"]');
+  await expect(page.locator('#charName')).toHaveText('Hank');
+  expect(await page.evaluate(() => window.__np.charLook.hat)).toBe('cowboy');
+  // Change one thing and it is your own.
+  await page.click('#charOptions [data-key="face"][data-val="freckles"]');
+  await expect(page.locator('#charName')).toHaveText('Your own');
+  await page.click('#charOptions [data-key="honorGuard"]');
+  expect(await page.evaluate(() => window.__np.charLook.honorGuard)).toBe(true);
+  await page.click('#charClose');
+  await expect(page.locator('#charCard')).toBeHidden();
+  // Kept: a reload is still the same figure, and the shop opens the card too.
+  await page.reload();
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__np.charLook)).toMatchObject({
+    hat: 'cowboy',
+    face: 'freckles',
+    honorGuard: true,
+  });
+  await page.click('#go');
+  await page.locator('#charBtn').dispatchEvent('click');
+  await expect(page.locator('#charCard')).toBeVisible();
+  await expect(page.locator('#charName')).toHaveText('Your own');
+  await page.click('#charPresets [data-preset="skipper"]');
+  await page.click('#charClose');
+  expect(await page.evaluate(() => [window.__np.charLook.hat, window.__np.charOpen])).toEqual([
+    'souwester',
+    false,
+  ]);
   expect(errors).toEqual([]);
 });
 

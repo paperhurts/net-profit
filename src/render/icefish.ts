@@ -7,6 +7,7 @@
  * and back up.
  */
 
+import { HAT_COLOURS, type Look, SKINS, SKIPPER } from '../data/look';
 import { SPECIES } from '../data/tuning';
 import { drawSealDive, drawSealLie } from '../entities/seal';
 import {
@@ -47,6 +48,7 @@ export function drawIceScene(
   T: number,
   left: number,
   seal: IceSeal | null = null,
+  look: Look = SKIPPER,
 ): void {
   const want = iceCamera(run, W, H);
   const s = want.s;
@@ -160,7 +162,7 @@ export function drawIceScene(
     ctx.lineTo(X(x + 6), Y(30));
     ctx.stroke();
   }
-  drawFisher(ctx, X(HOLE_X - 44), Y(-6), s, run, T);
+  drawFisher(ctx, X(HOLE_X - 44), Y(-6), s, run, T, look);
   // A bucket on the other side, for the catch.
   ctx.fillStyle = '#B9472F';
   ctx.beginPath();
@@ -209,7 +211,8 @@ export function drawIceScene(
   ctx.fillText(label, lx + 10, H - 32);
 }
 
-/** The fisher on a stool by the hole, in the sou'wester, the rod out over the hole, bending as something bites. */
+/** The fisher on a stool by the hole, in a warm hat in the colour of their own, the rod out over the hole, bending as
+ * something bites. */
 function drawFisher(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -217,6 +220,7 @@ function drawFisher(
   s: number,
   run: IceRun,
   T: number,
+  look: Look,
 ): void {
   // The stool.
   ctx.strokeStyle = '#7A5A3C';
@@ -226,16 +230,16 @@ function drawFisher(
   ctx.lineTo(x, y - 12 * s);
   ctx.lineTo(x + 6 * s, y);
   ctx.stroke();
-  // Coat, head and the yellow hat.
+  // Coat, head and the hat, the fisher's own skin and hat colour; out on the ice there is always a hat.
   ctx.fillStyle = '#2F5E8C';
   ctx.beginPath();
   ctx.ellipse(x, y - 22 * s, 8 * s, 11 * s, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#F2C9A0';
+  ctx.fillStyle = SKINS[look.skin] ?? '#F2C9A0';
   ctx.beginPath();
   ctx.arc(x + 1 * s, y - 36 * s, 5 * s, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#F2C230';
+  ctx.fillStyle = HAT_COLOURS[look.hatColour]?.[0] ?? '#F2C230';
   ctx.beginPath();
   ctx.ellipse(x + 1 * s, y - 40 * s, 8 * s, 3 * s, 0, 0, Math.PI * 2);
   ctx.fill();

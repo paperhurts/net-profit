@@ -11,6 +11,7 @@ import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
+import { type Look, parseLook, SKIPPER } from '../data/look';
 import { noSnacks, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
 import { CROWS } from '../entities/crows';
@@ -212,6 +213,8 @@ export type SaveData = {
   /** Beaten on island 9, the Heron fell in the sea, the Reaper hunted him and he got away through a portal: that scene
    * has played. Missing in old saves and read as not yet, so a game that beat him before it existed sees it once. */
   heronFled: boolean;
+  /** Who the figure is: the character picked on the character screen. Skipper, the old figure, in a save from before. */
+  look: Look;
   /** The spear's level from the shipwright: 0 for none. */
   spear: number;
   /** The armour's level from the shipwright: 0 for none, then leather, diamond, gold, space. */
@@ -364,6 +367,7 @@ export function defaultSave(b: Bounds): SaveData {
     radioDay: 0,
     heronStage: 0,
     heronFled: false,
+    look: { ...SKIPPER },
     spear: 0,
     armour: 0,
     sailed: '',
@@ -528,6 +532,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.radioDay = Math.max(0, int(o.radioDay));
   d.heronStage = Math.max(0, Math.min(HERON_STAGES, int(o.heronStage)));
   d.heronFled = d.heronStage >= HERON_STAGES && !!o.heronFled;
+  d.look = parseLook(o.look);
   d.spear = o.spear === undefined ? 0 : between(int(o.spear), 0, SPEAR_MAX);
   d.armour = between(int(o.armour), 0, ARMOUR_MAX);
   d.sailed = typeof o.sailed === 'string' && o.sailed.length < 4096 ? o.sailed : '';
@@ -668,6 +673,7 @@ export function serializeSave(d: SaveData): string {
     radioDay: d.radioDay,
     heronStage: d.heronStage,
     heronFled: d.heronFled,
+    look: d.look,
     spear: d.spear,
     armour: d.armour,
     sailed: d.sailed,
