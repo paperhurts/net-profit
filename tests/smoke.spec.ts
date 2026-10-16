@@ -378,8 +378,8 @@ type Np = {
   bargeLancers: Band;
   bargeFighters: { spec: { look: string }; state: string; hit(power: number): boolean }[];
   bargeBoss: Record<
-    'sorcerer' | 'forgotten' | 'heron' | 'pelican' | 'cthulhu' | 'oldone',
-    { up: boolean; low?: boolean; state: string; hit(power: number): unknown }[]
+    'sorcerer' | 'forgotten' | 'heron' | 'pelican' | 'cthulhu' | 'oldone' | 'reaper',
+    { up: boolean; low?: boolean; open?: boolean; state: string; hit(power: number): unknown }[]
   >;
   cryptWon: boolean;
   CRYPT: number;
@@ -6141,6 +6141,42 @@ test('the Battle Barge: Cthulhu, and the Old One rising out of the sea with his 
     null,
     { timeout: 8000, polling: 200 },
   );
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge: the Reaper on land, speared when he rears up, and off over the side', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: { size: 'medium', pick: { reaper: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  // He wakes at once on the deck, and only reared up does a spear get past his scales.
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      n.setHearts(9);
+      return n.bargeBoss.reaper[0]?.open === true;
+    },
+    null,
+    { timeout: 20000, polling: 50 },
+  );
+  await page.evaluate(() => {
+    for (const r of window.__np.bargeBoss.reaper) r.hit(99);
+  });
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('beat them all');
   expect(errors).toEqual([]);
 });

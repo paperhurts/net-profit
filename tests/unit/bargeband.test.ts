@@ -8,6 +8,7 @@ import { GORILLA_LEASH, GORILLA_WARN, Gorillas } from '../../src/entities/gorill
 import { Heron } from '../../src/entities/heron';
 import { LANCER_HP, Lancers } from '../../src/entities/lancers';
 import { Pelican } from '../../src/entities/pelican';
+import { deckLair, ISLE6_LAIR, LAND_LEN, LandReaper, LEASH_R } from '../../src/entities/reaperland';
 import { RING, Sorcerer } from '../../src/entities/sorcerer';
 import { ARENAS, entry, ROOMS, type Room } from '../../src/world/tower';
 import { baseWorld } from './helpers/world';
@@ -164,5 +165,26 @@ describe('the bosses on the Battle Barge', () => {
     roof.update(DT, world({ x: R.x + R.r * 0.7, y: R.y + R.r * 0.7 }));
     expect(roof.state).toBe('wait');
     expect(roof.hp).toBe(roof.hpMax);
+  });
+});
+
+describe('the Reaper on land, on the Battle Barge', () => {
+  it('lies at his spot, wakes at once, never gives up, and keeps to the deck', () => {
+    const at = spots[0] as { x: number; y: number };
+    const r = new LandReaper(deckLair(R, at));
+    expect([r.x, r.y]).toEqual([at.x, at.y]);
+    // Island 6's keeps his cove, as before.
+    expect(new LandReaper().lair).toBe(ISLE6_LAIR);
+    const e = entry(big);
+    r.update(DT, world(e));
+    expect(r.state).toBe('rise');
+    // Further than his island leash from the middle of the deck: still after the figure, and on the deck (his tail may
+    // swing out over the side in a sweep, about his head, which stays on it).
+    expect(R.r).toBeLessThan(LEASH_R);
+    for (let t = 0; t < 8; t += DT) {
+      r.update(DT, world(e));
+      expect(Math.hypot(r.x - R.x, r.y - R.y)).toBeLessThan(R.r + LAND_LEN / 2);
+    }
+    expect(r.awake).toBe(true);
   });
 });

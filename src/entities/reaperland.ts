@@ -125,6 +125,88 @@ export const REST = {
   h: Math.atan2(COVE_OUT.x, -COVE_OUT.y),
 } as const;
 
+/**
+ * His ground: where he lies, the nest the figure is measured from (to wake him, and to give up), how near wakes him and
+ * how far he gives up, the figure being on his ground at all, keeping him on it, its edge for a charge's line, the sea
+ * for him to flee into, and the way to it. Island 6's cove by default; the Battle Barge gives him its deck.
+ */
+export type Lair = {
+  rest: { x: number; y: number; h: number };
+  nest: { x: number; y: number };
+  wake: number;
+  leash: number;
+  onGround(x: number, y: number): boolean;
+  inLine(x: number, y: number): boolean;
+  keep(p: { x: number; y: number }): void;
+  inSea(x: number, y: number): boolean;
+  seaward(x: number, y: number): number;
+};
+
+/** Island 6's: his cove on the north-west shore, the island's sand, off the hill, the palms and the rocks. */
+export const ISLE6_LAIR: Lair = {
+  rest: REST,
+  nest: NEST6,
+  wake: WAKE_R,
+  leash: LEASH_R,
+  onGround: onIsle6,
+  inLine: onIsle6Ground,
+  keep(p) {
+    const a = Math.atan2(p.y - ISLE6.y, p.x - ISLE6.x);
+    const r = Math.hypot(p.x - ISLE6.x, p.y - ISLE6.y);
+    const max = shoreR(a) - 30;
+    if (r > max) {
+      p.x = ISLE6.x + Math.cos(a) * max;
+      p.y = ISLE6.y + Math.sin(a) * max;
+    }
+    const off = (cx: number, cy: number, min: number) => {
+      const d = Math.hypot(p.x - cx, p.y - cy) || 1;
+      if (d < min) {
+        p.x = cx + ((p.x - cx) / d) * min;
+        p.y = cy + ((p.y - cy) / d) * min;
+      }
+    };
+    off(HILL.x, HILL.y, HILL.r + 30);
+    for (const [px, py] of PALMS6) off(px, py, 16);
+    for (const [px, py] of ROCKS6) off(px, py, 18);
+  },
+  inSea(x, y) {
+    const a = Math.atan2(y - ISLE6.y, x - ISLE6.x);
+    return Math.hypot(x - ISLE6.x, y - ISLE6.y) > shoreR(a) + 10;
+  },
+  seaward(x, y) {
+    return Math.atan2(y - ISLE6.y, x - ISLE6.x);
+  },
+};
+
+/**
+ * A round deck of this middle and radius, him lying at a spot on it facing its middle: the Battle Barge's. He wakes
+ * at once and never gives up, and beaten he goes over the side into the sea.
+ */
+export function deckLair(
+  room: { x: number; y: number; r: number },
+  at: { x: number; y: number },
+): Lair {
+  const out = (x: number, y: number) => Math.hypot(x - room.x, y - room.y);
+  return {
+    rest: { x: at.x, y: at.y, h: Math.atan2(room.y - at.y, room.x - at.x) },
+    nest: { x: room.x, y: room.y },
+    wake: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+    onGround: (x, y) => out(x, y) < room.r + 20,
+    inLine: (x, y) => out(x, y) < room.r - 20,
+    keep(p) {
+      const d = out(p.x, p.y);
+      const max = room.r - 30;
+      if (d > max) {
+        p.x = room.x + ((p.x - room.x) / d) * max;
+        p.y = room.y + ((p.y - room.y) / d) * max;
+      }
+    },
+    inSea: (x, y) => out(x, y) > room.r + 10,
+    seaward: (x, y) => Math.atan2(y - room.y, x - room.x),
+  };
+}
+
 /** The way he faces drawn side on, toward screen right (1) or left (-1). */
 const SIDE_R = -Math.PI / 4;
 const SIDE_L = (3 * Math.PI) / 4;
@@ -145,10 +227,10 @@ function offLine(x: number, y: number, d: Dash): number {
 
 export class LandReaper implements Entity {
   state: LandReaperState = 'sleep';
-  x: number = REST.x;
-  y: number = REST.y;
+  x: number;
+  y: number;
   /** His true heading, which the sweep pivots; drawn, he is turned side on but for the sweep. */
-  h: number = REST.h;
+  h: number;
   t = 0;
   hp = LAND_HP;
   flash = 0;
@@ -170,7 +252,7 @@ export class LandReaper implements Entity {
   /** Fleeing, when he was last on the sand. */
   private wet = 0;
   /** Drawn heading, eased toward side on (or his true heading in a sweep); and his legs' going. */
-  private drawH: number = sideOn(REST.h);
+  private drawH: number;
   private gait = 0;
   /** Sighted, asleep by his nest, the first time. */
   onSight: (() => void) | null = null;
@@ -193,6 +275,14 @@ export class LandReaper implements Entity {
   onGiveUp: (() => void) | null = null;
   /** Beaten: he backs off into the sea, and the egg is the figure's. */
   onBeaten: (() => void) | null = null;
+
+  /** On his ground: island 6's, or the Battle Barge's deck. */
+  constructor(readonly lair: Lair = ISLE6_LAIR) {
+    this.x = lair.rest.x;
+    this.y = lair.rest.y;
+    this.h = lair.rest.h;
+    this.drawH = sideOn(lair.rest.h);
+  }
 
   /** Half beaten or more. */
   get angry(): boolean {
@@ -233,10 +323,11 @@ export class LandReaper implements Entity {
     if (this.state === 'gone' || this.state === 'beaten' || this.state === 'flee') return;
     this.state = 'sleep';
     this.t = 0;
-    this.x = REST.x;
-    this.y = REST.y;
-    this.h = REST.h;
-    this.drawH = sideOn(REST.h);
+    const r = this.lair.rest;
+    this.x = r.x;
+    this.y = r.y;
+    this.h = r.h;
+    this.drawH = sideOn(r.h);
     this.hp = LAND_HP;
     this.up = 0;
     this.flash = 0;
@@ -302,15 +393,16 @@ export class LandReaper implements Entity {
     }
     if (this.state === 'flee') {
       // Off down the sand to the nearest water, into the sea, and away under it.
-      const a = Math.atan2(this.y - ISLE6.y, this.x - ISLE6.x);
+      const a = this.lair.seaward(this.x, this.y);
       this.walk(this.x + Math.cos(a) * 200, this.y + Math.sin(a) * 200, FLEE_SPEED, dt, false);
       if (!this.inSea) this.wet = this.t;
       this.ease(dt);
       if (this.t - this.wet >= FLEE_T || this.t >= 12) this.go('gone');
       return;
     }
-    const f = w.figure && onIsle6(w.figure.x, w.figure.y) ? w.figure : null;
-    const fromNest = f ? Math.hypot(f.x - NEST6.x, f.y - NEST6.y) : Number.POSITIVE_INFINITY;
+    const L = this.lair;
+    const f = w.figure && L.onGround(w.figure.x, w.figure.y) ? w.figure : null;
+    const fromNest = f ? Math.hypot(f.x - L.nest.x, f.y - L.nest.y) : Number.POSITIVE_INFINITY;
     if (!this.seen && f && fromNest < SIGHT_R) {
       this.seen = true;
       this.onSight?.();
@@ -320,7 +412,7 @@ export class LandReaper implements Entity {
       return;
     }
     if (this.state === 'sleep') {
-      if (fromNest < WAKE_R) {
+      if (fromNest < L.wake) {
         this.go('rise');
         this.onWake?.();
       }
@@ -328,19 +420,19 @@ export class LandReaper implements Entity {
       return;
     }
     if (this.state === 'home') {
-      if (fromNest < WAKE_R) {
+      if (fromNest < L.wake) {
         this.go('prowl');
         return;
       }
-      if (Math.hypot(REST.x - this.x, REST.y - this.y) < 6) {
+      if (Math.hypot(L.rest.x - this.x, L.rest.y - this.y) < 6) {
         this.reset();
         return;
       }
-      this.walk(REST.x, REST.y, HOME_SPEED, dt, false);
+      this.walk(L.rest.x, L.rest.y, HOME_SPEED, dt, false);
       this.ease(dt);
       return;
     }
-    if (fromNest > LEASH_R && this.state !== 'sweep' && this.state !== 'dash') {
+    if (fromNest > L.leash && this.state !== 'sweep' && this.state !== 'dash') {
       this.fan = null;
       this.dash = null;
       this.back = false;
@@ -520,7 +612,7 @@ export class LandReaper implements Entity {
     let x1 = hd.x + Math.cos(a) * len;
     let y1 = hd.y + Math.sin(a) * len;
     // Not off the island: the line stops at its sand.
-    for (let i = 0; i < 20 && !onIsle6Ground(x1, y1); i++) {
+    for (let i = 0; i < 20 && !this.lair.inLine(x1, y1); i++) {
       x1 -= Math.cos(a) * 10;
       y1 -= Math.sin(a) * 10;
     }
@@ -572,25 +664,9 @@ export class LandReaper implements Entity {
     if (keep) this.keepOn();
   }
 
-  /** On island 6's ground, well in from the water, off the hill, the palms and the rocks. */
+  /** On his ground, well in from the water, off whatever stands on it. */
   private keepOn(): void {
-    const a = Math.atan2(this.y - ISLE6.y, this.x - ISLE6.x);
-    const r = Math.hypot(this.x - ISLE6.x, this.y - ISLE6.y);
-    const max = shoreR(a) - 30;
-    if (r > max) {
-      this.x = ISLE6.x + Math.cos(a) * max;
-      this.y = ISLE6.y + Math.sin(a) * max;
-    }
-    const off = (cx: number, cy: number, min: number) => {
-      const d = Math.hypot(this.x - cx, this.y - cy) || 1;
-      if (d < min) {
-        this.x = cx + ((this.x - cx) / d) * min;
-        this.y = cy + ((this.y - cy) / d) * min;
-      }
-    };
-    off(HILL.x, HILL.y, HILL.r + 30);
-    for (const [px, py] of PALMS6) off(px, py, 16);
-    for (const [px, py] of ROCKS6) off(px, py, 18);
+    this.lair.keep(this);
   }
 
   /** Ease the way he is drawn: side on, toward the way he goes (or faces), but in a sweep, as he truly lies. */
@@ -638,8 +714,7 @@ export class LandReaper implements Entity {
   /** Gone down the sand into the water, fleeing. */
   private get inSea(): boolean {
     if (this.state !== 'flee') return false;
-    const a = Math.atan2(this.y - ISLE6.y, this.x - ISLE6.x);
-    return Math.hypot(this.x - ISLE6.x, this.y - ISLE6.y) > shoreR(a) + 10;
+    return this.lair.inSea(this.x, this.y);
   }
 
   private drawLine(v: DrawView, ln: Dash): void {

@@ -6,7 +6,8 @@
  * small, medium or large arena; the second adds the rest of those on foot, island 10's gorillas and gators, island 3's
  * swordsman and his three little demons, and the lancers from the ruins; the third brings the bosses, a few at a time,
  * those that fight in a room of their own first: the leviathan sorcerer, the Forgotten One, the Heron and the giant
- * pelican; then Cthulhu from the drowned temple, and the Old One, who rises out of the sea at the barge's back.
+ * pelican; then Cthulhu from the drowned temple, and the Old One, who rises out of the sea at the barge's back; then the
+ * Reaper on land, off island 6's sand.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -45,7 +46,8 @@ export type BargeFoe =
   | 'heron'
   | 'pelican'
   | 'cthulhu'
-  | 'oldone';
+  | 'oldone'
+  | 'reaper';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
@@ -68,6 +70,7 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'pelican',
   'cthulhu',
   'oldone',
+  'reaper',
 ];
 /** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
@@ -88,6 +91,7 @@ export const BOSS_FOES: readonly BargeFoe[] = [
   'pelican',
   'cthulhu',
   'oldone',
+  'reaper',
 ];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
@@ -120,6 +124,10 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   oldone: [
     'The Old One',
     'Rises out of the sea, slams his hand down, and calls up lagoon creatures. 50 hits.',
+  ],
+  reaper: [
+    'The Reaper on land',
+    'Sweeps his tail and charges: step out of the red. Spear him when he rears up. 30 hits.',
   ],
 };
 
