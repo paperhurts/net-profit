@@ -74,7 +74,8 @@ async function call(
   f: Fetch,
   keepalive: boolean,
 ): Promise<unknown> {
-  if (!cloud.url) return 'down';
+  // The smoke tests' switch, set before the page loads: no test reaches the real project.
+  if (!cloud.url || (globalThis as { __npCloudOff?: boolean }).__npCloudOff) return 'down';
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
   const t = ctl ? setTimeout(() => ctl.abort(), CLOUD_WAIT) : null;
   try {

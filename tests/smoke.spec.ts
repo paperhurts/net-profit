@@ -489,10 +489,14 @@ async function steerTo(page: Page, tx: number, ty: number, wobble = 0, i = 0) {
   return Math.hypot(dx, dy);
 }
 
-// The game puts itself online (state/cloud.ts). No test reaches the real project: each is cut off from it, and the one
-// about it answers for it.
+// The game puts itself online (state/cloud.ts). No test reaches the real project: each turns it off before the page
+// loads (a flag, not a route, which would take the service worker's requests out of the offline test's hands), and the
+// one about it answers for it.
+const cloudOff = (on: boolean) => {
+  (window as unknown as { __npCloudOff: boolean }).__npCloudOff = on;
+};
 test.beforeEach(async ({ context }) => {
-  await context.route(/supabase\.co/, (route) => route.abort());
+  await context.addInitScript(cloudOff, true);
 });
 
 test('core loop: fill the hold at a sardine school, dock, sell', async ({ context, page }) => {
@@ -4964,7 +4968,7 @@ test('another device: the shop copies a link to the game, and opened elsewhere i
 
   // The other device, with a game of its own.
   const other = await browser.newContext({ viewport: { width: 390, height: 780 } });
-  await other.route(/supabase\.co/, (route) => route.abort());
+  await other.addInitScript(cloudOff, true);
   await other.addInitScript(
     (s: string) => {
       if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
@@ -5014,6 +5018,7 @@ test('online: the game keeps itself under a save code, the code brings it to ano
     earned: 9000,
   });
   const puts: { p_code: string; p_earned: number }[] = [];
+  await context.addInitScript(cloudOff, false);
   await page.route(/rpc\/np_(save|load)_game/, async (route) => {
     const b = route.request().postDataJSON();
     const had = store.get(b.p_code);
