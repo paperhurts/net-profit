@@ -828,6 +828,13 @@ describe('islands 8 and 9', () => {
     s.skullKey = true;
     expect(parseSave(serializeSave(s), bounds).skullKey).toBe(true);
   });
+
+  it('read the crypt as not won in an old save, and keep it won once it is', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.cryptWon).toBe(false);
+    s.cryptWon = true;
+    expect(parseSave(serializeSave(s), bounds).cryptWon).toBe(true);
+  });
 });
 
 describe("island 10's spider and pelican", () => {

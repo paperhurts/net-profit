@@ -387,8 +387,11 @@ function drawSkull(ctx: CanvasRenderingContext2D, sx: number, sy: number, s: num
   ctx.fillRect(sx - s * 0.08, sy + s * 0.35, s * 0.16, s * 0.25);
 }
 
-/** The portal: a ring of carved stone standing up on its step, facing the viewer, a skull at its top, dark inside. */
-function drawPortal11(v: DrawView): void {
+/**
+ * The portal: a ring of carved stone standing up on its step, facing the viewer, a skull at its top, dark inside; once
+ * the Old One is beaten, awake, swirling green, the way to his place.
+ */
+function drawPortal11(v: DrawView, open: boolean): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
   const { x, y, r } = PORTAL11;
@@ -400,16 +403,41 @@ function drawPortal11(v: DrawView): void {
     ctx.fillStyle = STONE_DARK;
     ctx.fillRect(sx + d * R * 0.72 - 6 * Z, py(x, y, 12) - 10 * Z, 12 * Z, 12 * Z);
   }
-  // Dark inside, a faint stir in it.
-  ctx.fillStyle = 'rgba(14,18,20,.88)';
-  ctx.beginPath();
-  ctx.arc(sx, cy, R - 4 * Z, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(110,160,120,.18)';
-  ctx.lineWidth = 2 * Z;
-  ctx.beginPath();
-  ctx.arc(sx, cy, (R - 10 * Z) * (0.5 + 0.2 * Math.sin(T * 0.7)), T * 0.3, T * 0.3 + Math.PI * 1.2);
-  ctx.stroke();
+  // Dark inside, a faint stir in it; or awake, a green swirl turning, bright at its heart.
+  if (open) {
+    const g = ctx.createRadialGradient(sx, cy, 0, sx, cy, R - 4 * Z);
+    g.addColorStop(0, 'rgba(220,255,210,.95)');
+    g.addColorStop(0.45, 'rgba(110,220,130,.85)');
+    g.addColorStop(1, 'rgba(20,70,40,.9)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(sx, cy, R - 4 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(230,255,220,.55)';
+    ctx.lineWidth = 1.6 * Z;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      const a0 = T * 1.6 + (k * Math.PI * 2) / 3;
+      ctx.arc(sx, cy, (R - 8 * Z) * (0.35 + k * 0.2), a0, a0 + Math.PI * 0.9);
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = 'rgba(14,18,20,.88)';
+    ctx.beginPath();
+    ctx.arc(sx, cy, R - 4 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(110,160,120,.18)';
+    ctx.lineWidth = 2 * Z;
+    ctx.beginPath();
+    ctx.arc(
+      sx,
+      cy,
+      (R - 10 * Z) * (0.5 + 0.2 * Math.sin(T * 0.7)),
+      T * 0.3,
+      T * 0.3 + Math.PI * 1.2,
+    );
+    ctx.stroke();
+  }
   // The ring: thick grey stone, darker on its lower edge, notched with carvings all round.
   ctx.strokeStyle = '#7D8478';
   ctx.lineWidth = 9 * Z;
@@ -568,7 +596,7 @@ const REEDS11: readonly [number, number][] = Array.from({ length: 22 }, (_, i) =
 });
 
 /** Everything on island 11 that stands up: trees, palms, ferns, reeds, the columns and the portal. */
-export function isle11Solids(v: DrawView, catermanHome = true): Solid[] {
+export function isle11Solids(v: DrawView, catermanHome = true, portalOpen = false): Solid[] {
   if (!v.onScreen(ISLE11.x, ISLE11.y, (ISLE11.r + 260) * v.zoom)) return [];
   const out: Solid[] = [];
   const on = (x: number, y: number, m = 100) => v.onScreen(x, y, m * v.zoom);
@@ -588,7 +616,7 @@ export function isle11Solids(v: DrawView, catermanHome = true): Solid[] {
     if (on(c.x, c.y, 60)) out.push({ d: c.x + c.y, f: () => drawColumn(v, c.x, c.y, c.h, i) });
   });
   if (on(PORTAL11.x, PORTAL11.y, 90))
-    out.push({ d: PORTAL11.x + PORTAL11.y, f: () => drawPortal11(v) });
+    out.push({ d: PORTAL11.x + PORTAL11.y, f: () => drawPortal11(v, portalOpen) });
   out.push({ d: PIER11.x0 + PIER11.y0, f: () => drawPier11(v) });
   if (on(WORKSHOP11.x0, WORKSHOP11.y0, 80))
     out.push({ d: WORKSHOP11.x1 + WORKSHOP11.y1, f: () => drawWorkshop11(v, catermanHome) });

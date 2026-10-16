@@ -16,6 +16,10 @@
  * Further than a sword's reach he takes turns with the skulls and the ray. Hurt
  * to half, he is quicker about it and flings seven. Beaten, he falls apart, and
  * the game raises his bones (the undead's 'bones'), which fight on.
+ *
+ * And he comes back, the kid's (his sixth list): in a crypt behind the Old One's ruins, laughing, with fewer hit
+ * points but a harder hand. That one does not fall apart when beaten: he yields, sinking to his knees and lowering his
+ * sword, still alive, for the game to say what he does next.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -47,8 +51,9 @@ export const AIM = 0.75;
 export const BEAM = 0.3;
 export const RAY_LEN = 340;
 export const RAY_HIT = 11;
-/** Seconds he falls apart once beaten. */
+/** Seconds he falls apart once beaten; or, yielding, sinks to his knees. */
 export const FALL = 2;
+export const KNEEL = 0.9;
 export const SCALE = 1.8;
 
 export type ForgottenState =
@@ -60,6 +65,7 @@ export type ForgottenState =
   | 'aim'
   | 'beam'
   | 'fall'
+  | 'yield'
   | 'gone';
 export type Skull = { x: number; y: number; h: number; t: number };
 
@@ -88,28 +94,39 @@ export class Forgotten implements Entity {
   onWindup: (() => void) | null = null;
   onSkulls: (() => void) | null = null;
   onAim: (() => void) | null = null;
-  /** Fallen apart: where, for the game to raise his bones. */
+  /** Fallen apart, or yielded: where, for the game to raise his bones or say what he does. */
   onBeaten: ((x: number, y: number) => void) | null = null;
+  /** Beaten, he yields on his knees, alive, instead of falling apart. */
+  yields = false;
+  private yielded = false;
 
   constructor(
     readonly room: { x: number; y: number; r: number },
     readonly start: { x: number; y: number },
+    readonly maxHp = FORGOTTEN_HP,
   ) {
     this.x = start.x;
     this.y = start.y;
+    this.hp = maxHp;
   }
 
   get up(): boolean {
-    return this.state !== 'wait' && this.state !== 'fall' && this.state !== 'gone';
+    return (
+      this.state !== 'wait' &&
+      this.state !== 'fall' &&
+      this.state !== 'yield' &&
+      this.state !== 'gone'
+    );
   }
 
   get angry(): boolean {
-    return this.hp <= FORGOTTEN_HP / 2;
+    return this.hp <= this.maxHp / 2;
   }
 
   reset(): void {
     this.state = 'wait';
-    this.hp = FORGOTTEN_HP;
+    this.hp = this.maxHp;
+    this.yielded = false;
     this.x = this.start.x;
     this.y = this.start.y;
     this.h = Math.PI * 1.25;
@@ -140,13 +157,21 @@ export class Forgotten implements Entity {
     this.skulls.length = 0;
   }
 
+  /** Already yielded, on a later visit: on his knees where he was beaten, at the start of the room. */
+  kneel(): void {
+    this.state = 'yield';
+    this.t = 1;
+    this.yielded = true;
+    this.skulls.length = 0;
+  }
+
   /** A spear lands with this power. */
   hit(power: number): void {
     if (!this.up) return;
     this.hp = Math.max(0, this.hp - power);
     this.flash = 0.2;
     if (this.hp <= 0) {
-      this.state = 'fall';
+      this.state = this.yields ? 'yield' : 'fall';
       this.t = 0;
       this.skulls.length = 0;
     }
@@ -179,6 +204,13 @@ export class Forgotten implements Entity {
     if (this.state === 'fall') {
       if (this.t >= FALL) {
         this.state = 'gone';
+        this.onBeaten?.(this.x, this.y);
+      }
+      return;
+    }
+    if (this.state === 'yield') {
+      if (!this.yielded && this.t >= KNEEL) {
+        this.yielded = true;
         this.onBeaten?.(this.x, this.y);
       }
       return;
@@ -345,8 +377,10 @@ export class Forgotten implements Entity {
     const { ctx, px, py, T } = v;
     const k = SCALE * v.zoom;
     const fall = this.state === 'fall' ? clamp(this.t / FALL, 0, 1) : 0;
+    // Yielding, he sinks to his knees, his cloak spread on the floor round him, his sword point down.
+    const kneel = this.state === 'yield' ? clamp(this.t / KNEEL, 0, 1) : 0;
     const sx = px(this.x, this.y);
-    const base = py(this.x, this.y) + fall * 8 * k;
+    const base = py(this.x, this.y) + fall * 8 * k + kneel * 8 * k;
     const face = Math.cos(this.h) - Math.sin(this.h) >= 0 ? 1 : -1;
     const W = (c: string) => (this.flash > 0 ? '#FFFFFF' : c);
     ctx.globalAlpha = 1 - fall * 0.7;
@@ -355,11 +389,11 @@ export class Forgotten implements Entity {
     ctx.fill();
     const stride = this.state === 'walk' ? Math.sin(this.ph * 6) * 2.4 * k : 0;
     const sway = Math.sin(T * 3) * 1.5 * k;
-    // Long thin legs below the cloak, as the kid drew them.
+    // Long thin legs below the cloak, as the kid drew them; folded under it, kneeling.
     ctx.strokeStyle = W('#1A161D');
     ctx.lineCap = 'round';
     ctx.lineWidth = 1.8 * k;
-    for (const side of [-1, 1]) {
+    for (const side of kneel > 0.5 ? [] : [-1, 1]) {
       ctx.beginPath();
       ctx.moveTo(sx + side * 2 * k, base - 10 * k);
       ctx.lineTo(sx + side * 2 * k + stride * side, base);
@@ -402,7 +436,8 @@ export class Forgotten implements Entity {
       ctx.ellipse(fx + e * 1.4 * k, hy - 0.9 * k, 0.95 * k, 0.6 * k, e * 0.35, 0, Math.PI * 2);
       ctx.fill();
     }
-    const open = aiming || this.state === 'windup' ? 1 : 0.55 + 0.15 * Math.sin(T * 2.2);
+    const open =
+      aiming || this.state === 'windup' ? 1 : kneel > 0 ? 0.15 : 0.55 + 0.15 * Math.sin(T * 2.2);
     ctx.fillStyle = W('#2A0E12');
     ctx.beginPath();
     ctx.ellipse(fx, hy + 2.1 * k, 1.5 * k, (1 + 1.3 * open) * k, 0, 0, Math.PI * 2);
@@ -428,6 +463,7 @@ export class Forgotten implements Entity {
     if (this.state === 'windup') a = -face * (1.3 + Math.sin(T * 30) * 0.05);
     else if (this.state === 'swing') a = face * (0.5 + (this.t / SWING) * 1.6);
     else if (this.state === 'aim' || this.state === 'beam') a = face * 1.4;
+    else if (kneel > 0) a = face * (0.4 + kneel * 2.6);
     ctx.strokeStyle = W('#1A161D');
     ctx.lineWidth = 1.6 * k;
     ctx.beginPath();

@@ -10,11 +10,16 @@
  * standing guard (entities/lancers.ts). The figure comes through the portal at the front of
  * the courtyard, nearest the viewer; each room's door is at its back and opens
  * when everyone in the room is beaten. The way home is back through the portal.
+ *
+ * And, the kid's (his sixth list): island 11's portal comes out in the ruins, the Old One's place, where a door of old
+ * stone stands in the back wall with a skull carved over it and a keyhole shaped like a skull. The skull key from
+ * island 11's black lagoon opens it, and behind it is the crypt: five skeletons, six zombies and four ghosts, and the
+ * Forgotten One again, laughing. He fooled you.
  */
 
 import type { Spawn } from '../entities/undead';
 import { PORTAL7 } from './isle7';
-import { GATE, HALL_A, HALL_B, ROOMS, type Room, RUINS, THRONE } from './tower';
+import { CRYPT, GATE, HALL_A, HALL_B, ROOMS, type Room, RUINS, THRONE } from './tower';
 
 const at = (room: number, dx: number, dy: number): { x: number; y: number } => {
   const r = ROOMS[room] as Room;
@@ -49,7 +54,23 @@ export const CASTLE_SPAWNS: Readonly<Record<number, readonly Spawn[]>> = {
     { kind: 'necro', ...at(THRONE, 10, -135) },
     { kind: 'necro', ...at(THRONE, -140, -70) },
   ],
+  // The crypt, the kid's: five skeletons in front, six zombies behind them, four ghosts at the back, in arcs round the
+  // back of the room.
+  [CRYPT]: [
+    ...arc('skeleton', 70, [-0.9, -0.45, 0, 0.45, 0.9]),
+    ...arc('zombie', 120, [-1.1, -0.66, -0.22, 0.22, 0.66, 1.1]),
+    ...arc('ghost', 160, [-0.75, -0.25, 0.25, 0.75]),
+  ],
 };
+
+/** In the crypt, this far from its middle, round toward its back by these angles. */
+function arc(kind: Spawn['kind'], r: number, as: readonly number[]): Spawn[] {
+  const back = (-3 * Math.PI) / 4;
+  return as.map((a) => ({
+    kind,
+    ...at(CRYPT, Math.cos(back + a) * r, Math.sin(back + a) * r),
+  }));
+}
 
 const D = Math.SQRT1_2;
 const throne = ROOMS[THRONE] as Room;
@@ -85,6 +106,16 @@ export const LANCER_POSTS: readonly { x: number; y: number }[] = [
   { x: ruins.x - 60, y: ruins.y - 165 },
   { x: ruins.x + 60, y: ruins.y - 140 },
 ];
+
+/** The skull door in the ruins' back wall, and how near it must be to open it. */
+export const SKULL_DOOR = {
+  x: ruins.x - (ruins.r - 4) * D,
+  y: ruins.y - (ruins.r - 4) * D,
+} as const;
+export const SKULL_REACH = 40;
+/** Where the Forgotten One stands in the crypt when the figure comes in: toward its back. */
+const crypt = ROOMS[CRYPT] as Room;
+export const CRYPT_FORGOTTEN = { x: crypt.x - 95 * D, y: crypt.y - 95 * D } as const;
 
 /** The castle's rooms, in the order they are walked. */
 export const CASTLE_ROOMS: readonly number[] = [GATE, HALL_A, HALL_B, THRONE];

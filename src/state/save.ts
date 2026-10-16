@@ -189,6 +189,8 @@ export type SaveData = {
   catermanFree: boolean;
   /** The skull key, fetched up from the bottom of island 11's black lagoon (world/lagoondive.ts). Missing in old saves and read as not. */
   skullKey: boolean;
+  /** The crypt behind the skull door won: the Forgotten One beaten again, and yielded. Missing in old saves and read as not. */
+  cryptWon: boolean;
   /** Island 10's giant pelican has been beaten on top of its tower. Missing in old saves and read as not. */
   pelicanBeaten: boolean;
   /** Little loaves of bread the pelican left, for a birdfeeder. */
@@ -361,6 +363,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle11Seen: false,
     catermanFree: false,
     skullKey: false,
+    cryptWon: false,
     pelicanBeaten: false,
     bread: 0,
     feederFull: false,
@@ -529,6 +532,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle11Seen = !!o.isle11Seen;
   d.catermanFree = !!o.catermanFree;
   d.skullKey = !!o.skullKey;
+  d.cryptWon = !!o.cryptWon;
   d.pelicanBeaten = !!o.pelicanBeaten;
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
   d.feederFull = !!o.feederFull;
@@ -673,6 +677,7 @@ export function serializeSave(d: SaveData): string {
     isle11Seen: d.isle11Seen,
     catermanFree: d.catermanFree,
     skullKey: d.skullKey,
+    cryptWon: d.cryptWon,
     pelicanBeaten: d.pelicanBeaten,
     bread: d.bread,
     feederFull: d.feederFull,

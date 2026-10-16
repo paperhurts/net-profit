@@ -310,6 +310,49 @@ export function drawLockedDoor(v: DrawView, x: number, y: number, open = false):
   ctx.fillRect(cx - 0.7 * Z, cy + 0.5 * Z, 1.4 * Z, 3.5 * Z);
 }
 
+/**
+ * The skull door at the back of the ruins: an arch of old stone like the castle's, a skull carved over it; shut, its
+ * wooden door has a keyhole shaped like a skull, picked out in bone; open, it glows green like the others.
+ */
+export function drawSkullDoor(v: DrawView, x: number, y: number, open: boolean): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  drawCastleDoor(v, x, y, open);
+  const cx = px(x, y);
+  const base = py(x, y, 0);
+  // The skull over the arch: a bone-white dome with dark eyes and a row of teeth.
+  const sy = base - 70 * Z;
+  ctx.fillStyle = '#D9D2BC';
+  ctx.beginPath();
+  ctx.arc(cx, sy, 7 * Z, Math.PI, 0);
+  ctx.lineTo(cx + 4.5 * Z, sy + 6 * Z);
+  ctx.lineTo(cx - 4.5 * Z, sy + 6 * Z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#1A1612';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(cx + e * 2.6 * Z, sy - 1 * Z, 1.8 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (let i = -1; i <= 1; i++)
+    ctx.fillRect(cx + i * 2 * Z - 0.4 * Z, sy + 3 * Z, 0.8 * Z, 2.6 * Z);
+  if (open) return;
+  // The keyhole: a little skull in bone, its eyes and the slot under it dark.
+  const ky = base - 26 * Z;
+  ctx.fillStyle = '#C9C0A6';
+  ctx.beginPath();
+  ctx.arc(cx, ky, 3.6 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1A1612';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(cx + e * 1.3 * Z, ky - 0.4 * Z, 0.9 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillRect(cx - 0.6 * Z, ky + 1.4 * Z, 1.2 * Z, 4 * Z);
+}
+
 /** The Forgotten One's throne: a great stone chair on a step, its high back toward the wall, a skull on top. */
 export function drawThrone(v: DrawView, x: number, y: number, r: number): void {
   const { ctx, px, py } = v;
