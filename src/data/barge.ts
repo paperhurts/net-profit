@@ -4,7 +4,9 @@
  * sea; it pays a coin, but it is mostly to get better, and for fun; you spawn in and pick what you fight and how many.
  * Built in stages, the owner's call: the first had the camps' and the undead's on-foot enemies, up to ten at once, in a
  * small, medium or large arena; the second adds the rest of those on foot, island 10's gorillas and gators, island 3's
- * swordsman and his three little demons, and the lancers from the ruins; and the bosses come after.
+ * swordsman and his three little demons, and the lancers from the ruins; the third brings the bosses, a few at a time,
+ * those that fight in a room of their own first: the leviathan sorcerer, the Forgotten One, the Heron and the giant
+ * pelican.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -37,7 +39,11 @@ export type BargeFoe =
   | 'ghost'
   | 'necro'
   | 'lancer'
-  | 'lagoon';
+  | 'lagoon'
+  | 'sorcerer'
+  | 'forgotten'
+  | 'heron'
+  | 'pelican';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
@@ -54,6 +60,10 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'necro',
   'lancer',
   'lagoon',
+  'sorcerer',
+  'forgotten',
+  'heron',
+  'pelican',
 ];
 /** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
@@ -66,6 +76,8 @@ export const UNDEAD_FOES: readonly BargeFoe[] = [
 ];
 /** The ones that are island 3's fighters (entities/fighter.ts): the swordsman and the three little demons. */
 export const FIGHTER_FOES: readonly BargeFoe[] = ['swordsman', 'red', 'blue', 'green'];
+/** The bosses, after the rest on the card, island by island. */
+export const BOSS_FOES: readonly BargeFoe[] = ['sorcerer', 'forgotten', 'heron', 'pelican'];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
   monkey: ['Monkeys', 'Bonk you and throw coconuts. 2 hits each.'],
@@ -83,6 +95,16 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   necro: ['Necromancers', 'Raise skeletons out of the floor. 6 hits.'],
   lancer: ['Lancers', 'Slow, with long lances: 2 hearts a thrust. 10 hits.'],
   lagoon: ['Lagoon creatures', 'Quick, with claws. 2 hits.'],
+  sorcerer: [
+    'The leviathan sorcerer',
+    'Flies round throwing purple bolts, and swoops to peck. 8 hits.',
+  ],
+  forgotten: ['The Forgotten One', 'Skulls, a death ray, and his sword up close. 36 hits.'],
+  heron: ['The Heron', 'Zaps down a pink line, and makes copies of himself. 14 hits.'],
+  pelican: [
+    'The giant pelican',
+    'Spits fish and dives at the red ring. Hit it on the ground. 15 hits.',
+  ],
 };
 
 /** Ten at most, all told; and the prize for beating them all. */

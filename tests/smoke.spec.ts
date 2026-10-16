@@ -377,6 +377,10 @@ type Np = {
   bargeGators: Band;
   bargeLancers: Band;
   bargeFighters: { spec: { look: string }; state: string; hit(power: number): boolean }[];
+  bargeBoss: Record<
+    'sorcerer' | 'forgotten' | 'heron' | 'pelican',
+    { up: boolean; low?: boolean; state: string; hit(power: number): unknown }[]
+  >;
   cryptWon: boolean;
   CRYPT: number;
   SKULL_DOOR: { x: number; y: number };
@@ -6036,6 +6040,54 @@ test('the Battle Barge, stage 2: gorillas, gators, a lancer, the swordsman and t
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.bargeFighters.length)).toBe(0);
   expect(await page.evaluate(() => window.__np.walker.state)).toBe('aboard');
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge, stage 3: the sorcerer, the Forgotten One, the Heron and the pelican, all beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: { size: 'medium', pick: { sorcerer: 1, forgotten: 1, heron: 1, pelican: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  // The bosses have their own heading, at the bottom of the list.
+  await expect(page.locator('#bargeList')).toContainText('Bosses');
+  await expect(page.locator('#bargeTotal')).toHaveText('4 of 10 picked.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  // All four come for the figure at once; the pelican after its flapping, down off its nest.
+  await page.evaluate(() => window.__np.setHearts(9));
+  await page.waitForFunction(
+    () => {
+      const b = window.__np.bargeBoss;
+      return (
+        b.sorcerer[0]?.up && b.forgotten[0]?.up && b.heron[0]?.up && b.pelican[0]?.low === true
+      );
+    },
+    null,
+    { timeout: 6000 },
+  );
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    const b = n.bargeBoss;
+    for (const k of ['sorcerer', 'forgotten', 'heron', 'pelican'] as const)
+      for (const q of b[k]) q.hit(99);
+  });
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  await page.locator('#leave').click();
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.bargeBoss.heron.length)).toBe(0);
   expect(errors).toEqual([]);
 });
 

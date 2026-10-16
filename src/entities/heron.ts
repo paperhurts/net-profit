@@ -107,13 +107,15 @@ export class Heron implements Entity {
   /** Beaten: he is flying off. The game is told at once, so leaving mid-flight keeps the win. */
   onBeaten: (() => void) | null = null;
 
+  /** In his room, with this much to beat; he stands at its back to start, or at start (the Battle Barge's). */
   constructor(
     readonly home: Home,
     readonly hp0 = HERON_HP,
+    readonly start = { x: home.x - home.r * 0.3, y: home.y - home.r * 0.3 },
   ) {
     this.hp = hp0;
-    this.x = home.x - home.r * 0.3;
-    this.y = home.y - home.r * 0.3;
+    this.x = start.x;
+    this.y = start.y;
   }
 
   /** In the fight, to be speared. */
@@ -128,8 +130,8 @@ export class Heron implements Entity {
   reset(): void {
     this.state = 'wait';
     this.hp = this.hp0;
-    this.x = this.home.x - this.home.r * 0.3;
-    this.y = this.home.y - this.home.r * 0.3;
+    this.x = this.start.x;
+    this.y = this.start.y;
     this.h = Math.PI / 4;
     this.t = 0;
     this.flash = 0;
