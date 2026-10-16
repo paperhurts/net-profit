@@ -90,6 +90,8 @@ export class Heron implements Entity {
   private stunT = 0;
   /** The orb of power's shield is on him: nothing hurts him or pops a copy. The game says, each frame. */
   shielded = false;
+  /** Drawn with two arms and hands: his brother on island 11, the kid's, "the same as the Heron but two hands". */
+  hands = false;
   /** He has seen the figure arrive. */
   onWake: (() => void) | null = null;
   /** A zap has hit the figure. */
@@ -346,7 +348,11 @@ export class Heron implements Entity {
         ? [
             {
               d: this.x + this.y,
-              f: () => drawHeron(v, this.x, this.y, this.h, this.ph, { shield: this.shielded }),
+              f: () =>
+                drawHeron(v, this.x, this.y, this.h, this.ph, {
+                  shield: this.shielded,
+                  hands: this.hands,
+                }),
             },
           ]
         : [];
@@ -372,6 +378,7 @@ export class Heron implements Entity {
           aiming: this.state === 'aim',
           cast: this.state === 'cast' ? this.t / CAST_T : 0,
           shield: this.shielded,
+          hands: this.hands,
         }),
     });
     for (const c of this.copies)
@@ -382,6 +389,7 @@ export class Heron implements Entity {
             copy: true,
             pop: c.pop > 0 ? 1 - c.pop / 0.4 : 0,
             shield: this.shielded,
+            hands: this.hands,
           }),
       });
     return out;
@@ -438,6 +446,8 @@ type HeronLook = {
   lift?: number;
   /** The orb of power's shield round him: a pink bubble. */
   shield?: boolean;
+  /** Two arms with hands, holding the gun and the staff: his brother, on island 11. */
+  hands?: boolean;
 };
 
 /**
@@ -631,6 +641,34 @@ export function drawHeron(
     ctx.beginPath();
     ctx.arc(X(22), Y(-34 + up), (o.aiming ? 2.2 : 1.4) * Z, 0, Math.PI * 2);
     ctx.fill();
+  }
+  if (o.hands && !o.fly) {
+    // His brother's two arms, grey and feathery at the shoulder, out of the body to a hand on the staff and a hand
+    // round the gun's grip, each with little dark fingers wrapped round.
+    const up = o.aiming ? -4 : 0;
+    const lift = cast * 10;
+    const arm = (sx0: number, sy0: number, ex: number, ey: number, hx: number, hy: number) => {
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 3 * Z;
+      ctx.beginPath();
+      ctx.moveTo(X(sx0), Y(sy0));
+      ctx.quadraticCurveTo(X(ex), Y(ey), X(hx), Y(hy));
+      ctx.stroke();
+      ctx.fillStyle = o.flash ? '#FFFFFF' : '#4A5059';
+      ctx.beginPath();
+      ctx.arc(X(hx), Y(hy), 2.2 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = o.flash ? '#FFFFFF' : '#2E3238';
+      ctx.lineWidth = 0.9 * Z;
+      for (const f of [-1, 0, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(X(hx - 1), Y(hy + f * 1.2));
+        ctx.lineTo(X(hx + 2.4), Y(hy + f * 1.3));
+        ctx.stroke();
+      }
+    };
+    arm(2, -42, 12, -50, 18, -46 - lift);
+    arm(-2, -38, 2, -28, 9, -28 + up);
   }
   if (o.shield) {
     // The orb's shield: a pink bubble round him, shimmering.

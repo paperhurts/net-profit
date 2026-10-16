@@ -44,6 +44,16 @@ type Np = {
   PERCH11: { x: number; y: number };
   DOCK11: { x: number; y: number };
   ISLE11: { x: number; y: number; r: number };
+  CLEARING11: { x: number; y: number; r: number };
+  brother: {
+    up: boolean;
+    hp: number;
+    state: string;
+    copies: { pop: number }[];
+    hit(n: number): void;
+  };
+  caterman: { shown: boolean; free: boolean; x: number; y: number };
+  catermanFree: boolean;
   PORTAL11: { x: number; y: number; r: number };
   first: number[];
   pondLine: { state: string; sp: number };
@@ -5706,5 +5716,75 @@ test('island 11: tie up at its pier, walk up into the jungle, and look at the po
   });
   await expect(page.locator('#toast')).toContainText('black lagoon', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Island 11 found');
+  expect(errors).toEqual([]);
+});
+
+test("island 11's heron: the Heron's brother zaps in his clearing, can't be beaten, says goodbye, and Caterman joins you", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('ZAP');
+  // Into his clearing: he wakes, two hands and all.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const c = window.__np.CLEARING11;
+    w.x = c.x + 40;
+    w.y = c.y + 40;
+  });
+  await page.waitForFunction(() => window.__np.brother.up, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('two hands');
+  await expect(page.locator('#throw')).toBeVisible();
+  await page.click('#throw');
+  await page.waitForFunction(
+    () => window.__np.brother.hp < 14 || window.__np.brother.copies.some((c) => c.pop > 0),
+    null,
+    { timeout: 3000 },
+  );
+  // Got the better of, he stops, says goodbye and flies off; Caterman comes out of his workshop.
+  await page.evaluate(() => window.__np.brother.hit(99));
+  await page.waitForFunction(() => window.__np.catermanFree, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('challengers');
+  await page.waitForFunction(() => window.__np.caterman.shown, null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('Caterman joins you');
+  // And he comes along: walk off, and he follows.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const c = window.__np.CLEARING11;
+    w.x = c.x + 10;
+    w.y = c.y + 160;
+  });
+  await page.waitForFunction(
+    () => {
+      const c = window.__np.caterman;
+      const w = window.__np.walker;
+      return Math.hypot(c.x - w.x, c.y - w.y) < 80;
+    },
+    null,
+    { timeout: 6000 },
+  );
+  await expect(page.locator('#log')).toContainText('Caterman joined you');
+  // He stays yours, and the brother stays gone.
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.catermanFree === true, null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.brother.up)).toBe(false);
   expect(errors).toEqual([]);
 });

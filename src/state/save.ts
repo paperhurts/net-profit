@@ -185,6 +185,8 @@ export type SaveData = {
   isle10Seen: boolean;
   /** Island 11 has been sighted, out in the far far sea past island 10. Missing in old saves and read as not. */
   isle11Seen: boolean;
+  /** The Heron's brother has flown from island 11, and Caterman has come out of his workshop to join you. */
+  catermanFree: boolean;
   /** Island 10's giant pelican has been beaten on top of its tower. Missing in old saves and read as not. */
   pelicanBeaten: boolean;
   /** Little loaves of bread the pelican left, for a birdfeeder. */
@@ -355,6 +357,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle8Seen: false,
     isle10Seen: false,
     isle11Seen: false,
+    catermanFree: false,
     pelicanBeaten: false,
     bread: 0,
     feederFull: false,
@@ -521,6 +524,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle8Seen = !!o.isle8Seen;
   d.isle10Seen = !!o.isle10Seen;
   d.isle11Seen = !!o.isle11Seen;
+  d.catermanFree = !!o.catermanFree;
   d.pelicanBeaten = !!o.pelicanBeaten;
   d.bread = Math.max(0, Math.min(9, int(o.bread)));
   d.feederFull = !!o.feederFull;
@@ -663,6 +667,7 @@ export function serializeSave(d: SaveData): string {
     isle8Seen: d.isle8Seen,
     isle10Seen: d.isle10Seen,
     isle11Seen: d.isle11Seen,
+    catermanFree: d.catermanFree,
     pelicanBeaten: d.pelicanBeaten,
     bread: d.bread,
     feederFull: d.feederFull,

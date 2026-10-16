@@ -26,6 +26,10 @@
  * the figure's heel, four hit points, and when a fight is on he raises his skeleton hamster to fight for you (the
  * game calls it up), and raises it again a while after it falls.
  *
+ * And Caterman, the kid's technology cat-human from island 11 (3 hit points, 2 damage): out of his workshop once the
+ * Heron's brother has gone, he comes along, riding the boat at the bow. He zaps from further off than the others
+ * reach, with a little blaster he built.
+ *
  * And the baby Reaper, out of the egg the Reaper on land left: his father small, on four clawed legs, with a big
  * round eye. Ashore he trots at the figure's heel and nips whatever it fights, for 1. At sea he swims as the naga
  * does, but off the bow on the side away from the viewer (the otter has the near side), his little striped fin up,
@@ -33,16 +37,19 @@
  */
 
 import { Worn } from '../data/badges';
+import { drawCaterman } from '../render/caterman';
 import { drawReaperBody, sideOn } from '../render/reaper';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { drawNecromancer } from './nest';
 import { walkable, walkStep } from './walker';
 
-export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga' | 'necro' | 'baby';
+export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga' | 'necro' | 'baby' | 'caterman';
 
 export const PAL_HP = 5;
 export const BONES_HP = 4;
 export const NECRO_HP = 4;
+/** Caterman, the kid's: 3 hit points, and his blaster hits for 2. */
+export const CATERMAN_HP = 3;
 export const PAL_SPEED = 100;
 /** How close each keeps behind the figure, and how far off it pops over. */
 export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
@@ -52,6 +59,7 @@ export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
   naga: 34,
   necro: 42,
   baby: 28,
+  caterman: 32,
 };
 export const PAL_BLINK = 200;
 /** A companion that cannot make any way along the figure's steps for this long pops over beside it. */
@@ -65,6 +73,8 @@ export const REACH: Readonly<Record<PalKind, number>> = {
   naga: 36,
   necro: 0,
   baby: 24,
+  // His blaster reaches further than a blade.
+  caterman: 60,
 };
 export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   cat: 1.1,
@@ -73,6 +83,7 @@ export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   naga: 1.3,
   necro: 0,
   baby: 1,
+  caterman: 1.3,
 };
 export const POWER: Readonly<Record<PalKind, number>> = {
   cat: 1,
@@ -81,6 +92,7 @@ export const POWER: Readonly<Record<PalKind, number>> = {
   naga: 2,
   necro: 0,
   baby: 1,
+  caterman: 2,
 };
 /**
  * Where the naga swims at sea, in the hull's units: this far off the boat's right side, this far ahead of
@@ -183,7 +195,13 @@ export class Pal implements Entity {
 
   /** Its hit points when whole. */
   get maxHp(): number {
-    return this.kind === 'bones' ? BONES_HP : this.kind === 'necro' ? NECRO_HP : PAL_HP;
+    return this.kind === 'bones'
+      ? BONES_HP
+      : this.kind === 'necro'
+        ? NECRO_HP
+        : this.kind === 'caterman'
+          ? CATERMAN_HP
+          : PAL_HP;
   }
 
   /** Out of the temple at a point, as Cthulhu crumbles: free, and beside the figure. */
@@ -308,7 +326,9 @@ export class Pal implements Entity {
               ? [-20, -6]
               : this.kind === 'baby'
                 ? [12, 18]
-                : [14, -16];
+                : this.kind === 'caterman'
+                  ? [-10, 20]
+                  : [14, -16];
     for (const [dx, dy] of [
       off,
       [-(off[0] as number), off[1] as number],
@@ -507,6 +527,8 @@ export class Pal implements Entity {
       drawWarrior(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1);
     else if (this.kind === 'naga')
       drawNaga(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1, false);
+    else if (this.kind === 'caterman')
+      drawCaterman(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.22, 1);
     else if (this.kind === 'baby') {
       // His middle stands this high on his legs; he trots, bobbing, and his jaw snaps open as he nips.
       const z = (50 * BABY_LEN) / 240 + Math.abs(Math.sin(this.ph * 0.5)) * 1.5 * this.gait;
@@ -537,7 +559,9 @@ export class Pal implements Entity {
               ? 50
               : this.kind === 'baby'
                 ? 26
-                : 40) *
+                : this.kind === 'caterman'
+                  ? 36
+                  : 40) *
         Z;
     const max = this.maxHp;
     if (this.hp < max) {
@@ -571,6 +595,9 @@ export class Pal implements Entity {
     const s = Math.sin(b.h);
     if (this.kind === 'cat') return { x: b.x - c * 4 * k, y: b.y - s * 4 * k, z: 26 * k };
     if (this.kind === 'bones') return { x: b.x + c * 20 * k, y: b.y + s * 20 * k, z: 9 * k + 1 };
+    // Caterman up at the bow, on the warrior's side, ready with his blaster.
+    if (this.kind === 'caterman')
+      return { x: b.x + c * 13 * k - s * 7 * k, y: b.y + s * 13 * k + c * 7 * k, z: 9 * k + 1 };
     // The necromancer amidships, on the side away from the warrior.
     if (this.kind === 'necro')
       return { x: b.x + c * 6 * k + s * 7 * k, y: b.y + s * 6 * k - c * 7 * k, z: 9 * k + 1 };
@@ -590,6 +617,9 @@ export class Pal implements Entity {
     } else if (this.kind === 'necro') {
       const p = this.seat(b, k);
       drawNecromancer(v, p.x, p.y, 0, { z: p.z, size: 0.8 });
+    } else if (this.kind === 'caterman') {
+      const p = this.seat(b, k);
+      drawCaterman(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, 0, false, 0.8);
     } else {
       const p = this.seat(b, k);
       const draw = this.kind === 'warrior' ? drawWarrior : drawBones;
