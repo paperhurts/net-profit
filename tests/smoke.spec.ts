@@ -106,6 +106,8 @@ type Np = {
   sunken: { on: boolean; list: { x: number; y: number; coins: number }[] };
   talkToOldMan(): void;
   honey: number;
+  screenOf(x: number, y: number): [number, number];
+  viewSize: [number, number];
   scope: { i: number; name: string } | null;
   openScope(): void;
   closeScope(): void;
@@ -6933,6 +6935,47 @@ test('the Battle Barge: the giant spider in a web on the deck, beaten only by bu
   await page.locator('#bargeBtn').click();
   await expect(page.locator('#bargeList')).toContainText('You have no bug spray');
   await expect(page.locator('#bargeList [data-foe="spider"][data-d="1"]')).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge camera frames the arena, not the figure, so the fight at its back is in view', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    barge: { size: 'large', pick: { zombie: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.large, null, {
+    timeout: 3000,
+  });
+  // Out at the deck's front edge: the camera stays on the arena's middle, leaning only a little toward the figure.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = -19500 + 150;
+    n.walker.y = -8200 + 150;
+    n.setHearts(9);
+  });
+  await page.waitForTimeout(2500);
+  const [mid, me, size] = await page.evaluate(() => [
+    window.__np.screenOf(-19500, -8200),
+    window.__np.screenOf(window.__np.walker.x, window.__np.walker.y),
+    window.__np.viewSize,
+  ]);
+  const [w, h] = size;
+  expect(Math.abs(mid[0] - w / 2)).toBeLessThan(w * 0.12);
+  expect(mid[1]).toBeGreaterThan(h * 0.4);
+  expect(mid[1]).toBeLessThan(h * 0.62);
+  // The figure is on the screen, but well off its middle.
+  expect(me[1]).toBeLessThan(h * 0.85);
+  expect(Math.hypot(me[0] - w / 2, me[1] - h / 2)).toBeGreaterThan(40);
   expect(errors).toEqual([]);
 });
 
