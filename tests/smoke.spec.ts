@@ -378,7 +378,7 @@ type Np = {
   bargeLancers: Band;
   bargeFighters: { spec: { look: string }; state: string; hit(power: number): boolean }[];
   bargeBoss: Record<
-    'sorcerer' | 'forgotten' | 'heron' | 'pelican' | 'cthulhu' | 'oldone' | 'reaper',
+    'sorcerer' | 'forgotten' | 'heron' | 'pelican' | 'cthulhu' | 'oldone' | 'reaper' | 'anchorer',
     { up: boolean; low?: boolean; open?: boolean; state: string; hit(power: number): unknown }[]
   >;
   cryptWon: boolean;
@@ -6177,6 +6177,42 @@ test('the Battle Barge: the Reaper on land, speared when he rears up, and off ov
     for (const r of window.__np.bargeBoss.reaper) r.hit(99);
   });
   await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge: the Tar Anchorer wades round the barge, throws its anchor, and melts away', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: { size: 'medium', pick: { anchorer: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  // It rises off the far side and wades round the rail to throw: from across the deck, it comes round.
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      n.setHearts(9);
+      return n.bargeBoss.anchorer[0]?.state === 'whirl';
+    },
+    null,
+    { timeout: 15000, polling: 100 },
+  );
+  await page.evaluate(() => {
+    for (const a of window.__np.bargeBoss.anchorer) a.hit(99);
+  });
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 5000 });
   await expect(page.locator('#toast')).toContainText('beat them all');
   expect(errors).toEqual([]);
 });
