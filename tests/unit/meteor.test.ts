@@ -13,13 +13,19 @@ import type { World } from '../../src/entities/entity';
 import {
   AIM_ANGRY,
   AIM_T,
+  CLEAR_T,
   DIVE_HIT,
+  DROP_T,
   FALL_T,
   HAUNT_R,
+  HAUNT_Z,
   LEASH,
   MeteorSerpent,
   NOTICE,
   RING_R,
+  SCARED_T,
+  SPACE_Z,
+  UP_T,
 } from '../../src/entities/meteor';
 import { SPEAR_SPEED } from '../../src/entities/spears';
 import { ISLE6 } from '../../src/world/isle6';
@@ -188,7 +194,7 @@ describe('the meteor serpent', () => {
     expect(m.resolve).toBe(RESOLVE.meteor);
   });
 
-  it('holds off while the Deep One is up, and comes on once it is not', () => {
+  it('holds off while another great beast is after the boat, and comes on once it is not', () => {
     const m = new MeteorSerpent();
     let deep = true;
     m.holdOff = () => deep;
@@ -202,6 +208,47 @@ describe('the meteor serpent', () => {
     deep = true;
     m.update(DT, w);
     expect(m.state).toBe('haunt');
+  });
+
+  it('afraid of anything bigger: stops dead, shoots up into space, stays while it is near, and falls back to its loop', () => {
+    const m = new MeteorSerpent();
+    let big = false;
+    let told = 0;
+    m.scaredOf = () => big;
+    m.onScared = () => told++;
+    let up = 0;
+    m.onSpace = () => up++;
+    const w = near(1100);
+    const { v } = fakeView();
+    const run = (secs: number) => {
+      for (let i = 0; i < secs / DT; i++) {
+        m.update(DT, w);
+        for (const l of ['surface', 'air', 'overlay'] as const) m.draw(v, l);
+      }
+    };
+    // Down in the water mid-fight, when the bigger one comes.
+    expect(untilDown(m, w)).toBeLessThan(10);
+    big = true;
+    m.update(DT, w);
+    expect([m.state, m.hunting, m.afraid, told, m.ring]).toEqual(['scared', false, true, 1, null]);
+    expect(m.harpoon(1)).toBe(false);
+    run(SCARED_T + UP_T + 0.1);
+    expect([m.state, m.z, up]).toEqual(['space', SPACE_Z, 1]);
+    // Up there as long as it is near, the boat sailing off or not.
+    run(10);
+    m.reset();
+    expect([m.state, told]).toEqual(['space', 1]);
+    big = false;
+    run(CLEAR_T - 0.2);
+    expect(m.state).toBe('space');
+    run(0.4);
+    expect(m.state).toBe('drop');
+    const [x, y] = [m.x, m.y];
+    expect(Math.hypot(x - ISLE6.x, y - ISLE6.y)).toBeCloseTo(HAUNT_R, 0);
+    run(DROP_T);
+    expect(m.state === 'haunt' || m.state === 'hunt').toBe(true);
+    expect(m.z).toBeLessThan(HAUNT_Z + 5);
+    expect(m.resolve).toBe(RESOLVE.meteor);
   });
 
   it('is sighted once, when it comes over, even from ashore', () => {

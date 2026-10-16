@@ -944,7 +944,14 @@ gulper.onGiveUp = () => { if (swallowT <= 0) toast('The gulper gave up and sank.
 // It holds off while the Deep One or the Reaper is up, so two never come at once.
 const serpent = new MeteorSerpent();
 let serpentTold = false, splashTold = false;
-serpent.holdOff = () => deep.state === 'rise' || deep.state === 'fight' || deep.state === 'drag' || reaper.hunting;
+serpent.holdOff = () => reaper.hunting;
+// Star is afraid of anything bigger than it, the kid's: the Deep One up out of the water, and (the owner's call) the
+// walkable big ship once there is one, never the boat's upgrades. Off to space until it has gone.
+serpent.scaredOf = () => deep.state === 'rise' || deep.state === 'fight' || deep.state === 'drag';
+// Said over him as he goes; and told once he is up there, so it waits its turn behind the Deep One's own warning.
+serpent.onScared = () => { sfx.meteorDive(); addText(serpent.x, serpent.y, serpent.z + 40, 'Too big! Off to space!', '#FFD27A', 18, 2); };
+serpent.onSpace = () => { if (Math.hypot(serpent.x - boat.x, serpent.y - boat.y) > 1400) return;
+  toast("Star saw the Deep One and shot up into space! He's afraid of anything bigger than him. He'll be back once it's gone.", 4200, 1); };
 serpent.onSight = () => { if (meteorSeen) return; meteorSeen = true; save();
   toast('Something with wings is flying round island 6. Its head glows like a falling star.', 3200, 1); };
 serpent.onHunt = () => { sfx.gulperHunt(); shake = Math.max(shake, .3); const first = !meteorSeen; if (first){ meteorSeen = true; save(); }
