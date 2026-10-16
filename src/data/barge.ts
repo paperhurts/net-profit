@@ -7,7 +7,8 @@
  * swordsman and his three little demons, and the lancers from the ruins; the third brings the bosses, a few at a time,
  * those that fight in a room of their own first: the leviathan sorcerer, the Forgotten One, the Heron and the giant
  * pelican; then Cthulhu from the drowned temple, and the Old One, who rises out of the sea at the barge's back; then the
- * Reaper on land, off island 6's sand; then the Tar Anchorer, wading in the sea round the barge as it wades in its tar.
+ * Reaper on land, off island 6's sand; then the Tar Anchorer, wading in the sea round the barge as it wades in its tar;
+ * then island 10's spider, in a web strung between two posts on the deck, whom only bug spray beats.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -48,7 +49,8 @@ export type BargeFoe =
   | 'cthulhu'
   | 'oldone'
   | 'reaper'
-  | 'anchorer';
+  | 'anchorer'
+  | 'spider';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
@@ -73,6 +75,7 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'oldone',
   'reaper',
   'anchorer',
+  'spider',
 ];
 /** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
@@ -95,6 +98,7 @@ export const BOSS_FOES: readonly BargeFoe[] = [
   'oldone',
   'reaper',
   'anchorer',
+  'spider',
 ];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
@@ -135,6 +139,10 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   anchorer: [
     'The Tar Anchorer',
     'Wades round the barge and throws its anchor at the red ring; swings it round up close. 80 hits.',
+  ],
+  spider: [
+    'The giant spider',
+    'Wraps you up and hangs you in his web. Only bug spray beats him: 3 sprays.',
   ],
 };
 

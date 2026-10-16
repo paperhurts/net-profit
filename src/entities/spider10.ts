@@ -49,13 +49,20 @@ export type SpiderState =
   | 'fall'
   | 'gone';
 
-/** Where the web is, and its foot: the ground under the hub. */
-export const WEB: { a: Point; b: Point; x: number; y: number; z: number; r: number } = WEB10;
+/** A web: the two things it hangs between, its foot (the ground under its hub), how high its hub is, how wide. */
+export type Web = { a: Point; b: Point; x: number; y: number; z: number; r: number };
+/** Where island 10's web is, between two cypresses in the swamp. */
+export const WEB: Web = WEB10;
 
-/** How far a point is from the web's strand, the line between its trunks. */
-export function offWeb(x: number, y: number): number {
-  const [ax, ay] = WEB.a;
-  const [bx, by] = WEB.b;
+/** A web the size of island 10's, hung between two points: the Battle Barge's, between two posts. */
+export function webBetween(a: Point, b: Point): Web {
+  return { a, b, x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, z: WEB.z, r: WEB.r };
+}
+
+/** How far a point is from a web's strand, the line between its trunks. */
+export function offWeb(x: number, y: number, web: Web = WEB): number {
+  const [ax, ay] = web.a;
+  const [bx, by] = web.b;
   const dx = bx - ax;
   const dy = by - ay;
   const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
@@ -63,10 +70,10 @@ export function offWeb(x: number, y: number): number {
 }
 
 export class Spider10 implements Entity {
-  x = WEB.x;
-  y = WEB.y;
+  x: number;
+  y: number;
   /** How high he is: at his hub, or down on the ground. */
-  z = WEB.z;
+  z: number;
   h = 0;
   face = 1;
   hp = SPIDER_HP;
@@ -84,11 +91,22 @@ export class Spider10 implements Entity {
   onSprayed: (() => void) | null = null;
   onBeaten: (() => void) | null = null;
 
+  /** In his web: island 10's, or one on the Battle Barge, where he comes down at once and never gives up. */
+  constructor(
+    readonly web: Web = WEB,
+    readonly wake = SPIDER_WAKE,
+    readonly leash = SPIDER_LEASH,
+  ) {
+    this.x = web.x;
+    this.y = web.y;
+    this.z = web.z;
+  }
+
   /** Back at his hub in a whole web. */
   reset(): void {
-    this.x = WEB.x;
-    this.y = WEB.y;
-    this.z = WEB.z;
+    this.x = this.web.x;
+    this.y = this.web.y;
+    this.z = this.web.z;
     this.hp = SPIDER_HP;
     this.state = 'web';
     this.t = 0;
@@ -149,14 +167,14 @@ export class Spider10 implements Entity {
         if (this.t >= SPIDER_FALL) this.state = 'gone';
         return;
       case 'web':
-        this.x = WEB.x;
-        this.y = WEB.y;
-        this.z = WEB.z + Math.sin(this.t * 1.3) * 0.8;
-        if (f && this.cool <= 0 && Math.hypot(f.x - WEB.x, f.y - WEB.y) < SPIDER_WAKE)
+        this.x = this.web.x;
+        this.y = this.web.y;
+        this.z = this.web.z + Math.sin(this.t * 1.3) * 0.8;
+        if (f && this.cool <= 0 && Math.hypot(f.x - this.web.x, f.y - this.web.y) < this.wake)
           this.startDrop();
         return;
       case 'drop':
-        this.z = WEB.z * Math.max(0, 1 - this.t / SPIDER_DROP);
+        this.z = this.web.z * Math.max(0, 1 - this.t / SPIDER_DROP);
         if (this.t >= SPIDER_DROP) {
           this.state = 'chase';
           this.t = 0;
@@ -164,7 +182,7 @@ export class Spider10 implements Entity {
         }
         return;
       case 'climb':
-        this.z = WEB.z * Math.min(1, this.t / SPIDER_CLIMB);
+        this.z = this.web.z * Math.min(1, this.t / SPIDER_CLIMB);
         if (this.t >= SPIDER_CLIMB) {
           this.state = 'web';
           this.t = 0;
@@ -172,7 +190,7 @@ export class Spider10 implements Entity {
         return;
       case 'drag': {
         // Back to the foot of his web with the figure in tow; then up it goes into the web.
-        if (this.toward(WEB.x, WEB.y, DRAG_SPEED, dt)) {
+        if (this.toward(this.web.x, this.web.y, DRAG_SPEED, dt)) {
           this.state = 'climb';
           this.t = 0;
           this.cool = WEB_HOLD + 2;
@@ -181,7 +199,7 @@ export class Spider10 implements Entity {
         return;
       }
       case 'back':
-        if (this.toward(WEB.x, WEB.y, SPIDER_SPEED, dt)) {
+        if (this.toward(this.web.x, this.web.y, SPIDER_SPEED, dt)) {
           this.state = 'climb';
           this.t = 0;
         }
@@ -199,7 +217,7 @@ export class Spider10 implements Entity {
         return;
       }
       case 'chase': {
-        if (!f || Math.hypot(f.x - WEB.x, f.y - WEB.y) > SPIDER_LEASH) {
+        if (!f || Math.hypot(f.x - this.web.x, f.y - this.web.y) > this.leash) {
           this.state = 'back';
           this.t = 0;
           return;
@@ -218,15 +236,15 @@ export class Spider10 implements Entity {
 
   /** Where the figure is pulled to as he drags it: just behind him, on his way home. */
   get towed(): Point {
-    const d = Math.hypot(WEB.x - this.x, WEB.y - this.y) || 1;
-    return [this.x - ((WEB.x - this.x) / d) * 10, this.y - ((WEB.y - this.y) / d) * 10];
+    const d = Math.hypot(this.web.x - this.x, this.web.y - this.y) || 1;
+    return [this.x - ((this.web.x - this.x) / d) * 10, this.y - ((this.web.y - this.y) / d) * 10];
   }
 
   private startDrop(): void {
     this.state = 'drop';
     this.t = 0;
-    this.x = WEB.x;
-    this.y = WEB.y;
+    this.x = this.web.x;
+    this.y = this.web.y;
     this.onDrop?.();
   }
 
@@ -238,7 +256,7 @@ export class Spider10 implements Entity {
     if (d < 3) return true;
     const s = Math.min(d, speed * dt);
     // Near his web he goes straight, as the trunks either side would turn a step aside.
-    if (Math.hypot(this.x - WEB.x, this.y - WEB.y) < 20) {
+    if (Math.hypot(this.x - this.web.x, this.y - this.web.y) < 20) {
       this.x += (dx / d) * s;
       this.y += (dy / d) * s;
     } else if (walkStep(this, (dx / d) * s, (dy / d) * s, 99) === 0) {
