@@ -800,6 +800,13 @@ describe('islands 8 and 9', () => {
     // He cannot have got away from a fight that has not been won.
     expect(parseSave(JSON.stringify({ ...s, heronStage: 1 }), bounds).heronFled).toBe(false);
   });
+
+  it('read island 11 as not found in an old save, and keep it found once it is', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle11Seen).toBe(false);
+    s.isle11Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle11Seen).toBe(true);
+  });
 });
 
 describe("island 10's spider and pelican", () => {
