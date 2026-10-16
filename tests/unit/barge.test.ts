@@ -7,6 +7,7 @@ import {
   bargeAdd,
   bargeTotal,
   defaultBarge,
+  FIGHTER_FOES,
   FOE_NAMES,
   noPick,
   parseBarge,
@@ -51,7 +52,21 @@ describe('the Battle Barge: picking a fight', () => {
   it('names every enemy on the card, and its undead are the undead the castle has', () => {
     for (const k of BARGE_FOES) expect(FOE_NAMES[k][0].length).toBeGreaterThan(2);
     for (const k of UNDEAD_FOES) expect(UNDEAD[k as keyof typeof UNDEAD]).toBeDefined();
-    expect(BARGE_FOES.filter((k) => !UNDEAD_FOES.includes(k))).toEqual(['monkey', 'hired']);
+    expect(BARGE_FOES.filter((k) => !UNDEAD_FOES.includes(k) && !FIGHTER_FOES.includes(k))).toEqual(
+      ['monkey', 'hired', 'gorilla', 'gator', 'lancer'],
+    );
+    expect(FIGHTER_FOES).toEqual(['swordsman', 'red', 'blue', 'green']);
+    // Each kind once, and none picked to start but the start's.
+    expect(new Set(BARGE_FOES).size).toBe(BARGE_FOES.length);
+    expect(Object.keys(noPick()).sort()).toEqual([...BARGE_FOES].sort());
+  });
+
+  it('reads an old save from before the second stage, with none of the new enemies picked', () => {
+    const old = { size: 'small', pick: { monkey: 2, skeleton: 1, lagoon: 3 } };
+    const b = parseBarge(old);
+    expect(b.pick).toEqual({ ...noPick(), monkey: 2, skeleton: 1, lagoon: 3 });
+    expect(b.pick.gorilla).toBe(0);
+    expect(b.pick.swordsman).toBe(0);
   });
 });
 

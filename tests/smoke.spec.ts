@@ -373,6 +373,10 @@ type Np = {
       { list: { x: number; y: number }[]; hit(m: unknown, p: number, x: number, y: number): void }
     >
   >;
+  bargeGorillas: Band;
+  bargeGators: Band;
+  bargeLancers: Band;
+  bargeFighters: { spec: { look: string }; state: string; hit(power: number): boolean }[];
   cryptWon: boolean;
   CRYPT: number;
   SKULL_DOOR: { x: number; y: number };
@@ -390,6 +394,9 @@ type Np = {
   king: { fighting: boolean; state: string; t: number; resolve: number };
   fireHarpoon(): void;
 };
+
+/** One of the Battle Barge's own groups: its gorillas, its gators or its lancers. */
+type Band = { list: { state: string }[]; hit(u: unknown, power: number): boolean };
 
 declare global {
   interface Window {
@@ -5961,6 +5968,74 @@ test('the Battle Barge from the boat: pick a fight, beat them all for a coin, an
   // The setup is kept.
   await page.reload();
   await page.waitForFunction(() => window.__np?.barge?.size === 'small', null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge, stage 2: gorillas, gators, a lancer, the swordsman and the three demons, all beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: {
+      size: 'small',
+      pick: { gorilla: 1, gator: 1, lancer: 1, swordsman: 1, red: 1, blue: 1, green: 1 },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('7 of 10 picked.');
+  // The list scrolls inside the card; the last of it can still be picked, and Fight! is always in reach.
+  await page.locator('#bargeList [data-foe="lancer"][data-d="1"]').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('8 of 10 picked.');
+  await page.locator('#bargeList [data-foe="lancer"][data-d="-1"]').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.small, null, {
+    timeout: 3000,
+  });
+  const band = await page.evaluate(() => {
+    const n = window.__np;
+    return {
+      gorillas: n.bargeGorillas.list.map((g) => g.state),
+      gators: n.bargeGators.list.map((g) => g.state),
+      lancers: n.bargeLancers.list.map((l) => l.state),
+      fighters: n.bargeFighters.map((f) => f.spec.look),
+    };
+  });
+  // All of them coming from the start: the gorilla beating its chest, the lancer roused, the gator out on the deck.
+  expect(band.gorillas).toEqual(['warn']);
+  expect(band.gators).toEqual(['chase']);
+  expect(band.lancers).toEqual(['walk']);
+  expect(band.fighters).toEqual(['swordsman', 'red', 'blue', 'green']);
+  // The blue demon and the green call up their monkeys.
+  await page.evaluate(() => window.__np.setHearts(9));
+  await page.waitForFunction(
+    () => (window.__np.bargeCamps[window.__np.floor]?.imps?.list.length ?? 0) >= 2,
+    null,
+    { timeout: 4000 },
+  );
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    for (const g of n.bargeGorillas.list) n.bargeGorillas.hit(g, 99);
+    for (const g of n.bargeGators.list) n.bargeGators.hit(g, 99);
+    for (const l of n.bargeLancers.list) n.bargeLancers.hit(l, 99);
+    // The swordsman and the red and the green demons block the first.
+    for (const f of n.bargeFighters) for (const k of [0, 1]) f.hit(99 + k);
+    const imps = n.bargeCamps[n.floor]?.imps;
+    for (const m of imps?.list ?? []) imps?.hit(m, 99, n.walker.x, n.walker.y);
+  });
+  // Won once the last has fallen.
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  await page.locator('#leave').click();
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.bargeFighters.length)).toBe(0);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('aboard');
   expect(errors).toEqual([]);
 });
 

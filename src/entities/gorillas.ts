@@ -99,22 +99,44 @@ export class Gorillas implements Entity {
   /** One was beaten. */
   onBeaten: ((g: Gorilla) => void) | null = null;
 
-  constructor(at: readonly Point[] = GORILLA_HOMES) {
-    this.list = at.map((home, i) => ({
-      x: home[0],
-      y: home[1],
-      h: 0,
-      face: i % 2 ? 1 : -1,
-      home,
-      hp: GORILLA_HP,
-      state: 'sit',
-      t: 0,
-      flash: 0,
-      stunT: 0,
-      slamAt: home,
-      step: i * 1.3,
-      silver: i === 0,
-    }));
+  /** A troop sitting at these spots, giving up on the figure this far from home. */
+  constructor(
+    at: readonly Point[] = GORILLA_HOMES,
+    readonly leash = GORILLA_LEASH,
+  ) {
+    this.list = [];
+    this.place(at);
+  }
+
+  /** A fresh troop at these spots, the first a silverback: the Battle Barge's, for each fight. */
+  place(at: readonly Point[]): void {
+    this.list.length = 0;
+    at.forEach((home, i) => {
+      this.list.push({
+        x: home[0],
+        y: home[1],
+        h: 0,
+        face: i % 2 ? 1 : -1,
+        home,
+        hp: GORILLA_HP,
+        state: 'sit',
+        t: 0,
+        flash: 0,
+        stunT: 0,
+        slamAt: home,
+        step: i * 1.3,
+        silver: i === 0,
+      });
+    });
+  }
+
+  /** The whole troop up beating their chests at once, as a fight starts. */
+  wake(): void {
+    for (const g of this.list) {
+      if (g.state !== 'sit') continue;
+      this.set(g, 'warn');
+      this.onWarn?.(g);
+    }
   }
 
   /** All back where they sit, whole. */
@@ -221,7 +243,7 @@ export class Gorillas implements Entity {
         if (g.t >= GORILLA_POUND) this.set(g, 'recover');
         continue;
       }
-      const far = !f || Math.hypot(f.x - g.home[0], f.y - g.home[1]) > GORILLA_LEASH;
+      const far = !f || Math.hypot(f.x - g.home[0], f.y - g.home[1]) > this.leash;
       if (g.state === 'recover') {
         if (g.t >= GORILLA_RECOVER) this.set(g, far ? 'back' : 'chase');
         continue;

@@ -87,8 +87,19 @@ export class Gators implements Entity {
   /** One was beaten. */
   onBeaten: ((g: Gator) => void) | null = null;
 
-  constructor(pools: readonly { x: number; y: number; r: number }[] = GATOR_POOLS) {
-    this.list = pools.map((pool, i) => {
+  /** One in each of these pools, giving up on the figure this far from its pool. */
+  constructor(
+    pools: readonly { x: number; y: number; r: number }[] = GATOR_POOLS,
+    readonly leash = GATOR_LEASH,
+  ) {
+    this.list = [];
+    this.place(pools);
+  }
+
+  /** Fresh gators, one in each of these pools; the Battle Barge's, for each fight, have pools of nothing at their spots. */
+  place(pools: readonly { x: number; y: number; r: number }[]): void {
+    this.list.length = 0;
+    pools.forEach((pool, i) => {
       const g: Gator = {
         x: pool.x,
         y: pool.y,
@@ -106,8 +117,17 @@ export class Gators implements Entity {
         ph: i * 0.9,
       };
       Gators.drift(g, 0);
-      return g;
+      this.list.push(g);
     });
+  }
+
+  /** All of them up and coming, straight away, with no pool to surge out of: the Battle Barge's, as a fight starts. */
+  loose(): void {
+    for (const g of this.list) {
+      if (g.state !== 'lurk') continue;
+      g.state = 'chase';
+      g.t = 0;
+    }
   }
 
   /** All back in their pools, whole and lurking. */
@@ -222,7 +242,7 @@ export class Gators implements Entity {
         continue;
       }
       // Too far from home, or nobody ashore to chase: back to the water.
-      const far = !f || Math.hypot(f.x - p.x, f.y - p.y) > GATOR_LEASH;
+      const far = !f || Math.hypot(f.x - p.x, f.y - p.y) > this.leash;
       if (far && (g.state === 'chase' || g.state === 'recover')) {
         g.state = 'back';
         g.t = 0;

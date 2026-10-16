@@ -49,15 +49,21 @@ export class Lancers implements Entity {
   onRouse: ((l: Lancer) => void) | null = null;
   /** One drew its lance back. */
   onWindup: (() => void) | null = null;
+  /** One was beaten. */
+  onBeaten: ((l: Lancer) => void) | null = null;
 
   /** At their posts, each facing the middle of its room. */
-  constructor(
-    posts: readonly { x: number; y: number }[],
-    readonly room: { x: number; y: number },
-  ) {
-    this.list = posts.map((p, i) => {
+  constructor(posts: readonly { x: number; y: number }[], room: { x: number; y: number }) {
+    this.list = [];
+    this.place(posts, room);
+  }
+
+  /** Fresh lancers at these posts, facing the middle of the room: the Battle Barge's, for each fight. */
+  place(posts: readonly { x: number; y: number }[], room: { x: number; y: number }): void {
+    this.list.length = 0;
+    posts.forEach((p, i) => {
       const h = Math.atan2(room.y - p.y, room.x - p.x);
-      return {
+      this.list.push({
         x: p.x,
         y: p.y,
         h,
@@ -68,8 +74,17 @@ export class Lancers implements Entity {
         flash: 0,
         stunT: 0,
         ph: i * 1.3,
-      };
+      });
     });
+  }
+
+  /** All of them roused at once, without a hit: the Battle Barge's, as a fight starts. */
+  wake(): void {
+    for (const l of this.list) {
+      if (l.state !== 'guard') continue;
+      l.state = 'walk';
+      l.t = 0;
+    }
   }
 
   /** Back at their posts, whole and quiet. */
@@ -126,6 +141,7 @@ export class Lancers implements Entity {
     if (l.hp <= 0) {
       l.state = 'fall';
       l.t = 0;
+      this.onBeaten?.(l);
     }
     return true;
   }
