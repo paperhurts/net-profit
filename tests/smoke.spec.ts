@@ -361,7 +361,14 @@ type Np = {
     }
   >;
   forgotten: { up: boolean; state: string; hit(power: number): void };
-  forgotten2: { up: boolean; state: string; hp: number; hit(power: number): void };
+  forgotten2: {
+    up: boolean;
+    state: string;
+    hp: number;
+    x: number;
+    y: number;
+    hit(power: number): void;
+  };
   barge: { size: string; pick: Record<string, number> };
   bargeWins: number;
   bargeOn: boolean;
@@ -398,6 +405,9 @@ type Np = {
     }[]
   >;
   cryptWon: boolean;
+  castleHQ: boolean;
+  scanner: number;
+  fgScene: { t: number; cap: string; flag: number } | null;
   CRYPT: number;
   SKULL_DOOR: { x: number; y: number };
   PORTAL11_FRONT: { x: number; y: number };
@@ -5937,6 +5947,182 @@ test("island 11's old portal: into the Old One's ruins, the skull key opens the 
   });
   expect(out).toBeLessThan(5);
   await expect(page.locator('#log')).toContainText('The Forgotten One again');
+  expect(errors).toEqual([]);
+});
+
+test("the Forgotten One's ending: he shows you round, gives you Gigantis and his scanner, and saves you from the Old One", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    soulArmour: true,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    skullKey: true,
+    cryptWon: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const p = window.__np.PORTAL11_FRONT;
+    w.x = p.x;
+    w.y = p.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the portal', { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 16, null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SKULL_DOOR;
+    w.x = d.x + 22;
+    w.y = d.y + 22;
+  });
+  await expect(page.locator('#climb')).toHaveText('Open the skull door', { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.CRYPT, null, {
+    timeout: 3000,
+  });
+  // He kneels where he was beaten, with something to show you: go to him.
+  await expect(page.locator('#toast')).toContainText('Go to him', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.forgotten2.state)).toBe('yield');
+  await expect(page.locator('#climb')).toBeHidden();
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const g = window.__np.forgotten2;
+    w.x = g.x + 30;
+    w.y = g.y + 30;
+  });
+  await expect(page.locator('#climb')).toHaveText('Go with him', { timeout: 3000 });
+  const start = await page.evaluate(() => [window.__np.forgotten2.x, window.__np.forgotten2.y]);
+  await page.click('#climb');
+  // A cutscene: no buttons, and the figure walks with him by itself.
+  await page.waitForFunction(() => (window.__np.fgScene?.t ?? 0) >= 3, null, { timeout: 6000 });
+  expect(await page.evaluate(() => window.__np.forgotten2.state)).toBe('guide');
+  await expect(page.locator('#climb')).toBeHidden();
+  await expect(page.locator('#leave')).toBeHidden();
+  await expect(page.locator('#throw')).toBeHidden();
+  const walked = await page.evaluate(([x0, y0]) => {
+    const n = window.__np;
+    const g = n.forgotten2;
+    return {
+      near: Math.hypot(g.x - n.walker.x, g.y - n.walker.y),
+      gone: Math.hypot(g.x - (x0 ?? 0), g.y - (y0 ?? 0)),
+    };
+  }, start);
+  expect(walked.gone).toBeGreaterThan(40);
+  expect(walked.near).toBeLessThan(80);
+  // On through his castle to its courtyard, where he gives it you, and your flag goes up.
+  await page.evaluate(() => {
+    const sc = window.__np.fgScene;
+    if (sc) sc.t = 15.6;
+  });
+  await page.waitForFunction(
+    () => window.__np.floor === 12 && (window.__np.fgScene?.flag ?? -1) >= 0,
+    null,
+    {
+      timeout: 3000,
+    },
+  );
+  expect(await page.evaluate(() => window.__np.fgScene?.cap)).toContain('headquarters');
+  expect(
+    await page.evaluate(() => [12, 13, 14, 15].every((r) => window.__np.hordes[r]?.cleared)),
+  ).toBe(true);
+  // Back through the ruins: the Old One rises, and he bursts into bones and blows him apart.
+  await page.evaluate(() => {
+    const sc = window.__np.fgScene;
+    if (sc) sc.t = 33;
+  });
+  await page.waitForFunction(() => window.__np.forgotten2.state === 'gone', null, {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => [window.__np.floor, window.__np.oldOne.state])).toEqual([
+    16,
+    'gone',
+  ]);
+  expect(await page.evaluate(() => window.__np.fgScene?.cap)).toContain('bones');
+  await page.evaluate(() => {
+    const sc = window.__np.fgScene;
+    if (sc) sc.t = 38.6;
+  });
+  await page.waitForFunction(() => window.__np.fgScene === null, null, { timeout: 3000 });
+  expect(await page.evaluate(() => [window.__np.castleHQ, window.__np.scanner])).toEqual([true, 1]);
+  await expect(page.locator('#toast')).toContainText('headquarters');
+  await expect(page.locator('#leave')).toHaveText('Back through the portal');
+  // Kept: through the skull door again, the crypt is empty.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SKULL_DOOR;
+    w.x = d.x + 22;
+    w.y = d.y + 22;
+  });
+  await expect(page.locator('#climb')).toHaveText('Open the skull door', { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.CRYPT, null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#toast')).toContainText('empty', { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.forgotten2.state)).toBe('gone');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.castleHQ, saved.scanner]).toEqual([true, 1]);
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  await expect(page.locator('#log')).toContainText('your headquarters');
+  await expect(page.locator('#log')).toContainText('Portable scanner');
+  expect(errors).toEqual([]);
+});
+
+test('Gigantis as your headquarters: through the portal, your flag over the courtyard and nobody to fight', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the portal');
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  await expect(page.locator('#toast')).toContainText('your headquarters', { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [12, 13, 14, 15].every((r) => window.__np.hordes[r]?.cleared)),
+  ).toBe(true);
+  // The door at the courtyard's back is open, nobody to beat first.
+  await page.evaluate(() => {
+    window.__np.walker.x = -13500 - 170 * 0.6 * Math.SQRT1_2;
+    window.__np.walker.y = -6000 - 170 * 0.6 * Math.SQRT1_2;
+  });
+  await expect(page.locator('#climb')).toHaveText('Through the door');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__np.hearts)).toBeGreaterThan(0);
+  await expect(page.locator('#throw')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

@@ -20,6 +20,9 @@
  * And he comes back, the kid's (his sixth list): in a crypt behind the Old One's ruins, laughing, with fewer hit
  * points but a harder hand. That one does not fall apart when beaten: he yields, sinking to his knees and lowering his
  * sword, still alive, for the game to say what he does next.
+ *
+ * What he does, the kid's: he stands, and shows you round his castle, walking with you (guide: his sword down, nobody's
+ * to fight); and when the Old One rises out of his pool he runs at him and bursts into bones, for the game to draw.
  */
 
 import { angDiff, clamp } from '../core/math';
@@ -55,6 +58,8 @@ export const RAY_HIT = 11;
 export const FALL = 2;
 export const KNEEL = 0.9;
 export const SCALE = 1.8;
+/** Walking with the figure, showing it round: a little quicker than he comes on in a fight. */
+export const GUIDE = STRIDE * 1.2;
 
 export type ForgottenState =
   | 'wait'
@@ -66,6 +71,7 @@ export type ForgottenState =
   | 'beam'
   | 'fall'
   | 'yield'
+  | 'guide'
   | 'gone';
 export type Skull = { x: number; y: number; h: number; t: number };
 
@@ -99,6 +105,12 @@ export class Forgotten implements Entity {
   /** Beaten, he yields on his knees, alive, instead of falling apart. */
   yields = false;
   private yielded = false;
+  /** Guiding: where he is walking, how fast, and whether he is on his way there now. */
+  goal: { x: number; y: number } | null = null;
+  pace = GUIDE;
+  moving = false;
+  /** Guiding from his knees: he gets up first. */
+  private rising = false;
 
   constructor(
     readonly room: { x: number; y: number; r: number },
@@ -115,6 +127,7 @@ export class Forgotten implements Entity {
       this.state !== 'wait' &&
       this.state !== 'fall' &&
       this.state !== 'yield' &&
+      this.state !== 'guide' &&
       this.state !== 'gone'
     );
   }
@@ -136,6 +149,9 @@ export class Forgotten implements Entity {
     this.rayNext = false;
     this.stunT = 0;
     this.skulls.length = 0;
+    this.goal = null;
+    this.pace = GUIDE;
+    this.moving = false;
   }
 
   /**
@@ -163,6 +179,19 @@ export class Forgotten implements Entity {
     this.t = 1;
     this.yielded = true;
     this.skulls.length = 0;
+  }
+
+  /** On his feet beside the figure, sword down, walking to here at this pace; not to be fought. */
+  guide(x: number, y: number, pace = GUIDE): void {
+    if (this.state !== 'guide') {
+      this.rising = this.state === 'yield';
+      this.state = 'guide';
+      this.t = 0;
+      this.skulls.length = 0;
+      this.stunT = 0;
+    }
+    this.goal = { x, y };
+    this.pace = pace;
   }
 
   /** A spear lands with this power. */
@@ -205,6 +234,18 @@ export class Forgotten implements Entity {
       if (this.t >= FALL) {
         this.state = 'gone';
         this.onBeaten?.(this.x, this.y);
+      }
+      return;
+    }
+    if (this.state === 'guide') {
+      const g = this.goal;
+      const gd = g ? Math.hypot(g.x - this.x, g.y - this.y) : 0;
+      this.moving = g !== null && gd > 1 && !(this.rising && this.t < KNEEL);
+      if (g && this.moving) {
+        const s = Math.min(gd, this.pace * dt);
+        this.h = Math.atan2(g.y - this.y, g.x - this.x);
+        this.x += ((g.x - this.x) / gd) * s;
+        this.y += ((g.y - this.y) / gd) * s;
       }
       return;
     }
@@ -378,7 +419,13 @@ export class Forgotten implements Entity {
     const k = SCALE * v.zoom;
     const fall = this.state === 'fall' ? clamp(this.t / FALL, 0, 1) : 0;
     // Yielding, he sinks to his knees, his cloak spread on the floor round him, his sword point down.
-    const kneel = this.state === 'yield' ? clamp(this.t / KNEEL, 0, 1) : 0;
+    // Guiding from there, he gets up again.
+    const kneel =
+      this.state === 'yield'
+        ? clamp(this.t / KNEEL, 0, 1)
+        : this.state === 'guide' && this.rising
+          ? 1 - clamp(this.t / KNEEL, 0, 1)
+          : 0;
     const sx = px(this.x, this.y);
     const base = py(this.x, this.y) + fall * 8 * k + kneel * 8 * k;
     const face = Math.cos(this.h) - Math.sin(this.h) >= 0 ? 1 : -1;
@@ -387,7 +434,11 @@ export class Forgotten implements Entity {
     ctx.fillStyle = 'rgba(0,0,0,.3)';
     v.isoEllipse(this.x, this.y, 9 * SCALE);
     ctx.fill();
-    const stride = this.state === 'walk' ? Math.sin(this.ph * 6) * 2.4 * k : 0;
+    const rush = this.state === 'guide' && this.pace > GUIDE;
+    const stride =
+      this.state === 'walk' || (this.state === 'guide' && this.moving)
+        ? Math.sin(this.ph * (rush ? 11 : 6)) * (rush ? 3.4 : 2.4) * k
+        : 0;
     const sway = Math.sin(T * 3) * 1.5 * k;
     // Long thin legs below the cloak, as the kid drew them; folded under it, kneeling.
     ctx.strokeStyle = W('#1A161D');
@@ -436,8 +487,10 @@ export class Forgotten implements Entity {
       ctx.ellipse(fx + e * 1.4 * k, hy - 0.9 * k, 0.95 * k, 0.6 * k, e * 0.35, 0, Math.PI * 2);
       ctx.fill();
     }
+    // Screaming, but not while he is showing you round, or yielded: then only as he runs at the Old One.
+    const calm = kneel > 0 || (this.state === 'guide' && !rush);
     const open =
-      aiming || this.state === 'windup' ? 1 : kneel > 0 ? 0.15 : 0.55 + 0.15 * Math.sin(T * 2.2);
+      aiming || this.state === 'windup' || rush ? 1 : calm ? 0.15 : 0.55 + 0.15 * Math.sin(T * 2.2);
     ctx.fillStyle = W('#2A0E12');
     ctx.beginPath();
     ctx.ellipse(fx, hy + 2.1 * k, 1.5 * k, (1 + 1.3 * open) * k, 0, 0, Math.PI * 2);
@@ -456,13 +509,15 @@ export class Forgotten implements Entity {
       ctx.quadraticCurveTo(fx + e * 2.8 * k, hy - 2.8 * k, fx + e * 0.4 * k, hy - 4.5 * k);
       ctx.fill();
     }
-    // The great sword: up for the warning, swept round in the swing.
+    // The great sword: up for the warning, swept round in the swing; point down at his side while he shows you round,
+    // and up again as he runs.
     const hx = sx + face * 6 * k;
     const hyy = base - 15 * k;
     let a = -face * 0.4;
     if (this.state === 'windup') a = -face * (1.3 + Math.sin(T * 30) * 0.05);
     else if (this.state === 'swing') a = face * (0.5 + (this.t / SWING) * 1.6);
     else if (this.state === 'aim' || this.state === 'beam') a = face * 1.4;
+    else if (this.state === 'guide') a = rush ? -face * 1.3 : face * (2.7 + kneel * 0.3);
     else if (kneel > 0) a = face * (0.4 + kneel * 2.6);
     ctx.strokeStyle = W('#1A161D');
     ctx.lineWidth = 1.6 * k;

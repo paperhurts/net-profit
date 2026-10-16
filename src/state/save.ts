@@ -192,6 +192,11 @@ export type SaveData = {
   skullKey: boolean;
   /** The crypt behind the skull door won: the Forgotten One beaten again, and yielded. Missing in old saves and read as not. */
   cryptWon: boolean;
+  /** The Forgotten One has shown you round his castle and given it you: Gigantis is your headquarters, and he is gone,
+   *  saving you from the Old One. Missing in old saves and read as not. */
+  castleHQ: boolean;
+  /** The portable scanner he gave you, by its level: 0 without one. Missing in old saves and read as none. */
+  scanner: number;
   /** The Battle Barge's last setup, its arena and who to fight (data/barge.ts); missing in old saves, read as the start. */
   barge: BargeSetup;
   /** Fights won on the Battle Barge. Missing in old saves and read as none. */
@@ -369,6 +374,8 @@ export function defaultSave(b: Bounds): SaveData {
     catermanFree: false,
     skullKey: false,
     cryptWon: false,
+    castleHQ: false,
+    scanner: 0,
     barge: defaultBarge(),
     bargeWins: 0,
     pelicanBeaten: false,
@@ -540,6 +547,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.catermanFree = !!o.catermanFree;
   d.skullKey = !!o.skullKey;
   d.cryptWon = !!o.cryptWon;
+  d.castleHQ = !!o.castleHQ;
+  d.scanner = typeof o.scanner === 'number' && o.scanner > 0 ? Math.floor(o.scanner) : 0;
   d.barge = parseBarge(o.barge);
   d.bargeWins = typeof o.bargeWins === 'number' && o.bargeWins > 0 ? Math.floor(o.bargeWins) : 0;
   d.pelicanBeaten = !!o.pelicanBeaten;
@@ -687,6 +696,8 @@ export function serializeSave(d: SaveData): string {
     catermanFree: d.catermanFree,
     skullKey: d.skullKey,
     cryptWon: d.cryptWon,
+    castleHQ: d.castleHQ,
+    scanner: d.scanner,
     barge: d.barge,
     bargeWins: d.bargeWins,
     pelicanBeaten: d.pelicanBeaten,
