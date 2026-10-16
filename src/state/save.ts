@@ -25,6 +25,7 @@ import { LOOT_ALL } from '../world/loot';
 import { noSubFound, parseSubFound, type SubFound } from '../world/subsea';
 import { SUNKEN_COUNT } from '../world/sunken';
 import { TD } from '../world/trench';
+import { readCode } from './cloud';
 
 export const SAVE_KEY = 'netprofit.v1';
 
@@ -197,6 +198,11 @@ export type SaveData = {
   castleHQ: boolean;
   /** The portable scanner he gave you, by its level: 0 without one. Missing in old saves and read as none. */
   scanner: number;
+  /** The game's save code, four words (state/cloud.ts): the game is kept online under it. Missing in old saves, or not
+   *  a code, and read as none, and the game makes one. */
+  saveCode: string;
+  /** When the save code was last shown, to write down (milliseconds, the device's clock); 0 for never. */
+  codeTold: number;
   /** The Battle Barge's last setup, its arena and who to fight (data/barge.ts); missing in old saves, read as the start. */
   barge: BargeSetup;
   /** Fights won on the Battle Barge. Missing in old saves and read as none. */
@@ -376,6 +382,8 @@ export function defaultSave(b: Bounds): SaveData {
     cryptWon: false,
     castleHQ: false,
     scanner: 0,
+    saveCode: '',
+    codeTold: 0,
     barge: defaultBarge(),
     bargeWins: 0,
     pelicanBeaten: false,
@@ -549,6 +557,12 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.cryptWon = !!o.cryptWon;
   d.castleHQ = !!o.castleHQ;
   d.scanner = typeof o.scanner === 'number' && o.scanner > 0 ? Math.floor(o.scanner) : 0;
+  d.saveCode =
+    typeof o.saveCode === 'string' && readCode(o.saveCode) === o.saveCode ? o.saveCode : '';
+  d.codeTold =
+    typeof o.codeTold === 'number' && Number.isFinite(o.codeTold) && o.codeTold > 0
+      ? Math.floor(o.codeTold)
+      : 0;
   d.barge = parseBarge(o.barge);
   d.bargeWins = typeof o.bargeWins === 'number' && o.bargeWins > 0 ? Math.floor(o.bargeWins) : 0;
   d.pelicanBeaten = !!o.pelicanBeaten;
@@ -698,6 +712,8 @@ export function serializeSave(d: SaveData): string {
     cryptWon: d.cryptWon,
     castleHQ: d.castleHQ,
     scanner: d.scanner,
+    saveCode: d.saveCode,
+    codeTold: d.codeTold,
     barge: d.barge,
     bargeWins: d.bargeWins,
     pelicanBeaten: d.pelicanBeaten,

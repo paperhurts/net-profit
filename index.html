@@ -569,19 +569,23 @@ body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #pondca
 <section id="carry" hidden aria-label="Play on another device">
   <div class="planks">
     <h2>Play on another device <button class="pill icon" id="carryClose" aria-label="Close">✕</button></h2>
-    <p class="tnote">Copy this link and open it on the other device: a laptop, another browser, another phone. It asks there before it loads this game.</p>
+    <p class="tnote">This game's save code. Type it into the game on any other device to carry on there:</p>
+    <div class="crow"><input id="codeOut" readonly aria-label="This game's save code"><button class="buy" id="codeCopy">Copy</button></div>
+    <p class="tnote" id="cloudSay"></p>
+    <p class="tnote">Or copy a link and open it on the other device. It works without the internet's help, and asks there before it loads this game.</p>
     <div class="crow"><input id="carryLink" readonly aria-label="The link to this game"><button class="buy" id="carryCopy">Copy</button><button class="buy" id="carrySend" hidden>Send</button></div>
     <p class="tnote">The link is this game as it is now. Play on, and copy a new one for next time.</p>
-    <p class="tnote">Bringing a game here? Paste its link:</p>
-    <div class="crow"><input id="carryIn" placeholder="Paste a game link" aria-label="Paste a game link" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="buy" id="carryLoad">Load</button></div>
-    <p class="tnote">On an iPhone, the game on the Home Screen keeps a game of its own, apart from Safari's. Paste the link in there.</p>
+    <p class="tnote">Bringing a game here? Type its save code, or paste its link:</p>
+    <div class="crow"><input id="carryIn" placeholder="Save code or game link" aria-label="A save code or a game link" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="buy" id="carryLoad">Load</button></div>
+    <p class="tnote" id="carryNote" role="status" hidden></p>
+    <p class="tnote">On an iPhone, the game on the Home Screen keeps a game of its own, apart from Safari's. Type the code in there.</p>
   </div>
 </section>
 
 <section id="carryAsk" hidden aria-label="Load a game">
   <div class="planks">
     <h2>Load this game?</h2>
-    <p class="tnote">In the link: <b id="carryThere"></b>.</p>
+    <p class="tnote"><span id="carryFrom">In the link</span>: <b id="carryThere"></b>.</p>
     <p class="tnote">It takes the place of the game on this device: <b id="carryHere"></b>.</p>
     <div class="crow"><button class="pill" id="carryNo">Keep this one</button><button class="buy" id="carryYes">Load it</button></div>
   </div>

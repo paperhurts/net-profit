@@ -407,6 +407,8 @@ type Np = {
   cryptWon: boolean;
   castleHQ: boolean;
   scanner: number;
+  saveCode: string;
+  cloudState: string;
   fgScene: { t: number; cap: string; flag: number } | null;
   CRYPT: number;
   SKULL_DOOR: { x: number; y: number };
@@ -486,6 +488,12 @@ async function steerTo(page: Page, tx: number, ty: number, wobble = 0, i = 0) {
   await page.mouse.move(CX + (sx / n) * 60, CY + (sy / n) * 60);
   return Math.hypot(dx, dy);
 }
+
+// The game puts itself online (state/cloud.ts). No test reaches the real project: each is cut off from it, and the one
+// about it answers for it.
+test.beforeEach(async ({ context }) => {
+  await context.route(/supabase\.co/, (route) => route.abort());
+});
 
 test('core loop: fill the hold at a sardine school, dock, sell', async ({ context, page }) => {
   const errors = await boot(context, page, { muted: true });
@@ -4956,6 +4964,7 @@ test('another device: the shop copies a link to the game, and opened elsewhere i
 
   // The other device, with a game of its own.
   const other = await browser.newContext({ viewport: { width: 390, height: 780 } });
+  await other.route(/supabase\.co/, (route) => route.abort());
   await other.addInitScript(
     (s: string) => {
       if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
@@ -4988,6 +4997,85 @@ test('another device: the shop copies a link to the game, and opened elsewhere i
   await expect(p2.locator('#carryAsk')).toBeHidden();
   expect(await p2.evaluate(() => window.__np.coins)).toBe(4321);
   await other.close();
+  expect(errors).toEqual([]);
+});
+
+test('online: the game keeps itself under a save code, the code brings it to another device, and a newer one is offered', async ({
+  context,
+  page,
+}) => {
+  // A stand-in for the online saves (supabase/migrations), with their rule: a game that has earned less is refused.
+  const store = new Map<string, { game: string; earned: number }>();
+  const plain = (o: Record<string, unknown>) =>
+    `j${btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+  const seal = 'seal-pine-moon-kite';
+  store.set(seal, {
+    game: plain({ muted: true, coins: 4321, earned: 9000, day: 7, saveCode: seal }),
+    earned: 9000,
+  });
+  const puts: { p_code: string; p_earned: number }[] = [];
+  await page.route(/rpc\/np_(save|load)_game/, async (route) => {
+    const b = route.request().postDataJSON();
+    const had = store.get(b.p_code);
+    let out: unknown = had
+      ? { game: had.game, earned: had.earned, at: '2026-10-16T16:00:00Z' }
+      : null;
+    if (route.request().url().includes('np_save_game')) {
+      puts.push(b);
+      const saved = !had || had.earned <= b.p_earned;
+      if (saved) store.set(b.p_code, { game: b.p_game, earned: b.p_earned });
+      out = { saved, earned: saved ? b.p_earned : had?.earned };
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(out) });
+  });
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 300,
+    earned: 1200,
+    day: 3,
+    saveCode: 'otter-maple-reef-cove',
+  });
+  // Played here before: it goes online at once, under its code.
+  await expect.poll(() => puts.length).toBeGreaterThan(0);
+  expect(puts[0]).toMatchObject({ p_code: 'otter-maple-reef-cove', p_earned: 1200 });
+  await page.locator('#carryBtn').dispatchEvent('click');
+  await expect(page.locator('#codeOut')).toHaveValue('otter-maple-reef-cove');
+  await expect(page.locator('#cloudSay')).toHaveText(/Saved online just now/);
+  // Another game's code, typed any old way: it asks, then loads it, code and all.
+  await page.locator('#carryIn').fill('Seal Pine  moon KITE');
+  await page.locator('#carryLoad').click();
+  await expect(page.locator('#carryAsk')).toBeVisible();
+  await expect(page.locator('#carryFrom')).toHaveText('Saved online under that code');
+  await expect(page.locator('#carryThere')).toHaveText('day 7, 4,321 coins');
+  await Promise.all([page.waitForEvent('load'), page.locator('#carryYes').click()]);
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.saveCode])).toEqual([
+    4321,
+    seal,
+  ]);
+  // Its code, to write down: a game from before it had heard it hears it now.
+  await expect(page.locator('#toast')).toContainText(seal, { timeout: 9000 });
+  // Played on further on another device: this one's copy is refused, and that one offered.
+  store.set(seal, {
+    game: plain({ muted: true, coins: 7777, earned: 12000, day: 9, saveCode: seal }),
+    earned: 12000,
+  });
+  await page.evaluate(() => {
+    window.__np.coins = 4322;
+    window.dispatchEvent(new Event('pagehide'));
+  });
+  await expect(page.locator('#carryAsk')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#carryFrom')).toHaveText('Played on further on another device');
+  await expect(page.locator('#carryThere')).toHaveText('day 9, 7,777 coins');
+  await page.locator('#carryNo').click();
+  expect(await page.evaluate(() => window.__np.cloudState)).toBe('behind');
+  // Its own code typed in: nothing to load.
+  await page.locator('#carryBtn').dispatchEvent('click');
+  await expect(page.locator('#cloudSay')).toContainText('played on further');
+  await page.locator('#carryIn').fill(seal);
+  await page.locator('#carryLoad').click();
+  await expect(page.locator('#carryNote')).toContainText('own code');
   expect(errors).toEqual([]);
 });
 
