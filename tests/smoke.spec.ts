@@ -118,7 +118,7 @@ type Np = {
   seaFight: { x: number; y: number; h: number; r: number } | null;
   seaWon: boolean;
   seaBoss: Record<
-    'meteor' | 'king' | 'deep' | 'reaper' | 'gulper' | 'angler' | 'cthulu',
+    'meteor' | 'king' | 'deep' | 'reaper' | 'gulper' | 'angler' | 'cthulu' | 'guard',
     {
       state: string;
       x: number;
@@ -137,6 +137,11 @@ type Np = {
       done: boolean;
       strikeT: number;
       tentacles: unknown[];
+      gone: boolean;
+      lev: {
+        rise: { x: number; y: number; nx: number; ny: number; t: number; up: number } | null;
+        cool: number;
+      };
     }[]
   >;
   endSea(sunk: boolean): void;
@@ -6942,6 +6947,7 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
     gulper: 0,
     angler: 0,
     cthulu: 0,
+    guard: 0,
   });
   expect(errors).toEqual([]);
 });
@@ -7059,6 +7065,58 @@ test("the Battle Barge at sea: the anglerfish's light harpooned, and the Cthuluv
   await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.seaBoss.cthulu[0]?.done)).toBe(true);
   expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1);
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge at sea: the guard leviathan rises across your way, shoves you back, and is harpooned', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [3] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { guard: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeList')).toContainText('The guard leviathan');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // Any boat under way, not only a flagship crossing the buoys: it rises across its way.
+  const hold = await page.evaluate(() => window.__np.hold);
+  await page.evaluate(() => {
+    window.__np.boat.v = 120;
+  });
+  await page.waitForFunction(() => !!window.__np.seaBoss.guard[0]?.lev.rise, null, {
+    timeout: 3000,
+  });
+  // Run into it once it stands: shoved back, the boat's health takes it, and no fish go overboard.
+  await page.waitForFunction(() => (window.__np.seaBoss.guard[0]?.lev.rise?.t ?? 0) > 0.6, null, {
+    timeout: 2000,
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const r = n.seaBoss.guard[0]?.lev.rise;
+    if (!r) return;
+    n.boat.x = r.x - r.nx * 40;
+    n.boat.y = r.y - r.ny * 40;
+    n.boat.h = Math.atan2(r.ny, r.nx);
+    n.boat.v = 60;
+  });
+  await page.waitForFunction(() => window.__np.hp < 100, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.hold)).toBe(hold);
+  // One hit from driven off, and in reach: the harpoon drives it off, for good, and the fight is won.
+  await page.evaluate(() => {
+    const g = window.__np.seaBoss.guard[0];
+    if (g) g.resolve = 1;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'guard', null, { timeout: 3000 });
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.seaBoss.guard[0]?.done)).toBe(true);
+  await page.waitForFunction(() => window.__np.seaBoss.guard[0]?.gone, null, { timeout: 5000 });
   expect(errors).toEqual([]);
 });
 

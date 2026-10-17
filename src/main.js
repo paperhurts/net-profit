@@ -30,7 +30,7 @@ import { lionAt, Lionfishes } from './entities/lionfish';
 import { LION_BOUNTY, Rod, ROD_RANGE, ROD_SPEED } from './fishing/rod';
 import { PET_REACH, Pets } from './entities/pets';
 import { FEED_REACH, OTTER_FEEDS, OTTER_HOME, Otter } from './entities/otter';
-import { Leviathan } from './entities/leviathan';
+import { Leviathan, seaWater as levRing } from './entities/leviathan';
 import { Cthuluviathan, LAIR as CTHULU_LAIR, SIGHT_RADIUS as CTHULU_SIGHT, seaCity } from './entities/cthuluviathan';
 import { LENS, LEVIATHANS, nextSeen, SCOPE_AT, SCOPE_REACH, SCOPE_SWING, seaZone } from './data/observatory';
 import { fare as charterFare, newCharter, SHIRTS, SIGHTS, see as seeSight, wishList } from './fishing/charter';
@@ -242,7 +242,7 @@ async function cloudOffer(){ cloudOffered = true; const got = await getGame(save
   askLoad(un.json, 'Played on further on another device'); }
 // The Battle Barge at sea (below): where the boat came from, its ring's size, and whether the fight is won.
 let seaFight = null, seaWon = false, seaView = 0; const seaCam = {x: 0, y: 0, k: SEA_ZOOM_MAX};
-const seaBoss = {meteor: [], king: [], deep: [], reaper: [], gulper: [], angler: [], cthulu: []};
+const seaBoss = {meteor: [], king: [], deep: [], reaper: [], gulper: [], angler: [], cthulu: [], guard: []};
 // The trip is what a phone loses when it discards a backgrounded tab: where the boat is, what time it is, what is in the hold.
 function tripSnapshot(){ const at = seaFight || boat; // out at the Battle Barge at sea, the boat is kept where it came from
   return started ? {x: Math.round(at.x), y: Math.round(at.y), h: +at.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
@@ -1964,13 +1964,13 @@ const seaWorld = Object.create(world); seaWorld.started = true;
  * and, besides, gone from sight, and no longer minded. */
 const SEA_DOWN = ['away', 'dying', 'dead', 'sink', 'down'];
 const seaOut = (b) => !!b.done || SEA_DOWN.includes(b.state);
-// A beaten Cthuluviathan sleeps on in its sunken city, which stays: it is never gone.
-const seaGone = (b) => b.state === 'dead' || b.state === 'down' || (b.state === 'away' && b.t > 5) || (!!b.done && b.state === 'gone');
-/** Where one is: the Cthuluviathan is its city. */
-const seaAt = (b) => b.x === undefined ? b.lair : b;
+// A beaten Cthuluviathan sleeps on in its sunken city, which stays: it is never gone. The leviathan is, once sunk out of sight.
+const seaGone = (b) => b.state === 'dead' || b.state === 'down' || (b.state === 'away' && b.t > 5) || (!!b.done && b.state === 'gone') || b.gone === true;
+/** Where one is: the Cthuluviathan is its city, the leviathan where it has risen, or else its head. */
+const seaAt = (b) => b.lev ? (b.lev.rise ?? b.lev) : b.x === undefined ? b.lair : b;
 /** Each still in the fight, what kind it is, and where the harpoon would strike it now. */
 function seaMarks(){ return seaFight ? SEA_FOES.flatMap(k => seaBoss[k].filter(b => !seaGone(b)).map(b => [k, b, b.mark(boat)])) : []; }
-let seaSpaceTold = false;
+let seaSpaceTold = false, seaLevTold = false;
 const seaBand = {update(dt){ if (!seaFight) return; for (const b of seaBosses()) if (!seaGone(b)) b.update(dt, seaWorld); seaCheck(); },
   draw(v, layer){ if (!seaFight) return; if (layer === 'surface') drawSeaRing(v, SEA_ARENA, seaFight.r); for (const b of seaBosses()) if (!seaGone(b)) b.draw(v, layer); },
   radar(blip){ if (seaFight) for (const b of seaBosses()) if (!seaGone(b)) b.radar(blip); }};
@@ -1983,6 +1983,13 @@ function seaBossAt(kind, at){
     m.onSpace = () => { if (seaSpaceTold) return; seaSpaceTold = true; toast("Star saw the Deep One and shot up into space! He'll be back once it's beaten.", 3600, 1); };
     m.onWarn = serpent.onWarn; m.onHit = serpent.onHit; m.onSplash = serpent.onSplash; return m; }
   const ring = {...SEA_ARENA, r: seaFight.r};
+  if (kind === 'guard'){ const l = new Leviathan(Math.random, levRing(at, ring));
+    l.onPass = () => { shake = Math.max(shake, .3); sfx.leviathan(); };
+    l.onRise = () => { shake = Math.max(shake, .35); sfx.leviathanRise();
+      if (!seaLevTold){ seaLevTold = true; toast('The leviathan rises across your way! Turn away from the spines, or harpoon it while it stands.', 3200, 1); } };
+    // Running into it costs the boat's health here, never fish: the Battle Barge costs nothing else.
+    l.onHit = () => { shake = 1; sfx.whump(); resetNet(); addText(boat.x, boat.y, 44, 'Shoved back', '#FF9A8A', 19, 2); damage(HURT.leviathan, 'leviathan'); };
+    return l; }
   if (kind === 'angler'){ const a = new Anglerfish(anglerRing(ring), at);
     a.onOpen = () => { sfx.anglerOpen(); shake = Math.max(shake, .25); }; a.onBite = angler.onBite; a.onMiss = () => sfx.anglerSnap(); return a; }
   if (kind === 'cthulu'){ const c = new Cthuluviathan(seaCity(at));
@@ -2004,9 +2011,10 @@ function seaBossAt(kind, at){
   d.onBeaten = () => { sfx.cthuluWake(); shake = Math.max(shake, .6); }; return d; }
 /** What the camera keeps in frame at sea, from the boat: the boat, its net behind, and each boss still in the fight
  * within SEA_LOOK, how far round it reaches and how tall it stands (Star where it flies). */
-const SEA_FRAME = {meteor: [120, 40], king: [110, 80], deep: [170, 110], reaper: [150, 90], gulper: [150, 30], angler: [140, 20], cthulu: [200, 80]};
+const SEA_FRAME = {meteor: [120, 40], king: [110, 80], deep: [170, 110], reaper: [150, 90], gulper: [150, 30], angler: [140, 20], cthulu: [200, 80], guard: [260, 60]};
 function seaFramePoints(){ const k = bk(), pts = [{dx: 0, dy: 0, r: 110*k, tall: 50*k}];
-  for (const [kind, b] of seaMarks()){ if (b.afraid || seaOut(b) || b.state === 'gone' || b.state === 'asleep') continue;
+  // The leviathan only once it has risen: crawling round, it is a shadow under the water.
+  for (const [kind, b] of seaMarks()){ if (b.afraid || seaOut(b) || b.state === 'gone' || b.state === 'asleep' || (kind === 'guard' && !b.lev.rise)) continue;
     const p = seaAt(b), dx = p.x - boat.x, dy = p.y - boat.y; if (Math.hypot(dx, dy) > SEA_LOOK) continue;
     const [r, tall] = SEA_FRAME[kind]; pts.push({dx, dy, z: kind === 'meteor' ? b.z : 0, r, tall}); }
   return pts; }
@@ -3140,7 +3148,7 @@ function startSea(){ if (!seaTotal(barge.sea)) return;
   if (!again && !seaCan()){ sfx.denied(); toasts.clear();
     toast(!hasHarpoon() ? 'You need the harpoon to fight at sea: the shipwright sells it.' : walker.state !== 'aboard' ? 'Get aboard your boat first: at sea you fight from it.' : docked ? 'Cast off first: at sea you fight from your boat, out on the water.' : 'Not now: finish what you are doing first.', 2600, 2); return; }
   closeBarge(); if (!again){ seaFight = {x: boat.x, y: boat.y, h: boat.h}; document.body.classList.add('seafight'); }
-  seaFight.r = SEA_RING[barge.size]; seaWon = false; seaSpaceTold = false;
+  seaFight.r = SEA_RING[barge.size]; seaWon = false; seaSpaceTold = false; seaLevTold = false;
   const st = seaStart(seaFight.r); stowSeine(); boat.x = SEA_ARENA.x + st.x; boat.y = SEA_ARENA.y + st.y; boat.h = st.h; boat.v = 0; resetNet();
   wasDeep = wasFar = wasFarFar = true; cam.x = boat.x; cam.y = boat.y; seaCam.x = seaCam.y = 0; seaCam.k = SEA_ZOOM_MAX; irisT = SPIT; hp = HP_MAX; hudHull();
   const R = seaFight.r, spots = seaSpots(seaTotal(barge.sea), R).map(p => ({x: SEA_ARENA.x + p.x, y: SEA_ARENA.y + p.y})); let k = 0;
