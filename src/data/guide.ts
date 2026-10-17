@@ -8,6 +8,7 @@
  * pages come with the bridge and the second verb.
  */
 import {
+  ABYSS_FISH,
   DEEP_RINGS,
   FAR_RINGS,
   ISLE2_RINGS,
@@ -87,6 +88,16 @@ export const BLURBS: readonly string[] = [
   'Gold with dark bars down its sides, like a tiger that took up swimming. Perch swim about the pond in little gangs.',
   'Green, with a dark stripe down its side and a mouth so big it can swallow a frog. The fish everybody in a pond wants to catch.',
   'Grey and spotted, with long whiskers like a cat, so it can taste its way along the muddy bottom in the dark. The biggest fish in the pond, and the hardest to find.',
+  "The glow squid's giant cousin, three times as long, glowing teal, with two arms that trail far behind it. Real giant squid live this deep, and hardly anybody has ever seen one alive.",
+  "A long body like a naga's, little fins all down its underside, and a flower for a head that glows pink in the dark. The flower is its mouth: small fish swim up to look at it.",
+  'Orange, with three white stripes edged in black. Down here it is a long way from home: clown fish live in warm, shallow reefs, in anemones. Nobody knows how this one got so deep.',
+  'Little, brown, and all mouth: a forked tail and a big open mouth that nibbles at anything. Drawn by the kid who found it.',
+  'Black, with a jaw that hangs open like a trapdoor and a red light under its eye. Most deep fish cannot see red, so the loosejaw shines its red light like a secret torch.',
+  'Fangs so long it cannot shut its mouth over them, and a row of lights down its belly. It swims up at night to hunt and comes back down by day.',
+  "Pale, with two huge tube eyes that look straight up, like an owl's, to spot the shadows of things swimming above it in the very last of the light.",
+  "A ghost shark: silver, with a great wing of a fin, a spine on its back and a tail like a whip. Its family and the sharks' went their own ways about 400 million years ago.",
+  'Big and deep blue, spotted white, with fins on fleshy stalks like little legs. Everyone thought coelacanths died out with the dinosaurs, until a fisherman caught one in 1938.',
+  'A shark as long and thin as an eel, with frilly gills and a mouth full of little three-pointed teeth. It has hardly changed in eighty million years.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -119,6 +130,8 @@ export function whereText(sp: number): string {
     return "In the pond on island 10's prairie. Stand at its edge and cast.";
   if (sp === SNOWCRAB_SP)
     return 'On the floor under the ice floe, on the ice fishing line. Steer the hook down onto one.';
+  if (ABYSS_FISH.includes(sp))
+    return 'On the floor of the abyss, the blue hole past the white buoys, 1,000 metres down. Go down in the dive cage with scuba gear and a spear.';
   return 'Out there somewhere.';
 }
 
@@ -135,6 +148,10 @@ export function whenText(sp: number): string {
   if (sp >= CHAR_SP && sp <= SNOWCRAB_SP) return 'Day and night. So many a day under the hole.';
   if (POND_SPS.includes(sp))
     return 'Day and night, as many as you like. By day, birds sing while you wait.';
+  if (ABYSS_FISH.includes(sp))
+    return SPECIES[sp]?.glow
+      ? 'Day and night: 1,000 metres down it is always dark. Glows.'
+      : 'Day and night: 1,000 metres down it is always dark. Only your lamp shows it.';
   return '';
 }
 

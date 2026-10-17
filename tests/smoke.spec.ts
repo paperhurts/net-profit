@@ -247,6 +247,16 @@ type Np = {
   wreckChest: boolean;
   diveSite: string;
   ABYSS: { x: number; y: number; r: number };
+  abyssSh: {
+    kind: string;
+    deep?: string;
+    cx: number;
+    cy: number;
+    rx: number;
+    ry: number;
+    ph: number;
+    pace: number;
+  }[];
   abyssSeen: boolean;
   abyssDown: boolean;
   boneSharks: { x: number; y: number; state: string; t: number }[];
@@ -2370,6 +2380,28 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   await page.waitForFunction(() => window.__np.abyssDown, null, { timeout: 6000 });
   await expect(page.locator('#toast')).toContainText('1,000 metres down');
   await expect(page.locator('#throw')).toBeVisible();
+  // Out over the floor, just short of the kid's nibblers, facing them: the aim settles on one, and a throw takes it.
+  const nib = await page.evaluate(() => window.__np.abyssSh.findIndex((s) => s.deep === 'nibbler'));
+  expect(nib).toBeGreaterThan(0);
+  const put = () =>
+    page.evaluate((si) => {
+      const np = window.__np;
+      const s = np.abyssSh[si];
+      if (!s) return;
+      const a = s.ph + np.diveT * s.pace;
+      const d = np.diver;
+      d.x = s.cx + Math.sin(a) * s.rx - 80;
+      d.y = s.cy + Math.sin(a * 1.7 + 1) * s.ry;
+      d.vx = 0;
+      d.vy = 0;
+      d.face = 1;
+    }, nib);
+  await put();
+  await page.waitForFunction((si) => window.__np.diveAim?.si === si, nib, { timeout: 2000 });
+  await put();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.hold >= 1, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('A nibbler!');
   // Out of the cage the air runs; Ride the cage up pulls the diver back in, and up it goes.
   await page.evaluate(() => {
     window.__np.diver.x += 120;
