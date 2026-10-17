@@ -30,6 +30,7 @@ type Np = {
     y: number;
     nearBoat: boolean;
     sink: number;
+    z: number;
     dock: { landing: { x: number; y: number } };
   };
   dogAt: [number, number] | null;
@@ -117,6 +118,7 @@ type Np = {
   walkerAt: [number, number];
   toast(msg: string, ms?: number, pri?: number): void;
   seaTarK: number;
+  seaDock: boolean;
   seaFight: {
     x: number;
     y: number;
@@ -124,6 +126,12 @@ type Np = {
     r: number;
     isles: { x: number; y: number; r: number }[];
     tar: { x: number; y: number; r: number }[];
+    bridges: {
+      x: number;
+      y: number;
+      half: number;
+      dock: { berth(k: number): { x: number; y: number; h: number } };
+    }[];
   } | null;
   seaWon: boolean;
   seaBoss: Record<
@@ -436,6 +444,7 @@ type Np = {
     sea: Record<string, number>;
     isles: { x: number; y: number }[];
     tar: { x: number; y: number }[];
+    bridges: { x: number; y: number }[];
   };
   bargeWins: number;
   bargeOn: boolean;
@@ -7388,6 +7397,85 @@ test("the Battle Barge at sea: the kid's tar, tapped onto the map, slows the boa
   expect(Math.hypot(at.bx - tar.x, at.by - tar.y)).toBeLessThan(tar.r);
   expect(at.slow).toBeLessThan(0.5);
   expect(Math.hypot(at.kx - tar.x, at.ky - tar.y)).toBeGreaterThanOrEqual(tar.r);
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge at sea: the kid's bridge, its dock, onto it and back, and the bosses kept off it", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { king: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#seaTools [data-tool="bridge"]').click();
+  const map = page.locator('#seaMap');
+  const box = await map.boundingBox();
+  if (!box) throw new Error('no chart');
+  const [x, y] = [0, -0.2];
+  const cx = (x - y) * Math.SQRT1_2;
+  const cy = (x + y) * Math.SQRT1_2;
+  await map.click({
+    position: { x: ((cx / 1.12 + 1) / 2) * box.width, y: ((cy / 1.12 + 1) / 2) * box.height },
+  });
+  await expect.poll(() => page.evaluate(() => window.__np.barge.bridges.length)).toBe(1);
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // Up to its dock, stopped: onto the bridge.
+  expect(await page.evaluate(() => window.__np.seaDock)).toBe(false);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const br = n.seaFight?.bridges[0];
+    if (!br) return;
+    const q = br.dock.berth(1.6);
+    n.boat.x = q.x;
+    n.boat.y = q.y;
+    n.boat.h = q.h;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Onto the bridge', { timeout: 3000 });
+  await page.locator('#climb').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('On the bridge');
+  // Up the steps and onto the deck.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const br = n.seaFight?.bridges[0];
+    if (!br) return;
+    n.walker.x = br.x;
+    n.walker.y = br.y;
+  });
+  await expect.poll(() => page.evaluate(() => window.__np.walker.z)).toBe(26);
+  // The Shark King put on it is back in the water by the next frame.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const br = n.seaFight?.bridges[0];
+    const k = n.seaBoss.king[0];
+    if (!br || !k) return;
+    k.x = br.x + 40 * Math.SQRT1_2;
+    k.y = br.y - 40 * Math.SQRT1_2;
+  });
+  await page.waitForTimeout(200);
+  const kd = await page.evaluate(() => {
+    const n = window.__np;
+    const br = n.seaFight?.bridges[0];
+    const k = n.seaBoss.king[0];
+    if (!br || !k) return 0;
+    // Across the bridge from its line.
+    return Math.abs((k.x - br.x) * Math.SQRT1_2 + (k.y - br.y) * Math.SQRT1_2);
+  });
+  expect(kd).toBeGreaterThanOrEqual(22);
+  // Leaving the fight from the bridge, the figure is back aboard.
+  await page.evaluate(() => window.__np.endSea(false));
+  expect(await page.evaluate(() => [!!window.__np.seaFight, window.__np.walker.state])).toEqual([
+    false,
+    'aboard',
+  ]);
   expect(errors).toEqual([]);
 });
 
