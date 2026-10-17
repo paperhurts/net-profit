@@ -17,6 +17,9 @@ import {
   SEA_RING,
   SEA_SEEN,
   SEA_SHORE,
+  SEA_TAR_R,
+  SEA_TAR_REACH,
+  SEA_TARS_MAX,
   SEA_ZOOM_MAX,
   SEA_ZOOM_MIN,
   seaAdd,
@@ -28,6 +31,8 @@ import {
   seaSpots,
   seaSpotsClear,
   seaStart,
+  seaTarNo,
+  seaTarTap,
   seaTotal,
 } from '../../src/data/barge';
 import {
@@ -621,5 +626,67 @@ describe('hiding behind the islands', () => {
     const y = isle.r * 0.8;
     expect(seaBlocked(-400, y, 400, y, [isle])).toBe(false);
     expect(seaBlocked(-400, y, 400, y, [isle], SEA_SEEN)).toBe(true);
+  });
+});
+
+describe("the kid's tar at sea", () => {
+  const st = seaStart(1);
+
+  it('starts with none, and an old save has none', () => {
+    expect(defaultBarge().tar).toEqual([]);
+    expect(parseBarge({ where: 'sea', isles: [{ x: -0.3, y: -0.3 }] }).tar).toEqual([]);
+  });
+
+  it('puts a patch where the water is tapped, and takes it away when it is tapped', () => {
+    let t = seaTarTap([], { x: 0.2, y: -0.4 });
+    expect(t).toEqual([{ x: 0.2, y: -0.4 }]);
+    t = seaTarTap(t, { x: 0.2 + SEA_TAR_R * 0.8, y: -0.4 });
+    expect(t).toEqual([]);
+  });
+
+  it('keeps off where the boat comes in and off the islands, may go nearer the buoys, and five at most', () => {
+    expect(seaTarNo([], { x: st.x - 0.1, y: st.y - 0.1 })).toBe('boat');
+    expect(seaTarNo([], { x: SEA_TAR_REACH + 0.05, y: 0 })).toBe('edge');
+    expect(seaTarNo([], { x: 0.75, y: -0.1 })).toBeNull();
+    expect(seaIsleNo([], { x: 0.75, y: -0.1 })).toBe('edge');
+    const isle = [{ x: -0.3, y: -0.3 }];
+    expect(seaTarNo([], { x: -0.3 + SEA_ISLE_R, y: -0.3 }, isle)).toBe('near');
+    // And an island keeps off the tar the same way.
+    expect(seaIsleNo([], { x: -0.3, y: -0.3 }, [{ x: -0.3 + SEA_ISLE_R, y: -0.3 }])).toBe('near');
+    const full = [
+      { x: -0.6, y: 0 },
+      { x: 0, y: -0.6 },
+      { x: -0.25, y: -0.25 },
+      { x: 0.6, y: -0.2 },
+      { x: -0.2, y: 0.6 },
+    ];
+    expect(full).toHaveLength(SEA_TARS_MAX);
+    for (const [k, p] of full.entries()) expect(seaTarNo(full.slice(0, k), p)).toBeNull();
+    expect(seaTarNo(full, { x: 0.25, y: 0.3 })).toBe('full');
+  });
+
+  it('reads saved tar back after the islands, dropping a patch that lies on one', () => {
+    const m = parseBarge({
+      where: 'sea',
+      isles: [{ x: -0.3, y: -0.3 }],
+      tar: [
+        { x: -0.3, y: -0.3 },
+        { x: 0.4, y: -0.4 },
+        { x: 'no', y: 0 },
+      ],
+    });
+    expect(m.isles).toEqual([{ x: -0.3, y: -0.3 }]);
+    expect(m.tar).toEqual([{ x: 0.4, y: -0.4 }]);
+  });
+
+  it("keeps the bosses' spots out of the tar too", () => {
+    const r = SEA_RING.medium;
+    const spots = seaSpots(BARGE_MAX, r);
+    const on = spots[1] as { x: number; y: number };
+    const tar = { x: on.x / r, y: on.y / r, r: SEA_TAR_R };
+    for (const p of seaSpotsClear(spots, [tar], r))
+      expect(Math.hypot(p.x - tar.x * r, p.y - tar.y * r)).toBeGreaterThanOrEqual(
+        SEA_TAR_R * r + SEA_SHORE - 1e-6,
+      );
   });
 });

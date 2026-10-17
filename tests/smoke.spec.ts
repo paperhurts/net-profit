@@ -116,12 +116,14 @@ type Np = {
   HQ_BED: { x: number; y: number };
   walkerAt: [number, number];
   toast(msg: string, ms?: number, pri?: number): void;
+  seaTarK: number;
   seaFight: {
     x: number;
     y: number;
     h: number;
     r: number;
     isles: { x: number; y: number; r: number }[];
+    tar: { x: number; y: number; r: number }[];
   } | null;
   seaWon: boolean;
   seaBoss: Record<
@@ -433,6 +435,7 @@ type Np = {
     where: string;
     sea: Record<string, number>;
     isles: { x: number; y: number }[];
+    tar: { x: number; y: number }[];
   };
   bargeWins: number;
   bargeOn: boolean;
@@ -7327,6 +7330,64 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
   await page.waitForTimeout(400);
   await expect(toast).toHaveClass(/show/);
   await expect(toast).toHaveText('A message to keep.');
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge at sea: the kid's tar, tapped onto the map, slows the boat and keeps the bosses out", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { king: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  const map = page.locator('#seaMap');
+  await expect(map).toBeVisible();
+  await page.locator('#seaTools [data-tool="tar"]').click();
+  await expect(page.locator('#seaTools [data-tool="tar"]')).toHaveClass(/on/);
+  const box = await map.boundingBox();
+  if (!box) throw new Error('no chart');
+  // The point of the ring, as a share of its radius, on the chart turned the way the game is.
+  const [x, y] = [-0.35, -0.35];
+  const cx = (x - y) * Math.SQRT1_2;
+  const cy = (x + y) * Math.SQRT1_2;
+  await map.click({
+    position: { x: ((cx / 1.12 + 1) / 2) * box.width, y: ((cy / 1.12 + 1) / 2) * box.height },
+  });
+  await expect.poll(() => page.evaluate(() => window.__np.barge.tar.length)).toBe(1);
+  expect(await page.evaluate(() => window.__np.barge.isles.length)).toBe(0);
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  const tar = await page.evaluate(() => window.__np.seaFight?.tar[0]);
+  if (!tar) throw new Error('no tar in the ring');
+  // Out of it the boat has its full speed; in it, it crawls.
+  expect(await page.evaluate(() => window.__np.seaTarK)).toBe(1);
+  // Into the tar the boat goes, and so does the Shark King: the boat stays in it, crawling, and he is put out.
+  await page.evaluate((t) => {
+    const n = window.__np;
+    n.boat.x = t.x + 20;
+    n.boat.y = t.y;
+    n.boat.v = 0;
+    const k = n.seaBoss.king[0];
+    if (k) {
+      k.x = t.x - 20;
+      k.y = t.y;
+    }
+  }, tar);
+  await page.waitForTimeout(200);
+  const at = await page.evaluate(() => {
+    const n = window.__np;
+    const k = n.seaBoss.king[0];
+    return { bx: n.boat.x, by: n.boat.y, kx: k?.x ?? 0, ky: k?.y ?? 0, slow: n.seaTarK };
+  });
+  expect(Math.hypot(at.bx - tar.x, at.by - tar.y)).toBeLessThan(tar.r);
+  expect(at.slow).toBeLessThan(0.5);
+  expect(Math.hypot(at.kx - tar.x, at.ky - tar.y)).toBeGreaterThanOrEqual(tar.r);
   expect(errors).toEqual([]);
 });
 
