@@ -4,7 +4,7 @@
  * each drawn side on at the origin, nose toward +x, L long from tail tip to nose and H high: the dive draws them in
  * the dark over the floor, the aquarium in its tank. The nibbler is his drawing (2026-10-17): a little brown fish
  * with a forked tail and a big open mouth; the gloomer is his "flower mouth on a naga's body", the long one with the
- * frilled flower of a head in the same drawing.
+ * frilled flower of a head in the same drawing. And the Remoro, his great silver fish (entities/remoro.ts).
  */
 
 import type { DeepKind } from '../world/trench';
@@ -20,6 +20,7 @@ export const DEEP_KINDS: Readonly<Record<string, DeepKind>> = {
   chimaera: 'chimaera',
   coelacanth: 'coelacanth',
   'frilled shark': 'frilled',
+  remoro: 'remoro',
 };
 
 function eye(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c = '#FFFFFF'): void {
@@ -266,6 +267,64 @@ export function drawDeepFish(
       for (let i = 0; i < 3; i++)
         ctx.fillRect(L * (0.38 + i * 0.03), H * 0.12, Math.max(0.5, L * 0.012), H * 0.18);
       eye(ctx, L * 0.38, -H * 0.15, Math.max(0.8, H * 0.18), '#D8E86A');
+      break;
+    }
+    case 'remoro': {
+      // The kid's great silver fish: silver all over, darker along its back; long low fins either side of its back
+      // half, a dark stripe down its side, a jutting lower jaw, and the striped sucker plate on top of its flat head.
+      tail(ctx, -L * 0.34, H * 0.5, L * 0.16, beat, '#9AA8B6', 'fork');
+      ctx.fillStyle = '#A9B6C3';
+      for (const sy of [-1, 1] as const) {
+        ctx.beginPath();
+        ctx.moveTo(-L * 0.3, sy * H * 0.14);
+        ctx.lineTo(-L * 0.26, sy * H * (0.54 + beat * 0.04));
+        ctx.lineTo(-L * 0.02, sy * H * 0.46);
+        ctx.lineTo(L * 0.06, sy * H * 0.3);
+        ctx.closePath();
+        ctx.fill();
+      }
+      const silver = ctx.createLinearGradient(0, -H * 0.42, 0, H * 0.42);
+      silver.addColorStop(0, '#8E9CAC');
+      silver.addColorStop(0.45, '#C8D4DE');
+      silver.addColorStop(1, '#EEF3F7');
+      ctx.fillStyle = silver;
+      ctx.beginPath();
+      ctx.ellipse(L * 0.06, 0, L * 0.4, H * 0.42, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4E5E70';
+      ctx.lineWidth = Math.max(0.6, H * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(L * 0.36, -H * 0.02);
+      ctx.quadraticCurveTo(L * 0.02, H * 0.05, -L * 0.32, 0);
+      ctx.stroke();
+      // The lower jaw, jutting past the upper.
+      ctx.fillStyle = '#7E8C9C';
+      ctx.beginPath();
+      ctx.moveTo(L * 0.4, H * 0.04);
+      ctx.lineTo(L * 0.5, H * 0.1);
+      ctx.lineTo(L * 0.38, H * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      // The sucker plate, ridged across, that a remora holds on with.
+      oval(ctx, L * 0.24, -H * 0.36, L * 0.13, H * 0.12, '#5E6C7C');
+      ctx.strokeStyle = '#C8D4DE';
+      ctx.lineWidth = Math.max(0.5, L * 0.006);
+      for (let i = 0; i < 7; i++) {
+        const x = L * (0.14 + i * 0.033);
+        ctx.beginPath();
+        ctx.moveTo(x, -H * 0.43);
+        ctx.lineTo(x, -H * 0.29);
+        ctx.stroke();
+      }
+      // A fin at its side.
+      ctx.fillStyle = '#A9B6C3';
+      ctx.beginPath();
+      ctx.moveTo(L * 0.22, H * 0.1);
+      ctx.lineTo(L * 0.06, H * (0.32 + beat * 0.06));
+      ctx.lineTo(L * 0.13, H * 0.08);
+      ctx.closePath();
+      ctx.fill();
+      eye(ctx, L * 0.36, -H * 0.1, Math.max(1, H * 0.11), '#F6E7A8');
       break;
     }
     default: {

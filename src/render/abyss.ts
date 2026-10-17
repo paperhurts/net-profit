@@ -2,10 +2,12 @@
  * The abyss, side on, while the figure dives (world/abyss.ts): the reef shelf under the blue hole, pale and sunlit on
  * top, with the hole through it; the hole's walls going down into the dark and widening until there are none; and
  * the floor of black sand, 1,000 metres down. And the cage on the boat's rope, the diver in it, a lamp on its roof.
+ * And the Remoro, cruising over the floor, its silver glinting through the dark.
  * On the sea: the blue hole itself, a round patch of the brightest blue with its small dark middle.
  */
 
 import type { DrawView } from '../entities/entity';
+import { REMORO_H, REMORO_LEN, type Remoro } from '../entities/remoro';
 import {
   ABYSS,
   ABYSS_ENTRY,
@@ -21,6 +23,7 @@ import {
   SHELF_TOP,
   WALL_END,
 } from '../world/abyss';
+import { drawDeepFish } from './deepfish';
 
 type Proj = (v: number) => number;
 
@@ -203,6 +206,66 @@ export function drawCageFront(
       ctx.stroke();
     }
   }
+}
+
+/** The Remoro (entities/remoro.ts), under the dark: its silver body, beating faster as it darts, white a moment when
+ * a spear strikes. */
+export function drawRemoro(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  r: Remoro,
+  T: number,
+): void {
+  if (!r.here) return;
+  ctx.save();
+  ctx.translate(X(r.x), Y(r.y));
+  ctx.scale(r.face * s, s);
+  drawDeepFish(ctx, 'remoro', REMORO_LEN, REMORO_H, r.t * (r.state === 'dart' ? 14 : 4), T);
+  if (r.flash > 0) {
+    ctx.globalAlpha = r.flash * 0.8;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(REMORO_LEN * 0.06, 0, REMORO_LEN * 0.4, REMORO_H * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/** Its glint, over the dark: a faint silver line along its back and a gleam running along it, so that it shows far
+ * off where the lamp does not reach; bright a moment when a spear strikes. */
+export function drawRemoroGlint(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  r: Remoro,
+  T: number,
+): void {
+  if (!r.here) return;
+  const nx = r.x + r.face * REMORO_LEN * 0.42;
+  const tx = r.x - r.face * REMORO_LEN * 0.3;
+  const mx = (nx + tx) / 2;
+  ctx.strokeStyle = `rgba(214,230,246,${0.22 + r.flash * 0.6})`;
+  ctx.lineWidth = 2 * s;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(X(tx), Y(r.y - REMORO_H * 0.18));
+  ctx.quadraticCurveTo(X(mx), Y(r.y - REMORO_H * 0.5), X(nx), Y(r.y - REMORO_H * 0.14));
+  ctx.stroke();
+  // The gleam, nose to tail and again.
+  const k = (T * 0.45) % 1;
+  const gx = nx + (tx - nx) * k;
+  const gy = r.y - REMORO_H * (0.16 + 0.24 * Math.sin(k * Math.PI));
+  const g = ctx.createRadialGradient(X(gx), Y(gy), 0, X(gx), Y(gy), 12 * s);
+  g.addColorStop(0, 'rgba(240,248,255,.7)');
+  g.addColorStop(1, 'rgba(240,248,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(X(gx), Y(gy), 12 * s, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /** The blue hole on the sea: the bright reef shallows round it, its rim, and its small dark middle. */

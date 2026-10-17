@@ -259,6 +259,16 @@ type Np = {
   }[];
   abyssSeen: boolean;
   abyssDown: boolean;
+  remoro: {
+    x: number;
+    y: number;
+    dir: number;
+    state: string;
+    hits: number;
+    here: boolean;
+    reset(here: boolean): void;
+  };
+  remoroDay: number;
   boneSharks: { x: number; y: number; state: string; t: number }[];
   WRECK_CHEST: { x: number; y: number };
   charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
@@ -2381,6 +2391,8 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   await expect(page.locator('#toast')).toContainText('1,000 metres down');
   await expect(page.locator('#throw')).toBeVisible();
   // Out over the floor, just short of the kid's nibblers, facing them: the aim settles on one, and a throw takes it.
+  // (The Remoro, off today, is not in the way.)
+  await page.evaluate(() => window.__np.remoro.reset(false));
   const nib = await page.evaluate(() => window.__np.abyssSh.findIndex((s) => s.deep === 'nibbler'));
   expect(nib).toBeGreaterThan(0);
   const put = () =>
@@ -2418,6 +2430,97 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   await expect(page.locator('#toast')).toContainText('1,000 metres down and back');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect([saved.abyssSeen, saved.abyssDown]).toEqual([true, true]);
+  expect(errors).toEqual([]);
+});
+
+test("the abyss: the kid's Remoro cruises over the floor, three spears land it, and it is gone till tomorrow", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    abyssSeen: true,
+    abyssDown: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7620, y: -4300, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the abyss', { timeout: 4000 });
+  await page.locator('#diveBtn').click();
+  await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'abyss', null, {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => window.__np.remoro.here)).toBe(true);
+  await page.evaluate(() => {
+    const c = window.__np.diver.cage;
+    if (c) c.y = 2800;
+  });
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 6000 });
+  // Close under it, and throw: each spear sends it darting off; the third lands it. A deep fish in the way may take a
+  // spear first, so throw until it is landed.
+  for (let i = 0; i < 20; i++) {
+    if (await page.evaluate(() => window.__np.remoro.state === 'gone')) break;
+    await page.waitForFunction(
+      () => !document.querySelector('#throw')?.classList.contains('wait'),
+      null,
+      {
+        timeout: 3000,
+      },
+    );
+    const hits = await page.evaluate(() => {
+      const { diver: d, remoro: r } = window.__np;
+      d.x = r.x;
+      d.y = r.y + 40;
+      d.vx = 0;
+      d.vy = 0;
+      d.face = r.dir;
+      return r.hits;
+    });
+    await page.click('#throw');
+    await page
+      .waitForFunction(
+        (h) => window.__np.remoro.hits !== h || window.__np.remoro.state === 'gone',
+        hits,
+        {
+          timeout: 1500,
+        },
+      )
+      .catch(() => {});
+    if (hits === 0 && (await page.evaluate(() => window.__np.remoro.hits)) === 1)
+      await expect(page.locator('#toast')).toContainText('The Remoro darts off');
+  }
+  expect(await page.evaluate(() => window.__np.remoro.state)).toBe('gone');
+  await expect(page.locator('#toast')).toContainText('You landed the Remoro!');
+  const day = await page.evaluate(() => window.__np.day);
+  expect(await page.evaluate(() => window.__np.remoroDay)).toBe(day);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.remoroDay, saved.log[37]]).toEqual([day, 1]);
+  // Up, and down again the same day: it is gone till tomorrow.
+  await page.locator('#surfaceBtn').click();
+  await page.waitForFunction(() => window.__np.diver.cage?.go === 'up', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const c = window.__np.diver.cage;
+    if (c) c.y = 60;
+  });
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 4000 });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the abyss', { timeout: 4000 });
+  await page.locator('#diveBtn').click();
+  await page.waitForFunction(() => window.__np.diving, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.remoro.here)).toBe(false);
+  await page.evaluate(() => {
+    const c = window.__np.diver.cage;
+    if (c) c.y = 2800;
+  });
+  await expect(page.locator('#toast')).toContainText('The Remoro is gone for today', {
+    timeout: 6000,
+  });
   expect(errors).toEqual([]);
 });
 

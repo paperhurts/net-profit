@@ -7,7 +7,7 @@
  *
  * The owner's calls (2026-10-17): you go down in a dive cage on the boat's rope, past the sunlit, twilight and midnight
  * water, breathing from the boat while in it, and step out at the bottom with the scuba gear; the giants of the deep
- * pass the cage on the way, and the deep fish and the Remoro live on the floor (the next pieces).
+ * pass the cage on the way (the next piece), and the deep fish and the Remoro (entities/remoro.ts) live on the floor.
  *
  * Its scene has its own coordinates, as the other dives do: x across, y down from the surface, METRES to a metre.
  */
