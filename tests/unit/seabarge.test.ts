@@ -19,6 +19,12 @@ import {
   seaStart,
   seaTotal,
 } from '../../src/data/barge';
+import {
+  DEEP_WATER as ANGLER_DEEP,
+  Anglerfish,
+  seaWater as anglerRing,
+} from '../../src/entities/anglerfish';
+import { Cthuluviathan, DEEP_CITY, LAIR, seaCity } from '../../src/entities/cthuluviathan';
 import { DeepOne, LAIR6, seaDeepHome } from '../../src/entities/deepone';
 import { EAST_DEEP, Gulper, seaZone } from '../../src/entities/gulper';
 import { ISLE6_HAUNT, MeteorSerpent, seaHaunt } from '../../src/entities/meteor';
@@ -34,7 +40,15 @@ describe('the Battle Barge at sea: picking a fight', () => {
   it('starts on foot, with Star picked for the sea', () => {
     const b = defaultBarge();
     expect(b.where).toBe('foot');
-    expect(b.sea).toEqual({ meteor: 1, king: 0, deep: 0, reaper: 0, gulper: 0 });
+    expect(b.sea).toEqual({
+      meteor: 1,
+      king: 0,
+      deep: 0,
+      reaper: 0,
+      gulper: 0,
+      angler: 0,
+      cthulu: 0,
+    });
   });
 
   it('keeps the sea pick to ten all told, and never below none', () => {
@@ -58,7 +72,15 @@ describe('the Battle Barge at sea: picking a fight', () => {
       sea: { king: 2.6, deep: 30, kraken: 4, meteor: -1 },
     });
     expect(sea.where).toBe('sea');
-    expect(sea.sea).toEqual({ meteor: 0, king: 2, deep: BARGE_MAX - 2, reaper: 0, gulper: 0 });
+    expect(sea.sea).toEqual({
+      meteor: 0,
+      king: 2,
+      deep: BARGE_MAX - 2,
+      reaper: 0,
+      gulper: 0,
+      angler: 0,
+      cthulu: 0,
+    });
     expect(parseBarge({ where: 'moon' }).where).toBe('foot');
   });
 
@@ -295,5 +317,67 @@ describe('the camera at sea', () => {
     expect(f.dy).toBeCloseTo(0, 6);
     expect(f.zoom).toBeGreaterThan(1);
     expect(SEA_ZOOM_MIN).toBeLessThan(SEA_ZOOM_MAX);
+  });
+});
+
+describe('the anglerfish and the Cthuluviathan, given a home', () => {
+  const ring = { ...SEA_ARENA, r: SEA_RING.medium };
+  const at = { x: SEA_ARENA.x - 300, y: SEA_ARENA.y - 300 };
+
+  it('keep their own water by default', () => {
+    const a = new Anglerfish();
+    expect(a.water).toBe(ANGLER_DEEP);
+    expect(a.state).toBe('gone');
+    expect(new Cthuluviathan().lair).toBe(DEEP_CITY);
+    expect(DEEP_CITY.x).toBe(LAIR.x);
+  });
+
+  it('brings the anglerfish up by day in the ring, keeps its light inside it, and once driven off it is gone', () => {
+    const w = baseWorld({
+      dark: 0,
+      boat: { x: SEA_ARENA.x + 500, y: SEA_ARENA.y + 500, h: 0, v: 0 },
+    });
+    const a = new Anglerfish(anglerRing(ring), at);
+    expect(a.state).toBe('lurking');
+    for (let i = 0; i < 60 * 3; i++) a.update(DT, w);
+    // Up by day, its light shining.
+    expect(a.state).toBe('lurking');
+    expect(a.mark()).not.toBeNull();
+    for (let i = 0; i < 60 * 20; i++) {
+      a.update(DT, w);
+      expect(Math.hypot(a.x - ring.x, a.y - ring.y)).toBeLessThan(ring.r - 99);
+    }
+    a.resolve = 1;
+    expect(a.harpoon(1)).toBe(true);
+    expect(a.done).toBe(true);
+    for (let i = 0; i < 60 * 30; i++) a.update(DT, w);
+    expect(a.state).toBe('gone');
+    // At home, by day, it never comes up; driven off, it comes back in time.
+    const home = new Anglerfish();
+    for (let i = 0; i < 60 * 5; i++) home.update(DT, w);
+    expect(home.state).toBe('gone');
+  });
+
+  it('wakes the Cthuluviathan at once at sea, keeps it awake, and beaten it sleeps for good', () => {
+    const w = baseWorld({ boat: { x: at.x + 1500, y: at.y, h: 0, v: 0 } });
+    const c = new Cthuluviathan(seaCity(at));
+    c.update(DT, w);
+    expect(c.state).toBe('awake');
+    // Out of its reach a long while, and it stays awake: at home it would sleep after five seconds.
+    for (let i = 0; i < 60 * 40; i++) c.update(DT, w);
+    expect(c.state).toBe('awake');
+    // Within reach, its tentacles come up where the boat is.
+    w.boat.x = at.x + 300;
+    for (let i = 0; i < 60 * 3; i++) c.update(DT, w);
+    expect(c.tentacles.length).toBeGreaterThan(0);
+    c.resolve = 1;
+    expect(c.harpoon(1, null)).toBe(true);
+    expect(c.done).toBe(true);
+    for (let i = 0; i < 60 * 60; i++) c.update(DT, w);
+    expect(c.state).toBe('asleep');
+    // At home the same boat out of reach wakes nothing.
+    const home = new Cthuluviathan();
+    home.update(DT, baseWorld());
+    expect(home.state).toBe('asleep');
   });
 });

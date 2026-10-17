@@ -167,12 +167,20 @@ export function bargeZoom(r: number): number {
  * map of islands and stuff", all the sea bosses, fought from your own boat with the harpoon. Built in stages too: this
  * first one is open water inside a ring of the barge's red and yellow buoys, far out past everything, and three of the
  * sea bosses: Star, the Skeleton Shark King and the Deep One, each made for the fight at its own spot round the ring's
- * back; the second adds the Reaper and the gulper. The islands, the tar and the bridge on a map of your own come
- * after, and the rest of the sea bosses with them.
+ * back; the second adds the Reaper and the gulper; the third the anglerfish and the Cthuluviathan. The guard
+ * leviathan comes next, then the islands, the tar and the bridge on a map of your own.
  */
 export type BargeWhere = 'foot' | 'sea';
-export type SeaFoe = 'meteor' | 'king' | 'deep' | 'reaper' | 'gulper';
-export const SEA_FOES: readonly SeaFoe[] = ['meteor', 'king', 'deep', 'reaper', 'gulper'];
+export type SeaFoe = 'meteor' | 'king' | 'deep' | 'reaper' | 'gulper' | 'angler' | 'cthulu';
+export const SEA_FOES: readonly SeaFoe[] = [
+  'meteor',
+  'king',
+  'deep',
+  'reaper',
+  'gulper',
+  'angler',
+  'cthulu',
+];
 export const SEA_NAMES: Readonly<Record<SeaFoe, readonly [string, string]>> = {
   meteor: [
     'Star, the meteor serpent',
@@ -193,6 +201,14 @@ export const SEA_NAMES: Readonly<Record<SeaFoe, readonly [string, string]>> = {
   gulper: [
     'The gulper',
     'Chases the boat with its mouth wide open: run, and turn hard when it closes. Harpoon its head. 4 hits.',
+  ],
+  angler: [
+    'The anglerfish',
+    'Hangs a glowing light in the water: never sail fast straight at it, or its jaws swallow the boat. Harpoon the light. 3 hits.',
+  ],
+  cthulu: [
+    'The Cthuluviathan',
+    'Sends a tentacle up where the boat is going: steer off the bubbles. Harpoon the tentacles. 3 hits.',
   ],
 };
 /**
@@ -310,7 +326,7 @@ export type SeaPick = Record<SeaFoe, number>;
 
 /** No sea boss picked. */
 export function noSeaPick(): SeaPick {
-  return { meteor: 0, king: 0, deep: 0, reaper: 0, gulper: 0 };
+  return { meteor: 0, king: 0, deep: 0, reaper: 0, gulper: 0, angler: 0, cthulu: 0 };
 }
 
 /** How many sea bosses are picked, all told. */
