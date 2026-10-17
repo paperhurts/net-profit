@@ -6853,6 +6853,10 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
   });
   expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
   // Up beside the Deep One with its eye open, one hit from beaten: the harpoon sinks it, the boat free, and it is won.
+  // The harpoon reloads (HARPOON_RELOAD, 1.2 s) from the shot at the King first, and only then the eye opens, so it is
+  // still open when the harpoon lands, however slow the machine. (With nothing in reach the throw button is hidden and
+  // says nothing of the reload, so this waits the time out.)
+  await page.waitForTimeout(1500);
   await page.evaluate(() => {
     const n = window.__np;
     const d = n.seaBoss.deep[0];
@@ -6867,8 +6871,6 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
     d.eyeT = 0;
   });
   await page.waitForFunction(() => window.__np.harpoonTarget === 'deep', null, { timeout: 2000 });
-  // The harpoon reloaded from the shot at the King.
-  await expect(page.locator('#throw')).not.toHaveClass(/wait/, { timeout: 4000 });
   await page.evaluate(() => window.__np.fireHarpoon());
   await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.seaBoss.deep[0]?.state)).toBe('sink');
