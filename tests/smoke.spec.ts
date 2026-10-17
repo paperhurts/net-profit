@@ -127,6 +127,7 @@ type Np = {
     hp: number;
     hit(p: number, fired?: boolean): boolean;
   }[];
+  seaStars: { state: string; resolve: number; harpoon(p: number): boolean }[];
   seaFight: {
     x: number;
     y: number;
@@ -7238,11 +7239,15 @@ test("the Battle Barge at sea: the kid's map, islands tapped onto the ring, that
   };
   await tap(-0.35, -0.35);
   await expect.poll(() => page.evaluate(() => window.__np.barge.isles.length)).toBe(1);
-  // Tapped again, a Reaper is on it; again, it goes; and back.
+  // Tapped again, a Reaper is on it; again, Star; again, it goes; and back.
   await tap(-0.35, -0.35);
   await expect
     .poll(() => page.evaluate(() => window.__np.barge.isles.map((i) => i.who ?? null)))
     .toEqual(['reaper']);
+  await tap(-0.35, -0.35);
+  await expect
+    .poll(() => page.evaluate(() => window.__np.barge.isles.map((i) => i.who ?? null)))
+    .toEqual(['star']);
   await tap(-0.35, -0.35);
   await expect.poll(() => page.evaluate(() => window.__np.barge.isles.length)).toBe(0);
   await tap(-0.35, -0.35);
@@ -7600,6 +7605,65 @@ test("the Battle Barge at sea: ashore on the kid's island, its Reaper fought on 
   await page.evaluate(() => window.__np.seaReapers[0]?.hit(30, true));
   await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 15000 });
   expect(['flee', 'gone']).toContain(await page.evaluate(() => window.__np.seaReapers[0]?.state));
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge at sea: Star over the kid's island dives at the figure ashore, is speared on the sand, and driven off", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: {
+      size: 'small',
+      pick: {},
+      where: 'sea',
+      sea: {},
+      isles: [{ x: -0.3, y: -0.3, who: 'star' }],
+    },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeTotal')).toHaveText('Just Star on an island.');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // Up on his loop over the island while the boat is at sea.
+  expect(await page.evaluate(() => window.__np.seaStars.map((m) => m.state))).toEqual(['haunt']);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const i = n.seaFight?.isles[0];
+    if (!i) return;
+    const a = Math.atan2(n.SEA_ARENA.y - i.y, n.SEA_ARENA.x - i.x);
+    n.boat.x = i.x + Math.cos(a) * (i.r + 50);
+    n.boat.y = i.y + Math.sin(a) * (i.r + 50);
+    n.boat.h = a + Math.PI;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+  await page.locator('#climb').click();
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Star is coming for you');
+  // He comes for the figure, dives, and is down on the sand: the throw button is up, and a spear counts.
+  await page.waitForFunction(() => window.__np.seaStars[0]?.state === 'down', null, {
+    timeout: 10000,
+  });
+  const before = await page.evaluate(() => window.__np.seaStars[0]?.resolve ?? 0);
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 1000 });
+  await page.locator('#throw').click();
+  await expect
+    .poll(() => page.evaluate(() => window.__np.seaStars[0]?.resolve ?? 0), { timeout: 2000 })
+    .toBeLessThan(before);
+  // The rest at once: driven off, and the fight is won.
+  await page.evaluate(() => {
+    const m = window.__np.seaStars[0];
+    if (m) m.harpoon(10);
+  });
+  await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.seaStars[0]?.state)).toBe('away');
   expect(errors).toEqual([]);
 });
 

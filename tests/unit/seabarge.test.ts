@@ -56,6 +56,7 @@ import {
   seaTarTap,
   seaTotal,
 } from '../../src/data/barge';
+import { RESOLVE } from '../../src/data/harpoon';
 import {
   DEEP_WATER as ANGLER_DEEP,
   Anglerfish,
@@ -77,7 +78,7 @@ import {
   SEA_KEEP,
   SEA_PATH,
 } from '../../src/entities/leviathan';
-import { ISLE6_HAUNT, MeteorSerpent, seaHaunt } from '../../src/entities/meteor';
+import { ISLE6_HAUNT, isleStar, MeteorSerpent, RING_R, seaHaunt } from '../../src/entities/meteor';
 import { DEEP_WATER, Reaper, ROUTE, seaWater } from '../../src/entities/reaper';
 import { deckLair, LAND_HP, LandReaper } from '../../src/entities/reaperland';
 import { ISLE5_REEF, SharkKing, seaReef } from '../../src/entities/sharkking';
@@ -552,12 +553,14 @@ describe("the kid's map at sea", () => {
     expect(parseBarge({ size: 'small', where: 'sea', sea: { king: 1 } }).isles).toEqual([]);
   });
 
-  it('puts an island where the water is tapped, a Reaper on it when it is tapped, and takes it away after', () => {
+  it('puts an island where the water is tapped, a Reaper on it when it is tapped, then Star, and takes it away after', () => {
     let m = seaIsleTap([], { x: -0.3, y: -0.2 });
     expect(m).toEqual([{ x: -0.3, y: -0.2 }]);
     m = seaIsleTap(m, { x: -0.3 + SEA_ISLE_R * 0.8, y: -0.2 });
     expect(m).toEqual([{ x: -0.3, y: -0.2, who: 'reaper' }]);
     m = seaIsleTap(m, { x: -0.3, y: -0.2 - SEA_ISLE_R * 0.8 });
+    expect(m).toEqual([{ x: -0.3, y: -0.2, who: 'star' }]);
+    m = seaIsleTap(m, { x: -0.3, y: -0.2 });
     expect(m).toEqual([]);
   });
 
@@ -605,11 +608,13 @@ describe("the kid's map at sea", () => {
       isles: [
         { x: -0.3, y: -0.3, who: 'reaper' },
         { x: 0.5, y: -0.3, who: 'dragon' },
+        { x: -0.3, y: 0.5, who: 'star' },
       ],
     });
     expect(m.isles).toEqual([
       { x: -0.3, y: -0.3, who: 'reaper' },
       { x: 0.5, y: -0.3 },
+      { x: -0.3, y: 0.5, who: 'star' },
     ]);
   });
 
@@ -930,5 +935,73 @@ describe("a Reaper on one of the kid's islands", () => {
     expect(beaten).toBe(1);
     expect(r.state).toBe('gone');
     expect(Math.hypot(r.x - isle.x, r.y - isle.y)).toBeGreaterThan(isle.r);
+  });
+});
+
+describe("Star over one of the kid's islands", () => {
+  const isle = { x: SEA_ARENA.x, y: SEA_ARENA.y, r: SEA_ISLE_R * SEA_RING.small };
+  const world = (f: { x: number; y: number; vx?: number; vy?: number } | null) =>
+    baseWorld({ docked: true, figure: f ? { vx: 0, vy: 0, ...f } : null });
+
+  it('loops over his island, and leaves the boat alone', () => {
+    const m = isleStar(isle);
+    for (let t = 0; t < 5; t += DT)
+      m.update(DT, baseWorld({ boat: { x: isle.x + 200, y: isle.y, h: 0, v: 100 } }));
+    expect(m.state).toBe('haunt');
+    expect(Math.hypot(m.x - isle.x, m.y - isle.y)).toBeLessThan(isle.r + 60);
+  });
+
+  it('hunts the figure the moment it comes ashore, and dives on it where it stands, on the sand', () => {
+    const m = isleStar(isle);
+    let hits = 0;
+    let ring: { x: number; y: number } | null = null;
+    m.onHit = () => hits++;
+    const f = { x: isle.x - isle.r + 30, y: isle.y };
+    m.update(DT, world(f));
+    expect(m.state).toBe('hunt');
+    for (let t = 0; t < 8 && m.state !== 'down'; t += DT) {
+      m.update(DT, world(f));
+      if (m.ring) ring = { ...m.ring };
+    }
+    expect(m.state).toBe('down');
+    if (!ring) throw new Error('no ring');
+    expect(Math.hypot(ring.x - isle.x, ring.y - isle.y)).toBeLessThanOrEqual(isle.r - 12 + 1e-6);
+    expect(hits).toBe(1);
+  });
+
+  it('keeps his ring on the sand when the figure walks for the water, and misses a figure that steps out of it', () => {
+    const m = isleStar(isle);
+    let hits = 0;
+    m.onHit = () => hits++;
+    // Walking hard for the water: where it will be is out to sea, but the ring is on the sand.
+    const f = { x: isle.x + 40, y: isle.y, vx: 85, vy: 0 };
+    for (let t = 0; t < 8 && m.state !== 'aim'; t += DT) m.update(DT, world(f));
+    expect(m.state).toBe('aim');
+    const ring = m.ring;
+    if (!ring) throw new Error('no ring');
+    expect(Math.hypot(ring.x - isle.x, ring.y - isle.y)).toBeLessThanOrEqual(isle.r - 12 + 1e-6);
+    // It steps the other way, out of it, in time.
+    const away = { x: ring.x - RING_R - 30, y: ring.y };
+    for (let t = 0; t < 3 && m.state !== 'down'; t += DT) m.update(DT, world(away));
+    expect(m.state).toBe('down');
+    expect(hits).toBe(0);
+  });
+
+  it('is speared only while he is down, is driven off by enough, and goes back to his loop, whole, when the figure leaves', () => {
+    const m = isleStar(isle);
+    const f = { x: isle.x - isle.r + 30, y: isle.y };
+    expect(m.harpoon(2)).toBe(false);
+    for (let t = 0; t < 8 && m.state !== 'down'; t += DT) m.update(DT, world(f));
+    m.harpoon(2);
+    expect(m.resolve).toBe(RESOLVE.meteor - 2);
+    // Back aboard: up on his loop again, whole.
+    m.update(DT, world(null));
+    expect(m.state).toBe('haunt');
+    expect(m.resolve).toBe(RESOLVE.meteor);
+    // Down again, and driven off.
+    for (let t = 0; t < 12 && m.state !== 'down'; t += DT) m.update(DT, world(f));
+    expect(m.state).toBe('down');
+    expect(m.harpoon(RESOLVE.meteor)).toBe(true);
+    expect(m.state).toBe('away');
   });
 });
