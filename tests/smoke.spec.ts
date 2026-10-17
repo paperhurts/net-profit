@@ -273,6 +273,7 @@ type Np = {
     list: { kind: string; state: string; at: number; lunges: boolean; x: number; y: number }[];
     shake: number;
   };
+  floorGulper: { x: number; y: number; state: string; wait: number; away: number; out: boolean };
   boneSharks: { x: number; y: number; state: string; t: number }[];
   WRECK_CHEST: { x: number; y: number };
   charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
@@ -2378,6 +2379,7 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   // The giants passing the cage have a test of their own; jumping the cage down would bring them all at once.
   await page.evaluate(() => {
     window.__np.giants.list = [];
+    window.__np.floorGulper.away = 1e9;
   });
   // In the cage, going down: no spear, and the way back is the cage.
   expect(await page.evaluate(() => window.__np.diver.cage?.go)).toBe('down');
@@ -2468,6 +2470,7 @@ test("the abyss: the kid's Remoro cruises over the floor, three spears land it, 
   expect(await page.evaluate(() => window.__np.remoro.here)).toBe(true);
   await page.evaluate(() => {
     window.__np.giants.list = [];
+    window.__np.floorGulper.away = 1e9;
     const c = window.__np.diver.cage;
     if (c) c.y = 2800;
   });
@@ -2577,6 +2580,82 @@ test('the abyss: giants pass the cage on the way down, and one slams into it, bu
   // In the cage nothing gets you: the air is as it was, and the cage goes on down.
   expect(await page.evaluate(() => window.__np.diver.air)).toBe(air);
   expect(await page.evaluate(() => window.__np.diver.cage?.go)).toBe('down');
+  expect(errors).toEqual([]);
+});
+
+test('the abyss: out of the cage a gulper comes and bites air, and back in the cage it cannot reach you', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    abyssSeen: true,
+    abyssDown: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7620, y: -4300, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the abyss', { timeout: 4000 });
+  await page.locator('#diveBtn').click();
+  await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'abyss', null, {
+    timeout: 3000,
+  });
+  await page.evaluate(() => {
+    window.__np.giants.list = [];
+    const c = window.__np.diver.cage;
+    if (c) c.y = 2800;
+  });
+  await page.waitForFunction(() => window.__np.diver.cage?.go === 'wait', null, { timeout: 6000 });
+  // Waiting in the cage, nothing comes, however long it has been.
+  await page.evaluate(() => {
+    window.__np.floorGulper.wait = 100;
+  });
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__np.floorGulper.state)).toBe('hide');
+  // Out over the floor, and held there, a while: it comes, and bites.
+  const hold = () =>
+    page.evaluate(() => {
+      const { diver: d } = window.__np;
+      d.x = 300;
+      d.y = 2700;
+      d.vx = 0;
+      d.vy = 0;
+    });
+  await hold();
+  await page.evaluate(() => {
+    window.__np.floorGulper.wait = 13.5;
+  });
+  await expect(page.locator('#toast')).toContainText('A gulper, out of the dark!', {
+    timeout: 3000,
+  });
+  const air = await page.evaluate(() => window.__np.diver.air);
+  for (let i = 0; i < 40; i++) {
+    if (await page.evaluate(() => window.__np.floorGulper.state === 'back')) break;
+    await hold();
+    await page.waitForTimeout(200);
+  }
+  await expect(page.locator('#toast')).toContainText('Gulp! The gulper bit your tank');
+  expect(await page.evaluate(() => window.__np.diver.air)).toBeLessThan(air - 20);
+  // Back in the cage, it lets you be, and the tank fills again.
+  await page.evaluate(() => {
+    const { diver: d } = window.__np;
+    const c = d.cage;
+    if (c) {
+      d.x = c.x;
+      d.y = c.y;
+    }
+    window.__np.floorGulper.wait = 100;
+  });
+  await page.waitForTimeout(3500);
+  expect(await page.evaluate(() => window.__np.floorGulper.state)).toBe('hide');
+  expect(await page.evaluate(() => window.__np.diver.inCage)).toBe(true);
   expect(errors).toEqual([]);
 });
 
