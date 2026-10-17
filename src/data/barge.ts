@@ -343,7 +343,13 @@ export function seaSpots(n: number, r: number): { x: number; y: number }[] {
  * inside the buoys with a way round, clear of where the boat comes in, and apart from the others. In the fight the
  * islands stand in the ring and block the boat and the bosses alike.
  */
-export type SeaIsle = { x: number; y: number };
+export type SeaIsle = { x: number; y: number; who?: SeaIsleWho };
+/**
+ * Who lives on an island (the kid's "Stars and Reapers on them", 2026-10-17): a Reaper, the land one, who wakes at
+ * once and fights whoever comes ashore; beaten, he goes off into the sea. Tapping an island on the chart puts one on
+ * it; tapping it again takes the island away.
+ */
+export type SeaIsleWho = 'reaper';
 export const SEA_ISLES_MAX = 5;
 export const SEA_ISLE_R = 0.15;
 /** Its middle no further out than this, which leaves a way round between its sand and the buoys. */
@@ -372,7 +378,42 @@ export function seaIsleNo(
   if (isles.length >= SEA_ISLES_MAX) return 'full';
   return null;
 }
-/** A tap on the chart: on an island it takes it away; on open water it adds one there, if one may go there. */
+/** How far round the shore from the boat's bow, either way, the figure may land, in radians. */
+export const SEA_LAND_ROUND = 0.5;
+/**
+ * The way ashore on one of the kid's islands, in the ring, for a boat at a point off its sand: the boat tied up there
+ * bow in, and where the figure lands just up the beach. Straight in from the bow if that is in front of the boat on
+ * the screen; or else a little way round the shore, on the side in front of it or, failing that, the most to one side
+ * of it, so the boat never stands between the figure and the camera. Coming in from below on the screen, as the boat
+ * does, the bow-on boat hid it.
+ */
+export function seaIsleWay(
+  i: { x: number; y: number; r: number },
+  at: { x: number; y: number },
+): { berth(k: number): { x: number; y: number; h: number }; landing: { x: number; y: number } } {
+  const a = Math.atan2(at.y - i.y, at.x - i.x);
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const on = (d: number) => ({
+    x: i.x + Math.cos(a + d) * (i.r - 18),
+    y: i.y + Math.sin(a + d) * (i.r - 18),
+  });
+  // Down the screen is x + y, across it x - y.
+  const ways = [0, SEA_LAND_ROUND, -SEA_LAND_ROUND].map(on);
+  const front = ways.find((p) => p.x + p.y > at.x + at.y + 10);
+  const side = (p: { x: number; y: number }) => Math.abs(p.x - p.y - (at.x - at.y));
+  const landing = front ?? ways.reduce((b, p) => (side(p) > side(b) ? p : b));
+  return {
+    berth: (k) => ({
+      x: i.x + c * (i.r + 24 * k + 6),
+      y: i.y + s * (i.r + 24 * k + 6),
+      h: a + Math.PI,
+    }),
+    landing,
+  };
+}
+/** A tap on the chart: on an empty island it puts a Reaper there, on one with a Reaper it takes the island away; on
+ * open water it adds an island there, if one may go there. */
 export function seaIsleTap(
   isles: readonly SeaIsle[],
   p: SeaIsle,
@@ -380,6 +421,8 @@ export function seaIsleTap(
   bridges: readonly SeaIsle[] = [],
 ): SeaIsle[] {
   const hit = isles.findIndex((i) => Math.hypot(p.x - i.x, p.y - i.y) <= SEA_ISLE_R);
+  if (hit >= 0 && !isles[hit]?.who)
+    return isles.map((i, k) => (k === hit ? { ...i, who: 'reaper' as const } : i));
   if (hit >= 0) return isles.filter((_, k) => k !== hit);
   if (seaIsleNo(isles, p, tar, bridges)) return [...isles];
   return [...isles, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
@@ -732,18 +775,28 @@ export function parseBarge(o: unknown): BargeSetup {
     }
   } else sea = defaultBarge().sea;
   // The map: each island, then each patch of tar, kept only where one may go, in order, and no more than the most.
-  const points = (a: unknown): SeaIsle[] =>
+  const points = (a: unknown): { x: number; y: number; who: unknown }[] =>
     (Array.isArray(a) ? a : []).flatMap((i) => {
-      const q = (i && typeof i === 'object' ? i : {}) as { x?: unknown; y?: unknown };
+      const q = (i && typeof i === 'object' ? i : {}) as {
+        x?: unknown;
+        y?: unknown;
+        who?: unknown;
+      };
       if (typeof q.x !== 'number' || typeof q.y !== 'number') return [];
-      return Number.isFinite(q.x) && Number.isFinite(q.y) ? [{ x: q.x, y: q.y }] : [];
+      return Number.isFinite(q.x) && Number.isFinite(q.y) ? [{ x: q.x, y: q.y, who: q.who }] : [];
     });
   let isles: SeaIsle[] = [];
-  for (const p of points(src.isles)) if (!seaIsleNo(isles, p)) isles = seaIsleTap(isles, p);
+  for (const p of points(src.isles))
+    if (!seaIsleNo(isles, { x: p.x, y: p.y })) {
+      isles = seaIsleTap(isles, { x: p.x, y: p.y });
+      if (p.who === 'reaper') isles = seaIsleTap(isles, { x: p.x, y: p.y });
+    }
+  const at = (p: { x: number; y: number }) => ({ x: p.x, y: p.y });
   let tar: SeaIsle[] = [];
-  for (const p of points(src.tar)) if (!seaTarNo(tar, p, isles)) tar = seaTarTap(tar, p, isles);
+  for (const p of points(src.tar).map(at))
+    if (!seaTarNo(tar, p, isles)) tar = seaTarTap(tar, p, isles);
   let bridges: SeaIsle[] = [];
-  for (const p of points(src.bridges))
+  for (const p of points(src.bridges).map(at))
     if (!seaBridgeNo(bridges, p, isles, tar)) bridges = seaBridgeTap(bridges, p, isles, tar);
   return { size, pick, where, sea, isles, tar, bridges };
 }

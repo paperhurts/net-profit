@@ -127,15 +127,19 @@ export function seaIslesSolids(v: DrawView, isles: readonly SeaIsleAt[]): Solid[
   const out: Solid[] = [];
   isles.forEach((i, k) => {
     if (!v.onScreen(i.x, i.y, (i.r + 120) * v.zoom)) return;
-    PALMS.forEach(([fx, fy], n) => {
-      // The smallest islands get two palms, the rest three.
-      if (n === 2 && i.r < 140) return;
-      const x = i.x + fx * i.r;
-      const y = i.y + fy * i.r;
+    seaIslePalms(i).forEach(({ x, y }, n) => {
       out.push({ d: x + y, f: () => drawPalm7(v, x, y, k * 3 + n) });
     });
   });
   return out;
+}
+
+/** Where an island's palms stand: the smallest islands get two, the rest three. Nothing walks through them. */
+export function seaIslePalms(i: SeaIsleAt): { x: number; y: number }[] {
+  return PALMS.filter((_, n) => n < 2 || i.r >= 140).map(([fx, fy]) => ({
+    x: i.x + fx * i.r,
+    y: i.y + fy * i.r,
+  }));
 }
 
 /** The bridges' stone, pale, its shade, and its glass. */
