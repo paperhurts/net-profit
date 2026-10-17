@@ -47,7 +47,7 @@ import { alongsideFloe, FLOE_MAX, ICE_FLOE } from './world/icefloe';
 import { Shallows } from './entities/shallows';
 import { BLUE, Fighter, GREEN, RED, SLASH_ARC, SLASH_SLACK, SWORDSMAN } from './entities/fighter';
 import { BONK_EVERY, BONK_R, MONKEY_HP, Monkeys } from './entities/monkeys';
-import { ARENA_NAMES, ARENA_SIZES, arenaSpots, BARGE_DROP, BARGE_FOES, BARGE_LEAN, BARGE_MAX, BARGE_PRIZE, bargeAdd, bargeTotal, bargeZoom, BOSS_FOES, defaultBarge, FIGHTER_FOES, FOE_NAMES, FRAME_MID, SEA_ARENA, SEA_FOES, SEA_ISLE_R, SEA_ISLES_MAX, SEA_LOOK, SEA_NAMES, SEA_RING, SEA_ZOOM_MAX, SEA_ZOOM_MIN, seaAdd, seaFrame, seaIsleNo, seaIsleTap, seaSpots, seaSpotsClear, seaStart, seaTotal, UNDEAD_FOES } from './data/barge';
+import { ARENA_NAMES, ARENA_SIZES, arenaSpots, BARGE_DROP, BARGE_FOES, BARGE_LEAN, BARGE_MAX, BARGE_PRIZE, bargeAdd, bargeTotal, bargeZoom, BOSS_FOES, defaultBarge, FIGHTER_FOES, FOE_NAMES, FRAME_MID, SEA_ARENA, SEA_FOES, SEA_ISLE_R, SEA_ISLES_MAX, SEA_LOOK, SEA_NAMES, SEA_RING, SEA_SEEN, SEA_ZOOM_MAX, SEA_ZOOM_MIN, seaAdd, seaBlocked, seaFrame, seaIsleNo, seaIsleTap, seaSpots, seaSpotsClear, seaStart, seaTotal, UNDEAD_FOES } from './data/barge';
 import { drawArenaBack } from './render/barge';
 import { drawSeaRing, drawSeaWater } from './render/seaarena';
 import { drawSeaIslesFlat, drawSeaIslesSea, seaIslesSolids } from './render/seaisles';
@@ -1971,11 +1971,25 @@ const seaGone = (b) => b.state === 'dead' || b.state === 'down' || (b.state === 
 const seaAt = (b) => b.lev ? (b.lev.rise ?? b.lev) : b.x === undefined ? b.lair : b;
 /** Each still in the fight, what kind it is, and where the harpoon would strike it now. */
 function seaMarks(){ return seaFight ? SEA_FOES.flatMap(k => seaBoss[k].filter(b => !seaGone(b)).map(b => [k, b, b.mark(boat)])) : []; }
-let seaSpaceTold = false, seaLevTold = false;
-const seaBand = {update(dt){ if (!seaFight) return; for (const b of seaBosses()) if (!seaGone(b)){ b.update(dt, seaWorld); seaShore(b); } seaCheck(); },
+let seaSpaceTold = false, seaLevTold = false, seaHideTold = false;
+const seaBand = {update(dt){ if (!seaFight) return; for (const b of seaBosses()) if (!seaGone(b)){ b.update(dt, seaSight(b)); seaShore(b); } seaCheck(); },
   // The kid's islands go down over what swims under the water, so a shadow passing under one is hidden by its sand.
   draw(v, layer){ if (!seaFight) return; if (layer === 'surface'){ drawSeaIslesFlat(v, seaFight.isles); drawSeaRing(v, SEA_ARENA, seaFight.r); } for (const b of seaBosses()) if (!seaGone(b)) b.draw(v, layer); },
   radar(blip){ if (seaFight) for (const b of seaBosses()) if (!seaGone(b)) b.radar(blip); }};
+/** What a boss that chases the boat sees of it (data/barge.ts seaBlocked): the boat, or, with one of the kid's islands
+ * in the way, where it last saw it, still on the water, where it makes for; '?' over it when it loses the boat, '!'
+ * when it finds it again. The rest (Star up in the sky, the leviathan, the Deep One and the Cthuluviathan, who feel
+ * the boat through the water and do not chase it) are not fooled. */
+function seaSight(b){ if (b.seaGhost === undefined) return seaWorld;
+  const hid = seaBlocked(b.x, b.y, boat.x, boat.y, seaFight.isles, b.seaHid ? SEA_SEEN : undefined);
+  if (hid !== b.seaHid){ b.seaHid = hid;
+    if (hid){ b.seaGhost = {x: boat.x, y: boat.y, h: boat.h, v: 0}; b.seaSees.boat = b.seaGhost; addText(b.x, b.y, 70, '?', '#FFF3C4', 26, 1.4);
+      if (!seaHideTold){ seaHideTold = true; toast("Hidden behind the island! The bosses that chase you can't see you there.", 3000, 1); } }
+    else addText(b.x, b.y, 70, '!', '#FF9A8A', 26, 1); }
+  return hid ? b.seaSees : seaWorld; }
+/** One that chases the boat, made to lose it behind the islands; and a blow of its, which lands only on a boat it can see. */
+function seaHider(b){ b.seaGhost = null; b.seaHid = false; b.seaSees = Object.create(seaWorld); return b; }
+const seaSeen = (b, f) => (...a) => { if (!b.seaHid) f(...a); };
 /** On the land of one of the kid's islands in the ring at sea, or within pad of its sand. */
 function seaLand(x, y, pad = 0){ return !!seaFight && seaFight.isles.some(i => Math.hypot(x - i.x, y - i.y) < i.r + pad); }
 /** The kid's islands block the bosses: one that has come up onto an island's sand is put back in the water at its
@@ -2005,20 +2019,20 @@ function seaBossAt(kind, at){
     // Running into it costs the boat's health here, never fish: the Battle Barge costs nothing else.
     l.onHit = () => { shake = 1; sfx.whump(); resetNet(); addText(boat.x, boat.y, 44, 'Shoved back', '#FF9A8A', 19, 2); damage(HURT.leviathan, 'leviathan'); };
     return l; }
-  if (kind === 'angler'){ const a = new Anglerfish(anglerRing(ring), at);
-    a.onOpen = () => { sfx.anglerOpen(); shake = Math.max(shake, .25); }; a.onBite = angler.onBite; a.onMiss = () => sfx.anglerSnap(); return a; }
+  if (kind === 'angler'){ const a = seaHider(new Anglerfish(anglerRing(ring), at));
+    a.onOpen = () => { sfx.anglerOpen(); shake = Math.max(shake, .25); }; a.onBite = seaSeen(a, angler.onBite); a.onMiss = () => sfx.anglerSnap(); return a; }
   if (kind === 'cthulu'){ const c = new Cthuluviathan(seaCity(at));
     c.onWake = () => { shake = Math.max(shake, .5); sfx.cthuluWake(); }; c.onTentacle = cthulu.onTentacle;
     // A grab here takes no fish: the Battle Barge costs nothing but the boat's health.
     c.onGrab = () => { shake = Math.max(shake, .6); sfx.whump(); addText(boat.x, boat.y, 44, 'Grabbed', '#FF9A8A', 19, 1.8); damage(HURT.tentacle, 'tentacle'); };
     return c; }
-  if (kind === 'reaper'){ const r = new Reaper(seaWater(at, ring));
-    r.onWarn = reaper.onWarn; r.onSweep = reaper.onSweep; r.onRear = reaper.onRear; return r; }
-  if (kind === 'gulper'){ const g = new Gulper(gulperRing(ring), at);
-    g.onHunt = () => sfx.gulperHunt(); g.onBite = gulper.onBite; return g; }
-  if (kind === 'king'){ const k = new SharkKing(seaReef(at, ring));
+  if (kind === 'reaper'){ const r = seaHider(new Reaper(seaWater(at, ring)));
+    r.onWarn = reaper.onWarn; r.onSweep = seaSeen(r, reaper.onSweep); r.onRear = reaper.onRear; return r; }
+  if (kind === 'gulper'){ const g = seaHider(new Gulper(gulperRing(ring), at));
+    g.onHunt = () => sfx.gulperHunt(); g.onBite = seaSeen(g, gulper.onBite); return g; }
+  if (kind === 'king'){ const k = seaHider(new SharkKing(seaReef(at, ring)));
     k.onRise = () => { sfx.cthuluWake(); shake = Math.max(shake, .4); };
-    k.onWarn = king.onWarn; k.onBite = king.onBite; k.onTrident = king.onTrident; k.onSplash = king.onSplash;
+    k.onWarn = king.onWarn; k.onBite = seaSeen(k, king.onBite); k.onTrident = seaSeen(k, king.onTrident); k.onSplash = king.onSplash;
     k.onBeaten = () => { sfx.cthuluWake(); shake = Math.max(shake, .6); }; return k; }
   const d = new DeepOne(seaDeepHome(at));
   d.onRise = () => { sfx.cthuluWake(); shake = Math.max(shake, .5); };
@@ -3186,7 +3200,7 @@ function startSea(){ if (!seaTotal(barge.sea)) return;
   if (!again && !seaCan()){ sfx.denied(); toasts.clear();
     toast(!hasHarpoon() ? 'You need the harpoon to fight at sea: the shipwright sells it.' : walker.state !== 'aboard' ? 'Get aboard your boat first: at sea you fight from it.' : docked ? 'Cast off first: at sea you fight from your boat, out on the water.' : 'Not now: finish what you are doing first.', 2600, 2); return; }
   closeBarge(); if (!again){ seaFight = {x: boat.x, y: boat.y, h: boat.h}; document.body.classList.add('seafight'); }
-  seaFight.r = SEA_RING[barge.size]; seaWon = false; seaSpaceTold = false; seaLevTold = false;
+  seaFight.r = SEA_RING[barge.size]; seaWon = false; seaSpaceTold = false; seaLevTold = false; seaHideTold = false;
   const st = seaStart(seaFight.r); stowSeine(); boat.x = SEA_ARENA.x + st.x; boat.y = SEA_ARENA.y + st.y; boat.h = st.h; boat.v = 0; resetNet();
   wasDeep = wasFar = wasFarFar = true; cam.x = boat.x; cam.y = boat.y; seaCam.x = seaCam.y = 0; seaCam.k = SEA_ZOOM_MAX; irisT = SPIT; hp = HP_MAX; hudHull();
   const R = seaFight.r, spots = seaSpotsClear(seaSpots(seaTotal(barge.sea), R), barge.isles, R).map(p => ({x: SEA_ARENA.x + p.x, y: SEA_ARENA.y + p.y})); let k = 0;

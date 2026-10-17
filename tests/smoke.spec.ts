@@ -144,6 +144,9 @@ type Np = {
       strikeT: number;
       tentacles: unknown[];
       gone: boolean;
+      seaHid: boolean;
+      seaGhost: { x: number; y: number } | null;
+      onSweep(): void;
       lev: {
         rise: { x: number; y: number; nx: number; ny: number; t: number; up: number } | null;
         cool: number;
@@ -7192,6 +7195,66 @@ test("the Battle Barge at sea: the kid's map, islands tapped onto the ring, that
   });
   expect(Math.hypot(at.bx - isle.x, at.by - isle.y)).toBeGreaterThanOrEqual(isle.r);
   expect(Math.hypot(at.kx - isle.x, at.ky - isle.y)).toBeGreaterThanOrEqual(isle.r);
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge at sea: hidden behind an island, the Reaper loses the boat and his blows miss it', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { reaper: 1 }, isles: [{ x: 0, y: 0 }] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // The boat right across the island from him: he cannot see it, says so, and makes for where he saw it last.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const r = n.seaBoss.reaper[0];
+    const f = n.SEA_ARENA;
+    if (!r) return;
+    const a = Math.atan2(r.y - f.y, r.x - f.x);
+    n.boat.x = f.x - Math.cos(a) * 400;
+    n.boat.y = f.y - Math.sin(a) * 400;
+    n.boat.v = 0;
+  });
+  // Hidden, he says so; and a sweep that lands while he cannot see the boat misses it. (He makes for where he saw it
+  // last, so he soon comes round the island and finds it.)
+  const hidden = await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      const r = n.seaBoss.reaper[0];
+      if (r?.seaHid !== true || !r.seaGhost) return false;
+      const hp = n.hp;
+      r.onSweep();
+      return n.hp === hp ? 'missed' : 'hit';
+    },
+    null,
+    { timeout: 3000 },
+  );
+  expect(await hidden.jsonValue()).toBe('missed');
+  await expect(page.locator('#toast')).toContainText('Hidden behind the island');
+  // Round beside him, in plain sight: he sees it again, and a sweep lands.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const r = n.seaBoss.reaper[0];
+    const f = n.SEA_ARENA;
+    if (!r) return;
+    const a = Math.atan2(r.y - f.y, r.x - f.x);
+    n.boat.x = r.x + Math.cos(a + Math.PI / 2) * 160;
+    n.boat.y = r.y + Math.sin(a + Math.PI / 2) * 160;
+  });
+  await page.waitForFunction(() => window.__np.seaBoss.reaper[0]?.seaHid === false, null, {
+    timeout: 3000,
+  });
+  await page.evaluate(() => window.__np.seaBoss.reaper[0]?.onSweep());
+  expect(await page.evaluate(() => window.__np.hp)).toBeLessThan(100);
   expect(errors).toEqual([]);
 });
 

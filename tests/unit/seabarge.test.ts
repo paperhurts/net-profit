@@ -15,10 +15,12 @@ import {
   SEA_ISLES_MAX,
   SEA_NAMES,
   SEA_RING,
+  SEA_SEEN,
   SEA_SHORE,
   SEA_ZOOM_MAX,
   SEA_ZOOM_MIN,
   seaAdd,
+  seaBlocked,
   seaBuoys,
   seaFrame,
   seaIsleNo,
@@ -599,5 +601,25 @@ describe("the kid's map at sea", () => {
     expect(
       levRing({ x: ring.x - 300, y: ring.y }, ring).room(ring.x + 500, ring.y, Math.PI, 500),
     ).toBe(500);
+  });
+});
+
+describe('hiding behind the islands', () => {
+  const isle = { x: 0, y: 0, r: 120 };
+
+  it('hides the boat when an island is in the way, and not when the way is clear or the island is behind', () => {
+    expect(seaBlocked(-400, 0, 400, 0, [isle])).toBe(true);
+    expect(seaBlocked(-400, 200, 400, 200, [isle])).toBe(false);
+    // The island behind the boss, or past the boat, is not in the way.
+    expect(seaBlocked(-200, 0, -600, 0, [isle])).toBe(false);
+    expect(seaBlocked(400, 0, 800, 0, [isle])).toBe(false);
+    expect(seaBlocked(0, 400, 0, 400, [isle])).toBe(false);
+  });
+
+  it('does not hide at the very edge of the sand, and once hidden stays hidden a little longer', () => {
+    // A line grazing the sand: in the way at 0.8 of its reach, not at the hiding mark, but still at the seen mark.
+    const y = isle.r * 0.8;
+    expect(seaBlocked(-400, y, 400, y, [isle])).toBe(false);
+    expect(seaBlocked(-400, y, 400, y, [isle], SEA_SEEN)).toBe(true);
   });
 });
