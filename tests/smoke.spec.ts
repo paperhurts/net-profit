@@ -115,7 +115,13 @@ type Np = {
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
   walkerAt: [number, number];
-  seaFight: { x: number; y: number; h: number; r: number } | null;
+  seaFight: {
+    x: number;
+    y: number;
+    h: number;
+    r: number;
+    isles: { x: number; y: number; r: number }[];
+  } | null;
   seaWon: boolean;
   seaBoss: Record<
     'meteor' | 'king' | 'deep' | 'reaper' | 'gulper' | 'angler' | 'cthulu' | 'guard',
@@ -417,7 +423,13 @@ type Np = {
     y: number;
     hit(power: number): void;
   };
-  barge: { size: string; pick: Record<string, number>; where: string; sea: Record<string, number> };
+  barge: {
+    size: string;
+    pick: Record<string, number>;
+    where: string;
+    sea: Record<string, number>;
+    isles: { x: number; y: number }[];
+  };
   bargeWins: number;
   bargeOn: boolean;
   ARENAS: Record<string, number>;
@@ -7117,6 +7129,69 @@ test('the Battle Barge at sea: the guard leviathan rises across your way, shoves
   await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.seaBoss.guard[0]?.done)).toBe(true);
   await page.waitForFunction(() => window.__np.seaBoss.guard[0]?.gone, null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge at sea: the kid's map, islands tapped onto the ring, that block the boat and the bosses", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { king: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  const map = page.locator('#seaMap');
+  await expect(map).toBeVisible();
+  // The chart is turned the way the game is: a point of the ring, as a share of its radius, on the chart.
+  const tap = async (x: number, y: number) => {
+    const box = await map.boundingBox();
+    if (!box) throw new Error('no chart');
+    const cx = (x - y) * Math.SQRT1_2;
+    const cy = (x + y) * Math.SQRT1_2;
+    await map.click({
+      position: { x: ((cx / 1.12 + 1) / 2) * box.width, y: ((cy / 1.12 + 1) / 2) * box.height },
+    });
+  };
+  await tap(-0.35, -0.35);
+  await expect.poll(() => page.evaluate(() => window.__np.barge.isles.length)).toBe(1);
+  // Tapped again, it goes; and back.
+  await tap(-0.35, -0.35);
+  await expect.poll(() => page.evaluate(() => window.__np.barge.isles.length)).toBe(0);
+  await tap(-0.35, -0.35);
+  await expect.poll(() => page.evaluate(() => window.__np.barge.isles.length)).toBe(1);
+  // Not where the boat comes in: the card says why.
+  await tap(0.5, 0.5);
+  await expect(page.locator('#seaMapWhy')).toContainText('where your boat comes in');
+  expect(await page.evaluate(() => window.__np.barge.isles.length)).toBe(1);
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  const isle = await page.evaluate(() => window.__np.seaFight?.isles[0]);
+  if (!isle) throw new Error('no island in the ring');
+  expect(isle.r).toBeCloseTo(120, 6);
+  // Put the boat, and the Shark King, on its sand: each is back in the water by the next frame.
+  await page.evaluate((i) => {
+    const n = window.__np;
+    n.boat.x = i.x + 30;
+    n.boat.y = i.y;
+    const k = n.seaBoss.king[0];
+    if (k) {
+      k.x = i.x - 30;
+      k.y = i.y;
+    }
+  }, isle);
+  await page.waitForTimeout(200);
+  const at = await page.evaluate(() => {
+    const n = window.__np;
+    const k = n.seaBoss.king[0];
+    return { bx: n.boat.x, by: n.boat.y, kx: k?.x ?? 0, ky: k?.y ?? 0 };
+  });
+  expect(Math.hypot(at.bx - isle.x, at.by - isle.y)).toBeGreaterThanOrEqual(isle.r);
+  expect(Math.hypot(at.kx - isle.x, at.ky - isle.y)).toBeGreaterThanOrEqual(isle.r);
   expect(errors).toEqual([]);
 });
 

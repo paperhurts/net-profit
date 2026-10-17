@@ -47,9 +47,10 @@ import { alongsideFloe, FLOE_MAX, ICE_FLOE } from './world/icefloe';
 import { Shallows } from './entities/shallows';
 import { BLUE, Fighter, GREEN, RED, SLASH_ARC, SLASH_SLACK, SWORDSMAN } from './entities/fighter';
 import { BONK_EVERY, BONK_R, MONKEY_HP, Monkeys } from './entities/monkeys';
-import { ARENA_NAMES, ARENA_SIZES, arenaSpots, BARGE_DROP, BARGE_FOES, BARGE_LEAN, BARGE_MAX, BARGE_PRIZE, bargeAdd, bargeTotal, bargeZoom, BOSS_FOES, defaultBarge, FIGHTER_FOES, FOE_NAMES, FRAME_MID, SEA_ARENA, SEA_FOES, SEA_LOOK, SEA_NAMES, SEA_RING, SEA_ZOOM_MAX, SEA_ZOOM_MIN, seaAdd, seaFrame, seaSpots, seaStart, seaTotal, UNDEAD_FOES } from './data/barge';
+import { ARENA_NAMES, ARENA_SIZES, arenaSpots, BARGE_DROP, BARGE_FOES, BARGE_LEAN, BARGE_MAX, BARGE_PRIZE, bargeAdd, bargeTotal, bargeZoom, BOSS_FOES, defaultBarge, FIGHTER_FOES, FOE_NAMES, FRAME_MID, SEA_ARENA, SEA_FOES, SEA_ISLE_R, SEA_ISLES_MAX, SEA_LOOK, SEA_NAMES, SEA_RING, SEA_ZOOM_MAX, SEA_ZOOM_MIN, seaAdd, seaFrame, seaIsleNo, seaIsleTap, seaSpots, seaSpotsClear, seaStart, seaTotal, UNDEAD_FOES } from './data/barge';
 import { drawArenaBack } from './render/barge';
 import { drawSeaRing, drawSeaWater } from './render/seaarena';
+import { drawSeaIslesFlat, drawSeaIslesSea, seaIslesSolids } from './render/seaisles';
 import { BOLT_HIT, CALL_N, Sorcerer, THIRD_HP } from './entities/sorcerer';
 import { Warlock, WARLOCK_HEARTS } from './entities/warlock';
 import { WarlockBoat } from './entities/warlockboat';
@@ -1735,7 +1736,7 @@ function crateSeat(){ const c = Math.cos(boat.h), s = Math.sin(boat.h), k = bk()
 const RIDER_PAL = {warrior, bones: bonesPal, necro: necroPal, caterman};
 flotilla.free = (r) => r === 'tarling' ? tarling.free : RIDER_PAL[r].free;
 flotilla.riding = (r) => r === 'tarling' ? !tarling.with : !RIDER_PAL[r].shown;
-flotilla.onLand = (x, y) => landAt(x, y);
+flotilla.onLand = (x, y) => landAt(x, y) || seaLand(x, y, 20);
 // On the swan they pedal: the legs going round under way.
 function riderOn(r){ const v = drawView; return (x, y, z, h, pedal) => { const ph = pedal ? pedal.ph : 0, gait = pedal ? pedal.gait : 0;
   if (r === 'tarling') drawTarblob(v, v.px(x, y), v.py(x, y, z), h, .95, v.T);
@@ -1971,9 +1972,23 @@ const seaAt = (b) => b.lev ? (b.lev.rise ?? b.lev) : b.x === undefined ? b.lair 
 /** Each still in the fight, what kind it is, and where the harpoon would strike it now. */
 function seaMarks(){ return seaFight ? SEA_FOES.flatMap(k => seaBoss[k].filter(b => !seaGone(b)).map(b => [k, b, b.mark(boat)])) : []; }
 let seaSpaceTold = false, seaLevTold = false;
-const seaBand = {update(dt){ if (!seaFight) return; for (const b of seaBosses()) if (!seaGone(b)) b.update(dt, seaWorld); seaCheck(); },
-  draw(v, layer){ if (!seaFight) return; if (layer === 'surface') drawSeaRing(v, SEA_ARENA, seaFight.r); for (const b of seaBosses()) if (!seaGone(b)) b.draw(v, layer); },
+const seaBand = {update(dt){ if (!seaFight) return; for (const b of seaBosses()) if (!seaGone(b)){ b.update(dt, seaWorld); seaShore(b); } seaCheck(); },
+  // The kid's islands go down over what swims under the water, so a shadow passing under one is hidden by its sand.
+  draw(v, layer){ if (!seaFight) return; if (layer === 'surface'){ drawSeaIslesFlat(v, seaFight.isles); drawSeaRing(v, SEA_ARENA, seaFight.r); } for (const b of seaBosses()) if (!seaGone(b)) b.draw(v, layer); },
   radar(blip){ if (seaFight) for (const b of seaBosses()) if (!seaGone(b)) b.radar(blip); }};
+/** On the land of one of the kid's islands in the ring at sea, or within pad of its sand. */
+function seaLand(x, y, pad = 0){ return !!seaFight && seaFight.isles.some(i => Math.hypot(x - i.x, y - i.y) < i.r + pad); }
+/** The kid's islands block the bosses: one that has come up onto an island's sand is put back in the water at its
+ * edge, where it slides round it; so is where it is making for, the gulper's body, and a tentacle coming up. Star flies over them, and the
+ * leviathan goes under them and rises clear of them. */
+function seaShore(b){ if (!seaFight.isles.length) return;
+  const off = (p, pad) => { for (const i of seaFight.isles){ const dx = p.x - i.x, dy = p.y - i.y, d = Math.hypot(dx, dy), r = i.r + pad;
+    if (d < r && d > 0){ p.x = i.x + dx/d*r; p.y = i.y + dy/d*r; } } };
+  if (b.tentacles) for (const t of b.tentacles) off(t, 20);
+  if (b.lev || b instanceof MeteorSerpent || b.x === undefined) return;
+  off(b, 40); if (typeof b.tx === 'number'){ const t = {x: b.tx, y: b.ty}; off(t, 40); b.tx = t.x; b.ty = t.y; }
+  // The gulper's long body too, link by link, so it slides round after its head.
+  if (Array.isArray(b.body)) for (const p of b.body) off(p, 30); }
 /** One of the sea bosses at its spot in the ring, with its blows and sounds, which are its own island's. */
 function seaBossAt(kind, at){
   if (kind === 'meteor'){ const m = new MeteorSerpent(seaHaunt(at));
@@ -1983,7 +1998,7 @@ function seaBossAt(kind, at){
     m.onSpace = () => { if (seaSpaceTold) return; seaSpaceTold = true; toast("Star saw the Deep One and shot up into space! He'll be back once it's beaten.", 3600, 1); };
     m.onWarn = serpent.onWarn; m.onHit = serpent.onHit; m.onSplash = serpent.onSplash; return m; }
   const ring = {...SEA_ARENA, r: seaFight.r};
-  if (kind === 'guard'){ const l = new Leviathan(Math.random, levRing(at, ring));
+  if (kind === 'guard'){ const l = new Leviathan(Math.random, levRing(at, ring, (x, y) => seaLand(x, y, 60)));
     l.onPass = () => { shake = Math.max(shake, .3); sfx.leviathan(); };
     l.onRise = () => { shake = Math.max(shake, .35); sfx.leviathanRise();
       if (!seaLevTold){ seaLevTold = true; toast('The leviathan rises across your way! Turn away from the spines, or harpoon it while it stands.', 3200, 1); } };
@@ -3071,7 +3086,7 @@ $('testerClose').addEventListener('click', () => { sfx.click(); $('tester').hidd
 let bargeFrom = null, bargeWon = false, bargeShown = false;
 /** Whether a fight can start from here, now. */
 function bargeCan(){ return started && spear > 0 && !seaFight && floor < 0 && !diving && !icing && !cine && swallowT <= 0 && !inFight() && (walker.aboard || walker.state === 'ashore'); }
-function openBarge(){ audio(); sfx.click(); renderBarge(); $('bargeCard').hidden = false; }
+function openBarge(){ audio(); sfx.click(); seaMapWhy = ''; renderBarge(); $('bargeCard').hidden = false; }
 function closeBarge(){ $('bargeCard').hidden = true; }
 function renderBarge(){
   // On the barge the next fight is on foot; out at the ring, at sea.
@@ -3088,18 +3103,41 @@ function renderBarge(){
     return `${k === BOSS_FOES[0] ? '<p class="tnote">Bosses</p>' : ''}<div class="boat foe"><div><b>${n}</b><small>${d}${why}</small></div><div class="count"><button class="rchip" data-foe="${k}" data-d="-1" aria-label="One fewer ${n}">−</button><span>${barge.pick[k]}</span><button class="rchip" data-foe="${k}" data-d="1" aria-label="One more ${n}"${total >= BARGE_MAX || noSpray ? ' disabled' : ''}>+</button></div></div>`; }).join('');
   $('bargeTotal').textContent = total ? `${total} of ${BARGE_MAX} picked.` : 'Pick at least one to fight.';
   $('bargeGo').disabled = !total; }
-/** The card's At sea side: the sea bosses, fought from the boat with the harpoon. */
+/** The card's At sea side: the kid's map, and the sea bosses, fought from the boat with the harpoon. */
 function renderSea(){ const total = seaTotal(barge.sea), harpoon = hasHarpoon();
-  $('bargeList').innerHTML = `<p class="tnote">${harpoon ? 'Out on open water in a ring of buoys, fought from your boat with the harpoon.' : 'You need the harpoon to fight at sea: the shipwright sells it.'}</p>` + SEA_FOES.map(k => { const [n, d] = SEA_NAMES[k];
+  $('bargeList').innerHTML = `<p class="tnote">${harpoon ? 'Out on open water in a ring of buoys, fought from your boat with the harpoon.' : 'You need the harpoon to fight at sea: the shipwright sells it.'}</p>` + seaChart() + SEA_FOES.map(k => { const [n, d] = SEA_NAMES[k];
     return `<div class="boat foe"><div><b>${n}</b><small>${d}</small></div><div class="count"><button class="rchip" data-sea="${k}" data-d="-1" aria-label="One fewer ${n}">−</button><span>${barge.sea[k]}</span><button class="rchip" data-sea="${k}" data-d="1" aria-label="One more ${n}"${total >= BARGE_MAX ? ' disabled' : ''}>+</button></div></div>`; }).join('');
   $('bargeTotal').textContent = total ? `${total} of ${BARGE_MAX} picked.` : 'Pick at least one to fight.';
   $('bargeGo').disabled = !total || !harpoon; }
+/** The kid's map on the card: the ring from above, turned the way the game is (up on the chart is up on the screen),
+ * his islands on it, his boat where it comes in, and the bosses where they start. Tap the water for an island there,
+ * an island to take it away; where one cannot go, the card says why. */
+const SEA_CHART = 1.12;
+const SEA_MAP_NO = {edge: 'Not so near the buoys: leave a way round.', boat: 'Not there: that is where your boat comes in.', near: 'Too near another island: leave water between them.', full: `That is ${SEA_ISLES_MAX} islands, the most. Tap one to take it away.`};
+let seaMapWhy = '';
+const seaChartAt = (x, y) => [((x - y)*Math.SQRT1_2).toFixed(3), ((x + y)*Math.SQRT1_2).toFixed(3)];
+function seaChart(){ const R = SEA_RING[barge.size], st = seaStart(1), [bx, by] = seaChartAt(st.x, st.y).map(Number);
+  const spots = seaSpotsClear(seaSpots(seaTotal(barge.sea), R), barge.isles, R);
+  const buoys = Array.from({length: 24}, (_, i) => { const a = i/24*Math.PI*2; return `<circle cx="${Math.cos(a).toFixed(3)}" cy="${Math.sin(a).toFixed(3)}" r=".032" fill="${i % 2 ? '#F2C230' : '#E4572E'}"/>`; }).join('');
+  const isles = barge.isles.map(i => { const [x, y] = seaChartAt(i.x, i.y);
+    return `<circle cx="${x}" cy="${y}" r="${SEA_ISLE_R*1.35}" fill="#35A0A6"/><circle cx="${x}" cy="${y}" r="${SEA_ISLE_R}" fill="#F2D9A0"/><circle cx="${x}" cy="${y}" r="${SEA_ISLE_R*.6}" fill="#6FB062"/>`; }).join('');
+  const foes = spots.map(p => { const [x, y] = seaChartAt(p.x/R, p.y/R); return `<circle cx="${x}" cy="${y}" r=".035" fill="#3B1F3F" stroke="#FFF7E6" stroke-width=".012"/>`; }).join('');
+  const boatAt = `<path d="M${bx} ${(by - .075).toFixed(3)}L${(bx - .045).toFixed(3)} ${(by + .05).toFixed(3)}L${(bx + .045).toFixed(3)} ${(by + .05).toFixed(3)}Z" fill="#FFF7E6" stroke="#C0392B" stroke-width=".015"/>`;
+  return `<p class="tnote">Your map: tap the sea to put an island there (up to ${SEA_ISLES_MAX}), and tap an island to take it away. Islands block the bosses and your boat. The dark dots are where the bosses start.</p>`
+    + `<svg id="seaMap" viewBox="${-SEA_CHART} ${-SEA_CHART} ${SEA_CHART*2} ${SEA_CHART*2}" role="img" aria-label="Your map, with ${barge.isles.length} islands. Tap the sea to put an island there.">`
+    + `<rect x="${-SEA_CHART}" y="${-SEA_CHART}" width="${SEA_CHART*2}" height="${SEA_CHART*2}" rx=".12" fill="#0E4252"/><circle r="1" fill="#16586A"/><circle r=".45" fill="#1A6276"/>`
+    + `<circle r="1" fill="none" stroke="#F2C230" stroke-width=".01" stroke-dasharray=".03 .03"/>${buoys}${isles}${foes}${boatAt}</svg>`
+    + `<p class="tnote" id="seaMapWhy"${seaMapWhy ? '' : ' hidden'}>${seaMapWhy}</p>`; }
 $('bargeBtn').addEventListener('click', openBarge);
 $('bargeOpen').addEventListener('click', openBarge);
 $('bargeClose').addEventListener('click', () => { sfx.click(); closeBarge(); });
 $('bargeWhere').addEventListener('click', (e) => { const b = e.target.closest('[data-where]'); if (!b) return; barge.where = b.dataset.where; sfx.click(); renderBarge(); save(); });
 $('bargeSize').addEventListener('click', (e) => { const b = e.target.closest('[data-size]'); if (!b) return; barge.size = b.dataset.size; sfx.click(); renderBarge(); save(); });
-$('bargeList').addEventListener('click', (e) => { const s = e.target.closest('[data-sea]');
+$('bargeList').addEventListener('click', (e) => { const m = e.target.closest('#seaMap');
+  if (m){ const rc = m.getBoundingClientRect(), cx = ((e.clientX - rc.left)/rc.width*2 - 1)*SEA_CHART, cy = ((e.clientY - rc.top)/rc.height*2 - 1)*SEA_CHART;
+    const p = {x: (cx + cy)*Math.SQRT1_2, y: (cy - cx)*Math.SQRT1_2}, next = seaIsleTap(barge.isles, p), why = next.length === barge.isles.length ? seaIsleNo(barge.isles, p) : null;
+    seaMapWhy = why ? SEA_MAP_NO[why] : ''; if (why) sfx.denied(); else sfx.click(); barge.isles = next; renderBarge(); save(); return; }
+  seaMapWhy = ''; const s = e.target.closest('[data-sea]');
   if (s){ barge.sea = seaAdd(barge.sea, s.dataset.sea, Number(s.dataset.d)); sfx.click(); renderBarge(); save(); return; }
   const b = e.target.closest('[data-foe]'); if (!b) return;
   barge.pick = bargeAdd(barge.pick, b.dataset.foe, Number(b.dataset.d)); sfx.click(); renderBarge(); save(); });
@@ -3151,7 +3189,9 @@ function startSea(){ if (!seaTotal(barge.sea)) return;
   seaFight.r = SEA_RING[barge.size]; seaWon = false; seaSpaceTold = false; seaLevTold = false;
   const st = seaStart(seaFight.r); stowSeine(); boat.x = SEA_ARENA.x + st.x; boat.y = SEA_ARENA.y + st.y; boat.h = st.h; boat.v = 0; resetNet();
   wasDeep = wasFar = wasFarFar = true; cam.x = boat.x; cam.y = boat.y; seaCam.x = seaCam.y = 0; seaCam.k = SEA_ZOOM_MAX; irisT = SPIT; hp = HP_MAX; hudHull();
-  const R = seaFight.r, spots = seaSpots(seaTotal(barge.sea), R).map(p => ({x: SEA_ARENA.x + p.x, y: SEA_ARENA.y + p.y})); let k = 0;
+  const R = seaFight.r, spots = seaSpotsClear(seaSpots(seaTotal(barge.sea), R), barge.isles, R).map(p => ({x: SEA_ARENA.x + p.x, y: SEA_ARENA.y + p.y})); let k = 0;
+  // The kid's map: his islands where he put them, at this ring's size.
+  seaFight.isles = barge.isles.map(i => ({x: SEA_ARENA.x + i.x*R, y: SEA_ARENA.y + i.y*R, r: SEA_ISLE_R*R}));
   for (const kind of SEA_FOES) seaBoss[kind] = spots.slice(k, k += barge.sea[kind]).map(p => seaBossAt(kind, p));
   sfx.portal(); shake = Math.max(shake, .3); toasts.clear(); toast(`The Battle Barge, at sea! ${seaTotal(barge.sea)} to beat. Harpoon them!`, 2600, 2); }
 /** Back where the boat was, its hull mended and its catch kept: left, or sunk. */
@@ -3858,7 +3898,8 @@ function update(dt){
   // Out at the Battle Barge at sea, its ring of buoys holds the boat instead.
   if (seaFight){ const dx = boat.x - SEA_ARENA.x, dy = boat.y - SEA_ARENA.y, d = Math.hypot(dx, dy), max = seaFight.r - 30*bk();
     if (d > max){ boat.x = SEA_ARENA.x + dx/d*max; boat.y = SEA_ARENA.y + dy/d*max; boat.v *= .9;
-      if (rangeToastT <= 0){ rangeToastT = 9; toast('The Battle Barge\'s buoys: the fight is inside them. Leave the Battle Barge to go home.', 3000, 1); } } }
+      if (rangeToastT <= 0){ rangeToastT = 9; toast('The Battle Barge\'s buoys: the fight is inside them. Leave the Battle Barge to go home.', 3000, 1); } }
+    for (const i of seaFight.isles) pushOut(boat, i.x, i.y, i.r + 24*bk()); }
   else { const flag = tier() === TIER_NAME.length-1, m = seaEdge(flag, farOpen(), farFarOpen()), x0 = boat.x, y0 = boat.y;
     boat.x = clamp(boat.x, 40-m, WS-40+m); boat.y = clamp(boat.y, 40-m, WS-40+m);
     if ((boat.x !== x0 || boat.y !== y0) && rangeToastT <= 0){ rangeToastT = 9;
@@ -4077,6 +4118,7 @@ function drawSea(){
   drawIsle11Sea(drawView);
   drawIsle7Sea(drawView);
   drawIsle8Sea(drawView);
+  if (seaFight) drawSeaIslesSea(drawView, seaFight.isles);
   drawUnderwaterPlants(drawView);
 
   /* wave glints across the visible patch of world */
@@ -4564,6 +4606,7 @@ function drawWorldObjects(){
   list.push(...isle6Solids(drawView, (i) => (chests6 & (1 << i)) !== 0, (i, sx, sy) => drawPerched(drawView, birds6, i, sx, sy)));
   if (onScreen(ISLE6.x, ISLE6.y, (ISLE6.r + 260)*Z)) for (const s of birds6.pipers){ const p = wetSand(s.a); if (onScreen(p.x, p.y, 40*Z)) list.push({d: p.x + p.y, f: () => drawPiper(drawView, s)}); }
   list.push(...isle7Solids(drawView, isle7Look()));
+  if (seaFight) list.push(...seaIslesSolids(drawView, seaFight.isles));
   list.push(...isle8Solids(drawView, isle8Look()));
   if (cine && cine.kind === 'heron') list.push(...escapeSolids(drawView, escapeAt(cine.t)));
   list.push(...isle11Solids(drawView, !catermanFree, isle7Stage >= 4));

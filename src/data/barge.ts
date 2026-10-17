@@ -336,6 +336,70 @@ export function seaSpots(n: number, r: number): { x: number; y: number }[] {
   return out;
 }
 
+/**
+ * The kid's map for the ring at sea (2026-10-17), "you make its map": islands where he taps them on a chart of the
+ * ring, on the card's At sea side, each where it is from the ring's middle as a share of the ring's radius, so a map
+ * fits every size of ring. Up to SEA_ISLES_MAX, each SEA_ISLE_R of the ring across from its middle; each keeps its sand
+ * inside the buoys with a way round, clear of where the boat comes in, and apart from the others. In the fight the
+ * islands stand in the ring and block the boat and the bosses alike.
+ */
+export type SeaIsle = { x: number; y: number };
+export const SEA_ISLES_MAX = 5;
+export const SEA_ISLE_R = 0.15;
+/** Its middle no further out than this, which leaves a way round between its sand and the buoys. */
+export const SEA_ISLE_REACH = 0.7;
+/** Its middle no nearer than this to where the boat comes in. */
+export const SEA_ISLE_CLEAR = 0.38;
+/** Water at least this wide between two islands' sand. */
+export const SEA_ISLE_GAP = 0.06;
+/** Why an island cannot go here: too near the boat, too far out, too near another island, or the map is full. */
+export type SeaIsleNo = 'edge' | 'boat' | 'near' | 'full';
+export function seaIsleNo(isles: readonly SeaIsle[], p: SeaIsle): SeaIsleNo | null {
+  const st = seaStart(1);
+  if (Math.hypot(p.x - st.x, p.y - st.y) < SEA_ISLE_CLEAR) return 'boat';
+  if (Math.hypot(p.x, p.y) > SEA_ISLE_REACH) return 'edge';
+  for (const i of isles)
+    if (Math.hypot(p.x - i.x, p.y - i.y) < SEA_ISLE_R * 2 + SEA_ISLE_GAP) return 'near';
+  if (isles.length >= SEA_ISLES_MAX) return 'full';
+  return null;
+}
+/** A tap on the chart: on an island it takes it away; on open water it adds one there, if one may go there. */
+export function seaIsleTap(isles: readonly SeaIsle[], p: SeaIsle): SeaIsle[] {
+  const hit = isles.findIndex((i) => Math.hypot(p.x - i.x, p.y - i.y) <= SEA_ISLE_R);
+  if (hit >= 0) return isles.filter((_, k) => k !== hit);
+  if (seaIsleNo(isles, p)) return [...isles];
+  return [...isles, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
+}
+/** Water this wide is kept between a boss's spot and an island's sand: the Deep One, the biggest that stays put, clear of it. */
+export const SEA_SHORE = 110;
+/**
+ * The bosses' spots (seaSpots) kept off the islands in a ring of radius r: one on an island or too near its sand is
+ * moved straight out from the island's middle to clear water, or, where that would take it out to the buoys, across
+ * to the island's far side.
+ */
+export function seaSpotsClear(
+  spots: readonly { x: number; y: number }[],
+  isles: readonly SeaIsle[],
+  r: number,
+): { x: number; y: number }[] {
+  const reach = SEA_ISLE_R * r + SEA_SHORE;
+  return spots.map((s) => {
+    let p = { ...s };
+    for (let pass = 0; pass < 2; pass++)
+      for (const i of isles) {
+        const cx = i.x * r;
+        const cy = i.y * r;
+        const d = Math.hypot(p.x - cx, p.y - cy);
+        if (d >= reach) continue;
+        const a = d > 0 ? Math.atan2(p.y - cy, p.x - cx) : Math.atan2(-cy, -cx);
+        p = { x: cx + Math.cos(a) * reach, y: cy + Math.sin(a) * reach };
+        if (Math.hypot(p.x, p.y) > r * 0.85)
+          p = { x: cx - Math.cos(a) * reach, y: cy - Math.sin(a) * reach };
+      }
+    return p;
+  });
+}
+
 export type SeaPick = Record<SeaFoe, number>;
 
 /** No sea boss picked. */
@@ -357,8 +421,14 @@ export function seaAdd(p: SeaPick, k: SeaFoe, d: number): SeaPick {
 }
 
 export type BargePick = Record<BargeFoe, number>;
-/** The arena's size, on foot or at sea, who to fight on foot, and who at sea. */
-export type BargeSetup = { size: ArenaSize; pick: BargePick; where: BargeWhere; sea: SeaPick };
+/** The arena's size, on foot or at sea, who to fight on foot, who at sea, and the kid's map of islands there. */
+export type BargeSetup = {
+  size: ArenaSize;
+  pick: BargePick;
+  where: BargeWhere;
+  sea: SeaPick;
+  isles: SeaIsle[];
+};
 
 /** Nobody picked. */
 export function noPick(): BargePick {
@@ -373,6 +443,7 @@ export function defaultBarge(): BargeSetup {
     pick: { ...noPick(), monkey: 3, skeleton: 2 },
     where: 'foot',
     sea: { ...noSeaPick(), meteor: 1 },
+    isles: [],
   };
 }
 
@@ -391,11 +462,17 @@ export function bargeAdd(p: BargePick, k: BargeFoe, d: number): BargePick {
 
 /**
  * A saved setup read back: a size it knows, counts that are whole and not below none, ten at most; missing, the start.
- * One saved before the sea's is on foot, with the sea's start.
+ * One saved before the sea's is on foot, with the sea's start; one saved before the map has open water.
  */
 export function parseBarge(o: unknown): BargeSetup {
   if (!o || typeof o !== 'object') return defaultBarge();
-  const src = o as { size?: unknown; pick?: unknown; where?: unknown; sea?: unknown };
+  const src = o as {
+    size?: unknown;
+    pick?: unknown;
+    where?: unknown;
+    sea?: unknown;
+    isles?: unknown;
+  };
   const size = (ARENA_SIZES as readonly unknown[]).includes(src.size)
     ? (src.size as ArenaSize)
     : 'medium';
@@ -415,7 +492,16 @@ export function parseBarge(o: unknown): BargeSetup {
       if (typeof n === 'number' && Number.isFinite(n) && n > 0) sea = seaAdd(sea, k, Math.floor(n));
     }
   } else sea = defaultBarge().sea;
-  return { size, pick, where, sea };
+  // The map: each island kept only where one may go, in order, and no more than the most.
+  let isles: SeaIsle[] = [];
+  if (Array.isArray(src.isles))
+    for (const i of src.isles) {
+      const q = (i && typeof i === 'object' ? i : {}) as { x?: unknown; y?: unknown };
+      if (typeof q.x !== 'number' || typeof q.y !== 'number') continue;
+      if (!Number.isFinite(q.x) || !Number.isFinite(q.y)) continue;
+      if (!seaIsleNo(isles, { x: q.x, y: q.y })) isles = seaIsleTap(isles, { x: q.x, y: q.y });
+    }
+  return { size, pick, where, sea, isles };
 }
 
 /**
