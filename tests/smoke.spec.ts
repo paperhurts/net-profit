@@ -75,6 +75,7 @@ type Np = {
   };
   prairieAt(k: 'bunny' | 'dog' | 'bison', i: number): [number, number] | null;
   junk: number;
+  flotsam: { x: number; y: number }[];
   muffins: number[];
   leggy: { count: number; list: { x: number; y: number; hop: number }[] };
   leggyAt(i: number): [number, number] | null;
@@ -113,6 +114,7 @@ type Np = {
   closeScope(): void;
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
+  walkerAt: [number, number];
   seaFight: { x: number; y: number; h: number; r: number } | null;
   seaWon: boolean;
   seaBoss: Record<
@@ -841,7 +843,14 @@ test('junk: now and then the net brings up junk with the fish, into a bucket on 
   // The hold has only the fish in it.
   expect(hold).toBeGreaterThanOrEqual(junk);
   await expect(page.locator('#junk')).toBeVisible();
-  await expect(page.locator('#junk')).toContainText(String(junk));
+  // The bucket's chip shows what is in it: the net, still towing, may bring up one more after the count above.
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (document.querySelector('#junk')?.textContent ?? '').includes(String(window.__np.junk)),
+      ),
+    )
+    .toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -1450,6 +1459,14 @@ test('the fishing rod: stopped by some lionfish, cast, reel in when the float go
     gear: { rod: true },
     trip: { x: gx - 130, y: gy - 60, h: 0, clock: 0.3, hold: [] },
   });
+  // A salvage crate that happens to be under the boat or the net pays too: none near, for this.
+  await page.evaluate(() => {
+    for (const f of window.__np.flotsam) {
+      f.x = -50000;
+      f.y = -50000;
+    }
+  });
+  const before = await page.evaluate(() => window.__np.coins);
   const rod = page.locator('#rodcast');
   await expect(rod).toHaveText('Cast for lionfish', { timeout: 3000 });
   await rod.click();
@@ -1458,7 +1475,7 @@ test('the fishing rod: stopped by some lionfish, cast, reel in when the float go
   // The button pulses while the float is under; a finger does not wait for it to be still.
   await rod.click({ force: true });
   await page.waitForFunction(() => window.__np.lionCaught === 1, null, { timeout: 1000 });
-  expect(await page.evaluate(() => window.__np.coins)).toBe(140);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(before + 40);
   expect(errors).toEqual([]);
 });
 
@@ -5428,6 +5445,54 @@ test("island 10's swamp: the swamp monster wakes with a roar and waves; a bear c
   expect(errors).toEqual([]);
 });
 
+test('ashore with a tall column of bubbles, the message goes beside it and the figure stands low, clear of both', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    armour: 5,
+    junk: 12,
+    isle4Stage: 1,
+    isle10Seen: true,
+    snacks: { apple: 9, carrot: 9, banana: 9 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7044, y: -1440, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const a = Math.atan2(n.OLDMAN10.y - n.WEB.y, n.OLDMAN10.x - n.WEB.x);
+    n.walker.x = n.WEB.x + Math.cos(a) * 60;
+    n.walker.y = n.WEB.y + Math.sin(a) * 60;
+  });
+  await expect(page.locator('#toast')).toContainText('hung you in his web', { timeout: 8000 });
+  await page.waitForTimeout(1200);
+  const at = await page.evaluate(() => {
+    const t = document.querySelector('#toast')?.getBoundingClientRect();
+    const r = document.querySelector('#rchips')?.getBoundingClientRect();
+    return {
+      side: document.querySelector('#toast')?.classList.contains('side'),
+      right: t ? t.right : 0,
+      bottom: t ? t.bottom : 0,
+      column: r ? r.left : 0,
+      walker: window.__np.walkerAt,
+      h: innerHeight,
+    };
+  });
+  expect(at.side).toBe(true);
+  // Beside the column, not under it.
+  expect(at.right).toBeLessThanOrEqual(at.column);
+  // The figure low on the screen, below the message.
+  expect(at.walker[1]).toBeGreaterThan(at.h * 0.55);
+  expect(at.walker[1]).toBeGreaterThan(at.bottom);
+  expect(errors).toEqual([]);
+});
+
 test("island 10's spider: he hangs you in his web without bug spray; the old man's spray beats him for coins", async ({
   context,
   page,
@@ -6804,6 +6869,10 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
   });
   expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
   // Up beside the Deep One with its eye open, one hit from beaten: the harpoon sinks it, the boat free, and it is won.
+  // The harpoon reloads (HARPOON_RELOAD, 1.2 s) from the shot at the King first, and only then the eye opens, so it is
+  // still open when the harpoon lands, however slow the machine. (With nothing in reach the throw button is hidden and
+  // says nothing of the reload, so this waits the time out.)
+  await page.waitForTimeout(1500);
   await page.evaluate(() => {
     const n = window.__np;
     const d = n.seaBoss.deep[0];
@@ -6818,8 +6887,6 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
     d.eyeT = 0;
   });
   await page.waitForFunction(() => window.__np.harpoonTarget === 'deep', null, { timeout: 2000 });
-  // The harpoon reloaded from the shot at the King.
-  await expect(page.locator('#throw')).not.toHaveClass(/wait/, { timeout: 4000 });
   await page.evaluate(() => window.__np.fireHarpoon());
   await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.seaBoss.deep[0]?.state)).toBe('sink');

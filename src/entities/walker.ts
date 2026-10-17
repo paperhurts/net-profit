@@ -157,6 +157,13 @@ export function walkPace(push: number): number {
 }
 /** How much closer the camera comes while ashore: a figure this size wants it. */
 export const WALK_ZOOM = 0.6;
+/**
+ * And how far below the screen's middle it keeps the figure, of the screen's height, the owner's (2026-10-16: "on land
+ * the camera needs some adjusting so the player is closer to the bottom of the screen, same as the Battle Barge"): with
+ * the bubbles down the top right, the figure in the middle stood just under them, under the messages, with empty sea
+ * below. Lower, it shows more of what is ahead.
+ */
+export const WALK_DROP = 0.12;
 /** The boat comes round to its berth in at most this many seconds, easing there and turning this fast. */
 export const MOOR_TIME = 1.6;
 export const MOOR_EASE = 2.6;
