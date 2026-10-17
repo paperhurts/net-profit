@@ -11,7 +11,9 @@
 import { rgba, shade } from '../core/color';
 import { clamp, rng } from '../core/math';
 import type { Species } from '../data/tuning';
+import type { DeepKind } from '../world/trench';
 import { drawSideCrab } from './crab';
+import { DEEP_KINDS, drawDeepFish } from './deepfish';
 
 /** The tank's width in its own units; its height follows the screen. */
 export const TANK_W = 300;
@@ -43,7 +45,8 @@ export type Shape =
   | 'parrot'
   | 'crab'
   | 'squid'
-  | 'dragon';
+  | 'dragon'
+  | 'deep';
 
 /** How one kind looks side on, and where in the water it likes to be. */
 export type Look = {
@@ -64,6 +67,8 @@ export type Look = {
   sparkle?: boolean;
   /** Its depth, as shares of the water from the surface to the sand. */
   band: readonly [number, number];
+  /** Which of the abyss's deep fish it is, drawn its own way (render/deepfish.ts). */
+  deep?: DeepKind;
 };
 
 export type TankFish = {
@@ -118,6 +123,8 @@ const SHAPES: Record<string, Shape> = {
   'glow squid': 'squid',
   'neon dragonfish': 'dragon',
   'snow crab': 'crab',
+  'giant glow squid': 'squid',
+  ...Object.fromEntries(Object.keys(DEEP_KINDS).map((n) => [n, 'deep' as const])),
 };
 const LOW = new Set([
   'pufferfish',
@@ -127,6 +134,8 @@ const LOW = new Set([
   'neon dragonfish',
   'icefish',
   'channel catfish',
+  'giant glow squid',
+  ...Object.keys(DEEP_KINDS),
 ]);
 const MID = new Set([
   'shark',
@@ -163,6 +172,7 @@ export function speciesLook(S: Species, i: number): Look {
     ...(S.light ? { glowC: S.light } : {}),
     ...(S.rare || S.name === 'goldfin' ? { sparkle: true } : {}),
     band: S.crab ? BAND.floor : LOW.has(S.name) ? BAND.low : MID.has(S.name) ? BAND.mid : BAND.top,
+    ...(DEEP_KINDS[S.name] ? { deep: DEEP_KINDS[S.name] } : {}),
   };
 }
 
@@ -801,6 +811,9 @@ export function drawSideFish(
       break;
     case 'dragon':
       dragon(ctx, look, L, H, beat, T);
+      break;
+    case 'deep':
+      if (look.deep) drawDeepFish(ctx, look.deep, L, H, ph, T);
       break;
     default:
       body(ctx, look, L, H, beat, dark);

@@ -73,6 +73,10 @@ describe('species table', () => {
       'starfin',
       'glow squid',
       'neon dragonfish',
+      'giant glow squid',
+      'gloomer',
+      'stoplight loosejaw',
+      'viper fish',
     ]);
     expect(SPECIES.filter((s) => s.rare).map((s) => s.name)).toEqual(['sunrise koi', 'dusk ray']);
     expect(RING_R).toHaveLength(SHARK);

@@ -305,6 +305,105 @@ export const SPECIES: readonly Species[] = [
     mark: '#E8E4DA',
     dot: true,
   },
+  // On the abyss's floor past the white buoys, 1,000 metres down, speared out of the dive cage: the kid's ten deep
+  // fish, all worth 91 (his answer). A giant glow squid, teal and glowing, three times the trench's;
+  {
+    name: 'giant glow squid',
+    pl: 'giant glow squid',
+    v: 91,
+    c: '#3FCFC0',
+    s: 16,
+    fat: 0.3,
+    tail: 0.5,
+    mark: '#E8FFFB',
+    glow: true,
+    light: '#5FF3E0',
+  },
+  // a gloomer, his: a flower for a mouth on a naga's long body, the flower glowing pink;
+  {
+    name: 'gloomer',
+    pl: 'gloomers',
+    v: 91,
+    c: '#6B4A7A',
+    s: 15,
+    fat: 0.14,
+    tail: 0.4,
+    glow: true,
+    light: '#FF7AB8',
+  },
+  // a clown fish, orange with white bands;
+  {
+    name: 'clown fish',
+    pl: 'clown fish',
+    v: 91,
+    c: '#F2762E',
+    s: 6,
+    fat: 0.5,
+    tail: 0.6,
+    mark: '#FFFFFF',
+  },
+  // a nibbler, his drawing: little and brown with a forked tail and a big open mouth;
+  {
+    name: 'nibbler',
+    pl: 'nibblers',
+    v: 91,
+    c: '#8A5A34',
+    s: 5.5,
+    fat: 0.5,
+    tail: 0.7,
+    mark: '#2A160C',
+  },
+  // a stoplight loosejaw, black, its jaw hanging open, a red light under its eye;
+  {
+    name: 'stoplight loosejaw',
+    pl: 'stoplight loosejaws',
+    v: 91,
+    c: '#1A1418',
+    s: 9,
+    fat: 0.2,
+    tail: 0.5,
+    glow: true,
+    light: '#FF3B3B',
+  },
+  // a viper fish, dark, with fangs too long for its mouth and lights along its belly;
+  {
+    name: 'viper fish',
+    pl: 'viper fish',
+    v: 91,
+    c: '#23303A',
+    s: 10,
+    fat: 0.22,
+    tail: 0.5,
+    glow: true,
+    light: '#9FE8FF',
+  },
+  // an owl fish, pale, with huge tube eyes;
+  { name: 'owl fish', pl: 'owl fish', v: 91, c: '#C9C0B4', s: 7, fat: 0.32, tail: 0.6 },
+  // a chimaera, a silver ghost shark with a whip of a tail;
+  { name: 'chimaera', pl: 'chimaeras', v: 91, c: '#B8C2CC', s: 14, fat: 0.22, tail: 0.3 },
+  // a coelacanth, big, deep blue and spotted white, older than the dinosaurs;
+  {
+    name: 'coelacanth',
+    pl: 'coelacanths',
+    v: 91,
+    c: '#2E4E7A',
+    s: 18,
+    fat: 0.3,
+    tail: 0.7,
+    mark: '#F4F4F0',
+    dot: true,
+  },
+  // and a frilled shark, brown and long as an eel, with frilly gills.
+  {
+    name: 'frilled shark',
+    pl: 'frilled sharks',
+    v: 91,
+    c: '#5A4636',
+    s: 20,
+    fat: 0.12,
+    tail: 0.5,
+    mark: '#C46A5A',
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -322,6 +421,9 @@ export const BLUEGILL = 23;
 export const PERCH = 24;
 export const BASS = 25;
 export const CATFISH = 26;
+/** The abyss's ten deep fish, speared on its floor: the giant glow squid first. */
+export const GIANT_SQUID = 27;
+export const ABYSS_FISH: readonly number[] = [27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;

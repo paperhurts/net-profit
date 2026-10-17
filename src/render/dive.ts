@@ -28,6 +28,7 @@ import {
   wallIn,
 } from '../world/trench';
 import { drawAbyssScene } from './abyss';
+import { drawDeepFish } from './deepfish';
 import { drawIceDiveScene } from './icedive';
 import { drawLagoonScene } from './lagoondive';
 import { drawLoot, drawLootGlint } from './loot';
@@ -446,6 +447,19 @@ function hex(c: string, a: number): string {
   return `rgba(${p(1)},${p(3)},${p(5)},${a})`;
 }
 
+/** How tall each deep fish is for its length, in the dive. */
+const DEEP_FAT: Readonly<Record<string, number>> = {
+  gloomer: 0.09,
+  clown: 0.5,
+  nibbler: 0.5,
+  loosejaw: 0.2,
+  viper: 0.22,
+  owl: 0.32,
+  chimaera: 0.24,
+  coelacanth: 0.32,
+  frilled: 0.12,
+};
+
 /** Every fish in a shoal, each round the shoal's middle at its own place, heading the way the shoal goes. */
 function drawShoal(
   ctx: CanvasRenderingContext2D,
@@ -521,7 +535,7 @@ function drawShoal(
       ctx.beginPath();
       ctx.arc(fx + dir * z * 1.05, fy + z * 1.05, (1.6 + Math.sin(T * 4 + i)) * s, 0, Math.PI * 2);
       ctx.fill();
-    } else if (sh.kind === 'squid') {
+    } else if (sh.kind === 'squid' || sh.kind === 'gsquid') {
       ctx.beginPath();
       ctx.ellipse(fx, fy, z, z * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -532,6 +546,28 @@ function drawShoal(
         ctx.lineTo(fx - dir * z * 1.9, fy + t * z * 0.3 + Math.sin(T * 5 + i + t) * z * 0.15);
         ctx.stroke();
       }
+      // The giant one's two long arms, trailing far behind it.
+      if (sh.kind === 'gsquid') {
+        ctx.lineWidth = 0.8 * s;
+        for (const t of [-1, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(fx - dir * z * 0.9, fy + t * z * 0.08);
+          ctx.quadraticCurveTo(
+            fx - dir * z * 2.4,
+            fy + t * z * 0.5 + Math.sin(T * 3 + i + t) * z * 0.3,
+            fx - dir * z * 3.2,
+            fy + t * z * 0.2,
+          );
+          ctx.stroke();
+        }
+      }
+    } else if (sh.kind === 'deep' && sh.deep) {
+      ctx.save();
+      ctx.translate(fx, fy);
+      ctx.scale(dir, 1);
+      const L = z * 2.6;
+      drawDeepFish(ctx, sh.deep, L, L * (DEEP_FAT[sh.deep] ?? 0.3), T * 6 + i, T + i * 0.7);
+      ctx.restore();
     } else {
       // A fish: a body and a tail, with a light along its side if it is a lanternfish; a grouper is fat and mottled.
       const grouper = sh.kind === 'grouper';

@@ -13,9 +13,10 @@
  */
 
 import { rng } from '../core/math';
+import { GIANT_SQUID } from '../data/tuning';
 import type { DiveSite } from './divesite';
 import { ISLE11 } from './isle11';
-import { GLOWS, LANTERN, type Plant, type PlantKind, type Shoal } from './trench';
+import { type DeepKind, GLOWS, LANTERN, type Plant, type PlantKind, type Shoal } from './trench';
 
 /** Where it is: out past the white buoys, 1,500 west of island 11 in the far far sea's north, too far out to be seen
  * from behind them, and well off the way in to island 11, where the far far sea and the crow have their say; how big
@@ -175,8 +176,34 @@ export function abyssPlants(seed = 1000): Plant[] {
 }
 
 /** What swims: silver fish over the shelf, jellies in the hole, lanternfish in the dark on the way down and over the
- * floor (those the spear reaches). The deep fish come next. */
+ * floor, and over the floor, where the spear reaches, the kid's ten deep fish (data/tuning.ts ABYSS_FISH). */
 export function abyssShoals(): Shoal[] {
+  // A deep fish's shoal over the floor: what it is, how many, where across and how high, how big, its colour and light.
+  const deep = (
+    kind: DeepKind,
+    sp: number,
+    n: number,
+    cx: number,
+    up: number,
+    size: number,
+    c: string,
+    light?: string,
+  ): Shoal => ({
+    kind: 'deep',
+    deep: kind,
+    n,
+    cx,
+    cy: AD - up,
+    rx: 140,
+    ry: 26,
+    size,
+    c,
+    glow: !!light,
+    sp,
+    ...(light ? { light } : {}),
+    ph: sp * 0.9,
+    pace: 0.05 + (sp % 3) * 0.01,
+  });
   return [
     {
       kind: 'silver',
@@ -232,11 +259,11 @@ export function abyssShoals(): Shoal[] {
     },
     {
       kind: 'lantern',
-      n: 12,
+      n: 10,
       cx: AW * 0.5,
-      cy: AD - 300,
+      cy: AD - 560,
       rx: 330,
-      ry: 120,
+      ry: 50,
       size: 6,
       c: '#5FF3FF',
       glow: true,
@@ -244,6 +271,31 @@ export function abyssShoals(): Shoal[] {
       ph: 4,
       pace: 0.06,
     },
+    // The kid's deep fish, over the floor, each kind keeping to its own height.
+    {
+      kind: 'gsquid',
+      n: 2,
+      cx: AW * 0.5,
+      cy: AD - 470,
+      rx: 300,
+      ry: 30,
+      size: 22,
+      c: '#3FCFC0',
+      glow: true,
+      sp: GIANT_SQUID,
+      light: '#5FF3E0',
+      ph: 1.3,
+      pace: 0.04,
+    },
+    deep('loosejaw', 31, 3, AW * 0.3, 400, 9, '#1A1418', '#FF3B3B'),
+    deep('frilled', 36, 2, AW * 0.7, 380, 18, '#5A4636'),
+    deep('viper', 32, 3, AW * 0.62, 320, 9, '#23303A', '#9FE8FF'),
+    deep('owl', 33, 3, AW * 0.22, 300, 7, '#C9C0B4'),
+    deep('nibbler', 30, 5, AW * 0.45, 260, 5, '#8A5A34'),
+    deep('coelacanth', 35, 2, AW * 0.75, 230, 18, '#2E4E7A'),
+    deep('clown', 29, 4, AW * 0.35, 200, 6, '#F2762E'),
+    deep('chimaera', 34, 2, AW * 0.58, 160, 14, '#B8C2CC'),
+    deep('gloomer', 28, 3, AW * 0.3, 140, 13, '#6B4A7A', '#FF7AB8'),
   ];
 }
 

@@ -150,7 +150,20 @@ export type DiveFishKind =
   | 'grouper'
   | 'cod'
   | 'char'
-  | 'icefish';
+  | 'icefish'
+  | 'gsquid'
+  | 'deep';
+/** The abyss's deep fish, each drawn its own way (render/deepfish.ts). */
+export type DeepKind =
+  | 'gloomer'
+  | 'clown'
+  | 'nibbler'
+  | 'loosejaw'
+  | 'viper'
+  | 'owl'
+  | 'chimaera'
+  | 'coelacanth'
+  | 'frilled';
 /** A shoal in the trench: what kind, how many, where it ranges, and how big each is. */
 export type Shoal = {
   kind: DiveFishKind;
@@ -169,6 +182,8 @@ export type Shoal = {
   /** Its own phase and pace round its range. */
   ph: number;
   pace: number;
+  /** Which of the abyss's deep fish, for a shoal of kind 'deep'. */
+  deep?: DeepKind;
 };
 
 /** What swims in the trench: silver fish in the sunlit water, jellies in the twilight, lanternfish and glowing squid below. */
