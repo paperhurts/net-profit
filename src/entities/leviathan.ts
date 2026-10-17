@@ -101,11 +101,12 @@ export const SEA_KEEP = 120;
 /**
  * The Battle Barge's ring at sea: round the middle at SEA_PATH of the ring, from the angle of its spot, as fast along
  * as at the buoys. It rises for any boat under way, no nearer than GUARD_NEAR, and only where its middle lies well
- * inside the ring; a boat heading out at the buoys has to turn back in first.
+ * inside the ring and off the land (the kid's islands there); a boat heading out at the buoys has to turn back in first.
  */
 export function seaWater(
   at: { x: number; y: number },
   ring: { x: number; y: number; r: number },
+  land: (x: number, y: number) => boolean = () => false,
 ): LevWater {
   const R = ring.r * SEA_PATH;
   return {
@@ -120,7 +121,7 @@ export function seaWater(
       for (let k = d; k >= GUARD_NEAR; k -= 40) {
         const mx = x + Math.cos(h) * k;
         const my = y + Math.sin(h) * k;
-        if (Math.hypot(mx - ring.x, my - ring.y) <= ring.r - SEA_KEEP) return k;
+        if (Math.hypot(mx - ring.x, my - ring.y) <= ring.r - SEA_KEEP && !land(mx, my)) return k;
       }
       return 0;
     },

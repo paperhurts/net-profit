@@ -52,6 +52,7 @@ describe('the Battle Barge: picking a fight', () => {
       pick: { ...noPick(), skeleton: BARGE_MAX },
       where: 'foot',
       sea: defaultBarge().sea,
+      isles: [],
     });
   });
 

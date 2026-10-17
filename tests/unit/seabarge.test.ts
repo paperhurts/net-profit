@@ -9,14 +9,22 @@ import {
   parseBarge,
   SEA_ARENA,
   SEA_FOES,
+  SEA_ISLE_GAP,
+  SEA_ISLE_R,
+  SEA_ISLE_REACH,
+  SEA_ISLES_MAX,
   SEA_NAMES,
   SEA_RING,
+  SEA_SHORE,
   SEA_ZOOM_MAX,
   SEA_ZOOM_MIN,
   seaAdd,
   seaBuoys,
   seaFrame,
+  seaIsleNo,
+  seaIsleTap,
   seaSpots,
+  seaSpotsClear,
   seaStart,
   seaTotal,
 } from '../../src/data/barge';
@@ -502,5 +510,94 @@ describe('the guard leviathan, given a home', () => {
     expect(hits).toBe(1);
     expect(w.boat.v).toBe(0);
     expect((w.boat.x - r.x) * r.nx + (w.boat.y - r.y) * r.ny).toBeLessThan(-BODY_R);
+  });
+});
+
+describe("the kid's map at sea", () => {
+  const st = seaStart(1);
+
+  it('starts with open water, and an old save has open water too', () => {
+    expect(defaultBarge().isles).toEqual([]);
+    expect(parseBarge({ size: 'small', where: 'sea', sea: { king: 1 } }).isles).toEqual([]);
+  });
+
+  it('puts an island where the water is tapped, and takes it away when it is tapped', () => {
+    let m = seaIsleTap([], { x: -0.3, y: -0.2 });
+    expect(m).toEqual([{ x: -0.3, y: -0.2 }]);
+    m = seaIsleTap(m, { x: -0.3 + SEA_ISLE_R * 0.8, y: -0.2 });
+    expect(m).toEqual([]);
+  });
+
+  it('keeps each island inside the buoys with a way round, off the boat, apart, and five at most', () => {
+    expect(seaIsleNo([], { x: SEA_ISLE_REACH + 0.05, y: 0 })).toBe('edge');
+    expect(SEA_ISLE_REACH + SEA_ISLE_R).toBeLessThan(0.9);
+    expect(seaIsleNo([], { x: st.x - 0.1, y: st.y - 0.1 })).toBe('boat');
+    const one = [{ x: -0.3, y: -0.3 }];
+    expect(seaIsleNo(one, { x: -0.3 + SEA_ISLE_R * 2, y: -0.3 })).toBe('near');
+    expect(seaIsleNo(one, { x: -0.3 + SEA_ISLE_R * 2 + SEA_ISLE_GAP + 0.01, y: -0.3 })).toBeNull();
+    const full = [
+      { x: -0.6, y: 0 },
+      { x: 0, y: -0.6 },
+      { x: -0.25, y: -0.25 },
+      { x: 0.6, y: -0.2 },
+      { x: -0.2, y: 0.6 },
+    ];
+    expect(full).toHaveLength(SEA_ISLES_MAX);
+    for (const [k, i] of full.entries()) expect(seaIsleNo(full.slice(0, k), i)).toBeNull();
+    expect(seaIsleNo(full, { x: 0.25, y: 0.3 })).toBe('full');
+    expect(seaIsleTap(full, { x: 0.25, y: 0.3 })).toEqual(full);
+  });
+
+  it('reads a saved map back, dropping islands that cannot be where they are and any past the most', () => {
+    const m = parseBarge({
+      where: 'sea',
+      isles: [
+        { x: -0.3, y: -0.3 },
+        { x: -0.32, y: -0.3 },
+        { x: 0.95, y: 0 },
+        { x: 'a', y: 0 },
+        null,
+        { x: 0.5, y: -0.3 },
+      ],
+    });
+    expect(m.isles).toEqual([
+      { x: -0.3, y: -0.3 },
+      { x: 0.5, y: -0.3 },
+    ]);
+  });
+
+  it("keeps the bosses' spots off the islands, in clear water inside the ring", () => {
+    for (const size of ['small', 'medium', 'large'] as const) {
+      const r = SEA_RING[size];
+      const spots = seaSpots(BARGE_MAX, r);
+      // An island right on the first spot, and one on a spot of the back row.
+      const on = (p: { x: number; y: number }) => ({ x: p.x / r, y: p.y / r });
+      const isles = [
+        on(spots[0] as { x: number; y: number }),
+        on(spots[8] as { x: number; y: number }),
+      ];
+      for (const p of seaSpotsClear(spots, isles, r)) {
+        for (const i of isles)
+          expect(Math.hypot(p.x - i.x * r, p.y - i.y * r)).toBeGreaterThanOrEqual(
+            SEA_ISLE_R * r + SEA_SHORE - 1e-6,
+          );
+        expect(Math.hypot(p.x, p.y)).toBeLessThan(r);
+      }
+      // With no islands they are where they were.
+      expect(seaSpotsClear(spots, [], r)).toEqual(spots);
+    }
+  });
+
+  it('has the leviathan rise only off the land', () => {
+    const ring = { ...SEA_ARENA, r: SEA_RING.small };
+    const land = (x: number, y: number) => Math.hypot(x - ring.x, y - ring.y) < 200;
+    const water = levRing({ x: ring.x - 300, y: ring.y }, ring, land);
+    // Heading through the middle, the first room ahead is past the island.
+    const k = water.room(ring.x + 500, ring.y, Math.PI, 700);
+    expect(k).toBeGreaterThan(0);
+    expect(Math.abs(ring.x + 500 - k - ring.x)).toBeGreaterThanOrEqual(200);
+    expect(
+      levRing({ x: ring.x - 300, y: ring.y }, ring).room(ring.x + 500, ring.y, Math.PI, 500),
+    ).toBe(500);
   });
 });
