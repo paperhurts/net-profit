@@ -115,6 +115,7 @@ type Np = {
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
   walkerAt: [number, number];
+  toast(msg: string, ms?: number, pri?: number): void;
   seaFight: {
     x: number;
     y: number;
@@ -535,6 +536,23 @@ async function boot(
 }
 
 /**
+ * Tap a spot on the screen as a player would: a message showing over it is tapped away first, since a tap on a
+ * message sends it away rather than reaching what is under it.
+ */
+async function tap(page: Page, x: number, y: number) {
+  for (let i = 0; i < 3; i++) {
+    const over = await page.evaluate(
+      ([px, py]) => document.elementFromPoint(px, py)?.id === 'toast',
+      [x, y] as const,
+    );
+    if (!over) break;
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(300);
+  }
+  await page.mouse.click(x, y);
+}
+
+/**
  * Point the joystick at a world position. Returns the remaining distance.
  * The wobble alternates a sideways offset so the net sweeps through a school
  * instead of parking in its middle.
@@ -767,7 +785,7 @@ test('ashore: step off at the dock, pet the dog, walk up the pier onto the islan
   await page.waitForTimeout(3000);
   const dog = await page.evaluate(() => window.__np.dogAt);
   if (!dog) throw new Error('no dog');
-  await page.mouse.click(dog[0], dog[1]);
+  await tap(page, dog[0], dog[1]);
   expect(await page.evaluate(() => window.__np.petted), 'the tap did not pet the dog').toBe(true);
 
   /** Hold the stick in a world direction. */
@@ -810,7 +828,7 @@ test('the muffin man: a tap from far off asks you to walk up; close by, his loop
   // From the end of the pier he is out of reach: a word says to walk up, and he says nothing.
   await page.waitForTimeout(600);
   let at = await page.evaluate(() => window.__np.bakerAt);
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await expect(page.locator('#toast')).toContainText('Walk up to the baker');
   expect(await page.evaluate(() => window.__np.muffin.line)).toBe(-1);
 
@@ -824,7 +842,7 @@ test('the muffin man: a tap from far off asks you to walk up; close by, his loop
   const said: string[] = [];
   for (let i = 0; i < 4; i++) {
     at = await page.evaluate(() => window.__np.bakerAt);
-    await page.mouse.click(at[0], at[1]);
+    await tap(page, at[0], at[1]);
     said.push((await page.evaluate(() => window.__np.muffin.saying())) ?? '');
   }
   expect(said).toEqual([
@@ -899,7 +917,7 @@ test('fish muffins: the muffin man bakes your junk into muffins, kept on reload,
   });
   await page.waitForTimeout(2500);
   const at = await page.evaluate(() => window.__np.bakerAt);
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   // He still says his line, and takes the junk for muffins.
   expect(await page.evaluate(() => window.__np.muffin.saying())).toBe(
     'Do you know the muffin man?',
@@ -968,7 +986,7 @@ test('leggy muffins: a day in the box and they grow legs, six at most, and follo
 
   // A tap on one: it hops.
   const [mx, my] = (await page.evaluate(() => window.__np.leggyAt(2))) ?? [0, 0];
-  await page.mouse.click(mx, my);
+  await tap(page, mx, my);
   expect(await page.evaluate(() => window.__np.leggy.list[2]?.hop ?? 0)).toBeGreaterThan(0.5);
 
   // Kept on reload: six, riding in their crate.
@@ -1433,7 +1451,7 @@ test('the aquarium: built at the shop, walked up to ashore, and its fish eat wha
   // While it is open, the game waits.
   const clock = await page.evaluate(() => window.__np.clock);
   // A tap at the very top of the water, over every fish: food, and they eat it.
-  await page.mouse.click(box.x + box.width / 2, box.y + 5);
+  await tap(page, box.x + box.width / 2, box.y + 5);
   await page.waitForFunction(() => window.__np.tankView.eaten > 0, null, { timeout: 8000 });
   expect(await page.evaluate(() => window.__np.clock)).toBe(clock);
   await page.locator('#tankClose').click();
@@ -2609,7 +2627,7 @@ test("the Reaper's egg hatches at dawn: the baby swims and leaps by the boat, an
   await page.waitForFunction(() => window.__np.cine?.kind === 'egg', null, { timeout: 5000 });
   await expect(page.locator('body')).toHaveClass(/cine/);
   // A tap as it begins does not skip it.
-  await page.mouse.click(195, 600);
+  await tap(page, 195, 600);
   expect(await page.evaluate(() => window.__np.cine?.kind)).toBe('egg');
   await page.waitForFunction(() => (window.__np.eggT ?? 0) > 5.4, null, { timeout: 8000 });
   expect(await page.evaluate(() => window.__np.reaperEgg)).toBe(2);
@@ -2627,7 +2645,7 @@ test("the Reaper's egg hatches at dawn: the baby swims and leaps by the boat, an
   // Tap him: a pat, and a leap.
   const at = await page.evaluate(() => window.__np.babyAt);
   expect(at).not.toBeNull();
-  await page.mouse.click(at?.[0] ?? 0, at?.[1] ?? 0);
+  await tap(page, at?.[0] ?? 0, at?.[1] ?? 0);
   await page.waitForFunction(() => window.__np.baby.love > 0, null, { timeout: 2000 });
   // Kept: a reload finds him hatched and swimming.
   await page.reload();
@@ -3001,7 +3019,7 @@ test('the cutscene: back aboard with the warlock free, island 4 turns to tar, an
   await page.waitForFunction(() => window.__np.cine !== null, null, { timeout: 5000 });
   // A tap skips to the end.
   await page.waitForTimeout(600);
-  await page.mouse.click(200, 400);
+  await tap(page, 200, 400);
   await page.waitForFunction(() => window.__np.isle3Stage === 4, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('turned to tar');
   // No boat goes into the black water.
@@ -3218,7 +3236,7 @@ test('the Skeleton Shark King: he rises at the reef, and harpooned down, dies wi
   );
   // A tap skips his speech.
   await page.waitForTimeout(800);
-  await page.mouse.click(200, 400);
+  await tap(page, 200, 400);
   await page.waitForFunction(() => window.__np.isle5Stage === 1, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
   expect(errors).toEqual([]);
@@ -3373,7 +3391,7 @@ test('Neil: three ice fish tossed to the seal at the floe make him yours, and he
   for (let i = 1; i <= 3; i++) {
     const at = await page.evaluate(() => window.__np.neilAt);
     expect(at, 'Neil is not on the screen').not.toBeNull();
-    await page.mouse.click(at?.[0] ?? 0, at?.[1] ?? 0);
+    await tap(page, at?.[0] ?? 0, at?.[1] ?? 0);
     await page.waitForFunction((n) => window.__np.neil.fed === n, i, { timeout: 2000 });
   }
   expect(await page.evaluate(() => [window.__np.neil.free, window.__np.hold])).toEqual([true, 0]);
@@ -3938,7 +3956,7 @@ test("island 10's prairie: prairie dogs duck as you come, bunnies hop when tappe
   expect(await town(d0[2] ?? 0)).toEqual([1, 1, 1]);
   const at = await page.evaluate(() => window.__np.prairieAt('dog', 0));
   if (!at) throw new Error('no dog on the screen');
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await page.waitForFunction(() => (window.__np.prairie10.dogs[0]?.up ?? 1) === 0, null, {
     timeout: 1500,
   });
@@ -3967,7 +3985,7 @@ test("island 10's prairie: prairie dogs duck as you come, bunnies hop when tappe
   });
   const bat = await page.evaluate(() => window.__np.prairieAt('bunny', 4));
   if (!bat) throw new Error('no bunny on the screen');
-  await page.mouse.click(bat[0], bat[1]);
+  await tap(page, bat[0], bat[1]);
   expect(await page.evaluate(() => window.__np.prairie10.bunnies[4]?.hop ?? 0)).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
@@ -4052,7 +4070,7 @@ test("island 10's old man: a dad joke and his store; snacks bought, kept, and ea
   });
   await page.waitForTimeout(800);
   let at = await page.evaluate(() => window.__np.oldManAt);
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await expect(page.locator('#toast')).toContainText('Walk up to the old man');
   expect(await page.evaluate(() => window.__np.storeOpen)).toBe(false);
   // Up on his porch: a joke, and his shelf.
@@ -4063,7 +4081,7 @@ test("island 10's old man: a dad joke and his store; snacks bought, kept, and ea
   });
   await page.waitForTimeout(800);
   at = await page.evaluate(() => window.__np.oldManAt);
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await expect(page.locator('#store10')).toBeVisible();
   const joke = await page.evaluate(() => window.__np.DAD_JOKES[0] ?? '');
   await expect(page.locator('#store10Joke')).toContainText(joke);
@@ -4342,7 +4360,7 @@ test("the Heron's nest: up island 9's tower, the orb shields him until the necro
   await expect(page.locator('body')).toHaveClass(/cine/);
   expect(await page.evaluate(() => window.__np.heronFled)).toBe(false);
   await page.waitForTimeout(1000);
-  await page.mouse.click(CX, CY);
+  await tap(page, CX, CY);
   await page.waitForFunction(() => window.__np.cine === null, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.heronFled)).toBe(true);
   await expect(page.locator('#toast')).toContainText('portal of his own');
@@ -4833,7 +4851,7 @@ test('the healer cat and the Cthulhu warrior: the cat eats a fish aboard for a h
   await page.waitForTimeout(600);
   const before = await page.evaluate(() => window.__np.cat.heals);
   const [x, y] = (await page.evaluate(() => window.__np.catAt)) as [number, number];
-  await page.mouse.click(x, y);
+  await tap(page, x, y);
   await page.waitForFunction((b) => window.__np.cat.heals > b, before, { timeout: 2000 });
   expect(await page.evaluate(() => window.__np.hold)).toBe(2);
   // Into the dock and ashore: both come along.
@@ -4871,7 +4889,7 @@ test('the tuna cat: it eats the tuna first, and then heals a hurt companion asho
   });
   await page.waitForTimeout(600);
   const [x, y] = (await page.evaluate(() => window.__np.catAt)) as [number, number];
-  await page.mouse.click(x, y);
+  await tap(page, x, y);
   await page.waitForFunction(() => window.__np.cat.tuna, null, { timeout: 2000 });
   await expect(page.locator('#toast')).toContainText('heals your companions');
   // It took the tuna, not a sardine.
@@ -5048,7 +5066,7 @@ test("tester: a skip never skips a cutscene: the tar monster rises the next time
   await page.waitForFunction(() => window.__np.cine?.kind === 'tar', null, { timeout: 6000 });
   expect(await page.evaluate(() => window.__np.isle3Stage)).toBe(3);
   await page.waitForTimeout(1500);
-  await page.mouse.click(CX, CY);
+  await tap(page, CX, CY);
   await page.waitForFunction(() => window.__np.isle3Stage === 4, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.cine)).toBeNull();
   expect(errors).toEqual([]);
@@ -5446,7 +5464,7 @@ test("island 10's swamp: the swamp monster wakes with a roar and waves; a bear c
   expect(await page.evaluate(() => window.__np.swamp10.monster.state)).toBe('sleep');
   let at = await page.evaluate(() => window.__np.swampAt('monster', 0));
   if (!at) throw new Error('no monster');
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await page.waitForFunction(() => window.__np.swamp10.monster.state === 'roar', null, {
     timeout: 3000,
   });
@@ -5464,7 +5482,7 @@ test("island 10's swamp: the swamp monster wakes with a roar and waves; a bear c
   await page.waitForTimeout(1500);
   at = await page.evaluate(() => window.__np.swampAt('cub', 0));
   if (!at) throw new Error('no cub');
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await page.waitForFunction(() => window.__np.swamp10.cubs[0]?.state === 'roll', null, {
     timeout: 2000,
   });
@@ -5555,7 +5573,7 @@ test("island 10's spider: he hangs you in his web without bug spray; the old man
   });
   await page.waitForTimeout(800);
   const at = await page.evaluate(() => window.__np.oldManAt);
-  await page.mouse.click(at[0], at[1]);
+  await tap(page, at[0], at[1]);
   await expect(page.locator('#store10')).toBeVisible();
   await page.locator('#store10Shelf [data-buy="spray"]').click();
   expect(await page.evaluate(() => [window.__np.coins, window.__np.bugSpray])).toEqual([150, 6]);
@@ -5756,7 +5774,7 @@ test("island 10's birdfeeder: the bread brings the crows, and one answered right
   await page.waitForTimeout(600);
   // A tap on the feeder crumbles the bread into it, and the crows come.
   const f = await page.evaluate(() => window.__np.feederAt());
-  await page.mouse.click(f[0], f[1]);
+  await tap(page, f[0], f[1]);
   await expect(page.locator('#toast')).toContainText('Here come the crows', { timeout: 3000 });
   expect(await page.evaluate(() => [window.__np.bread, window.__np.feederFull])).toEqual([0, true]);
   await page.waitForFunction(
@@ -5775,7 +5793,7 @@ test("island 10's birdfeeder: the bread brings the crows, and one answered right
     return n.crowAt(n.crows.list.findIndex((k) => k.state === 'peck'));
   });
   if (!c) throw new Error('no crow');
-  await page.mouse.click(c[0], c[1]);
+  await tap(page, c[0], c[1]);
   await expect(page.locator('#crowCard')).toBeVisible({ timeout: 2000 });
   // Wrong: it says the right answer, and asks another.
   const right = await page.evaluate(() => window.__np.crowAsk?.q.right ?? '');
@@ -5851,7 +5869,7 @@ test("honey: the old man sells a jar, and the forest's bees give one a day", asy
   await expect(page.locator('#toast')).toContainText('afraid of honey');
   // Only one a day: a tap right on the hive says so.
   const [hx, hy] = await page.evaluate(() => window.__np.hiveAt());
-  await page.mouse.click(hx, hy);
+  await tap(page, hx, hy);
   await expect(page.locator('#toast')).toContainText('tomorrow');
   expect(await page.evaluate(() => window.__np.honey)).toBe(2);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
@@ -6657,7 +6675,7 @@ test("the observatory: your headquarters' telescope turns to each leviathan, liv
   await expect(page.locator('#scopeName')).toHaveText('The Cthuluviathan');
   await expect(page.locator('#scopeWhere')).toContainText('Asleep in its sunken city');
   // A tap on the lens turns it on too; back the other way with the arrow.
-  await page.mouse.click(195, 200);
+  await tap(page, 195, 200);
   await expect(page.locator('#scopeName')).toHaveText('The anglerfish');
   await page.locator('#scopePrev').click();
   await expect(page.locator('#scopeName')).toHaveText('The Cthuluviathan');
@@ -7255,6 +7273,60 @@ test('the Battle Barge at sea: hidden behind an island, the Reaper loses the boa
   });
   await page.evaluate(() => window.__np.seaBoss.reaper[0]?.onSweep());
   expect(await page.evaluate(() => window.__np.hp)).toBeLessThan(100);
+  expect(errors).toEqual([]);
+});
+
+test('messages: a tap sends one away, a flick slides it off, and the same one keeps away a while', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  const toast = page.locator('#toast');
+  // Let the game's own first messages pass, so only ours shows.
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__np.toast('A message to tap away.', 20000, 2));
+  await expect(toast).toHaveText('A message to tap away.');
+  await expect(toast).toHaveClass(/show/);
+  const v0 = await page.evaluate(() => window.__np.boat.v);
+  await toast.click();
+  await expect(toast).not.toHaveClass(/show/);
+  // The press did not steer.
+  expect(await page.evaluate(() => window.__np.boat.v)).toBeLessThanOrEqual(v0);
+  // Flicked sideways, it slides off and goes.
+  await page.evaluate(() => window.__np.toast('A message to flick away.', 20000, 2));
+  await expect(toast).toHaveText('A message to flick away.');
+  await expect(toast).toHaveClass(/show/);
+  const box = await toast.boundingBox();
+  if (!box) throw new Error('no message');
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 60, cy, { steps: 4 });
+  await page.mouse.move(cx + 120, cy, { steps: 4 });
+  await page.mouse.up();
+  await expect(toast).not.toHaveClass(/show/);
+  // Said again straight away, it keeps away.
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.__np.toast('A message to flick away.', 20000, 2));
+  await page.waitForTimeout(300);
+  await expect(toast).not.toHaveClass(/show/);
+  // A short drag is not a flick: it goes back and stays.
+  await page.evaluate(() => window.__np.toast('A message to keep.', 20000, 2));
+  await expect(toast).toHaveText('A message to keep.');
+  await expect(toast).toHaveClass(/show/);
+  const b2 = await toast.boundingBox();
+  if (!b2) throw new Error('no message');
+  await page.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b2.x + b2.width / 2 + 20, b2.y + b2.height / 2, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  await expect(toast).toHaveClass(/show/);
+  await expect(toast).toHaveText('A message to keep.');
   expect(errors).toEqual([]);
 });
 

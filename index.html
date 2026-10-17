@@ -82,10 +82,14 @@ body.inside #order,body.inside #charter,body.inside #holdPill,body.inside #hull,
 .icon.sure{width:auto;padding:0 12px;font-size:14px;background:var(--buoy);color:var(--buoy-fg)}
 
 #toast{position:fixed;left:50%;top:calc(140px + env(safe-area-inset-top));transform:translate(-50%,-8px);opacity:0;
-  transition:opacity .2s,transform .2s;pointer-events:none;background:var(--pill-bg);color:var(--pill-fg);
+  transition:opacity .2s,transform .2s,translate .2s;pointer-events:none;background:var(--pill-bg);color:var(--pill-fg);
   border-radius:14px;padding:9px 14px 6px;font-weight:700;font-size:15px;line-height:1.25;text-align:center;
   max-width:min(86vw,360px);box-shadow:0 3px 0 var(--pill-shadow)}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+/* A message showing takes a tap or a flick to send it away (main.js sendToast); while a finger drags it, it follows. */
+#toast.show{pointer-events:auto;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+#toast.drag{transition:none}
+body.cine #toast{pointer-events:none}
 /* Beside a tall right-hand column, on the left under the order (main.js placeToast). */
 #toast.side{left:calc(12px + env(safe-area-inset-left));transform:translate(0,-8px);text-align:left}
 #toast.side.show{transform:translate(0,0)}

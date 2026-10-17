@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_QUEUE, MAX_WAIT, ToastQueue } from '../../src/ui/toast';
+import { MAX_QUEUE, MAX_WAIT, QUIET, ToastQueue } from '../../src/ui/toast';
 
 describe('ToastQueue', () => {
   it('shows a message at once and hides it when its time is up', () => {
@@ -63,5 +63,36 @@ describe('ToastQueue', () => {
     q.push('b', 1000, 1, 0);
     q.clear();
     expect(q.tick(0.1)).toBeNull();
+  });
+});
+
+describe('a message sent away', () => {
+  it('goes at once, and the next one waiting shows', () => {
+    const q = new ToastQueue();
+    q.push('first', 3000, 1, 0);
+    q.push('second', 3000, 1, 0);
+    expect(q.tick(0.1)).toBe('first');
+    q.dismiss('first', 0.2);
+    expect(q.tick(0.2)).toBe('second');
+  });
+
+  it('keeps away a while if the game says it again, and may come back after', () => {
+    const q = new ToastQueue();
+    q.push('again', 3000, 2, 0);
+    q.dismiss('again', 1);
+    q.push('again', 3000, 2, 2);
+    expect(q.tick(2)).toBeNull();
+    q.push('again', 3000, 2, 1 + QUIET + 0.1);
+    expect(q.tick(1 + QUIET + 0.1)).toBe('again');
+  });
+
+  it('is only the one showing: sending away one that has already gone changes nothing', () => {
+    const q = new ToastQueue();
+    q.push('now', 3000, 1, 0);
+    q.dismiss('earlier', 0.5);
+    expect(q.tick(0.5)).toBe('now');
+    q.push('earlier', 3000, 1, 0.6);
+    q.dismiss('now', 0.7);
+    expect(q.tick(0.7)).toBe('earlier');
   });
 });
