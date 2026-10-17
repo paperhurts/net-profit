@@ -269,6 +269,10 @@ type Np = {
     reset(here: boolean): void;
   };
   remoroDay: number;
+  giants: {
+    list: { kind: string; state: string; at: number; lunges: boolean; x: number; y: number }[];
+    shake: number;
+  };
   boneSharks: { x: number; y: number; state: string; t: number }[];
   WRECK_CHEST: { x: number; y: number };
   charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
@@ -2371,6 +2375,10 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'abyss', null, {
     timeout: 3000,
   });
+  // The giants passing the cage have a test of their own; jumping the cage down would bring them all at once.
+  await page.evaluate(() => {
+    window.__np.giants.list = [];
+  });
   // In the cage, going down: no spear, and the way back is the cage.
   expect(await page.evaluate(() => window.__np.diver.cage?.go)).toBe('down');
   await expect(page.locator('#surfaceBtn')).toHaveText('Ride the cage up');
@@ -2459,6 +2467,7 @@ test("the abyss: the kid's Remoro cruises over the floor, three spears land it, 
   });
   expect(await page.evaluate(() => window.__np.remoro.here)).toBe(true);
   await page.evaluate(() => {
+    window.__np.giants.list = [];
     const c = window.__np.diver.cage;
     if (c) c.y = 2800;
   });
@@ -2515,12 +2524,59 @@ test("the abyss: the kid's Remoro cruises over the floor, three spears land it, 
   await page.waitForFunction(() => window.__np.diving, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.remoro.here)).toBe(false);
   await page.evaluate(() => {
+    window.__np.giants.list = [];
     const c = window.__np.diver.cage;
     if (c) c.y = 2800;
   });
   await expect(page.locator('#toast')).toContainText('The Remoro is gone for today', {
     timeout: 6000,
   });
+  expect(errors).toEqual([]);
+});
+
+test('the abyss: giants pass the cage on the way down, and one slams into it, but the bars hold', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    abyssSeen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7620, y: -4300, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the abyss', { timeout: 4000 });
+  await page.locator('#diveBtn').click();
+  await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'abyss', null, {
+    timeout: 3000,
+  });
+  // All five the kid named are coming, and one of them will lunge.
+  const kinds = await page.evaluate(() => window.__np.giants.list.map((g) => g.kind).sort());
+  expect(kinds).toEqual(['cthulhu', 'cthuluviathan', 'gulper', 'leviathan', 'reaper']);
+  const air = await page.evaluate(() => window.__np.diver.air);
+  // Down to where the one that lunges comes past: it swims across, warns, and slams into the cage.
+  await page.evaluate(() => {
+    const np = window.__np;
+    const g = np.giants.list.find((x) => x.lunges);
+    const c = np.diver.cage;
+    if (g && c) c.y = g.at;
+  });
+  await page.waitForFunction(() => window.__np.giants.list.some((g) => g.state === 'pass'), null, {
+    timeout: 2000,
+  });
+  await expect(page.locator('#toast')).toContainText('slams into the cage! The bars hold', {
+    timeout: 5000,
+  });
+  // In the cage nothing gets you: the air is as it was, and the cage goes on down.
+  expect(await page.evaluate(() => window.__np.diver.air)).toBe(air);
+  expect(await page.evaluate(() => window.__np.diver.cage?.go)).toBe('down');
   expect(errors).toEqual([]);
 });
 
