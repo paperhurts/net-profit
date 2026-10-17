@@ -163,7 +163,8 @@ export type DeepKind =
   | 'owl'
   | 'chimaera'
   | 'coelacanth'
-  | 'frilled';
+  | 'frilled'
+  | 'remoro';
 /** A shoal in the trench: what kind, how many, where it ranges, and how big each is. */
 export type Shoal = {
   kind: DiveFishKind;

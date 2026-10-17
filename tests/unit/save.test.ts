@@ -780,6 +780,14 @@ describe('the abyss', () => {
     const back = parseSave(serializeSave(s), bounds);
     expect([back.abyssSeen, back.abyssDown]).toEqual([true, true]);
   });
+
+  it('has the Remoro on its floor in a save from before it, and keeps the day it was landed', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.remoroDay).toBe(0);
+    s.remoroDay = 7;
+    expect(parseSave(serializeSave(s), bounds).remoroDay).toBe(7);
+    expect(parseSave(JSON.stringify({ ...s, remoroDay: -3 }), bounds).remoroDay).toBe(0);
+  });
 });
 
 describe('islands 8 and 9', () => {

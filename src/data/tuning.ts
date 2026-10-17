@@ -404,6 +404,19 @@ export const SPECIES: readonly Species[] = [
     tail: 0.5,
     mark: '#C46A5A',
   },
+  // And the Remoro, the kid's (his sixth list's answers: the wizard books' silver fish, renamed, and named by him): one
+  // great silver fish cruising over the floor, as big as Star and worth 190, landed with three spears, one a day
+  // (entities/remoro.ts). A dark stripe down its side and a sucker plate on its head, as a real remora has.
+  {
+    name: 'remoro',
+    pl: 'remoros',
+    v: 190,
+    c: '#C8D4DE',
+    s: 36,
+    fat: 0.24,
+    tail: 0.6,
+    mark: '#4E5E70',
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -424,6 +437,8 @@ export const CATFISH = 26;
 /** The abyss's ten deep fish, speared on its floor: the giant glow squid first. */
 export const GIANT_SQUID = 27;
 export const ABYSS_FISH: readonly number[] = [27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
+/** The Remoro, the abyss's great silver fish: three spears, one a day. */
+export const REMORO = 37;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;

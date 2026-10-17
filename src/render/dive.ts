@@ -458,6 +458,7 @@ const DEEP_FAT: Readonly<Record<string, number>> = {
   chimaera: 0.24,
   coelacanth: 0.32,
   frilled: 0.12,
+  remoro: 0.24,
 };
 
 /** Every fish in a shoal, each round the shoal's middle at its own place, heading the way the shoal goes. */
