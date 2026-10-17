@@ -7121,6 +7121,44 @@ test("the Battle Barge at sea: the anglerfish's light harpooned, and the Cthuluv
   expect(errors).toEqual([]);
 });
 
+test('the Battle Barge at sea: Star, down in the water after a dive, is still in the fight, and is harpooned there', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { meteor: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.seaFight, null, { timeout: 3000 });
+  // He dives, and thrashes in the water: not beaten, and his clock runs on.
+  await page.waitForFunction(() => window.__np.seaBoss.meteor[0]?.state === 'down', null, {
+    timeout: 12000,
+  });
+  await page.waitForFunction(() => (window.__np.seaBoss.meteor[0]?.t ?? 0) > 0.3, null, {
+    timeout: 2000,
+  });
+  expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
+  // The harpoon has him while he is down, and counts.
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'meteor', null, { timeout: 2000 });
+  const before = await page.evaluate(() => window.__np.seaBoss.meteor[0]?.resolve ?? 0);
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await expect
+    .poll(() => page.evaluate(() => window.__np.seaBoss.meteor[0]?.resolve ?? 0), { timeout: 2000 })
+    .toBeLessThan(before);
+  // Up and off again, after the boat.
+  await page.waitForFunction(() => window.__np.seaBoss.meteor[0]?.state === 'hunt', null, {
+    timeout: 5000,
+  });
+  expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
 test('the Battle Barge at sea: the guard leviathan rises across your way, shoves you back, and is harpooned', async ({
   context,
   page,
