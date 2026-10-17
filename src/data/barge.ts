@@ -354,39 +354,88 @@ export const SEA_ISLE_CLEAR = 0.38;
 export const SEA_ISLE_GAP = 0.06;
 /** Why an island cannot go here: too near the boat, too far out, too near another island, or the map is full. */
 export type SeaIsleNo = 'edge' | 'boat' | 'near' | 'full';
-export function seaIsleNo(isles: readonly SeaIsle[], p: SeaIsle): SeaIsleNo | null {
+export function seaIsleNo(
+  isles: readonly SeaIsle[],
+  p: SeaIsle,
+  tar: readonly SeaIsle[] = [],
+): SeaIsleNo | null {
   const st = seaStart(1);
   if (Math.hypot(p.x - st.x, p.y - st.y) < SEA_ISLE_CLEAR) return 'boat';
   if (Math.hypot(p.x, p.y) > SEA_ISLE_REACH) return 'edge';
   for (const i of isles)
     if (Math.hypot(p.x - i.x, p.y - i.y) < SEA_ISLE_R * 2 + SEA_ISLE_GAP) return 'near';
+  for (const t of tar)
+    if (Math.hypot(p.x - t.x, p.y - t.y) < SEA_ISLE_R + SEA_TAR_R + SEA_ISLE_GAP) return 'near';
   if (isles.length >= SEA_ISLES_MAX) return 'full';
   return null;
 }
 /** A tap on the chart: on an island it takes it away; on open water it adds one there, if one may go there. */
-export function seaIsleTap(isles: readonly SeaIsle[], p: SeaIsle): SeaIsle[] {
+export function seaIsleTap(
+  isles: readonly SeaIsle[],
+  p: SeaIsle,
+  tar: readonly SeaIsle[] = [],
+): SeaIsle[] {
   const hit = isles.findIndex((i) => Math.hypot(p.x - i.x, p.y - i.y) <= SEA_ISLE_R);
   if (hit >= 0) return isles.filter((_, k) => k !== hit);
-  if (seaIsleNo(isles, p)) return [...isles];
+  if (seaIsleNo(isles, p, tar)) return [...isles];
   return [...isles, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
 }
+
+/**
+ * Tar on the kid's map too (Rowan, 2026-10-17: "ok" to slow patches the boat can push through and the bosses cannot
+ * go in): round patches of it, SEA_TAR_R of the ring across from their middles, up to SEA_TARS_MAX. A patch may go
+ * nearer the buoys than an island, since the boat can push through it, but not over where the boat comes in, nor
+ * on an island or another patch.
+ */
+export const SEA_TARS_MAX = 5;
+export const SEA_TAR_R = 0.13;
+export const SEA_TAR_REACH = 0.8;
+/** Its middle no nearer than this to where the boat comes in, so the boat starts in clear water. */
+export const SEA_TAR_CLEAR = 0.3;
+export function seaTarNo(
+  tar: readonly SeaIsle[],
+  p: SeaIsle,
+  isles: readonly SeaIsle[] = [],
+): SeaIsleNo | null {
+  const st = seaStart(1);
+  if (Math.hypot(p.x - st.x, p.y - st.y) < SEA_TAR_CLEAR) return 'boat';
+  if (Math.hypot(p.x, p.y) > SEA_TAR_REACH) return 'edge';
+  for (const i of isles)
+    if (Math.hypot(p.x - i.x, p.y - i.y) < SEA_ISLE_R + SEA_TAR_R + SEA_ISLE_GAP) return 'near';
+  for (const t of tar) if (Math.hypot(p.x - t.x, p.y - t.y) < SEA_TAR_R * 2) return 'near';
+  if (tar.length >= SEA_TARS_MAX) return 'full';
+  return null;
+}
+/** A tap on the chart with tar in hand: on a patch it takes it away; on open water it adds one, if one may go there. */
+export function seaTarTap(
+  tar: readonly SeaIsle[],
+  p: SeaIsle,
+  isles: readonly SeaIsle[] = [],
+): SeaIsle[] {
+  const hit = tar.findIndex((t) => Math.hypot(p.x - t.x, p.y - t.y) <= SEA_TAR_R);
+  if (hit >= 0) return tar.filter((_, k) => k !== hit);
+  if (seaTarNo(tar, p, isles)) return [...tar];
+  return [...tar, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
+}
+/** The share of its top speed a boat keeps in tar: it crawls through. */
+export const SEA_TAR_SLOW = 0.35;
 /** Water this wide is kept between a boss's spot and an island's sand: the Deep One, the biggest that stays put, clear of it. */
 export const SEA_SHORE = 110;
 /**
- * The bosses' spots (seaSpots) kept off the islands in a ring of radius r: one on an island or too near its sand is
- * moved straight out from the island's middle to clear water, or, where that would take it out to the buoys, across
- * to the island's far side.
+ * The bosses' spots (seaSpots) kept off the islands, and off the tar, in a ring of radius r: one on an island or too
+ * near its sand is moved straight out from the island's middle to clear water, or, where that would take it out to
+ * the buoys, across to the island's far side. Each is an island unless it says how far it reaches (a share of r).
  */
 export function seaSpotsClear(
   spots: readonly { x: number; y: number }[],
-  isles: readonly SeaIsle[],
+  isles: readonly (SeaIsle & { r?: number })[],
   r: number,
 ): { x: number; y: number }[] {
-  const reach = SEA_ISLE_R * r + SEA_SHORE;
   return spots.map((s) => {
     let p = { ...s };
     for (let pass = 0; pass < 2; pass++)
       for (const i of isles) {
+        const reach = (i.r ?? SEA_ISLE_R) * r + SEA_SHORE;
         const cx = i.x * r;
         const cy = i.y * r;
         const d = Math.hypot(p.x - cx, p.y - cy);
@@ -454,6 +503,7 @@ export type BargeSetup = {
   where: BargeWhere;
   sea: SeaPick;
   isles: SeaIsle[];
+  tar: SeaIsle[];
 };
 
 /** Nobody picked. */
@@ -470,6 +520,7 @@ export function defaultBarge(): BargeSetup {
     where: 'foot',
     sea: { ...noSeaPick(), meteor: 1 },
     isles: [],
+    tar: [],
   };
 }
 
@@ -488,7 +539,8 @@ export function bargeAdd(p: BargePick, k: BargeFoe, d: number): BargePick {
 
 /**
  * A saved setup read back: a size it knows, counts that are whole and not below none, ten at most; missing, the start.
- * One saved before the sea's is on foot, with the sea's start; one saved before the map has open water.
+ * One saved before the sea's is on foot, with the sea's start; one saved before the map has open water, and one
+ * saved before the tar has none.
  */
 export function parseBarge(o: unknown): BargeSetup {
   if (!o || typeof o !== 'object') return defaultBarge();
@@ -498,6 +550,7 @@ export function parseBarge(o: unknown): BargeSetup {
     where?: unknown;
     sea?: unknown;
     isles?: unknown;
+    tar?: unknown;
   };
   const size = (ARENA_SIZES as readonly unknown[]).includes(src.size)
     ? (src.size as ArenaSize)
@@ -518,16 +571,18 @@ export function parseBarge(o: unknown): BargeSetup {
       if (typeof n === 'number' && Number.isFinite(n) && n > 0) sea = seaAdd(sea, k, Math.floor(n));
     }
   } else sea = defaultBarge().sea;
-  // The map: each island kept only where one may go, in order, and no more than the most.
-  let isles: SeaIsle[] = [];
-  if (Array.isArray(src.isles))
-    for (const i of src.isles) {
+  // The map: each island, then each patch of tar, kept only where one may go, in order, and no more than the most.
+  const points = (a: unknown): SeaIsle[] =>
+    (Array.isArray(a) ? a : []).flatMap((i) => {
       const q = (i && typeof i === 'object' ? i : {}) as { x?: unknown; y?: unknown };
-      if (typeof q.x !== 'number' || typeof q.y !== 'number') continue;
-      if (!Number.isFinite(q.x) || !Number.isFinite(q.y)) continue;
-      if (!seaIsleNo(isles, { x: q.x, y: q.y })) isles = seaIsleTap(isles, { x: q.x, y: q.y });
-    }
-  return { size, pick, where, sea, isles };
+      if (typeof q.x !== 'number' || typeof q.y !== 'number') return [];
+      return Number.isFinite(q.x) && Number.isFinite(q.y) ? [{ x: q.x, y: q.y }] : [];
+    });
+  let isles: SeaIsle[] = [];
+  for (const p of points(src.isles)) if (!seaIsleNo(isles, p)) isles = seaIsleTap(isles, p);
+  let tar: SeaIsle[] = [];
+  for (const p of points(src.tar)) if (!seaTarNo(tar, p, isles)) tar = seaTarTap(tar, p, isles);
+  return { size, pick, where, sea, isles, tar };
 }
 
 /**

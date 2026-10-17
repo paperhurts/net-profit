@@ -53,6 +53,7 @@ describe('the Battle Barge: picking a fight', () => {
       where: 'foot',
       sea: defaultBarge().sea,
       isles: [],
+      tar: [],
     });
   });
 
