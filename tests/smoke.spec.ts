@@ -212,6 +212,8 @@ type Np = {
     vx: number;
     vy: number;
     sub: boolean;
+    cage: { x: number; y: number; go: string } | null;
+    inCage: boolean;
     air: number;
     airMax: number;
     face: number;
@@ -244,6 +246,9 @@ type Np = {
   stormSeen: boolean;
   wreckChest: boolean;
   diveSite: string;
+  ABYSS: { x: number; y: number; r: number };
+  abyssSeen: boolean;
+  abyssDown: boolean;
   boneSharks: { x: number; y: number; state: string; t: number }[];
   WRECK_CHEST: { x: number; y: number };
   charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
@@ -2318,6 +2323,69 @@ test('storms: out past the buoys a storm warns, comes, slows the boat, and the f
   });
   await page.waitForFunction(() => window.__np.storm.phase === 'boil', null, { timeout: 2000 });
   await expect(page.locator('#toast')).toContainText('boiling up');
+  expect(errors).toEqual([]);
+});
+
+test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage, out on the floor, and back up', async ({
+  context,
+  page,
+}) => {
+  // A flagship with the scuba gear and a spear, stopped over the abyss's dark middle, off island 11.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 8070, y: -3370, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#toast')).toContainText('A blue hole!', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.abyssSeen)).toBe(true);
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the abyss', { timeout: 4000 });
+  await page.locator('#diveBtn').click();
+  await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'abyss', null, {
+    timeout: 3000,
+  });
+  // In the cage, going down: no spear, and the way back is the cage.
+  expect(await page.evaluate(() => window.__np.diver.cage?.go)).toBe('down');
+  await expect(page.locator('#surfaceBtn')).toHaveText('Ride the cage up');
+  await expect(page.locator('#throw')).toBeHidden();
+  // Past the depth of the trench's treasure, none of which is down here.
+  await page.evaluate(() => {
+    const c = window.__np.diver.cage;
+    if (c) c.y = 1150;
+  });
+  await page.waitForFunction(() => window.__np.diver.y > 1400, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(0);
+  // Most of the way down at once, then down to the floor.
+  await page.evaluate(() => {
+    const c = window.__np.diver.cage;
+    if (c) c.y = 2800;
+  });
+  await page.waitForFunction(() => window.__np.abyssDown, null, { timeout: 6000 });
+  await expect(page.locator('#toast')).toContainText('1,000 metres down');
+  await expect(page.locator('#throw')).toBeVisible();
+  // Out of the cage the air runs; Ride the cage up pulls the diver back in, and up it goes.
+  await page.evaluate(() => {
+    window.__np.diver.x += 120;
+  });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__np.diver.inCage)).toBe(false);
+  await page.locator('#surfaceBtn').click();
+  await page.waitForFunction(() => window.__np.diver.cage?.go === 'up', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const c = window.__np.diver.cage;
+    if (c) c.y = 60;
+  });
+  await page.waitForFunction(() => !window.__np.diving, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('1,000 metres down and back');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.abyssSeen, saved.abyssDown]).toEqual([true, true]);
   expect(errors).toEqual([]);
 });
 

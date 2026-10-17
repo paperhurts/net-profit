@@ -27,6 +27,7 @@ import {
   TWILIGHT,
   wallIn,
 } from '../world/trench';
+import { drawAbyssScene } from './abyss';
 import { drawIceDiveScene } from './icedive';
 import { drawLagoonScene } from './lagoondive';
 import { drawLoot, drawLootGlint } from './loot';
@@ -97,6 +98,8 @@ export type DiveScene = {
   under?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
   /** Anything that shows through the dark, drawn over it: the lagoon creatures' eyes, the skull key's glint. */
   over?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
+  /** Anything in front of the diver, before the dark: the abyss cage's bars. */
+  front?: (ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number) => void;
   /** The diver in the white scuba suit, for under the ice. */
   white?: boolean;
 };
@@ -115,7 +118,7 @@ export function diveCamera(
     s,
     x: Math.max(hw, Math.min(site.w - hw, d.x)),
     // At the top, the surface sits a quarter of the way down the screen: a little sky, the boat, then water.
-    y: Math.max(hh * 0.5, Math.min(site.d + 40 - hh, d.y)),
+    y: Math.max(hh * 0.5, Math.min(site.d + (site.below ?? 40) - hh, d.y)),
   };
 }
 
@@ -148,7 +151,7 @@ export function drawDive(
   ctx.fillRect(0, 0, W, H);
   // Light shafts down from the surface, gone by the end of the sunlit water (under the ice, only through the hole;
   // none at all through water of its own, the black lagoon's).
-  if (top < SUNLIT && !site.ceiling && !site.look) {
+  if (top < SUNLIT && !site.ceiling && (!site.look || site.look.shafts)) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 6; i++) {
@@ -179,6 +182,7 @@ export function drawDive(
   else if (site.id === 'ice') drawIceDiveScene(ctx, X, Y, s, T);
   else if (site.id === 'sub' && site.floor) drawSeabed(ctx, X, Y, s, site.w, bottom, site.floor);
   else if (site.id === 'lagoon') drawLagoonScene(ctx, X, Y, s, T, top, bottom);
+  else if (site.id === 'abyss') drawAbyssScene(ctx, X, Y, s, T, top, bottom);
   else drawRock(ctx, X, Y, s, top, bottom);
   // What grows and swims: the plain ones now, the glowing ones over the dark.
   for (const p of sc.plants)
@@ -200,6 +204,7 @@ export function drawDive(
     drawHullBelow(ctx, X, Y, s, sc.hull, sc.trim, T, site);
   if (d.sub) drawSub(ctx, X(d.x), Y(d.y), s * SUB_SIZE, d, T);
   else drawDiver(ctx, X(d.x), Y(d.y), s * DIVER_SIZE, d, T, !!sc.white);
+  sc.front?.(ctx, X, Y, s);
   ctx.fillStyle = 'rgba(230,248,255,.7)';
   for (const b of sc.bubbles) {
     ctx.beginPath();
@@ -665,6 +670,8 @@ function drawHullBelow(
   ctx.fill();
   ctx.fillStyle = trim;
   ctx.fillRect(cx - 60 * s, cy - 9 * s, 126 * s, 3 * s);
+  // The diver's line over the side; the abyss's cage hangs on its own rope.
+  if (site.cage !== undefined) return;
   ctx.strokeStyle = 'rgba(230,220,190,.7)';
   ctx.lineWidth = 1.2 * s;
   ctx.beginPath();
@@ -710,7 +717,10 @@ function drawGauge(ctx: CanvasRenderingContext2D, d: Diver, W: number): void {
     ctx.fillStyle = full ? (low ? '#FF8A7A' : '#9FE3F5') : 'rgba(255,255,255,.12)';
     ctx.fill();
   }
-  const depth = `${Math.round(Math.max(0, d.y))} deep`;
+  const m = d.site.metres;
+  const depth = m
+    ? `${Math.round(Math.max(0, d.y) / m)} m`
+    : `${Math.round(Math.max(0, d.y))} deep`;
   ctx.fillStyle = '#FFF6E5';
   ctx.textAlign = 'right';
   ctx.fillText(depth, Math.min(W - 16, x + GAP * n + 134), y + 1);

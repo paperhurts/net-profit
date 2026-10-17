@@ -3,13 +3,13 @@
  * goes in under the boat, and how its water is kept to (walls, floor, and
  * anything solid in it). The trench in the deep is one; the wreck off island
  * 5 is another (world/wreck.ts), under the ice floe the third
- * (world/icedive.ts), the submarine's patches of the far deep the rest (world/subsea.ts), and island 11's black lagoon,
- * dived from its bank (world/lagoondive.ts).
+ * (world/icedive.ts), the submarine's patches of the far deep the rest (world/subsea.ts), island 11's black lagoon,
+ * dived from its bank (world/lagoondive.ts), and the abyss past the white buoys, gone down in a cage (world/abyss.ts).
  */
 
 import { ENTRY, inWater, keepInWater, TD, TW } from './trench';
 
-export type DiveSiteId = 'trench' | 'wreck' | 'ice' | 'sub' | 'lagoon';
+export type DiveSiteId = 'trench' | 'wreck' | 'ice' | 'sub' | 'lagoon' | 'abyss';
 
 export type DiveSite = {
   id: DiveSiteId;
@@ -30,15 +30,23 @@ export type DiveSite = {
   floor?: (x: number) => number;
   /** Dived from a bank ashore, not from the boat: no hull overhead. */
   bank?: boolean;
+  /** Gone down in a cage on the boat's rope, which rests on the floor with its middle this deep (the abyss's). */
+  cage?: number;
+  /** Its depth told in metres, this many scene units to one, rather than in the trench's plain units. */
+  metres?: number;
+  /** How far past its floor the view may go, so the floor sits up the screen, clear of the buttons (40 unless said). */
+  below?: number;
   /**
    * Its own water, for a site that is not the open sea's: its colour at a depth, how dark round the lamp, the colour
-   * over the surface, and the specks drifting in it; no sun shafts.
+   * over the surface, and the specks drifting in it; no sun shafts unless it says.
    */
   look?: {
     water: (y: number) => string;
     dark: (y: number) => number;
     sky: string;
     snow: string;
+    /** Sun shafts down from the surface after all: the abyss's top is the open sea's sunlit water. */
+    shafts?: boolean;
   };
 };
 

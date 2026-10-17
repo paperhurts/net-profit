@@ -14,6 +14,11 @@
  * warms again at the hole, and when too cold is pulled up as when out of air.
  *
  * The same drives the treasure submarine, side on, in the far deep: heavier, hovering, and with no air to run out.
+ *
+ * Down the abyss (world/abyss.ts) the diver goes in a cage on the boat's rope, the owner's call (2026-10-17): it rides
+ * the cage down to the floor, breathing from the boat while in it, swims out and back in as it likes, the tank
+ * filling again inside, and rides it back up. Going up, out of air or on purpose, it is pulled back to the cage first,
+ * as the rope under the ice pulls it to the hole.
  */
 
 import { type DiveSite, TRENCH_SITE } from '../world/divesite';
@@ -47,7 +52,13 @@ export const CHILLY = 0.6;
 /** How fast the diver warms again at the top, a share a second. */
 export const WARM = 0.5;
 
-export type DiverEvent = 'surfaced' | 'low' | 'out' | 'chilly' | 'frozen' | null;
+/** How fast the abyss's cage goes up and down the rope, at most, and how it eases at either end. */
+export const CAGE_SPEED = 210;
+export const CAGE_EASE = 1.4;
+/** How near the cage's middle counts as in it. */
+export const IN_CAGE = 22;
+
+export type DiverEvent = 'surfaced' | 'low' | 'out' | 'chilly' | 'frozen' | 'floor' | 'cage' | null;
 
 export class Diver {
   /** Where it is diving: the trench, or the wreck. */
@@ -71,6 +82,8 @@ export class Diver {
   chill = 0;
   /** It is the treasure submarine, not the diver. */
   sub = false;
+  /** The abyss's cage, where it is on the rope and whether it is going down, waiting on the floor, or going up. */
+  cage: { x: number; y: number; go: 'down' | 'wait' | 'up' } | null = null;
   private warned = false;
   private shivered = false;
 
@@ -90,16 +103,78 @@ export class Diver {
     this.state = 'swim';
     this.deepest = 0;
     this.warned = false;
+    this.cage = site.cage === undefined ? null : { x: site.entry, y: this.y, go: 'down' };
   }
 
-  /** Head back up to the boat, as when the air runs out. */
+  /** Riding the cage, down or up: it cannot swim or throw. */
+  get riding(): boolean {
+    return !!this.cage && this.cage.go !== 'wait';
+  }
+
+  /** In the cage, waiting on the floor or riding it: breathing from the boat. */
+  get inCage(): boolean {
+    const c = this.cage;
+    return !!c && (c.go !== 'wait' || Math.hypot(this.x - c.x, this.y - c.y) < IN_CAGE);
+  }
+
+  /** Head back up to the boat, as when the air runs out; in the abyss, the cage turns back up at once. */
   surface(): void {
+    if (this.cage?.go === 'down') {
+      this.cage.go = 'up';
+      return;
+    }
     this.state = 'up';
+  }
+
+  /** The cage going down or up the rope, the diver in it, easing at either end; what happened, if anything. */
+  private ride(dt: number, c: { x: number; y: number; go: 'down' | 'wait' | 'up' }): DiverEvent {
+    const rest = this.site.cage ?? this.site.d;
+    const to = c.go === 'down' ? rest : TOP;
+    const gap = Math.abs(to - c.y);
+    const sp = Math.min(CAGE_SPEED, 30 + Math.max(0, Math.min(c.y - TOP, rest - c.y)) * CAGE_EASE);
+    const st = Math.min(gap, sp * dt);
+    c.y += c.go === 'down' ? st : -st;
+    this.x = c.x;
+    this.y = c.y;
+    this.vx = 0;
+    this.vy = c.go === 'down' ? sp : -sp;
+    this.kick += dt * 2;
+    this.air = Math.min(this.airMax, this.air + dt * 25);
+    this.warned = false;
+    this.deepest = Math.max(this.deepest, this.y);
+    if (c.go === 'down' && st >= gap) {
+      c.go = 'wait';
+      this.state = 'swim';
+      return 'floor';
+    }
+    if (c.go === 'up' && c.y <= TOP) return 'surfaced';
+    return null;
   }
 
   /** One step, the stick at (ix, iy) on the screen; what happened, if anything worth saying. */
   update(dt: number, ix: number, iy: number): DiverEvent {
     let ev: DiverEvent = null;
+    const c = this.cage;
+    if (c && c.go !== 'wait') return this.ride(dt, c);
+    if (c && this.state === 'up') {
+      // Pulled back into the cage on the floor; once in, it starts up.
+      const dx = c.x - this.x;
+      const dy = c.y - this.y;
+      const d = Math.hypot(dx, dy);
+      const st = Math.min(d, ASCEND * dt);
+      if (d > 0) {
+        this.x += (dx / d) * st;
+        this.y += (dy / d) * st;
+        if (Math.abs(dx) > 1) this.face = dx > 0 ? 1 : -1;
+      }
+      this.kick += dt * 6;
+      if (d - st < 2) {
+        this.state = 'swim';
+        c.go = 'up';
+        return 'cage';
+      }
+      return null;
+    }
     if (this.state === 'up' && this.site.ceiling) {
       // The rope: straight back to the hole, under it, and up through it, whatever ice is in the way.
       const tx = this.site.entry;
@@ -142,6 +217,10 @@ export class Diver {
       if (this.cold < CHILLY) this.shivered = false;
       // Up at the top and still heading up: back aboard.
       if (this.state === 'up' || this.vy < -SWIM * 0.4) return 'surfaced';
+    } else if (this.inCage) {
+      // In the cage, breathing from the boat: the tank fills again.
+      this.air = Math.min(this.airMax, this.air + dt * 25);
+      this.warned = false;
     } else if (this.state === 'swim' && !this.sub) {
       this.air = Math.max(0, this.air - dt);
       if (!this.warned && this.air <= this.airMax * AIR_LOW) {
