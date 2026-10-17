@@ -19,6 +19,10 @@
  * but the loss, because it stays up while the boat keeps pushing. The tests
  * play the dodge with a person's reaction. Three harpoons while it is up and
  * it is driven off: it sinks at once and leaves the buoys alone a good while.
+ *
+ * On the Battle Barge at sea (data/barge.ts) it is given its water there instead: it crawls round inside the ring and
+ * rises across the way of any boat under way, whatever its tier, once it is ready, which it soon is. Its hits are kept
+ * from rise to rise, and driven off there it is gone for good.
  */
 
 import { rgba } from '../core/color';
@@ -61,6 +65,67 @@ export const PRESS_RADIUS = 700;
 export const GUARD_COOL = 20;
 /** The flagship is the only boat that can cross, so the only one it rises for. */
 const FLAGSHIP = TIER_NAME.length - 1;
+
+/**
+ * Its water: the path it crawls and how fast, how far apart its shadows start, whether it rises for a flagship crossing
+ * the buoys or for any boat under way, how soon it is ready again, whether it comes back fresh once driven off or is
+ * gone for good with its hits kept from rise to rise, and how far ahead of a boat it has room to rise (0 for none).
+ */
+export type LevWater = {
+  pos(th: number): Point;
+  speed: number;
+  gap: number;
+  start(rng: () => number): number;
+  crossing: boolean;
+  cool: number;
+  returns: boolean;
+  room(x: number, y: number, h: number, d: number): number;
+};
+/** Round the island, at the buoys, as it always was. */
+export const BUOY_WATER: LevWater = {
+  pos: levPos,
+  speed: LEV_SPEED,
+  gap: 0.016,
+  start: (rng) => rng() * 6.28,
+  crossing: true,
+  cool: GUARD_COOL,
+  returns: true,
+  room: (_x, _y, _h, d) => d,
+};
+/** Seconds after it sinks at sea before it will rise again. */
+export const SEA_COOL = 5;
+/** How far out from the ring's middle it crawls, as a share of the ring. */
+export const SEA_PATH = 0.6;
+/** How far inside the ring the middle of its body keeps when it rises. */
+export const SEA_KEEP = 120;
+/**
+ * The Battle Barge's ring at sea: round the middle at SEA_PATH of the ring, from the angle of its spot, as fast along
+ * as at the buoys. It rises for any boat under way, no nearer than GUARD_NEAR, and only where its middle lies well
+ * inside the ring; a boat heading out at the buoys has to turn back in first.
+ */
+export function seaWater(
+  at: { x: number; y: number },
+  ring: { x: number; y: number; r: number },
+): LevWater {
+  const R = ring.r * SEA_PATH;
+  return {
+    pos: (th) => [ring.x + Math.cos(th) * R, ring.y + Math.sin(th) * R],
+    speed: (LEV_SPEED * LEV_ORBIT) / R,
+    gap: (0.016 * LEV_ORBIT) / R,
+    start: () => Math.atan2(at.y - ring.y, at.x - ring.x),
+    crossing: false,
+    cool: SEA_COOL,
+    returns: false,
+    room(x, y, h, d) {
+      for (let k = d; k >= GUARD_NEAR; k -= 40) {
+        const mx = x + Math.cos(h) * k;
+        const my = y + Math.sin(h) * k;
+        if (Math.hypot(mx - ring.x, my - ring.y) <= ring.r - SEA_KEEP) return k;
+      }
+      return 0;
+    },
+  };
+}
 
 /** Where it rises: how far ahead of the boat, the middle of the body, along the body, and the boat's way through it. */
 export type Across = {
@@ -137,9 +202,9 @@ export function levPos(th: number): Point {
   ];
 }
 
-export function createLev(rng: () => number = Math.random): Lev {
+export function createLev(rng: () => number = Math.random, water: LevWater = BUOY_WATER): Lev {
   const lev: Lev = {
-    th: rng() * 6.28,
+    th: water.start(rng),
     x: 0,
     y: 0,
     trail: [],
@@ -149,7 +214,7 @@ export function createLev(rng: () => number = Math.random): Lev {
     vis: 1,
     out: null,
   };
-  for (let i = 0; i < LEV_N; i++) lev.trail.push(levPos(lev.th - i * 0.016));
+  for (let i = 0; i < LEV_N; i++) lev.trail.push(water.pos(lev.th - i * water.gap));
   const head = lev.trail[0] as Point;
   lev.x = head[0];
   lev.y = head[1];
@@ -161,6 +226,8 @@ export class Leviathan implements Entity {
   /** Harpoon hits left this rise before it is driven off, and whether it has been. */
   resolve = RESOLVE.guard;
   private driven = false;
+  /** Driven off where it does not come back: gone for good. */
+  done = false;
   /** It has just passed within RUMBLE_RADIUS of the boat. The game shakes, sounds the note, toasts and remembers the sighting. */
   onPass: (() => void) | null = null;
   /** It has begun to rise across the boat's way. The game shakes, growls and warns. */
@@ -170,14 +237,22 @@ export class Leviathan implements Entity {
   /** It sank without touching the boat: the crossing is open. */
   onMiss: (() => void) | null = null;
 
-  constructor(rng: () => number = Math.random) {
-    this.lev = createLev(rng);
+  constructor(
+    rng: () => number = Math.random,
+    readonly water: LevWater = BUOY_WATER,
+  ) {
+    this.lev = createLev(rng, water);
+  }
+
+  /** Gone for good, sunk and out of sight. */
+  get gone(): boolean {
+    return this.done && !this.lev.rise && this.lev.vis <= 0;
   }
 
   update(dt: number, w: World): void {
     const lev = this.lev;
-    lev.th += dt * LEV_SPEED;
-    const p = levPos(lev.th);
+    lev.th += dt * this.water.speed;
+    const p = this.water.pos(lev.th);
     lev.x = p[0];
     lev.y = p[1];
     const h = lev.trail[0] as Point;
@@ -186,7 +261,8 @@ export class Leviathan implements Entity {
       lev.trail.length = LEV_N;
     }
     lev.rumbleT -= dt;
-    lev.vis = lev.rise ? Math.max(0, lev.vis - dt * 2) : Math.min(1, lev.vis + dt * 0.7);
+    lev.vis =
+      lev.rise || this.done ? Math.max(0, lev.vis - dt * 2) : Math.min(1, lev.vis + dt * 0.7);
     const out = pastBuoys(w.boat.x, w.boat.y);
     const crossed = lev.out !== null && out !== lev.out;
     lev.out = out;
@@ -204,22 +280,19 @@ export class Leviathan implements Entity {
     }
   }
 
-  /** On its path: rise across the way of a flagship that has just crossed the buoys, once it is ready. */
+  /** On its path: rise across the way of a flagship that has just crossed the buoys (or, at sea, of any boat under
+   * way), once it is ready and has room. */
   private watch(dt: number, w: World, crossed: boolean): void {
     const lev = this.lev;
     const b = w.boat;
+    const water = this.water;
     lev.cool = Math.max(0, lev.cool - dt);
-    if (
-      !crossed ||
-      lev.cool > 0 ||
-      !w.started ||
-      w.docked ||
-      w.tier < FLAGSHIP ||
-      b.v < GUARD_SPEED
-    )
-      return;
-    lev.rise = { ...across(b.x, b.y, b.h, guardAt(b.v)), t: 0, up: UP, s: 0, hit: false };
-    this.resolve = RESOLVE.guard;
+    if (this.done || lev.cool > 0 || !w.started || w.docked || b.v < GUARD_SPEED) return;
+    if (water.crossing && (!crossed || w.tier < FLAGSHIP)) return;
+    const d = water.room(b.x, b.y, b.h, guardAt(b.v));
+    if (d <= 0) return;
+    lev.rise = { ...across(b.x, b.y, b.h, d), t: 0, up: UP, s: 0, hit: false };
+    if (water.returns) this.resolve = RESOLVE.guard;
     this.driven = false;
     this.onRise?.(lev.rise);
   }
@@ -256,7 +329,7 @@ export class Leviathan implements Entity {
     r.s += dt;
     if (r.s < SINK) return;
     lev.rise = null;
-    lev.cool = this.driven ? AWAY : GUARD_COOL;
+    lev.cool = this.driven ? AWAY : this.water.cool;
     if (!r.hit && !this.driven) this.onMiss?.();
   }
 
@@ -275,6 +348,7 @@ export class Leviathan implements Entity {
     this.resolve = Math.max(0, this.resolve - power);
     if (this.resolve > 0) return false;
     this.driven = true;
+    if (!this.water.returns) this.done = true;
     r.up = 0;
     if (r.t < RISE) r.t = RISE;
     return true;

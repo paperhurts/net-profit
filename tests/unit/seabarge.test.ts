@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { rng } from '../../src/core/math';
 import {
   BARGE_MAX,
   defaultBarge,
@@ -27,6 +28,19 @@ import {
 import { Cthuluviathan, DEEP_CITY, LAIR, seaCity } from '../../src/entities/cthuluviathan';
 import { DeepOne, LAIR6, seaDeepHome } from '../../src/entities/deepone';
 import { EAST_DEEP, Gulper, seaZone } from '../../src/entities/gulper';
+import {
+  BODY_R,
+  BUOY_WATER,
+  GUARD_NEAR,
+  LEV_ORBIT,
+  LEV_SPEED,
+  Leviathan,
+  levPos,
+  seaWater as levRing,
+  SEA_COOL,
+  SEA_KEEP,
+  SEA_PATH,
+} from '../../src/entities/leviathan';
 import { ISLE6_HAUNT, MeteorSerpent, seaHaunt } from '../../src/entities/meteor';
 import { DEEP_WATER, Reaper, ROUTE, seaWater } from '../../src/entities/reaper';
 import { ISLE5_REEF, SharkKing, seaReef } from '../../src/entities/sharkking';
@@ -48,6 +62,7 @@ describe('the Battle Barge at sea: picking a fight', () => {
       gulper: 0,
       angler: 0,
       cthulu: 0,
+      guard: 0,
     });
   });
 
@@ -80,6 +95,7 @@ describe('the Battle Barge at sea: picking a fight', () => {
       gulper: 0,
       angler: 0,
       cthulu: 0,
+      guard: 0,
     });
     expect(parseBarge({ where: 'moon' }).where).toBe('foot');
   });
@@ -379,5 +395,112 @@ describe('the anglerfish and the Cthuluviathan, given a home', () => {
     const home = new Cthuluviathan();
     home.update(DT, baseWorld());
     expect(home.state).toBe('asleep');
+  });
+});
+
+describe('the guard leviathan, given a home', () => {
+  const ring = { ...SEA_ARENA, r: SEA_RING.small };
+  const at = { x: SEA_ARENA.x - 300, y: SEA_ARENA.y - 300 };
+  /** A small boat (no flagship) at the ring's east side, under way across it to the west. */
+  const under = () =>
+    baseWorld({
+      tier: 0,
+      boat: { x: ring.x + ring.r * 0.7, y: ring.y, h: Math.PI, v: 120 },
+    });
+
+  it('keeps the buoys by default', () => {
+    const e = new Leviathan(rng(1));
+    expect(e.water).toBe(BUOY_WATER);
+    expect(e.lev.trail[0]).toEqual(levPos(e.lev.th));
+  });
+
+  it("crawls round inside the ring from its spot's side, as fast along as at the buoys", () => {
+    const e = new Leviathan(rng(1), levRing(at, ring));
+    const R = ring.r * SEA_PATH;
+    expect(Math.atan2(e.lev.y - ring.y, e.lev.x - ring.x)).toBeCloseTo(
+      Math.atan2(at.y - ring.y, at.x - ring.x),
+      6,
+    );
+    for (const p of e.lev.trail) expect(Math.hypot(p[0] - ring.x, p[1] - ring.y)).toBeCloseTo(R, 6);
+    const w = baseWorld({ started: false, boat: { x: ring.x, y: ring.y, h: 0, v: 0 } });
+    const x0 = e.lev.x;
+    const y0 = e.lev.y;
+    for (let i = 0; i < 60; i++) e.update(DT, w);
+    expect(Math.hypot(e.lev.x - x0, e.lev.y - y0)).toBeCloseTo(LEV_SPEED * LEV_ORBIT, 0);
+  });
+
+  it('rises across the way of any boat under way, with room inside the ring, and again soon after', () => {
+    const e = new Leviathan(rng(1), levRing(at, ring));
+    let rises = 0;
+    e.onRise = () => rises++;
+    const w = under();
+    e.update(DT, w);
+    const r = e.lev.rise;
+    if (!r) throw new Error('it should have risen');
+    expect(r.d).toBeGreaterThanOrEqual(GUARD_NEAR);
+    expect(Math.hypot(r.x - ring.x, r.y - ring.y)).toBeLessThanOrEqual(ring.r - SEA_KEEP);
+    // Stopped, the boat lets it sink, and it is up again a few seconds after.
+    w.boat.v = 0;
+    let down = 0;
+    for (let i = 0; i < 60 * 15 && !(down && e.lev.rise); i++) {
+      e.update(DT, w);
+      if (!e.lev.rise && !down) {
+        down = i;
+        w.boat.v = 120;
+      }
+    }
+    expect(rises).toBe(2);
+    expect(e.lev.cool).toBe(0);
+  });
+
+  it('waits while the boat heads out at the buoys, with no room to rise', () => {
+    const e = new Leviathan(rng(1), levRing(at, ring));
+    const w = baseWorld({ boat: { x: ring.x + ring.r - 60, y: ring.y, h: 0, v: 120 } });
+    for (let i = 0; i < 60; i++) e.update(DT, w);
+    expect(e.lev.rise).toBeNull();
+  });
+
+  it('keeps its hits from rise to rise, and driven off it is gone for good', () => {
+    const e = new Leviathan(rng(1), levRing(at, ring));
+    const w = under();
+    const upNow = () => {
+      for (let i = 0; i < 60 * 15 && !e.mark(w.boat); i++) e.update(DT, w);
+      expect(e.mark(w.boat)).not.toBeNull();
+    };
+    upNow();
+    expect(e.harpoon(1)).toBe(false);
+    expect(e.resolve).toBe(2);
+    // Let it sink, then up again: still two to go.
+    w.boat.v = 0;
+    for (let i = 0; i < 60 * 15 && e.lev.rise; i++) e.update(DT, w);
+    w.boat.v = 120;
+    for (let i = 0; i < 60 * (SEA_COOL + 1) && !e.lev.rise; i++) e.update(DT, w);
+    upNow();
+    expect(e.resolve).toBe(2);
+    e.harpoon(1);
+    expect(e.harpoon(1)).toBe(true);
+    expect(e.done).toBe(true);
+    for (let i = 0; i < 60 * 30; i++) e.update(DT, w);
+    expect(e.lev.rise).toBeNull();
+    expect(e.gone).toBe(true);
+  });
+
+  it('shoves a boat that runs into it back to its own side', () => {
+    const e = new Leviathan(rng(1), levRing(at, ring));
+    let hits = 0;
+    e.onHit = () => hits++;
+    const w = under();
+    e.update(DT, w);
+    const r = e.lev.rise;
+    if (!r) throw new Error('it should have risen');
+    // Straight on into it until it has risen enough to stand.
+    for (let i = 0; i < 60 * 3 && !hits; i++) {
+      w.boat.x += Math.cos(w.boat.h) * w.boat.v * DT;
+      w.boat.y += Math.sin(w.boat.h) * w.boat.v * DT;
+      e.update(DT, w);
+    }
+    expect(hits).toBe(1);
+    expect(w.boat.v).toBe(0);
+    expect((w.boat.x - r.x) * r.nx + (w.boat.y - r.y) * r.ny).toBeLessThan(-BODY_R);
   });
 });
