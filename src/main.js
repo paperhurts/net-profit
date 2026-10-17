@@ -774,7 +774,7 @@ function updateTrench(dt){ trenchToastT -= dt;
   if (near && walker.aboard && !trenchSeen){ trenchSeen = true; save(); refreshShop(); trenchToastT = 30;
     toast(hasScuba() ? 'A trench! The water here goes down and down, and bubbles come up from the dark. Stop over the bubbles to dive.' : 'A trench! The water here goes down and down, and bubbles come up from the dark. You need scuba gear to dive: it is in island 3\'s tower.', 4600, 1); sfx.tierUp(); }
   // The abyss past the white buoys: told once, the first time the boat comes near it.
-  if (walker.aboard && !abyssSeen && nearAbyss(boat.x, boat.y)){ abyssSeen = true; save(); refreshShop(); abyssToastT = 30; sfx.tierUp();
+  if (walker.aboard && !abyssSeen && nearAbyss(boat.x, boat.y) && pastFarFar(boat.x, boat.y)){ abyssSeen = true; save(); refreshShop(); abyssToastT = 30; sfx.tierUp();
     toast(hasScuba() ? 'A blue hole! The brightest blue, with a small dark middle: under it the sea goes down 1,000 metres. Stop over the dark middle to dive in the cage.' : 'A blue hole! The brightest blue, with a small dark middle: under it the sea goes down 1,000 metres. You need scuba gear to dive: it is in island 3\'s tower.', 5200, 1); }
   abyssToastT -= dt;
   if (!hasScuba() && overAbyss(boat.x, boat.y) && walker.aboard && abyssToastT <= 0){ abyssToastT = 20; toast('To dive here you need scuba gear: it is in island 3\'s tower.', 2600); }

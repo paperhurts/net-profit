@@ -14,13 +14,13 @@
 
 import { rng } from '../core/math';
 import type { DiveSite } from './divesite';
-import { DEEP, FAR, WS } from './island';
 import { ISLE11 } from './isle11';
 import { GLOWS, LANTERN, type Plant, type PlantKind, type Shoal } from './trench';
 
-/** Where it is: out past the white buoys, a little in from island 11 toward home; how big its dark middle is, where
- * the boat stops to dive; and how near the boat must come to see it and be told what it is. */
-export const ABYSS = { x: ISLE11.x - 1050, y: ISLE11.y + 950, r: 60 } as const;
+/** Where it is: out past the white buoys, 1,500 west of island 11 in the far far sea's north, too far out to be seen
+ * from behind them, and well off the way in to island 11, where the far far sea and the crow have their say; how big
+ * its dark middle is, where the boat stops to dive; and how near the boat must come to see it and be told what it is. */
+export const ABYSS = { x: ISLE11.x - 1500, y: ISLE11.y + 20, r: 60 } as const;
 export const ABYSS_SIGHT = 700;
 /** The bright blue round its dark middle, on the sea. */
 export const ABYSS_SHELF_R = 150;
@@ -254,6 +254,3 @@ export function overAbyss(x: number, y: number): boolean {
 export function nearAbyss(x: number, y: number): boolean {
   return Math.hypot(x - ABYSS.x, y - ABYSS.y) < ABYSS_SHELF_R + ABYSS_SIGHT;
 }
-
-/** It lies past the white buoys, in the far far sea. */
-export const ABYSS_FAR_FAR = ABYSS.x > WS + DEEP + FAR || ABYSS.y < -DEEP - FAR;

@@ -3,6 +3,8 @@ import { AIR_MAX, ASCEND, Diver, TOP } from '../../src/entities/diver';
 import {
   ABYSS,
   ABYSS_ENTRY,
+  ABYSS_SHELF_R,
+  ABYSS_SIGHT,
   ABYSS_SITE,
   AD,
   AW,
@@ -19,7 +21,7 @@ import {
   SHELF_TOP,
   WALL_END,
 } from '../../src/world/abyss';
-import { DEEP, FAR, pastFarFar } from '../../src/world/island';
+import { DEEP, FAR, pastFarFar, WS } from '../../src/world/island';
 import { ISLE11 } from '../../src/world/isle11';
 
 const DT = 1 / 60;
@@ -32,11 +34,18 @@ function rideDown(d: Diver): number {
 }
 
 describe('the abyss', () => {
-  it('lies out past the white buoys, off island 11, and goes down 1,000 metres', () => {
+  it('lies out past the white buoys, too far out to be seen from behind them, off island 11, and goes down 1,000 metres', () => {
     expect(pastFarFar(ABYSS.x, ABYSS.y)).toBe(true);
     expect(Math.hypot(ABYSS.x - ISLE11.x, ABYSS.y - ISLE11.y)).toBeGreaterThan(ISLE11.r + 400);
-    expect(ABYSS.x).toBeGreaterThan(0);
-    expect(-ABYSS.y).toBeGreaterThan(DEEP + FAR);
+    // Every point within sight of it is out past the white buoys, in the far far sea.
+    const sight = ABYSS_SHELF_R + ABYSS_SIGHT;
+    expect(-ABYSS.y - (DEEP + FAR)).toBeGreaterThan(sight);
+    for (let a = 0; a < Math.PI * 2; a += 0.1)
+      expect(pastFarFar(ABYSS.x + Math.cos(a) * sight, ABYSS.y + Math.sin(a) * sight)).toBe(true);
+    // And well off where a boat crosses into it on the way to island 11, the far deep's corner.
+    expect(Math.hypot(ABYSS.x - (WS + DEEP + FAR), ABYSS.y + DEEP + FAR)).toBeGreaterThan(
+      sight + 300,
+    );
     expect(Math.round(AD / METRES)).toBe(1000);
     expect(overAbyss(ABYSS.x, ABYSS.y)).toBe(true);
     expect(overAbyss(ABYSS.x + 400, ABYSS.y)).toBe(false);

@@ -2342,7 +2342,7 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
     isle10Seen: true,
     isle11Seen: true,
     lv: { net: 5, hold: 5, engine: 5 },
-    trip: { x: 8070, y: -3370, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: 7620, y: -4300, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#toast')).toContainText('A blue hole!', { timeout: 4000 });
   expect(await page.evaluate(() => window.__np.abyssSeen)).toBe(true);
