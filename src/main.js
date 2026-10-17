@@ -1964,11 +1964,14 @@ const bargeDown = (x, y) => { sfx.spearHit(); addText(x, y, 30, 'Down!', '#D8FFE
 const seaBosses = () => SEA_FOES.flatMap(k => seaBoss[k]);
 const seaWorld = Object.create(world); seaWorld.started = true;
 /** Beaten, at sea: driven off, dying or dead, sinking or sunk, or (the anglerfish, the Cthuluviathan) done for good;
- * and, besides, gone from sight, and no longer minded. */
-const SEA_DOWN = ['away', 'dying', 'dead', 'sink', 'down'];
-const seaOut = (b) => !!b.done || SEA_DOWN.includes(b.state);
+ * and, besides, gone from sight, and no longer minded. The Deep One's 'down' is sunk; Star's is only him thrashing in
+ * the water after a dive, the harpoon's chance (until 2026-10-17 it counted as beaten too, and the fight was won the
+ * moment he first dived, with him frozen out of sight). */
+const SEA_DOWN = ['away', 'dying', 'dead', 'sink'];
+const seaSunk = (b) => b.state === 'down' && !(b instanceof MeteorSerpent);
+const seaOut = (b) => !!b.done || seaSunk(b) || SEA_DOWN.includes(b.state);
 // A beaten Cthuluviathan sleeps on in its sunken city, which stays: it is never gone. The leviathan is, once sunk out of sight.
-const seaGone = (b) => b.state === 'dead' || b.state === 'down' || (b.state === 'away' && b.t > 5) || (!!b.done && b.state === 'gone') || b.gone === true;
+const seaGone = (b) => b.state === 'dead' || seaSunk(b) || (b.state === 'away' && b.t > 5) || (!!b.done && b.state === 'gone') || b.gone === true;
 /** Where one is: the Cthuluviathan is its city, the leviathan where it has risen, or else its head. */
 const seaAt = (b) => b.lev ? (b.lev.rise ?? b.lev) : b.x === undefined ? b.lair : b;
 /** Each still in the fight, what kind it is, and where the harpoon would strike it now. */
