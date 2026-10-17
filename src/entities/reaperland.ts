@@ -185,12 +185,14 @@ export const ISLE6_LAIR: Lair = {
 };
 
 /**
- * A round deck of this middle and radius, him lying at a spot on it facing its middle: the Battle Barge's. He wakes
- * at once and never gives up, and beaten he goes over the side into the sea.
+ * A round deck of this middle and radius, him lying at a spot on it facing its middle: the Battle Barge's, or one of
+ * the kid's islands in its ring at sea, with its palms to keep off. He wakes at once and never gives up, and beaten
+ * he goes over the side into the sea.
  */
 export function deckLair(
   room: { x: number; y: number; r: number },
   at: { x: number; y: number },
+  posts: readonly { x: number; y: number }[] = [],
 ): Lair {
   const out = (x: number, y: number) => Math.hypot(x - room.x, y - room.y);
   return {
@@ -207,11 +209,21 @@ export function deckLair(
         p.x = room.x + ((p.x - room.x) / d) * max;
         p.y = room.y + ((p.y - room.y) / d) * max;
       }
+      for (const q of posts) {
+        const e = Math.hypot(p.x - q.x, p.y - q.y) || 1;
+        if (e < POST_R) {
+          p.x = q.x + ((p.x - q.x) / e) * POST_R;
+          p.y = q.y + ((p.y - q.y) / e) * POST_R;
+        }
+      }
     },
     inSea: (x, y) => out(x, y) > room.r + 10,
     seaward: (x, y) => Math.atan2(y - room.y, x - room.x),
   };
 }
+
+/** How far he keeps off a palm on a deck's island. */
+const POST_R = 16;
 
 /** The way he faces drawn side on, toward screen right (1) or left (-1). */
 const SIDE_R = -Math.PI / 4;

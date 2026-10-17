@@ -29,6 +29,7 @@ import {
   SEA_ISLE_R,
   SEA_ISLE_REACH,
   SEA_ISLES_MAX,
+  SEA_LAND_ROUND,
   SEA_NAMES,
   SEA_RING,
   SEA_SEEN,
@@ -47,6 +48,7 @@ import {
   seaFrame,
   seaIsleNo,
   seaIsleTap,
+  seaIsleWay,
   seaSpots,
   seaSpotsClear,
   seaStart,
@@ -77,8 +79,10 @@ import {
 } from '../../src/entities/leviathan';
 import { ISLE6_HAUNT, MeteorSerpent, seaHaunt } from '../../src/entities/meteor';
 import { DEEP_WATER, Reaper, ROUTE, seaWater } from '../../src/entities/reaper';
+import { deckLair, LAND_HP, LandReaper } from '../../src/entities/reaperland';
 import { ISLE5_REEF, SharkKing, seaReef } from '../../src/entities/sharkking';
 import { groundZ, onLand, setWalkLand } from '../../src/entities/walker';
+import { seaIslePalms } from '../../src/render/seaisles';
 import { DEEP, FAR, FARFAR, WS } from '../../src/world/island';
 import { ROOMS } from '../../src/world/tower';
 import { baseWorld } from './helpers/world';
@@ -548,10 +552,12 @@ describe("the kid's map at sea", () => {
     expect(parseBarge({ size: 'small', where: 'sea', sea: { king: 1 } }).isles).toEqual([]);
   });
 
-  it('puts an island where the water is tapped, and takes it away when it is tapped', () => {
+  it('puts an island where the water is tapped, a Reaper on it when it is tapped, and takes it away after', () => {
     let m = seaIsleTap([], { x: -0.3, y: -0.2 });
     expect(m).toEqual([{ x: -0.3, y: -0.2 }]);
     m = seaIsleTap(m, { x: -0.3 + SEA_ISLE_R * 0.8, y: -0.2 });
+    expect(m).toEqual([{ x: -0.3, y: -0.2, who: 'reaper' }]);
+    m = seaIsleTap(m, { x: -0.3, y: -0.2 - SEA_ISLE_R * 0.8 });
     expect(m).toEqual([]);
   });
 
@@ -589,6 +595,20 @@ describe("the kid's map at sea", () => {
     });
     expect(m.isles).toEqual([
       { x: -0.3, y: -0.3 },
+      { x: 0.5, y: -0.3 },
+    ]);
+  });
+
+  it('reads back who lives on each island, and nobody for anyone it does not know', () => {
+    const m = parseBarge({
+      where: 'sea',
+      isles: [
+        { x: -0.3, y: -0.3, who: 'reaper' },
+        { x: 0.5, y: -0.3, who: 'dragon' },
+      ],
+    });
+    expect(m.isles).toEqual([
+      { x: -0.3, y: -0.3, who: 'reaper' },
       { x: 0.5, y: -0.3 },
     ]);
   });
@@ -828,5 +848,87 @@ describe("the kid's bridges at sea", () => {
         SEA_BRIDGE_REACH * r + SEA_SHORE - 1e-6,
       );
     }
+  });
+});
+
+describe("a Reaper on one of the kid's islands", () => {
+  const isle = { x: SEA_ARENA.x, y: SEA_ARENA.y, r: SEA_ISLE_R * SEA_RING.small };
+  const world = (at: { x: number; y: number } | null) =>
+    baseWorld({ figure: at ? { ...at, vx: 0, vy: 0 } : null });
+
+  it('lands the figure where the boat does not hide it: in front of it on the screen, or else to one side of it', () => {
+    // Down the screen is x + y, across it x - y.
+    const down = (p: { x: number; y: number }) => p.x + p.y;
+    const across = (p: { x: number; y: number }) => p.x - p.y;
+    for (let n = 0; n < 16; n++) {
+      const a = (n / 16) * Math.PI * 2;
+      const at = {
+        x: isle.x + Math.cos(a) * (isle.r + 50),
+        y: isle.y + Math.sin(a) * (isle.r + 50),
+      };
+      const w = seaIsleWay(isle, at);
+      const l = w.landing;
+      // On the sand, just up the beach, near the bow.
+      expect(Math.hypot(l.x - isle.x, l.y - isle.y)).toBeCloseTo(isle.r - 18, 6);
+      expect(Math.hypot(l.x - at.x, l.y - at.y)).toBeLessThan(140);
+      // Never straight behind the boat: in front of it, or well to one side.
+      const inFront = down(l) > down(at);
+      expect(inFront || Math.abs(across(l) - across(at)) > 50).toBe(true);
+      // The boat ties up bow in, off the sand, where it came in.
+      const b = w.berth(1.6);
+      expect(Math.hypot(b.x - isle.x, b.y - isle.y)).toBeCloseTo(isle.r + 24 * 1.6 + 6, 6);
+      expect(Math.cos(b.h) * (isle.x - b.x) + Math.sin(b.h) * (isle.y - b.y)).toBeGreaterThan(0);
+    }
+    // From below on the screen, the usual way in, it lands round the shore, not straight up the beach behind the boat.
+    const below = {
+      x: isle.x + (isle.r + 50) * Math.SQRT1_2,
+      y: isle.y + (isle.r + 50) * Math.SQRT1_2,
+    };
+    const l = seaIsleWay(isle, below).landing;
+    expect(Math.abs(across(l) - across(below))).toBeGreaterThan(50);
+    expect(SEA_LAND_ROUND).toBeGreaterThan(0);
+  });
+
+  it('has two palms on a small island and three on a bigger one', () => {
+    expect(seaIslePalms(isle)).toHaveLength(2);
+    expect(seaIslePalms({ ...isle, r: SEA_ISLE_R * SEA_RING.large })).toHaveLength(3);
+  });
+
+  it('wakes the moment the figure comes ashore, keeps to the sand and off the palms, and lies down when it leaves', () => {
+    const palms = seaIslePalms(isle);
+    const r = new LandReaper(deckLair(isle, { x: isle.x + 20, y: isle.y }, palms));
+    r.update(DT, world(null));
+    expect(r.state).toBe('sleep');
+    // Just up the beach from the water.
+    const f = { x: isle.x - isle.r + 20, y: isle.y };
+    r.update(DT, world(f));
+    expect(r.state).toBe('rise');
+    for (let t = 0; t < 10; t += DT) {
+      r.update(DT, world(f));
+      if (r.state === 'coil' || r.state === 'sweep' || r.state === 'dash') continue;
+      expect(Math.hypot(r.x - isle.x, r.y - isle.y)).toBeLessThanOrEqual(isle.r - 30 + 1e-6);
+      for (const p of palms)
+        expect(Math.hypot(r.x - p.x, r.y - p.y)).toBeGreaterThanOrEqual(16 - 1e-6);
+    }
+    expect(r.awake).toBe(true);
+    // Back aboard: asleep again where he lay, whole.
+    r.update(DT, world(null));
+    expect(r.state).toBe('sleep');
+    expect(r.hp).toBe(LAND_HP);
+  });
+
+  it('beaten, goes off into the sea and is gone', () => {
+    const r = new LandReaper(deckLair(isle, { x: isle.x + 20, y: isle.y }));
+    const f = { x: isle.x - isle.r + 20, y: isle.y };
+    let beaten = 0;
+    r.onBeaten = () => beaten++;
+    r.update(DT, world(f));
+    r.update(DT, world(f));
+    expect(r.hit(LAND_HP, true)).toBe(true);
+    expect(r.state).toBe('beaten');
+    for (let t = 0; t < 15 && r.state !== 'gone'; t += DT) r.update(DT, world(null));
+    expect(beaten).toBe(1);
+    expect(r.state).toBe('gone');
+    expect(Math.hypot(r.x - isle.x, r.y - isle.y)).toBeGreaterThan(isle.r);
   });
 });
