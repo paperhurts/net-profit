@@ -2,8 +2,11 @@
  * The toast queue. The prototype had one slot, so "Hold full" could stamp on
  * "Pirates on your tail". Now a message has a priority: a more urgent one
  * interrupts, an equal or lesser one waits its turn and gives up if it waits
- * too long, and the same message is never shown twice in a row. Pure: the
- * game renders whatever `tick` returns.
+ * too long, and the same message is never shown twice in a row. The player
+ * can send the one showing away (a tap or a flick, the owner's, 2026-10-17),
+ * and then the same message keeps away a while, so one the game says again and
+ * again does not spring straight back. Pure: the game renders whatever `tick`
+ * returns.
  */
 
 /** 0 is routine (hold full, denials), 1 is an event (dolphins, a new tier), 2 is danger. */
@@ -16,13 +19,17 @@ type Waiting = { msg: string; ms: number; pri: Priority; expires: number };
 export const MAX_WAIT = 4;
 /** No more than this many waiting; the oldest of the least urgent goes first. */
 export const MAX_QUEUE = 3;
+/** Seconds a message sent away keeps away. */
+export const QUIET = 8;
 
 export class ToastQueue {
   private current: Showing | null = null;
   private waiting: Waiting[] = [];
+  private quiet: { msg: string; until: number } | null = null;
 
   /** Ask for a message. `now` is seconds on any monotonic clock. */
   push(msg: string, ms: number, pri: Priority, now: number): void {
+    if (this.quiet && this.quiet.msg === msg && now < this.quiet.until) return;
     if (this.current && this.current.msg === msg && now < this.current.until) {
       this.current.until = now + ms / 1000;
       return;
@@ -52,6 +59,13 @@ export class ToastQueue {
       }
     }
     return this.current ? this.current.msg : null;
+  }
+
+  /** The player sent this message away: if it is the one showing it goes, and the next waiting may show. */
+  dismiss(msg: string, now: number): void {
+    if (!this.current || this.current.msg !== msg) return;
+    this.quiet = { msg, until: now + QUIET };
+    this.current = null;
   }
 
   /** Drop everything, as when the shop opens over the toast's spot. */

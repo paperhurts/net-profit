@@ -115,6 +115,7 @@ type Np = {
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
   walkerAt: [number, number];
+  toast(msg: string, ms?: number, pri?: number): void;
   seaFight: {
     x: number;
     y: number;
@@ -7255,6 +7256,60 @@ test('the Battle Barge at sea: hidden behind an island, the Reaper loses the boa
   });
   await page.evaluate(() => window.__np.seaBoss.reaper[0]?.onSweep());
   expect(await page.evaluate(() => window.__np.hp)).toBeLessThan(100);
+  expect(errors).toEqual([]);
+});
+
+test('messages: a tap sends one away, a flick slides it off, and the same one keeps away a while', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  const toast = page.locator('#toast');
+  // Let the game's own first messages pass, so only ours shows.
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__np.toast('A message to tap away.', 20000, 2));
+  await expect(toast).toHaveText('A message to tap away.');
+  await expect(toast).toHaveClass(/show/);
+  const v0 = await page.evaluate(() => window.__np.boat.v);
+  await toast.click();
+  await expect(toast).not.toHaveClass(/show/);
+  // The press did not steer.
+  expect(await page.evaluate(() => window.__np.boat.v)).toBeLessThanOrEqual(v0);
+  // Flicked sideways, it slides off and goes.
+  await page.evaluate(() => window.__np.toast('A message to flick away.', 20000, 2));
+  await expect(toast).toHaveText('A message to flick away.');
+  await expect(toast).toHaveClass(/show/);
+  const box = await toast.boundingBox();
+  if (!box) throw new Error('no message');
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 60, cy, { steps: 4 });
+  await page.mouse.move(cx + 120, cy, { steps: 4 });
+  await page.mouse.up();
+  await expect(toast).not.toHaveClass(/show/);
+  // Said again straight away, it keeps away.
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.__np.toast('A message to flick away.', 20000, 2));
+  await page.waitForTimeout(300);
+  await expect(toast).not.toHaveClass(/show/);
+  // A short drag is not a flick: it goes back and stays.
+  await page.evaluate(() => window.__np.toast('A message to keep.', 20000, 2));
+  await expect(toast).toHaveText('A message to keep.');
+  await expect(toast).toHaveClass(/show/);
+  const b2 = await toast.boundingBox();
+  if (!b2) throw new Error('no message');
+  await page.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b2.x + b2.width / 2 + 20, b2.y + b2.height / 2, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  await expect(toast).toHaveClass(/show/);
+  await expect(toast).toHaveText('A message to keep.');
   expect(errors).toEqual([]);
 });
 
