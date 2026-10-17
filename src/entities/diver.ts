@@ -198,8 +198,11 @@ export class Diver {
     } else {
       const m = Math.hypot(ix, iy);
       const top = this.sub ? SUB_SPEED : SWIM;
-      const tx = m > 0.05 ? ix * top : 0;
-      const ty = m > 0.05 ? iy * top : this.sub ? 0 : -DRIFT;
+      // Let go in the abyss's cage on the floor, it holds on to the bars, settling in the middle, rather than drifting
+      // up out through its roof.
+      const hold = !!c && m <= 0.05 && this.inCage;
+      const tx = m > 0.05 ? ix * top : hold && c ? (c.x - this.x) * 3 : 0;
+      const ty = m > 0.05 ? iy * top : hold && c ? (c.y - this.y) * 3 : this.sub ? 0 : -DRIFT;
       const k = Math.min(1, dt * (this.sub ? SUB_EASE : EASE));
       this.vx += (tx - this.vx) * k;
       this.vy += (ty - this.vy) * k;

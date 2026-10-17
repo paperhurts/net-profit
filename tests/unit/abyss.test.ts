@@ -113,6 +113,24 @@ describe('the dive cage', () => {
     expect(d.air).toBeGreaterThan(low);
   });
 
+  it('keeps a diver who lets go in the cage on the floor in it, breathing from the boat, not floating out', () => {
+    const d = new Diver();
+    d.reset(AIR_MAX, ABYSS_SITE);
+    rideDown(d);
+    for (let t = 0; t < 10; t += DT) d.update(DT, 0, 0);
+    expect(d.inCage).toBe(true);
+    expect(d.air).toBe(AIR_MAX);
+    // Swum back in at full speed and let go, it settles in the cage rather than coasting or drifting out.
+    for (let t = 0; t < 2; t += DT) d.update(DT, 1, 0);
+    expect(d.inCage).toBe(false);
+    for (let t = 0; t < 12 && !d.inCage; t += DT) d.update(DT, -1, 0);
+    for (let t = 0; t < 10; t += DT) d.update(DT, 0, 0);
+    expect(d.inCage).toBe(true);
+    // And it still swims out when it wants to.
+    for (let t = 0; t < 2; t += DT) d.update(DT, 0.6, -0.6);
+    expect(d.inCage).toBe(false);
+  });
+
   it('pulls the diver back into the cage when the air runs out, then takes it up to the boat', () => {
     const d = new Diver();
     d.reset(AIR_MAX, ABYSS_SITE);
