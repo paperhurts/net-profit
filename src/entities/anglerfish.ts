@@ -10,6 +10,11 @@
  * comes up somewhere else a while later. By day it is not there at all, and it
  * keeps clear of islands 2, 3 and 4. A harpoon in the light shuts its jaws if they are
  * open; three and it is driven off, its light out for a good while.
+ *
+ * Its water is something it is given (where it lurks, where its light may drift, whether it comes up only at night, how
+ * long it stays down after a snap, and whether it comes back once driven off), the deep by night by default; the Battle
+ * Barge at sea gives each of its copies the ring, where it lurks by day too, is soon up again after a snap, and once
+ * driven off is gone.
  */
 
 import { rgba } from '../core/color';
@@ -94,6 +99,52 @@ export function lurkAt(
   return [WS / 2, WS + DEEP / 2];
 }
 
+/** Its water: where it lurks and may drift, by night only or not, how long it stays down, whether it comes back. */
+export type AnglerWater = {
+  lurk(rng: () => number, away?: { x: number; y: number }, far?: number): [number, number];
+  inWater(x: number, y: number): boolean;
+  night: boolean;
+  cool: number;
+  returns: boolean;
+};
+/** The deep, by night, clear of the Cthuluviathan's city and the islands, as it always was. */
+export const DEEP_WATER: AnglerWater = {
+  lurk: lurkAt,
+  inWater: (x, y) =>
+    inDeep(x, y) &&
+    Math.hypot(x - LAIR.x, y - LAIR.y) >= LAIR_CLEAR &&
+    !nearIsle2(x, y, ISLE2_CLEAR) &&
+    !nearIsle3(x, y, ISLE2_CLEAR) &&
+    !nearIsle4(x, y, ISLE2_CLEAR),
+  night: true,
+  cool: COOL,
+  returns: true,
+};
+/** Seconds it stays down after a snap at sea, on the Battle Barge. */
+export const SEA_COOL = 4;
+/** The Battle Barge's ring at sea: it lurks anywhere well inside it, by day too, and is soon up again. */
+export function seaWater(ring: { x: number; y: number; r: number }): AnglerWater {
+  const inner = ring.r * 0.75;
+  return {
+    lurk(rng, away, far = 0) {
+      const keep = Math.min(far, ring.r * 0.8);
+      for (let i = 0; i < 40; i++) {
+        const a = rng() * Math.PI * 2;
+        const d = Math.sqrt(rng()) * inner;
+        const x = ring.x + Math.cos(a) * d;
+        const y = ring.y + Math.sin(a) * d;
+        if (away && Math.hypot(x - away.x, y - away.y) < keep) continue;
+        return [x, y];
+      }
+      return [ring.x, ring.y];
+    },
+    inWater: (x, y) => Math.hypot(x - ring.x, y - ring.y) < ring.r - 100,
+    night: false,
+    cool: SEA_COOL,
+    returns: false,
+  };
+}
+
 export class Anglerfish implements Entity {
   state: AnglerState = 'gone';
   /** Where the light hangs; the body is beneath it. */
@@ -101,6 +152,8 @@ export class Anglerfish implements Entity {
   y = WS + DEEP / 2;
   tx = this.x;
   ty = this.y;
+  /** Driven off where it does not come back: gone for good. */
+  done = false;
   /** Seconds in the current state, and before it may come up again. */
   t = 0;
   cool = 0;
@@ -118,16 +171,28 @@ export class Anglerfish implements Entity {
   /** The jaws closed on nothing. */
   onMiss: (() => void) | null = null;
 
+  /** Given a spot, it starts there with its light coming up. */
+  constructor(
+    readonly water: AnglerWater = DEEP_WATER,
+    at?: { x: number; y: number },
+  ) {
+    if (!at) return;
+    this.x = this.tx = at.x;
+    this.y = this.ty = at.y;
+    this.state = 'lurking';
+  }
+
   update(dt: number, w: World): void {
     const b = w.boat;
     const shown = this.state === 'lurking' || this.state === 'opening';
     this.glow += ((shown ? 1 : 0) - this.glow) * Math.min(1, dt * (shown ? 1.2 : 2.5));
     this.t += dt;
+    const water = this.water;
     if (this.state === 'gone') {
       this.cool -= dt;
-      if (w.dark >= DUSK && this.cool <= 0) {
-        [this.x, this.y] = lurkAt(w.rng, b, 1300);
-        [this.tx, this.ty] = lurkAt(w.rng);
+      if (!this.done && (!water.night || w.dark >= DUSK) && this.cool <= 0) {
+        [this.x, this.y] = water.lurk(w.rng, b, 1300);
+        [this.tx, this.ty] = water.lurk(w.rng);
         this.state = 'lurking';
         this.t = 0;
         this.resolve = RESOLVE.angler;
@@ -137,7 +202,7 @@ export class Anglerfish implements Entity {
     if (this.state === 'diving') {
       if (this.t > DIVE) {
         this.state = 'gone';
-        this.cool = Math.max(COOL, this.away);
+        this.cool = Math.max(water.cool, this.away);
         this.away = 0;
         this.t = 0;
       }
@@ -155,7 +220,7 @@ export class Anglerfish implements Entity {
       return;
     }
     // Lurking.
-    if (w.dark < DAWN) {
+    if (water.night && w.dark < DAWN) {
       this.state = 'diving';
       this.t = 0;
       return;
@@ -166,7 +231,7 @@ export class Anglerfish implements Entity {
       this.tx = b.x + ((this.x - b.x) / (d || 1)) * BAIT_NEAR;
       this.ty = b.y + ((this.y - b.y) / (d || 1)) * BAIT_NEAR;
     } else if (Math.hypot(this.tx - this.x, this.ty - this.y) < 40) {
-      [this.tx, this.ty] = lurkAt(w.rng);
+      [this.tx, this.ty] = water.lurk(w.rng);
     }
     const dx = this.tx - this.x;
     const dy = this.ty - this.y;
@@ -175,17 +240,11 @@ export class Anglerfish implements Entity {
       const step = Math.min(dl, DRIFT * dt);
       const nx = this.x + (dx / dl) * step;
       const ny = this.y + (dy / dl) * step;
-      if (
-        inDeep(nx, ny) &&
-        Math.hypot(nx - LAIR.x, ny - LAIR.y) >= LAIR_CLEAR &&
-        !nearIsle2(nx, ny, ISLE2_CLEAR) &&
-        !nearIsle3(nx, ny, ISLE2_CLEAR) &&
-        !nearIsle4(nx, ny, ISLE2_CLEAR)
-      ) {
+      if (water.inWater(nx, ny)) {
         this.x = nx;
         this.y = ny;
       } else {
-        [this.tx, this.ty] = lurkAt(w.rng);
+        [this.tx, this.ty] = water.lurk(w.rng);
       }
     }
     if (!w.started || w.docked || b.v < OPEN_SPEED || d > openAt(b.v)) return;
@@ -211,6 +270,7 @@ export class Anglerfish implements Entity {
       this.state = 'diving';
       this.t = 0;
       this.away = AWAY;
+      if (!this.water.returns) this.done = true;
       return true;
     }
     if (open) {

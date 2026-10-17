@@ -64,14 +64,17 @@ export function tentaclePhase(t: number): 'warn' | 'up' | 'sink' | 'gone' {
   return 'gone';
 }
 
-/** Where a tentacle comes up for a boat: where it will be when the bubbles end, kept within reach. */
-export function strikeAt(b: World['boat']): [number, number] {
+/** Where a tentacle comes up for a boat: where it will be when the bubbles end, kept within reach of its city. */
+export function strikeAt(
+  b: World['boat'],
+  lair: { x: number; y: number } = LAIR,
+): [number, number] {
   let x = b.x + Math.cos(b.h) * b.v * WARN;
   let y = b.y + Math.sin(b.h) * b.v * WARN;
-  const d = Math.hypot(x - LAIR.x, y - LAIR.y);
+  const d = Math.hypot(x - lair.x, y - lair.y);
   if (d > REACH) {
-    x = LAIR.x + ((x - LAIR.x) / d) * REACH;
-    y = LAIR.y + ((y - LAIR.y) / d) * REACH;
+    x = lair.x + ((x - lair.x) / d) * REACH;
+    y = lair.y + ((y - lair.y) / d) * REACH;
   }
   return [x, y];
 }
@@ -88,8 +91,44 @@ const COLUMNS: readonly [number, number, number][] = [
   [5.6, 280, 18],
 ];
 
+/**
+ * Its city is something it is given (where it lies, whether it wakes at once, how long out of reach before it sleeps,
+ * the longest it stays awake, and whether it comes back once driven off), the corner of the deep by default; the
+ * Battle Barge at sea gives each of its copies a city of its own on the open sea, where it wakes at once, never sleeps,
+ * and once driven off is gone.
+ */
+export type CthuluCity = {
+  x: number;
+  y: number;
+  wake: boolean;
+  calm: number;
+  awakeMax: number;
+  returns: boolean;
+};
+/** The corner of the deep, as it always was. */
+export const DEEP_CITY: CthuluCity = {
+  ...LAIR,
+  wake: false,
+  calm: CALM,
+  awakeMax: AWAKE_MAX,
+  returns: true,
+};
+/** A city on the open sea for the Battle Barge: awake at once, never back to sleep, gone once driven off. */
+export function seaCity(at: { x: number; y: number }): CthuluCity {
+  return {
+    x: at.x,
+    y: at.y,
+    wake: true,
+    calm: Number.POSITIVE_INFINITY,
+    awakeMax: Number.POSITIVE_INFINITY,
+    returns: false,
+  };
+}
+
 export class Cthuluviathan implements Entity {
   state: 'asleep' | 'awake' = 'asleep';
+  /** Driven off where it does not come back: asleep for good. */
+  done = false;
   tentacles: Tentacle[] = [];
   /** How far its eyes are open, 0..1. */
   eyes = 0;
@@ -118,6 +157,8 @@ export class Cthuluviathan implements Entity {
   onGrab: (() => void) | null = null;
   onSleep: (() => void) | null = null;
 
+  constructor(readonly lair: CthuluCity = DEEP_CITY) {}
+
   update(dt: number, w: World): void {
     const b = w.boat;
     this.eyes += ((this.state === 'awake' ? 1 : 0) - this.eyes) * Math.min(1, dt * 3);
@@ -132,7 +173,7 @@ export class Cthuluviathan implements Entity {
     this.snoreT -= dt;
     this.drowsy -= dt;
     if (!w.started) return;
-    const d = Math.hypot(b.x - LAIR.x, b.y - LAIR.y);
+    const d = Math.hypot(b.x - this.lair.x, b.y - this.lair.y);
     this.boatD = d;
     if (!this.sighted && d < SIGHT_RADIUS) {
       this.sighted = true;
@@ -144,9 +185,10 @@ export class Cthuluviathan implements Entity {
         this.onSnore?.();
       }
       if (
+        !this.done &&
         this.drowsy <= 0 &&
         !w.docked &&
-        (d < TOO_CLOSE || (d < WAKE_RADIUS && b.v > WAKE_SPEED))
+        (this.lair.wake || d < TOO_CLOSE || (d < WAKE_RADIUS && b.v > WAKE_SPEED))
       ) {
         this.state = 'awake';
         this.awakeT = 0;
@@ -161,7 +203,7 @@ export class Cthuluviathan implements Entity {
     } else {
       this.awakeT += dt;
       this.calmT = d > REACH * 1.1 ? this.calmT + dt : 0;
-      if (this.calmT > CALM || this.awakeT > AWAKE_MAX) {
+      if (this.calmT > this.lair.calm || this.awakeT > this.lair.awakeMax) {
         this.state = 'asleep';
         this.drowsy = DROWSY;
         this.onSleep?.();
@@ -169,7 +211,7 @@ export class Cthuluviathan implements Entity {
         this.strikeT -= dt;
         if (this.strikeT <= 0 && d < REACH) {
           this.strikeT = STRIKE_EVERY;
-          const [x, y] = strikeAt(b);
+          const [x, y] = strikeAt(b, this.lair);
           this.tentacles.push({ x, y, t: 0, hit: false });
         }
       }
@@ -213,6 +255,7 @@ export class Cthuluviathan implements Entity {
     if (this.resolve > 0) return false;
     this.state = 'asleep';
     this.drowsy = AWAY;
+    if (!this.lair.returns) this.done = true;
     for (const t of this.tentacles) {
       t.hit = true;
       if (tentaclePhase(t.t) === 'warn') t.t = WARN + UP + SINK;
@@ -224,11 +267,11 @@ export class Cthuluviathan implements Entity {
   /** On the radar: each tentacle up, and the beast itself once it is awake (asleep, it is not). */
   radar(blip: Blipper): void {
     for (const t of this.tentacles) blip(t.x, t.y, 'threat');
-    if (this.state === 'awake') blip(LAIR.x, LAIR.y, 'threat');
+    if (this.state === 'awake') blip(this.lair.x, this.lair.y, 'threat');
   }
 
   draw(v: DrawView, layer: Layer): void {
-    const near = v.onScreen(LAIR.x, LAIR.y, 700);
+    const near = v.onScreen(this.lair.x, this.lair.y, 700);
     if (layer === 'underwater') {
       if (near) this.drawCity(v, false);
       for (const t of this.tentacles) this.drawArm(v, t);
@@ -239,14 +282,14 @@ export class Cthuluviathan implements Entity {
       for (const t of this.tentacles) if (v.onScreen(t.x, t.y, 120)) this.drawTentacle(v, t);
       if (near && this.state === 'asleep' && this.eyes < 0.3) this.drawZs(v);
     } else if (layer === 'mask') {
-      if (near) v.light(LAIR.x, LAIR.y, 0, 320, 0.45 + 0.3 * this.eyes);
+      if (near) v.light(this.lair.x, this.lair.y, 0, 320, 0.45 + 0.3 * this.eyes);
       for (const t of this.tentacles) v.light(t.x, t.y, 10, 130, 0.8);
     } else if (layer === 'overlay') {
       // A phone in portrait shows little to either side: mark it at the edge while the boat is near.
       if (this.boatD < MARK_RADIUS)
         v.indicator(
-          LAIR.x,
-          LAIR.y,
+          this.lair.x,
+          this.lair.y,
           '#285E46',
           this.state === 'awake' ? 'eye' : 'sleep',
           this.state === 'awake',
@@ -257,8 +300,8 @@ export class Cthuluviathan implements Entity {
       ctx.globalCompositeOperation = 'screen';
       for (const s of [-1, 1])
         v.glow(
-          LAIR.x + s * 34,
-          LAIR.y - s * 34,
+          this.lair.x + s * 34,
+          this.lair.y - s * 34,
           24,
           40,
           rgba('#B6FF7A', 0.35 * this.eyes * v.dark),
@@ -273,13 +316,13 @@ export class Cthuluviathan implements Entity {
     if (!tops) {
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = '#123B44';
-      v.isoEllipse(LAIR.x, LAIR.y, 380);
+      v.isoEllipse(this.lair.x, this.lair.y, 380);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
     for (const [a, r, h] of COLUMNS) {
-      const x = LAIR.x + Math.cos(a) * r;
-      const y = LAIR.y + Math.sin(a) * r;
+      const x = this.lair.x + Math.cos(a) * r;
+      const y = this.lair.y + Math.sin(a) * r;
       if (tops) {
         if (h < 10) continue;
         v.box(x - 11, y - 11, 22, 22, 0, h, '#6F8781', '#A4B9B2');
@@ -299,8 +342,8 @@ export class Cthuluviathan implements Entity {
     const { ctx, px, py, T } = v;
     const Z = v.zoom;
     const e = this.eyes;
-    const sx = px(LAIR.x, LAIR.y);
-    const sy = py(LAIR.x, LAIR.y) - 6 * Z * e;
+    const sx = px(this.lair.x, this.lair.y);
+    const sy = py(this.lair.x, this.lair.y) - 6 * Z * e;
     const body = e > 0.5 ? '#2F7A52' : '#1C4D3A';
     ctx.globalAlpha = 0.55 + 0.35 * e;
     // Two wings up on top of the head, scalloped like a bat's, beating faster awake.
@@ -377,8 +420,8 @@ export class Cthuluviathan implements Entity {
   private drawArm(v: DrawView, t: Tentacle): void {
     const phase = tentaclePhase(t.t);
     if (phase !== 'up' && phase !== 'sink') return;
-    const dx = t.x - LAIR.x;
-    const dy = t.y - LAIR.y;
+    const dx = t.x - this.lair.x;
+    const dy = t.y - this.lair.y;
     const d = Math.hypot(dx, dy);
     const from = 80;
     if (d <= from) return;
@@ -399,8 +442,8 @@ export class Cthuluviathan implements Entity {
         [1, left],
         [-1, right],
       ] as const) {
-        const wx = LAIR.x + ux * along - uy * (sway + side * half);
-        const wy = LAIR.y + uy * along + ux * (sway + side * half);
+        const wx = this.lair.x + ux * along - uy * (sway + side * half);
+        const wy = this.lair.y + uy * along + ux * (sway + side * half);
         out.push([px(wx, wy), py(wx, wy)]);
       }
     }
@@ -493,8 +536,8 @@ export class Cthuluviathan implements Entity {
   private drawZs(v: DrawView): void {
     const { ctx, px, py, T } = v;
     const Z = v.zoom;
-    const sx = px(LAIR.x, LAIR.y);
-    const sy = py(LAIR.x, LAIR.y);
+    const sx = px(this.lair.x, this.lair.y);
+    const sy = py(this.lair.x, this.lair.y);
     ctx.fillStyle = v.foam;
     for (let i = 0; i < 3; i++) {
       const p = (T * 0.35 + i / 3) % 1;

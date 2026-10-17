@@ -118,7 +118,7 @@ type Np = {
   seaFight: { x: number; y: number; h: number; r: number } | null;
   seaWon: boolean;
   seaBoss: Record<
-    'meteor' | 'king' | 'deep' | 'reaper' | 'gulper',
+    'meteor' | 'king' | 'deep' | 'reaper' | 'gulper' | 'angler' | 'cthulu',
     {
       state: string;
       x: number;
@@ -131,6 +131,12 @@ type Np = {
       grab: unknown;
       grabCd: number;
       holding: boolean;
+      glow: number;
+      tx: number;
+      ty: number;
+      done: boolean;
+      strikeT: number;
+      tentacles: unknown[];
     }[]
   >;
   endSea(sunk: boolean): void;
@@ -6934,6 +6940,8 @@ test('the Battle Barge at sea: out to a ring of buoys, the Deep One and the Shar
     deep: 1,
     reaper: 0,
     gulper: 0,
+    angler: 0,
+    cthulu: 0,
   });
   expect(errors).toEqual([]);
 });
@@ -6996,6 +7004,61 @@ test('the Battle Barge at sea: the Reaper run off with honey, and the gulper har
   await page.locator('#leave').click();
   await page.waitForFunction(() => !window.__np.seaFight, null, { timeout: 2000 });
   expect(Math.abs((await page.evaluate(() => window.__np.boat.x)) - 3000)).toBeLessThan(40);
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge at sea: the anglerfish's light harpooned, and the Cthuluviathan's tentacles", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+    barge: { size: 'small', pick: {}, where: 'sea', sea: { angler: 1, cthulu: 1 } },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeList')).toContainText('The anglerfish');
+  await expect(page.locator('#bargeList')).toContainText('The Cthuluviathan');
+  await page.locator('#bargeGo').click();
+  // By day, the Cthuluviathan awake at once and the anglerfish's light coming up.
+  await page.waitForFunction(() => window.__np.seaBoss.cthulu[0]?.state === 'awake', null, {
+    timeout: 3000,
+  });
+  // The light ahead of the bow, one hit from driven off; the tentacles held back for it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const a = n.seaBoss.angler[0];
+    const c = n.seaBoss.cthulu[0];
+    if (!a || !c) return;
+    c.strikeT = 99;
+    c.tentacles = [];
+    n.boat.v = 0;
+    a.x = a.tx = n.boat.x + Math.cos(n.boat.h) * 250;
+    a.y = a.ty = n.boat.y + Math.sin(n.boat.h) * 250;
+    a.glow = 1;
+    a.resolve = 1;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'angler', null, { timeout: 2000 });
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await page.waitForFunction(() => window.__np.seaBoss.angler[0]?.done, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.seaWon)).toBe(false);
+  // The Cthuluviathan, one hit from driven off: its next tentacle comes up by the boat, and the harpoon takes it.
+  await page.waitForTimeout(1500);
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const c = window.__np.seaBoss.cthulu[0];
+    if (!c) return;
+    c.resolve = 1;
+    c.strikeT = 0;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'cthulu', null, { timeout: 5000 });
+  await page.evaluate(() => window.__np.fireHarpoon());
+  await page.waitForFunction(() => window.__np.seaWon, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.seaBoss.cthulu[0]?.done)).toBe(true);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1);
   expect(errors).toEqual([]);
 });
 
