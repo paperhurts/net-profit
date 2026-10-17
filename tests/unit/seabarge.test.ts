@@ -2,12 +2,28 @@ import { describe, expect, it } from 'vitest';
 import { rng } from '../../src/core/math';
 import {
   BARGE_MAX,
+  BRIDGE_N,
+  BRIDGE_U,
+  BRIDGE_W,
+  BRIDGE_Z,
+  bridgeBerth,
+  bridgeDockEnd,
+  bridgeLanding,
+  bridgeWalls,
+  capsuleNear,
+  DOCK_HALF,
+  DOCK_LEN,
+  DOCK_Z,
   defaultBarge,
   FRAME_H,
   FRAME_W,
   noSeaPick,
+  onSeaBridge,
   parseBarge,
   SEA_ARENA,
+  SEA_BRIDGE_HALF,
+  SEA_BRIDGE_REACH,
+  SEA_BRIDGES_MAX,
   SEA_FOES,
   SEA_ISLE_GAP,
   SEA_ISLE_R,
@@ -24,6 +40,9 @@ import {
   SEA_ZOOM_MIN,
   seaAdd,
   seaBlocked,
+  seaBridgeNo,
+  seaBridgeTap,
+  seaBridgeZ,
   seaBuoys,
   seaFrame,
   seaIsleNo,
@@ -59,6 +78,7 @@ import {
 import { ISLE6_HAUNT, MeteorSerpent, seaHaunt } from '../../src/entities/meteor';
 import { DEEP_WATER, Reaper, ROUTE, seaWater } from '../../src/entities/reaper';
 import { ISLE5_REEF, SharkKing, seaReef } from '../../src/entities/sharkking';
+import { groundZ, onLand, setWalkLand } from '../../src/entities/walker';
 import { DEEP, FAR, FARFAR, WS } from '../../src/world/island';
 import { ROOMS } from '../../src/world/tower';
 import { baseWorld } from './helpers/world';
@@ -688,5 +708,125 @@ describe("the kid's tar at sea", () => {
       expect(Math.hypot(p.x - tar.x * r, p.y - tar.y * r)).toBeGreaterThanOrEqual(
         SEA_TAR_R * r + SEA_SHORE - 1e-6,
       );
+  });
+});
+
+describe("the kid's bridges at sea", () => {
+  const st = seaStart(1);
+
+  it('starts with none, and an old save has none', () => {
+    expect(defaultBarge().bridges).toEqual([]);
+    expect(parseBarge({ where: 'sea', tar: [{ x: 0.4, y: -0.4 }] }).bridges).toEqual([]);
+  });
+
+  it('puts a bridge where the water is tapped, lying across the screen, and takes it away when it is tapped', () => {
+    // Across the screen: along it, x - y changes and x + y does not.
+    expect(BRIDGE_U.x + BRIDGE_U.y).toBeCloseTo(0, 9);
+    expect(BRIDGE_N.x - BRIDGE_N.y).toBeCloseTo(0, 9);
+    let b = seaBridgeTap([], { x: -0.1, y: -0.3 });
+    expect(b).toEqual([{ x: -0.1, y: -0.3 }]);
+    b = seaBridgeTap(b, { x: -0.1 + BRIDGE_U.x * 0.15, y: -0.3 + BRIDGE_U.y * 0.15 });
+    expect(b).toEqual([]);
+  });
+
+  it('keeps clear of where the boat comes in, inside the buoys, and off the islands, the tar and the others', () => {
+    expect(seaBridgeNo([], { x: st.x - 0.1, y: st.y - 0.1 })).toBe('boat');
+    expect(seaBridgeNo([], { x: -0.7, y: 0 })).toBe('edge');
+    expect(seaBridgeNo([], { x: 0, y: -0.2 })).toBeNull();
+    expect(seaBridgeNo([], { x: 0, y: -0.2 }, [{ x: 0.1, y: -0.3 }])).toBe('near');
+    expect(seaBridgeNo([], { x: 0, y: -0.2 }, [], [{ x: -0.1, y: -0.1 }])).toBe('near');
+    expect(seaBridgeNo([{ x: 0, y: -0.2 }], { x: 0.1, y: -0.1 })).toBe('near');
+    // And an island or tar keeps off a bridge the same way.
+    expect(seaIsleNo([], { x: 0.1, y: -0.3 }, [], [{ x: 0, y: -0.2 }])).toBe('near');
+    expect(seaTarNo([], { x: -0.1, y: -0.1 }, [], [{ x: 0, y: -0.2 }])).toBe('near');
+    const three = [
+      { x: -0.25, y: -0.45 },
+      { x: 0.2, y: -0.05 },
+      { x: -0.5, y: 0.2 },
+    ];
+    expect(three).toHaveLength(SEA_BRIDGES_MAX);
+    for (const [k, p] of three.entries()) expect(seaBridgeNo(three.slice(0, k), p)).toBeNull();
+    expect(seaBridgeNo(three, { x: 0.3, y: 0.25 })).toBe('full');
+  });
+
+  it('reads saved bridges back after the islands and the tar, dropping one that would lie on them', () => {
+    const m = parseBarge({
+      where: 'sea',
+      isles: [{ x: 0.1, y: -0.3 }],
+      bridges: [
+        { x: 0, y: -0.2 },
+        { x: -0.4, y: 0.2 },
+      ],
+    });
+    expect(m.bridges).toEqual([{ x: -0.4, y: 0.2 }]);
+  });
+
+  it('is a deck to walk on, steps down to a dock, and a berth at the dock for the boat, outside its walls', () => {
+    const b = { x: 1000, y: 2000, half: SEA_BRIDGE_HALF * SEA_RING.medium };
+    expect(onSeaBridge(b, b.x, b.y)).toBe(true);
+    expect(seaBridgeZ(b, b.x, b.y)).toBe(BRIDGE_Z);
+    // Along the deck to near its end, but not off it, nor over its rails.
+    const along = (t: number, o: number) => ({
+      x: b.x + BRIDGE_U.x * t + BRIDGE_N.x * o,
+      y: b.y + BRIDGE_U.y * t + BRIDGE_N.y * o,
+    });
+    const end = along(b.half - 5, 0);
+    expect(onSeaBridge(b, end.x, end.y)).toBe(true);
+    const off = along(b.half + 20, 0);
+    expect(onSeaBridge(b, off.x, off.y)).toBe(false);
+    const over = along(0, -BRIDGE_W);
+    expect(onSeaBridge(b, over.x, over.y)).toBe(false);
+    // The dock, beside the deck only where it is, and low at its end.
+    const land = bridgeLanding(b);
+    expect(onSeaBridge(b, land.x, land.y)).toBe(true);
+    expect(seaBridgeZ(b, land.x, land.y)).toBe(DOCK_Z);
+    const beside = along(DOCK_HALF + 20, BRIDGE_W + DOCK_LEN / 2);
+    expect(onSeaBridge(b, beside.x, beside.y)).toBe(false);
+    const step = along(0, BRIDGE_W + 8);
+    const z = seaBridgeZ(b, step.x, step.y);
+    expect(z).toBeLessThan(BRIDGE_Z);
+    expect(z).toBeGreaterThan(DOCK_Z);
+    // The boat ties up at the dock's end, bow in, heading for the bridge, and no wall pushes it away there.
+    const e = bridgeDockEnd(b);
+    for (const k of [1, 1.6, 2.2]) {
+      const p = bridgeBerth(b, k);
+      const bow = { x: p.x + Math.cos(p.h) * 24 * k, y: p.y + Math.sin(p.h) * 24 * k };
+      expect(Math.hypot(bow.x - e.x, bow.y - e.y)).toBeLessThan(6);
+      for (const c of bridgeWalls(b)) {
+        const n = capsuleNear(c, p.x, p.y);
+        expect(Math.hypot(p.x - n.x, p.y - n.y)).toBeGreaterThanOrEqual(c.r + 24 * k);
+      }
+    }
+  });
+
+  it('lets the walker stand on the bridges while the fight is on, and not after', () => {
+    const b = { x: -30000, y: 2400, half: 200 };
+    expect(onLand(b.x, b.y)).toBe(false);
+    setWalkLand({ on: (x, y) => onSeaBridge(b, x, y), z: (x, y) => seaBridgeZ(b, x, y) });
+    expect(onLand(b.x, b.y)).toBe(true);
+    expect(groundZ(b.x, b.y)).toBe(BRIDGE_Z);
+    setWalkLand(null);
+    expect(onLand(b.x, b.y)).toBe(false);
+  });
+
+  it("keeps the bosses' spots off a bridge, all along it", () => {
+    const r = SEA_RING.medium;
+    const spots = seaSpots(BARGE_MAX, r);
+    const on = spots[0] as { x: number; y: number };
+    const m = { x: on.x / r, y: on.y / r };
+    const blk = {
+      x: m.x - BRIDGE_U.x * SEA_BRIDGE_HALF,
+      y: m.y - BRIDGE_U.y * SEA_BRIDGE_HALF,
+      x2: m.x + BRIDGE_U.x * SEA_BRIDGE_HALF,
+      y2: m.y + BRIDGE_U.y * SEA_BRIDGE_HALF,
+      r: SEA_BRIDGE_REACH,
+    };
+    const wall = { ax: blk.x * r, ay: blk.y * r, bx: blk.x2 * r, by: blk.y2 * r, r: 0 };
+    for (const p of seaSpotsClear(spots, [blk], r)) {
+      const n = capsuleNear(wall, p.x, p.y);
+      expect(Math.hypot(p.x - n.x, p.y - n.y)).toBeGreaterThanOrEqual(
+        SEA_BRIDGE_REACH * r + SEA_SHORE - 1e-6,
+      );
+    }
   });
 });

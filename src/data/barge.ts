@@ -358,6 +358,7 @@ export function seaIsleNo(
   isles: readonly SeaIsle[],
   p: SeaIsle,
   tar: readonly SeaIsle[] = [],
+  bridges: readonly SeaIsle[] = [],
 ): SeaIsleNo | null {
   const st = seaStart(1);
   if (Math.hypot(p.x - st.x, p.y - st.y) < SEA_ISLE_CLEAR) return 'boat';
@@ -366,6 +367,8 @@ export function seaIsleNo(
     if (Math.hypot(p.x - i.x, p.y - i.y) < SEA_ISLE_R * 2 + SEA_ISLE_GAP) return 'near';
   for (const t of tar)
     if (Math.hypot(p.x - t.x, p.y - t.y) < SEA_ISLE_R + SEA_TAR_R + SEA_ISLE_GAP) return 'near';
+  for (const b of bridges)
+    if (bridgeShare(b, p.x, p.y) < SEA_ISLE_R + SEA_BRIDGE_REACH) return 'near';
   if (isles.length >= SEA_ISLES_MAX) return 'full';
   return null;
 }
@@ -374,10 +377,11 @@ export function seaIsleTap(
   isles: readonly SeaIsle[],
   p: SeaIsle,
   tar: readonly SeaIsle[] = [],
+  bridges: readonly SeaIsle[] = [],
 ): SeaIsle[] {
   const hit = isles.findIndex((i) => Math.hypot(p.x - i.x, p.y - i.y) <= SEA_ISLE_R);
   if (hit >= 0) return isles.filter((_, k) => k !== hit);
-  if (seaIsleNo(isles, p, tar)) return [...isles];
+  if (seaIsleNo(isles, p, tar, bridges)) return [...isles];
   return [...isles, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
 }
 
@@ -396,6 +400,7 @@ export function seaTarNo(
   tar: readonly SeaIsle[],
   p: SeaIsle,
   isles: readonly SeaIsle[] = [],
+  bridges: readonly SeaIsle[] = [],
 ): SeaIsleNo | null {
   const st = seaStart(1);
   if (Math.hypot(p.x - st.x, p.y - st.y) < SEA_TAR_CLEAR) return 'boat';
@@ -403,6 +408,8 @@ export function seaTarNo(
   for (const i of isles)
     if (Math.hypot(p.x - i.x, p.y - i.y) < SEA_ISLE_R + SEA_TAR_R + SEA_ISLE_GAP) return 'near';
   for (const t of tar) if (Math.hypot(p.x - t.x, p.y - t.y) < SEA_TAR_R * 2) return 'near';
+  for (const b of bridges)
+    if (bridgeShare(b, p.x, p.y) < SEA_TAR_R + SEA_BRIDGE_REACH) return 'near';
   if (tar.length >= SEA_TARS_MAX) return 'full';
   return null;
 }
@@ -411,14 +418,158 @@ export function seaTarTap(
   tar: readonly SeaIsle[],
   p: SeaIsle,
   isles: readonly SeaIsle[] = [],
+  bridges: readonly SeaIsle[] = [],
 ): SeaIsle[] {
   const hit = tar.findIndex((t) => Math.hypot(p.x - t.x, p.y - t.y) <= SEA_TAR_R);
   if (hit >= 0) return tar.filter((_, k) => k !== hit);
-  if (seaTarNo(tar, p, isles)) return [...tar];
+  if (seaTarNo(tar, p, isles, bridges)) return [...tar];
   return [...tar, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
 }
 /** The share of its top speed a boat keeps in tar: it crawls through. */
 export const SEA_TAR_SLOW = 0.35;
+
+/**
+ * Bridges on the kid's map (the owner, 2026-10-17: "do the bridge next and it is a dock on it", a short span anywhere;
+ * the kid: "bosses can't get under but you don't go under it"). Each a short span on the open water, wherever it is
+ * tapped, up to SEA_BRIDGES_MAX, lying across the screen (BRIDGE_U) so it is always seen side on, with a dock on its
+ * side toward the viewer (BRIDGE_N). Its middle is where it is as a share of the ring's radius; it is
+ * SEA_BRIDGE_HALF of the ring each way along. On the map it keeps SEA_BRIDGE_REACH clear all round, for itself and its
+ * dock, from the islands, the tar and the other bridges, and its ends and dock inside the buoys.
+ */
+export const SEA_BRIDGES_MAX = 3;
+export const SEA_BRIDGE_HALF = 0.2;
+export const SEA_BRIDGE_REACH = 0.14;
+/** Its ends no further out than this, its dock's end no further than SEA_BRIDGE_DOCK_OUT, and clear of the boat's way in. */
+export const SEA_BRIDGE_OUT = 0.82;
+export const SEA_BRIDGE_DOCK_OUT = 0.9;
+export const SEA_BRIDGE_CLEAR = 0.3;
+/** Along every bridge, across the screen; and across it, toward the viewer, where its dock is. */
+export const BRIDGE_U = { x: Math.SQRT1_2, y: -Math.SQRT1_2 } as const;
+export const BRIDGE_N = { x: Math.SQRT1_2, y: Math.SQRT1_2 } as const;
+/** How far from a point a bridge's deck is, in shares, its middle at b. */
+export function bridgeShare(b: SeaIsle, x: number, y: number): number {
+  const t = Math.max(
+    -SEA_BRIDGE_HALF,
+    Math.min(SEA_BRIDGE_HALF, (x - b.x) * BRIDGE_U.x + (y - b.y) * BRIDGE_U.y),
+  );
+  return Math.hypot(x - (b.x + BRIDGE_U.x * t), y - (b.y + BRIDGE_U.y * t));
+}
+export function seaBridgeNo(
+  bridges: readonly SeaIsle[],
+  p: SeaIsle,
+  isles: readonly SeaIsle[] = [],
+  tar: readonly SeaIsle[] = [],
+): SeaIsleNo | null {
+  if (bridgeShare(p, seaStart(1).x, seaStart(1).y) < SEA_BRIDGE_CLEAR) return 'boat';
+  const ends = [-1, 1].map((k) => ({
+    x: p.x + BRIDGE_U.x * SEA_BRIDGE_HALF * k,
+    y: p.y + BRIDGE_U.y * SEA_BRIDGE_HALF * k,
+  }));
+  if (ends.some((e) => Math.hypot(e.x, e.y) > SEA_BRIDGE_OUT)) return 'edge';
+  const dx = p.x + BRIDGE_N.x * SEA_BRIDGE_REACH;
+  const dy = p.y + BRIDGE_N.y * SEA_BRIDGE_REACH;
+  if (Math.hypot(dx, dy) > SEA_BRIDGE_DOCK_OUT) return 'edge';
+  for (const i of isles)
+    if (bridgeShare(p, i.x, i.y) < SEA_ISLE_R + SEA_BRIDGE_REACH) return 'near';
+  for (const t of tar) if (bridgeShare(p, t.x, t.y) < SEA_TAR_R + SEA_BRIDGE_REACH) return 'near';
+  // All lie the same way, so two are as near as either's middle or ends are to the other.
+  for (const b of bridges) {
+    const near = [p, ...ends].some((q) => bridgeShare(b, q.x, q.y) < SEA_BRIDGE_REACH * 2);
+    if (near || bridgeShare(p, b.x, b.y) < SEA_BRIDGE_REACH * 2) return 'near';
+  }
+  if (bridges.length >= SEA_BRIDGES_MAX) return 'full';
+  return null;
+}
+/** A tap on the chart with a bridge in hand: on one it takes it away; on open water it puts one there, if it fits. */
+export function seaBridgeTap(
+  bridges: readonly SeaIsle[],
+  p: SeaIsle,
+  isles: readonly SeaIsle[] = [],
+  tar: readonly SeaIsle[] = [],
+): SeaIsle[] {
+  const hit = bridges.findIndex((b) => bridgeShare(b, p.x, p.y) <= SEA_BRIDGE_REACH * 0.6);
+  if (hit >= 0) return bridges.filter((_, k) => k !== hit);
+  if (seaBridgeNo(bridges, p, isles, tar)) return [...bridges];
+  return [...bridges, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
+}
+
+/**
+ * A bridge in the ring, in the world: its middle, and half its length. Its deck is BRIDGE_W each side of the line
+ * along it and BRIDGE_Z over the water, with glass rails; its dock goes out from the middle of its near side,
+ * DOCK_HALF each side and DOCK_LEN long from the deck's edge, steps going down from the deck for STAIR and then
+ * planks DOCK_Z over the water, where the boat ties up at its end.
+ */
+export type BridgeAt = { x: number; y: number; half: number };
+export const BRIDGE_W = 22;
+export const BRIDGE_RAIL = 4;
+export const BRIDGE_Z = 26;
+export const DOCK_HALF = 26;
+export const DOCK_LEN = 64;
+export const DOCK_Z = 6;
+export const STAIR = 22;
+/** A point along the bridge from its middle, and across it toward the dock's side. */
+export function bridgeFrame(b: BridgeAt, x: number, y: number): [number, number] {
+  const dx = x - b.x;
+  const dy = y - b.y;
+  return [dx * BRIDGE_U.x + dy * BRIDGE_U.y, dx * BRIDGE_N.x + dy * BRIDGE_N.y];
+}
+/** Somewhere the figure can stand: the deck inside the rails, the steps, and the dock's planks. */
+export function onSeaBridge(b: BridgeAt, x: number, y: number): boolean {
+  const [t, o] = bridgeFrame(b, x, y);
+  if (Math.abs(t) <= b.half && Math.abs(o) <= BRIDGE_W - BRIDGE_RAIL) return true;
+  return Math.abs(t) <= DOCK_HALF - BRIDGE_RAIL && o > 0 && o <= BRIDGE_W + DOCK_LEN - BRIDGE_RAIL;
+}
+/** The height underfoot there: the deck; the steps going down from it; the dock's planks. */
+export function seaBridgeZ(b: BridgeAt, x: number, y: number): number {
+  const [, o] = bridgeFrame(b, x, y);
+  if (o <= BRIDGE_W) return BRIDGE_Z;
+  const f = Math.min(1, (o - BRIDGE_W) / STAIR);
+  return BRIDGE_Z + (DOCK_Z - BRIDGE_Z) * f;
+}
+/** The dock's end, where the boat's bow comes in. */
+export function bridgeDockEnd(b: BridgeAt): { x: number; y: number } {
+  const o = BRIDGE_W + DOCK_LEN;
+  return { x: b.x + BRIDGE_N.x * o, y: b.y + BRIDGE_N.y * o };
+}
+/** Where the boat ties up at the dock for a hull of this scale: bow in at its end, heading for the bridge. */
+export function bridgeBerth(b: BridgeAt, k: number): { x: number; y: number; h: number } {
+  const e = bridgeDockEnd(b);
+  const off = 24 * k + 4;
+  return {
+    x: e.x + BRIDGE_N.x * off,
+    y: e.y + BRIDGE_N.y * off,
+    h: Math.atan2(-BRIDGE_N.y, -BRIDGE_N.x),
+  };
+}
+/** Where the figure lands on the dock's planks, just in from its end. */
+export function bridgeLanding(b: BridgeAt): { x: number; y: number } {
+  const e = bridgeDockEnd(b);
+  return { x: e.x - BRIDGE_N.x * 14, y: e.y - BRIDGE_N.y * 14 };
+}
+/** What the water is walled off by, as lengths of a given thickness: the deck end to end, and the dock out to near its end. */
+export type Capsule = { ax: number; ay: number; bx: number; by: number; r: number };
+export function bridgeWalls(b: BridgeAt): Capsule[] {
+  const d0 = { x: b.x + BRIDGE_N.x * BRIDGE_W, y: b.y + BRIDGE_N.y * BRIDGE_W };
+  const o1 = BRIDGE_W + DOCK_LEN - DOCK_HALF;
+  return [
+    {
+      ax: b.x - BRIDGE_U.x * b.half,
+      ay: b.y - BRIDGE_U.y * b.half,
+      bx: b.x + BRIDGE_U.x * b.half,
+      by: b.y + BRIDGE_U.y * b.half,
+      r: BRIDGE_W,
+    },
+    { ax: d0.x, ay: d0.y, bx: b.x + BRIDGE_N.x * o1, by: b.y + BRIDGE_N.y * o1, r: DOCK_HALF },
+  ];
+}
+/** The nearest point of a capsule's line to a point. */
+export function capsuleNear(c: Capsule, x: number, y: number): { x: number; y: number } {
+  const dx = c.bx - c.ax;
+  const dy = c.by - c.ay;
+  const len = dx * dx + dy * dy;
+  const t = len > 0 ? Math.max(0, Math.min(1, ((x - c.ax) * dx + (y - c.ay) * dy) / len)) : 0;
+  return { x: c.ax + dx * t, y: c.ay + dy * t };
+}
 /** Water this wide is kept between a boss's spot and an island's sand: the Deep One, the biggest that stays put, clear of it. */
 export const SEA_SHORE = 110;
 /**
@@ -428,7 +579,7 @@ export const SEA_SHORE = 110;
  */
 export function seaSpotsClear(
   spots: readonly { x: number; y: number }[],
-  isles: readonly (SeaIsle & { r?: number })[],
+  isles: readonly (SeaIsle & { r?: number; x2?: number; y2?: number })[],
   r: number,
 ): { x: number; y: number }[] {
   return spots.map((s) => {
@@ -436,8 +587,14 @@ export function seaSpotsClear(
     for (let pass = 0; pass < 2; pass++)
       for (const i of isles) {
         const reach = (i.r ?? SEA_ISLE_R) * r + SEA_SHORE;
-        const cx = i.x * r;
-        const cy = i.y * r;
+        // A length (a bridge) is kept clear of all along it: from the nearest point of its line.
+        const near = capsuleNear(
+          { ax: i.x * r, ay: i.y * r, bx: (i.x2 ?? i.x) * r, by: (i.y2 ?? i.y) * r, r: 0 },
+          p.x,
+          p.y,
+        );
+        const cx = near.x;
+        const cy = near.y;
         const d = Math.hypot(p.x - cx, p.y - cy);
         if (d >= reach) continue;
         const a = d > 0 ? Math.atan2(p.y - cy, p.x - cx) : Math.atan2(-cy, -cx);
@@ -504,6 +661,7 @@ export type BargeSetup = {
   sea: SeaPick;
   isles: SeaIsle[];
   tar: SeaIsle[];
+  bridges: SeaIsle[];
 };
 
 /** Nobody picked. */
@@ -521,6 +679,7 @@ export function defaultBarge(): BargeSetup {
     sea: { ...noSeaPick(), meteor: 1 },
     isles: [],
     tar: [],
+    bridges: [],
   };
 }
 
@@ -540,7 +699,7 @@ export function bargeAdd(p: BargePick, k: BargeFoe, d: number): BargePick {
 /**
  * A saved setup read back: a size it knows, counts that are whole and not below none, ten at most; missing, the start.
  * One saved before the sea's is on foot, with the sea's start; one saved before the map has open water, and one
- * saved before the tar has none.
+ * saved before the tar has none, nor bridges.
  */
 export function parseBarge(o: unknown): BargeSetup {
   if (!o || typeof o !== 'object') return defaultBarge();
@@ -551,6 +710,7 @@ export function parseBarge(o: unknown): BargeSetup {
     sea?: unknown;
     isles?: unknown;
     tar?: unknown;
+    bridges?: unknown;
   };
   const size = (ARENA_SIZES as readonly unknown[]).includes(src.size)
     ? (src.size as ArenaSize)
@@ -582,7 +742,10 @@ export function parseBarge(o: unknown): BargeSetup {
   for (const p of points(src.isles)) if (!seaIsleNo(isles, p)) isles = seaIsleTap(isles, p);
   let tar: SeaIsle[] = [];
   for (const p of points(src.tar)) if (!seaTarNo(tar, p, isles)) tar = seaTarTap(tar, p, isles);
-  return { size, pick, where, sea, isles, tar };
+  let bridges: SeaIsle[] = [];
+  for (const p of points(src.bridges))
+    if (!seaBridgeNo(bridges, p, isles, tar)) bridges = seaBridgeTap(bridges, p, isles, tar);
+  return { size, pick, where, sea, isles, tar, bridges };
 }
 
 /**

@@ -320,12 +320,24 @@ function inBox(
 }
 
 /**
+ * Land that comes and goes: the bridges the kid puts on his map for the Battle Barge at sea, whose decks and docks
+ * can be walked while the fight is on (main.js sets it as the fight starts and clears it as it ends). Where it is,
+ * and the height underfoot there.
+ */
+export type WalkLand = { on(x: number, y: number): boolean; z(x: number, y: number): number };
+let walkLand: WalkLand | null = null;
+export function setWalkLand(l: WalkLand | null): void {
+  walkLand = l;
+}
+
+/**
  * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
  * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
  * gets into, island 6 and its pier, island 7, islands 8 and 9 with the sandbar between, island 10 and its
- * pier, round its pond and pools, and island 11 and its pier, round its black lagoon.
+ * pier, round its pond and pools, island 11 and its pier, round its black lagoon, and whatever land comes and goes.
  */
 export function onLand(x: number, y: number): boolean {
+  if (walkLand?.on(x, y)) return true;
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (onIsle4(x, y)) return true;
   if (onIsle6(x, y)) return true;
@@ -345,6 +357,7 @@ export function onLand(x: number, y: number): boolean {
 
 /** The height of what is underfoot: the pier's planks, the bridge's deck, island 3's rafts and seaweed, or the sand. */
 export function groundZ(x: number, y: number): number {
+  if (walkLand?.on(x, y)) return walkLand.z(x, y);
   if (onIsle3(x, y)) return groundZ3(x, y);
   if (onIsle6(x, y)) return groundZ6(x, y);
   if (onIsle10(x, y)) return groundZ10(x, y);

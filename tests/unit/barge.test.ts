@@ -54,6 +54,7 @@ describe('the Battle Barge: picking a fight', () => {
       sea: defaultBarge().sea,
       isles: [],
       tar: [],
+      bridges: [],
     });
   });
 
