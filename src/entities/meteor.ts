@@ -31,8 +31,16 @@ export const HAUNT_TURN = 0.16;
 export const NOTICE = 1500;
 export const LEASH = 2100;
 
-/** Where it haunts: its loop's middle and how far out, how near a boat brings it hunting, how far off one it gives up. */
-export type Haunt = { x: number; y: number; r: number; notice: number; leash: number };
+/** Where it haunts: its loop's middle and how far out, how near a boat brings it hunting, how far off one it gives up,
+ * and, over one of the kid's islands, how far from the middle its dives land at most, so they come down on the sand. */
+export type Haunt = {
+  x: number;
+  y: number;
+  r: number;
+  notice: number;
+  leash: number;
+  ground?: number;
+};
 /** Over island 6, as it always was. */
 export const ISLE6_HAUNT: Haunt = {
   x: ISLE6.x,
@@ -52,6 +60,25 @@ export function seaHaunt(at: { x: number; y: number }): Haunt {
     leash: Number.POSITIVE_INFINITY,
   };
 }
+/**
+ * Over one of the kid's islands in the Battle Barge's ring at sea, the kid's "Stars and Reapers on them": its loop at the
+ * island's edge, high up, and the figure ashore on the island is what it hunts (isleStar), its dives landing on the sand.
+ */
+export function isleHaunt(i: { x: number; y: number; r: number }): Haunt {
+  return {
+    x: i.x,
+    y: i.y,
+    r: i.r,
+    notice: Number.POSITIVE_INFINITY,
+    leash: Number.POSITIVE_INFINITY,
+    ground: i.r - 12,
+  };
+}
+/** What it hunts: where, which way and how fast it goes, how big it is for the dive, and whether it walks (a person
+ * turns on a sixpence, so where it will be is reckoned straight on) rather than sails. */
+export type Prey = { x: number; y: number; h: number; v: number; r: number; walks?: boolean };
+/** The size of a figure, for the dive. */
+export const FIGURE_R = 7;
 /** Circling over the boat, close enough to stay on a phone's screen and faster than a flagship: how far out, how
  * high, how fast, and for how long before a dive. */
 export const CIRCLE_R = 150;
@@ -132,6 +159,8 @@ export class MeteorSerpent implements Entity {
   onSplash: ((x: number, y: number) => void) | null = null;
   /** Whether it must hold off: the game says while the Reaper hunts. */
   holdOff: (() => boolean) | null = null;
+  /** What it hunts, if not the boat (none while the boat is tied up): over one of the kid's islands, the figure on it. */
+  prey: ((w: World) => Prey | null) | null = null;
   /** Whether something bigger than it is near: the game says. */
   scaredOf: (() => boolean) | null = null;
   /** It saw something bigger, and is off to space; and it is up there, out of sight. */
@@ -193,18 +222,16 @@ export class MeteorSerpent implements Entity {
     this.t = 0;
   }
 
-  /** Where the boat will be in t seconds, as it is turning now. */
-  private ahead(
-    b: { x: number; y: number; h: number; v: number },
-    t: number,
-  ): { x: number; y: number } {
+  /** Where the boat will be in t seconds, as it is turning now; a figure, straight on. */
+  private ahead(b: Prey, t: number): { x: number; y: number } {
     let x = b.x;
     let y = b.y;
     let h = b.h;
     const n = 12;
     const st = t / n;
+    const turn = b.walks ? 0 : this.turn;
     for (let i = 0; i < n; i++) {
-      h += this.turn * st;
+      h += turn * st;
       x += Math.cos(h) * b.v * st;
       y += Math.sin(h) * b.v * st;
     }
@@ -221,7 +248,13 @@ export class MeteorSerpent implements Entity {
   }
 
   update(dt: number, w: World): void {
-    const b = w.boat;
+    // What it hunts, if anything now; and what it watches meanwhile.
+    const p: Prey | null = this.prey
+      ? this.prey(w)
+      : w.docked
+        ? null
+        : { ...w.boat, r: 24 * w.hullScale };
+    const b = p ?? w.boat;
     this.t += dt;
     this.flash = Math.max(0, this.flash - dt * 4);
     if (this.lastH !== null && dt > 0)
@@ -285,7 +318,7 @@ export class MeteorSerpent implements Entity {
         const tx = home.x + Math.cos(this.a) * home.r;
         const ty = home.y + Math.sin(this.a) * home.r;
         this.fly(tx, ty, HAUNT_Z, clamp(Math.hypot(tx - this.x, ty - this.y) * 1.5, 120, 420), dt);
-        if (w.started && !w.docked && fromIsle < home.notice && !hold) {
+        if (w.started && p && fromIsle < home.notice && !hold) {
           this.go('hunt');
           this.onHunt?.();
         }
@@ -301,7 +334,7 @@ export class MeteorSerpent implements Entity {
         break;
       }
       default:
-        if (fromIsle > home.leash || w.docked) {
+        if (fromIsle > home.leash || !p) {
           this.ring = null;
           this.resolve = RESOLVE.meteor;
           this.go('haunt');
@@ -312,17 +345,12 @@ export class MeteorSerpent implements Entity {
           this.go('haunt');
           break;
         }
-        this.fight(dt, b, w.hullScale, hold);
+        this.fight(dt, p, hold);
     }
     this.follow();
   }
 
-  private fight(
-    dt: number,
-    b: { x: number; y: number; h: number; v: number },
-    hullScale: number,
-    hold: boolean,
-  ): void {
+  private fight(dt: number, b: Prey, hold: boolean): void {
     switch (this.state) {
       case 'hunt': {
         // Round and round over the boat.
@@ -335,7 +363,15 @@ export class MeteorSerpent implements Entity {
           dt,
         );
         if (this.t >= (this.angry ? CIRCLE_ANGRY : CIRCLE_T) && !hold) {
-          this.ring = this.ahead(b, this.aimT + FALL_T);
+          const r = this.ahead(b, this.aimT + FALL_T);
+          // Over an island, on its sand.
+          const g = this.haunt.ground;
+          const d = Math.hypot(r.x - this.haunt.x, r.y - this.haunt.y);
+          if (g !== undefined && d > g) {
+            r.x = this.haunt.x + ((r.x - this.haunt.x) / d) * g;
+            r.y = this.haunt.y + ((r.y - this.haunt.y) / d) * g;
+          }
+          this.ring = r;
           this.go('aim');
           this.onWarn?.();
         }
@@ -364,7 +400,7 @@ export class MeteorSerpent implements Entity {
         this.z = this.from.z * (1 - e);
         this.h = Math.atan2(r.y - this.from.y, r.x - this.from.x);
         if (k >= 1) {
-          if (!this.bit && Math.hypot(b.x - r.x, b.y - r.y) < RING_R + 24 * hullScale) {
+          if (!this.bit && Math.hypot(b.x - r.x, b.y - r.y) < RING_R + b.r) {
             this.bit = true;
             this.onHit?.();
           }
@@ -638,4 +674,22 @@ export class MeteorSerpent implements Entity {
       ctx.stroke();
     }
   }
+}
+
+/** Star over one of the kid's islands, hunting the figure while it is ashore on it, and nothing else. */
+export function isleStar(i: { x: number; y: number; r: number }): MeteorSerpent {
+  const m = new MeteorSerpent(isleHaunt(i));
+  m.prey = (w) => {
+    const f = w.figure;
+    if (!f || Math.hypot(f.x - i.x, f.y - i.y) > i.r + 20) return null;
+    return {
+      x: f.x,
+      y: f.y,
+      h: Math.atan2(f.vy, f.vx),
+      v: Math.hypot(f.vx, f.vy),
+      r: FIGURE_R,
+      walks: true,
+    };
+  };
+  return m;
 }

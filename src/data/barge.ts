@@ -346,10 +346,12 @@ export function seaSpots(n: number, r: number): { x: number; y: number }[] {
 export type SeaIsle = { x: number; y: number; who?: SeaIsleWho };
 /**
  * Who lives on an island (the kid's "Stars and Reapers on them", 2026-10-17): a Reaper, the land one, who wakes at
- * once and fights whoever comes ashore; beaten, he goes off into the sea. Tapping an island on the chart puts one on
- * it; tapping it again takes the island away.
+ * once and fights whoever comes ashore, and, beaten, goes off into the sea; or Star, who loops high over it and dives
+ * at whoever comes ashore, and, driven off, flies away. Tapping an island on the chart puts a Reaper on it, tapping
+ * it again Star, and again takes the island away (the kid's "ok" to cycling it).
  */
-export type SeaIsleWho = 'reaper';
+export type SeaIsleWho = 'reaper' | 'star';
+const SEA_WHO: readonly (SeaIsleWho | undefined)[] = [undefined, 'reaper', 'star'];
 export const SEA_ISLES_MAX = 5;
 export const SEA_ISLE_R = 0.15;
 /** Its middle no further out than this, which leaves a way round between its sand and the buoys. */
@@ -412,8 +414,8 @@ export function seaIsleWay(
     landing,
   };
 }
-/** A tap on the chart: on an empty island it puts a Reaper there, on one with a Reaper it takes the island away; on
- * open water it adds an island there, if one may go there. */
+/** A tap on the chart: on an island, the next who on it (nobody, a Reaper, Star), and after Star it takes the island
+ * away; on open water it adds an island there, if one may go there. */
 export function seaIsleTap(
   isles: readonly SeaIsle[],
   p: SeaIsle,
@@ -421,8 +423,8 @@ export function seaIsleTap(
   bridges: readonly SeaIsle[] = [],
 ): SeaIsle[] {
   const hit = isles.findIndex((i) => Math.hypot(p.x - i.x, p.y - i.y) <= SEA_ISLE_R);
-  if (hit >= 0 && !isles[hit]?.who)
-    return isles.map((i, k) => (k === hit ? { ...i, who: 'reaper' as const } : i));
+  const next = hit >= 0 ? SEA_WHO[SEA_WHO.indexOf(isles[hit]?.who) + 1] : undefined;
+  if (next) return isles.map((i, k) => (k === hit ? { ...i, who: next } : i));
   if (hit >= 0) return isles.filter((_, k) => k !== hit);
   if (seaIsleNo(isles, p, tar, bridges)) return [...isles];
   return [...isles, { x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }];
@@ -789,7 +791,8 @@ export function parseBarge(o: unknown): BargeSetup {
   for (const p of points(src.isles))
     if (!seaIsleNo(isles, { x: p.x, y: p.y })) {
       isles = seaIsleTap(isles, { x: p.x, y: p.y });
-      if (p.who === 'reaper') isles = seaIsleTap(isles, { x: p.x, y: p.y });
+      for (let k = SEA_WHO.indexOf(p.who as SeaIsleWho); k > 0; k--)
+        isles = seaIsleTap(isles, { x: p.x, y: p.y });
     }
   const at = (p: { x: number; y: number }) => ({ x: p.x, y: p.y });
   let tar: SeaIsle[] = [];
