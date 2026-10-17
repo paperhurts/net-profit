@@ -77,6 +77,16 @@ export function keepInAbyss(p: { x: number; y: number }, pad: number): void {
   p.y = Math.max(AD - FLOOR_ROOM, Math.min(abyssFloor(p.x) - pad, p.y));
 }
 
+/** Where the gulper hunts (entities/lurker.ts, as the trench's lurker): over the floor, where the diver swims out of
+ * the cage; it comes for a diver out of the cage this long, and never into it. */
+export const GULPER_WAKE = 14;
+export const ABYSS_LURK = {
+  top: AD - FLOOR_ROOM,
+  bottom: AD - 40,
+  keep: keepInAbyss,
+  wake: GULPER_WAKE,
+};
+
 /** Its water: the blue hole's brightest blue at the top, deep blue in the hole, then black long before the floor. */
 const WATER: readonly [number, number, number, number][] = [
   [0, 0x3f, 0xc6, 0xd8],

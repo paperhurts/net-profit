@@ -3,7 +3,7 @@
  * long dark serpent with spines down its back and cyan lights down its side; the Reaper his own drawing, blue and
  * yellow, legs paddling; the Cthuluviathan its green octopus dome leading, bat wings on top and tentacles streaming
  * behind; Cthulhu his own drawing, hanging in the water; and the gulpers black eels that are nearly all mouth, a pink
- * light on each tail. Their bodies go under the dark, so the lamp shows them only close; over the dark go a faint
+ * light on each tail; and the gulper that hunts over the floor, out of the cage. Their bodies go under the dark, so the lamp shows them only close; over the dark go a faint
  * edge of each, enough to see something huge go by, and their eyes and lights, flaring in a lunge's warning.
  */
 
@@ -17,6 +17,7 @@ import {
 } from '../entities/abyssgiants';
 import { drawCthulhu } from '../entities/cthulhu';
 import type { DrawView } from '../entities/entity';
+import type { Lurker } from '../entities/lurker';
 import { drawReaperBody } from './reaper';
 
 type Proj = (v: number) => number;
@@ -245,12 +246,13 @@ function cthuluviathan(ctx: CanvasRenderingContext2D, g: Giant, mode: Mode): voi
 /** One gulper, head at (ox, oy) in the frame. */
 function gulper(
   ctx: CanvasRenderingContext2D,
-  g: Giant,
   mode: Mode,
   T: number,
   ox: number,
   oy: number,
   ph: number,
+  open: number,
+  warn: boolean,
 ): void {
   const L = GIANT_LEN.gulper;
   // The jaws hinge just behind its little head, HINGE back from their tips, and gape forward: the upper jaw thin, the
@@ -259,7 +261,6 @@ function gulper(
   const hx = ox - HINGE;
   const pts = spine(L, 16, HINGE, 14, ph).map(([x, y]) => [x + ox, y + oy] as [number, number]);
   const w = (k: number) => 11 * (1 - k) + 1.5;
-  const open = warns(g) ? 1 : 0.45 + 0.2 * Math.sin(ph * 1.7);
   const up: [number, number] = [ox, oy - 14 - open * 12];
   const down: [number, number] = [ox - 4, oy + 18 + open * 26];
   if (mode === 'body') {
@@ -330,7 +331,56 @@ function gulper(
   ctx.stroke();
   const [tx, ty] = pts[pts.length - 1] as [number, number];
   glowEye(ctx, tx, ty, 3 + Math.sin(T * 3 + ph) * 0.8, '#FF6FB0');
-  glowEye(ctx, hx - 2, oy - 4, 2, warns(g) ? FLARE : '#D8E6EE');
+  glowEye(ctx, hx - 2, oy - 4, 2, warn ? FLARE : '#D8E6EE');
+}
+
+/** How wide a passing gulper's mouth is: gaping in the warning, else working slowly. */
+function gape(g: Giant, ph: number): number {
+  return warns(g) ? 1 : 0.45 + 0.2 * Math.sin(ph * 1.7);
+}
+
+/** The gulper hunting over the floor (the lurker's hunt, entities/lurker.ts), in its own frame. */
+function floorFrame(ctx: CanvasRenderingContext2D, X: Proj, Y: Proj, s: number, l: Lurker): void {
+  ctx.translate(X(l.x), Y(l.y));
+  ctx.rotate(l.a);
+  ctx.scale(s, Math.cos(l.a) < 0 ? -s : s);
+}
+function floorGulper(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  l: Lurker,
+  T: number,
+  mode: Mode,
+): void {
+  if (l.state === 'hide') return;
+  ctx.save();
+  floorFrame(ctx, X, Y, s, l);
+  const warn = l.state === 'tell' || l.state === 'lunge';
+  gulper(ctx, mode, T, 0, 0, T * 1.4, Math.max(l.mouth, 0.45 + 0.2 * Math.sin(T * 2.4)), warn);
+  ctx.restore();
+}
+/** Its body under the dark; its eye, tail light and edge over it. */
+export function drawFloorGulper(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  l: Lurker,
+  T: number,
+): void {
+  floorGulper(ctx, X, Y, s, l, T, 'body');
+}
+export function drawFloorGulperGlow(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  l: Lurker,
+  T: number,
+): void {
+  floorGulper(ctx, X, Y, s, l, T, 'glow');
 }
 
 /** The Reaper's middle, from his head: his own drawing takes the middle of his spine. */
@@ -384,8 +434,8 @@ export function drawGiants(
     if (g.kind === 'leviathan') leviathan(ctx, g, 'body', T);
     else if (g.kind === 'cthuluviathan') cthuluviathan(ctx, g, 'body');
     else {
-      gulper(ctx, g, 'body', T, 0, 0, g.ph);
-      gulper(ctx, g, 'body', T, -150, 70, g.ph + 1.3);
+      gulper(ctx, 'body', T, 0, 0, g.ph, gape(g, g.ph), warns(g));
+      gulper(ctx, 'body', T, -150, 70, g.ph + 1.3, gape(g, g.ph + 1.3), warns(g));
     }
     ctx.restore();
   }
@@ -432,8 +482,8 @@ export function drawGiantGlow(
     if (g.kind === 'leviathan') leviathan(ctx, g, 'glow', T);
     else if (g.kind === 'cthuluviathan') cthuluviathan(ctx, g, 'glow');
     else {
-      gulper(ctx, g, 'glow', T, 0, 0, g.ph);
-      gulper(ctx, g, 'glow', T, -150, 70, g.ph + 1.3);
+      gulper(ctx, 'glow', T, 0, 0, g.ph, gape(g, g.ph), warns(g));
+      gulper(ctx, 'glow', T, -150, 70, g.ph + 1.3, gape(g, g.ph + 1.3), warns(g));
     }
     ctx.restore();
   }

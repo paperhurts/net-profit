@@ -11,6 +11,9 @@
  * spear stings it and it flees for good while; swimming up out of the
  * midnight water loses it. Nothing is lost but the dive: run out of air and
  * the diver floats back up to the boat, as ever.
+ *
+ * It lives where its place says (LurkPlace): the trench's midnight water, or the abyss's floor, where the same hunt
+ * is a gulper's, out of the cage (the owner's call, 2026-10-17: only a few lunge, and a lunge takes air).
  */
 
 import { keepInWater, TD, TWILIGHT } from '../world/trench';
@@ -42,6 +45,16 @@ export const HIT_R = 30;
 /** How long it is, head to tail. */
 export const LENGTH = 230;
 
+/** Where it lives: below top, no deeper than bottom, kept in the water there, coming after wake seconds of a diver
+ * down there. */
+export type LurkPlace = {
+  top: number;
+  bottom: number;
+  keep: (p: { x: number; y: number }, pad: number) => void;
+  wake: number;
+};
+export const TRENCH_LURK: LurkPlace = { top: LURK_TOP, bottom: TD, keep: keepInWater, wake: WAKE };
+
 export type LurkerState = 'hide' | 'come' | 'stalk' | 'tell' | 'lunge' | 'back' | 'flee';
 export type LurkerEvent = 'eyes' | 'tell' | 'bite' | 'miss' | null;
 
@@ -57,7 +70,7 @@ function toSegment(px: number, py: number, ax: number, ay: number, bx: number, b
 export class Lurker {
   /** Its head, in the dive scene. */
   x = 380;
-  y = TD - 100;
+  y: number;
   /** Which way it is heading, radians. */
   a = 0;
   state: LurkerState = 'hide';
@@ -72,6 +85,10 @@ export class Lurker {
   private dy = 0;
   /** Round which side of the diver it circles. */
   private spin = 1;
+
+  constructor(readonly place: LurkPlace = TRENCH_LURK) {
+    this.y = place.bottom - 100;
+  }
 
   /** Back in the dark, not coming yet: a new dive. */
   reset(): void {
@@ -141,10 +158,11 @@ export class Lurker {
 
   /** Out of the dark, off the screen, on the side of the diver with the most midnight water. */
   private emerge(d: { x: number; y: number }, rnd: () => number): void {
+    const { top, bottom, keep } = this.place;
     const below = d.y + 460;
-    this.y = below <= TD - 70 ? below : Math.max(LURK_TOP - 120, d.y - 460);
+    this.y = below <= bottom - 70 ? below : Math.max(top - 120, d.y - 460);
     this.x = d.x + (rnd() - 0.5) * 120;
-    keepInWater(this, 24);
+    keep(this, 24);
     this.a = Math.atan2(d.y - this.y, d.x - this.x);
     this.spin = rnd() < 0.5 ? -1 : 1;
   }
@@ -162,7 +180,8 @@ export class Lurker {
     this.t -= dt;
     this.away = Math.max(0, this.away - dt);
     const dist = Math.hypot(d.x - this.x, d.y - this.y);
-    const lost = up || d.y < LURK_TOP - GIVE_UP;
+    const { top, bottom, keep, wake } = this.place;
+    const lost = up || d.y < top - GIVE_UP;
     // A diver gone up out of the dark, or on the way up, is let be.
     if (lost && (this.state === 'come' || this.state === 'stalk' || this.state === 'tell')) {
       this.state = 'back';
@@ -171,8 +190,8 @@ export class Lurker {
     let ev: LurkerEvent = null;
     switch (this.state) {
       case 'hide':
-        this.wait = d.y > LURK_TOP && !up ? this.wait + dt : 0;
-        if (this.wait >= WAKE && this.away <= 0) {
+        this.wait = d.y > top && !up ? this.wait + dt : 0;
+        if (this.wait >= wake && this.away <= 0) {
           this.emerge(d, rnd);
           this.state = 'come';
           ev = 'eyes';
@@ -226,7 +245,7 @@ export class Lurker {
       case 'flee': {
         // Away from the diver and down, into the dark; then hidden, and the wait begins again.
         const fast = this.state === 'flee' ? 220 : 110;
-        this.swimTo(this.x + (this.x - d.x), Math.min(TD, this.y + 200), fast, dt);
+        this.swimTo(this.x + (this.x - d.x), Math.min(bottom, this.y + 200), fast, dt);
         if (this.t <= 0) {
           this.state = 'hide';
           this.wait = 0;
@@ -234,7 +253,7 @@ export class Lurker {
         break;
       }
     }
-    if (this.state !== 'hide') keepInWater(this, 24);
+    if (this.state !== 'hide') keep(this, 24);
     return ev;
   }
 }
