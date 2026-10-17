@@ -75,6 +75,7 @@ type Np = {
   };
   prairieAt(k: 'bunny' | 'dog' | 'bison', i: number): [number, number] | null;
   junk: number;
+  flotsam: { x: number; y: number }[];
   muffins: number[];
   leggy: { count: number; list: { x: number; y: number; hop: number }[] };
   leggyAt(i: number): [number, number] | null;
@@ -842,7 +843,14 @@ test('junk: now and then the net brings up junk with the fish, into a bucket on 
   // The hold has only the fish in it.
   expect(hold).toBeGreaterThanOrEqual(junk);
   await expect(page.locator('#junk')).toBeVisible();
-  await expect(page.locator('#junk')).toContainText(String(junk));
+  // The bucket's chip shows what is in it: the net, still towing, may bring up one more after the count above.
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (document.querySelector('#junk')?.textContent ?? '').includes(String(window.__np.junk)),
+      ),
+    )
+    .toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -1451,6 +1459,14 @@ test('the fishing rod: stopped by some lionfish, cast, reel in when the float go
     gear: { rod: true },
     trip: { x: gx - 130, y: gy - 60, h: 0, clock: 0.3, hold: [] },
   });
+  // A salvage crate that happens to be under the boat or the net pays too: none near, for this.
+  await page.evaluate(() => {
+    for (const f of window.__np.flotsam) {
+      f.x = -50000;
+      f.y = -50000;
+    }
+  });
+  const before = await page.evaluate(() => window.__np.coins);
   const rod = page.locator('#rodcast');
   await expect(rod).toHaveText('Cast for lionfish', { timeout: 3000 });
   await rod.click();
@@ -1459,7 +1475,7 @@ test('the fishing rod: stopped by some lionfish, cast, reel in when the float go
   // The button pulses while the float is under; a finger does not wait for it to be still.
   await rod.click({ force: true });
   await page.waitForFunction(() => window.__np.lionCaught === 1, null, { timeout: 1000 });
-  expect(await page.evaluate(() => window.__np.coins)).toBe(140);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(before + 40);
   expect(errors).toEqual([]);
 });
 
