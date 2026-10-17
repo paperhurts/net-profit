@@ -771,6 +771,17 @@ describe('the trench', () => {
   });
 });
 
+describe('the abyss', () => {
+  it('is unseen and undived in a save from before it, and stays seen and dived once it is', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.abyssSeen, s.abyssDown]).toEqual([false, false]);
+    s.abyssSeen = true;
+    s.abyssDown = true;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.abyssSeen, back.abyssDown]).toEqual([true, true]);
+  });
+});
+
 describe('islands 8 and 9', () => {
   it('are unseen in a save from before them, and stay seen once sighted', () => {
     const s = parseSave(legacy, bounds);

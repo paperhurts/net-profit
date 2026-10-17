@@ -167,6 +167,9 @@ export type SaveData = {
   pots: Pot[];
   /** The trench in the deep has been found, and the deepest the diver has been in it. */
   trenchSeen: boolean;
+  /** The abyss past the white buoys: seen from the boat, and gone down to its floor in the cage. */
+  abyssSeen: boolean;
+  abyssDown: boolean;
   trenchDeep: number;
   /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
   trenchLoot: number;
@@ -371,6 +374,8 @@ export function defaultSave(b: Bounds): SaveData {
     bases: noBases(),
     pots: [],
     trenchSeen: false,
+    abyssSeen: false,
+    abyssDown: false,
     trenchDeep: 0,
     trenchLoot: 0,
     iceLoot: 0,
@@ -550,6 +555,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.bases = parseBases(o.bases);
   d.pots = parsePots(o.pots);
   d.trenchSeen = !!o.trenchSeen;
+  d.abyssSeen = !!o.abyssSeen;
+  d.abyssDown = !!o.abyssDown;
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
   d.iceLoot = int(o.iceLoot) & ICE_LOOT_ALL;
@@ -708,6 +715,8 @@ export function serializeSave(d: SaveData): string {
     bases: d.bases,
     pots: d.pots,
     trenchSeen: d.trenchSeen,
+    abyssSeen: d.abyssSeen,
+    abyssDown: d.abyssDown,
     trenchDeep: d.trenchDeep,
     trenchLoot: d.trenchLoot,
     iceLoot: d.iceLoot,
