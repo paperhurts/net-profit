@@ -400,6 +400,32 @@ export function seaSpotsClear(
   });
 }
 
+/**
+ * The islands hide the boat too: a boss that chases it round the ring cannot see it with an island in the way, so
+ * it makes for where it last saw it, and finds it again once the way between is clear. An island is in the way when
+ * the line between them passes within SEA_HIDE of its sand's reach from its middle; once hidden, the boat stays hidden
+ * until the line is clear by SEA_SEEN, so it does not flicker at an island's edge.
+ */
+export const SEA_HIDE = 0.75;
+export const SEA_SEEN = 0.9;
+export function seaBlocked(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  isles: readonly { x: number; y: number; r: number }[],
+  k = SEA_HIDE,
+): boolean {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = dx * dx + dy * dy;
+  for (const i of isles) {
+    const t = len > 0 ? Math.max(0, Math.min(1, ((i.x - ax) * dx + (i.y - ay) * dy) / len)) : 0;
+    if (Math.hypot(ax + dx * t - i.x, ay + dy * t - i.y) < i.r * k) return true;
+  }
+  return false;
+}
+
 export type SeaPick = Record<SeaFoe, number>;
 
 /** No sea boss picked. */
