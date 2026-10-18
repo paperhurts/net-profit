@@ -124,6 +124,8 @@ type Np = {
   HQ_FISH_FRONT: { x: number; y: number };
   armouryAt(id: string): { x: number; y: number };
   HQ_HEAP: { x: number; y: number };
+  tarSail: { x: number; y: number; h: number; v: number } | null;
+  TAR_BERTH: { x: number; y: number };
   fishCaught: number;
   trophiesWon: number;
   HQ_WAIT: Record<string, { x: number; y: number }>;
@@ -9348,6 +9350,100 @@ test('the metal bridge: seen across the far far sea, the tar ocean past it, and 
   expect(at).toBeLessThan(200);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect([saved.bridgeSeen, saved.bridgeIn]).toEqual([true, true]);
+  expect(errors).toEqual([]);
+});
+
+test('the tar ocean: out from the tar dock in the chemistry boat, sailed, and back in, the flagship waiting at the door', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  const parked = await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y]);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB.find((h) => h.to === n.BRIDGE_TARDOCK);
+    if (d) {
+      n.walker.x = d.x;
+      n.walker.y = d.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Out to the tar dock', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_TARDOCK);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((t) => t.act === 'bboat');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Sail the chemistry boat', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Out onto the tar ocean');
+  await expect(page.locator('#leave')).toHaveText('Back to the bridge');
+  // Away north over the tar, the keys driving.
+  const y0 = await page.evaluate(() => window.__np.tarSail?.y ?? 0);
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction((y) => (window.__np.tarSail?.y ?? 0) < y - 200, y0, { timeout: 6000 });
+  await page.keyboard.up('ArrowUp');
+  await expect(page.locator('#climb')).toBeHidden();
+  // Back to the berth, stopped: in at the tar dock.
+  await page.evaluate(() => {
+    const n = window.__np;
+    if (!n.tarSail) return;
+    n.tarSail.x = n.TAR_BERTH.x + 20;
+    n.tarSail.y = n.TAR_BERTH.y - 30;
+    n.tarSail.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the tar dock', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Back in at the tar dock');
+  expect(
+    await page.evaluate(() => [
+      window.__np.tarSail,
+      window.__np.floor === window.__np.BRIDGE_TARDOCK,
+    ]),
+  ).toEqual([null, true]);
+  // Out again, and straight back with the leave button.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((t) => t.act === 'bboat');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Sail the chemistry boat', { timeout: 3000 });
+  await page.click('#climb');
+  await page.click('#leave');
+  expect(await page.evaluate(() => window.__np.tarSail)).toBeNull();
+  // The flagship never moved from the door.
+  expect(await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y])).toEqual(parked);
   expect(errors).toEqual([]);
 });
 

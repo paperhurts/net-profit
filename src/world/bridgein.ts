@@ -141,7 +141,7 @@ export function bridgeLabel(act: string): string {
       bnews: 'Read the tar news',
       btank: 'Tap the glass',
       btar: 'Look at the tar animal',
-      bboat: 'Look at your chemistry boat',
+      bboat: 'Sail the chemistry boat',
     }[act] ?? ''
   );
 }
