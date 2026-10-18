@@ -239,7 +239,7 @@ export function drawMapCastle(
   ctx.fillText(name, x, y - 8 * k);
 }
 
-/** The metal bridge: a little grey building on legs, a purple orb on top, and its name under it. */
+/** The metal bridge: a little grey building along the sea's edge, its purple orb on top, and its name over it. */
 export function drawMapBridge(
   ctx: CanvasRenderingContext2D,
   x: number,
