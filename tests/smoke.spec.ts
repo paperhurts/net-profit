@@ -119,6 +119,11 @@ type Np = {
   hq: { garden: boolean; dock: boolean; forge: boolean; tower: boolean };
   gardenDay: number;
   HQ_PLANS: { x: number; y: number };
+  HQ_ROSTER: { x: number; y: number };
+  HQ_WAIT: Record<string, { x: number; y: number }>;
+  stay: string[];
+  rosterOpen: boolean;
+  friendsHad: string[];
   HQ_GARDEN: Record<'apple' | 'carrot' | 'banana', { x: number; y: number }>;
   hqOpen: boolean;
   sharp: boolean;
@@ -7289,6 +7294,95 @@ test("your headquarters' plans: build the garden, and pick a snack from it once 
   await expect(page.locator('#climb')).toBeHidden();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect([saved.hq.garden, saved.gardenDay]).toEqual([true, 5]);
+  expect(errors).toEqual([]);
+});
+
+test("your headquarters' roll-call board: leave the warlock at the castle, and call him back", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 1000,
+    spear: 4,
+    day: 5,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle6Stage: 2,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  const intoCourtyard = async () => {
+    await page.click('#ashore');
+    await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, {
+      timeout: 4000,
+    });
+    await page.evaluate(() => {
+      window.__np.walker.x = 2400 + 150;
+      window.__np.walker.y = 6900 + 95;
+    });
+    await page.click('#climb');
+    await page.waitForFunction(() => window.__np.floor === 12);
+    await page.evaluate(() => {
+      const n = window.__np;
+      n.walker.x = n.HQ_ROSTER.x - 22;
+      n.walker.y = n.HQ_ROSTER.y + 10;
+    });
+    await expect(page.locator('#climb')).toHaveText('Choose who comes with you', { timeout: 3000 });
+    await page.click('#climb');
+    await expect(page.locator('#stayCard')).toBeVisible();
+  };
+  await intoCourtyard();
+  // Everyone you have, each coming with you, as ever.
+  expect(await page.evaluate(() => window.__np.friendsHad)).toEqual([
+    'warlock',
+    'tarling',
+    'cat',
+    'warrior',
+    'bones',
+  ]);
+  await expect(page.locator('#stayList .boat')).toHaveCount(5);
+  await expect(page.locator('#stayList .rchip.on')).toHaveText(Array(5).fill('Comes with you'));
+  await page.waitForFunction(() => window.__np.warlock.shown, null, { timeout: 3000 });
+  // The warlock stays: gone from your side, and his boat with him.
+  await page.click('#stayList [data-friend="warlock"][data-stay="1"]');
+  expect(await page.evaluate(() => window.__np.stay)).toEqual(['warlock']);
+  await expect(page.locator('#stayList [data-friend="warlock"].on')).toHaveText(
+    'Stays at the castle',
+  );
+  await page.waitForTimeout(300);
+  expect(
+    await page.evaluate(() => [
+      window.__np.warlock.shown,
+      window.__np.wboat.free,
+      window.__np.cat.shown,
+    ]),
+  ).toEqual([false, false, true]);
+  await page.click('#stayClose');
+  await expect(page.locator('#stayCard')).toBeHidden();
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').stay),
+  ).toEqual(['warlock']);
+  // Still at the castle the next time the game is played, and nowhere at sea.
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => [window.__np.stay, window.__np.wboat.free])).toEqual([
+    ['warlock'],
+    false,
+  ]);
+  await intoCourtyard();
+  await page.click('#stayList [data-friend="warlock"][data-stay=""]');
+  expect(await page.evaluate(() => window.__np.stay)).toEqual([]);
+  await page.waitForFunction(() => window.__np.warlock.shown && window.__np.wboat.free, null, {
+    timeout: 3000,
+  });
   expect(errors).toEqual([]);
 });
 

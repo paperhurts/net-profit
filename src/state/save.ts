@@ -17,6 +17,7 @@ import { type Look, parseLook, SKIPPER } from '../data/look';
 import { isScanKind, type ScanKind } from '../data/scans';
 import { noSnacks, parseHoney, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
+import { type Companion, parseStay } from '../data/stay';
 import { CROWS } from '../entities/crows';
 import { LEGGY_MAX } from '../entities/leggy';
 import { type Charter, parseCharter } from '../fishing/charter';
@@ -179,6 +180,8 @@ export type SaveData = {
   stealth1: boolean;
   /** The scientist's invisibility potion, given at the start of stealth mission 1. */
   invis: boolean;
+  /** The friends left at your castle at the roll-call board, waiting in its courtyard: not with you, ashore or at sea. */
+  stay: Companion[];
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
@@ -398,6 +401,7 @@ export function defaultSave(b: Bounds): SaveData {
     bridgeIn: false,
     stealth1: false,
     invis: false,
+    stay: [],
     remoroDay: 0,
     hunterDay: 0,
     hq: noHq(),
@@ -588,6 +592,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.bridgeIn = !!o.bridgeIn;
   d.stealth1 = !!o.stealth1;
   d.invis = !!o.invis;
+  d.stay = parseStay(o.stay);
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
@@ -757,6 +762,7 @@ export function serializeSave(d: SaveData): string {
     bridgeIn: d.bridgeIn,
     stealth1: d.stealth1,
     invis: d.invis,
+    stay: d.stay,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
     hq: d.hq,

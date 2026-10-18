@@ -517,3 +517,71 @@ export function drawLanding(v: DrawView, x: number, y: number): void {
   ctx.closePath();
   ctx.fill();
 }
+
+/**
+ * The roll-call board (data/stay.ts): a notice board on two posts under a little roof, facing the courtyard, a sheet
+ * pinned to it with a line for each friend you have, a green tick by those who come with you and a red cross by
+ * those who stay.
+ */
+export function drawRoster(v: DrawView, x: number, y: number, comes: readonly boolean[]): void {
+  const { ctx, px, py, zoom: Z } = v;
+  const W = 15;
+  // A point on the board's face, u from its left end (-1) to its right (1), z up it.
+  const at = (u: number, z: number): [number, number] => [
+    px(x + u * W, y - u * W),
+    py(x + u * W, y - u * W, z),
+  ];
+  shadow(v, x, y, 20);
+  for (const u of [-1, 1])
+    box(v, x + u * W - 1.5, y - u * W - 1.5, 3, 3, 0, 52, '#4A2E18', '#6A4426');
+  face(v, x - W, y + W, x + W, y - W, 20, 48, '#5A3A22');
+  face(v, x - W * 0.86, y + W * 0.86, x + W * 0.86, y - W * 0.86, 22, 46, '#8A5E36');
+  face(v, x - W * 0.74, y + W * 0.74, x + W * 0.74, y - W * 0.74, 23.5, 44.5, '#F2E6C4');
+  // The roof over it, a plank either side of its ridge.
+  ctx.fillStyle = '#7A1E28';
+  ctx.beginPath();
+  for (const [u, z] of [
+    [-1.22, 50],
+    [1.22, 50],
+    [1.06, 58],
+    [-1.06, 58],
+  ] as const) {
+    const [a, b] = at(u, z);
+    ctx.lineTo(a, b);
+  }
+  ctx.closePath();
+  ctx.fill();
+  // A line for each friend, in two columns, and its mark.
+  ctx.lineWidth = 1.1 * Z;
+  ctx.lineCap = 'round';
+  comes.forEach((yes, i) => {
+    const u0 = i < 5 ? -0.64 : 0.06;
+    const z = 41.5 - (i % 5) * 4;
+    ctx.strokeStyle = '#6A4426';
+    ctx.beginPath();
+    ctx.moveTo(...at(u0 + 0.2, z));
+    ctx.lineTo(...at(u0 + 0.54, z));
+    ctx.stroke();
+    ctx.strokeStyle = yes ? '#3FA34D' : '#C8432F';
+    ctx.beginPath();
+    if (yes) {
+      ctx.moveTo(...at(u0, z + 0.4));
+      ctx.lineTo(...at(u0 + 0.05, z - 0.9));
+      ctx.lineTo(...at(u0 + 0.13, z + 1.4));
+    } else {
+      ctx.moveTo(...at(u0, z + 1));
+      ctx.lineTo(...at(u0 + 0.11, z - 1));
+      ctx.moveTo(...at(u0, z - 1));
+      ctx.lineTo(...at(u0 + 0.11, z + 1));
+    }
+    ctx.stroke();
+  });
+  // Its pins.
+  ctx.fillStyle = '#C8432F';
+  for (const u of [-0.66, 0.66]) {
+    const [a, b] = at(u, 44);
+    ctx.beginPath();
+    ctx.arc(a, b, 1.2 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
