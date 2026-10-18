@@ -125,6 +125,8 @@ type Np = {
   HQ_FORGE: { x: number; y: number };
   HQ_TOWER_DOOR: { x: number; y: number };
   mapFishN: number;
+  CASTLE_LANDING: { x: number; y: number };
+  viaLanding: boolean;
   walkerAt: [number, number];
   toast(msg: string, ms?: number, pri?: number): void;
   seaTarK: number;
@@ -7230,8 +7232,8 @@ test("your headquarters' plans: build the garden, and pick a snack from it once 
   await expect(items).toHaveCount(4);
   await expect(items.nth(0)).toContainText('Garden');
   await expect(items.nth(0)).toHaveAttribute('aria-disabled', 'false');
-  // The dock is still to come.
-  await expect(items.nth(1)).toContainText('Soon');
+  // All four are on the plans now, each with its price.
+  for (const i of [1, 2, 3]) await expect(items.nth(i)).not.toContainText('Soon');
   await items.nth(0).click();
   await expect(page.locator('#hqCard')).toBeHidden();
   await expect(page.locator('#toast')).toContainText('The garden is planted!');
@@ -7380,6 +7382,74 @@ test("your headquarters' tower: built from the plans, climbed, and every fish sc
   await expect(page.locator('#seamap')).toBeHidden();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect(saved.hq.tower).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("your headquarters' dock: built from the plans, a castle landing by island 7, in through its gate and back aboard", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 5000,
+    spear: 4,
+    day: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HQ_PLANS.x + 16;
+    n.walker.y = n.HQ_PLANS.y - 16;
+  });
+  await expect(page.locator('#climb')).toHaveText('Look at the castle plans', { timeout: 3000 });
+  await page.click('#climb');
+  const dock = page.locator('#hqShelf .item').nth(1);
+  await expect(dock).toContainText('Dock');
+  await dock.click();
+  await expect(page.locator('#toast')).toContainText('The dock is built');
+  expect(await page.evaluate(() => [window.__np.hq.dock, window.__np.coins])).toEqual([true, 1000]);
+  // Back through the portal to island 7, aboard, and round to the landing.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1);
+  await page.evaluate(() => window.__np.walker.knockOut());
+  await page.waitForFunction(() => window.__np.walker.state === 'aboard', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.CASTLE_LANDING.x;
+    n.boat.y = n.CASTLE_LANDING.y + 130;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Through the castle gate', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  expect(await page.evaluate(() => window.__np.viaLanding)).toBe(true);
+  await expect(page.locator('#toast')).toContainText('In through your own gate');
+  // And out again, back aboard where the boat was left.
+  await expect(page.locator('#leave')).toHaveText('Back to your boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('aboard');
+  const at = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.boat.x - n.CASTLE_LANDING.x, n.boat.y - n.CASTLE_LANDING.y);
+  });
+  expect(at).toBeLessThan(200);
+  expect(await page.evaluate(() => window.__np.viaLanding)).toBe(false);
   expect(errors).toEqual([]);
 });
 

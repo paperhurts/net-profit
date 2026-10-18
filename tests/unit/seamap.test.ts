@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES } from '../../src/data/tuning';
-import { drawMapFish, drawMapMark, mapFish, Projection } from '../../src/render/seamap';
+import {
+  drawMapCastle,
+  drawMapFish,
+  drawMapMark,
+  mapFish,
+  Projection,
+} from '../../src/render/seamap';
 import { SEA_MIN, SEA_SPAN } from '../../src/state/sailed';
 import { DEEP, WS } from '../../src/world/island';
 import { createSchools } from '../../src/world/schools';
@@ -82,5 +88,15 @@ describe("the fish schools on the sea map, from your headquarters' tower", () =>
       expect(calls.ellipse).toBe(n);
       expect(calls.fill).toBe(n);
     }
+  });
+});
+
+describe('your castle on the sea map, once the dock is built', () => {
+  it('is a little castle with a gate, and its name over it', () => {
+    const { ctx, calls, texts } = countingCtx();
+    drawMapCastle(ctx, 100, 100, 1, 'Your castle');
+    expect(calls.fill).toBe(2);
+    expect(calls.lineTo).toBeGreaterThan(8);
+    expect(texts).toEqual(['Your castle']);
   });
 });

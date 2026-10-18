@@ -437,3 +437,83 @@ export function drawHqTower(v: DrawView, x: number, y: number): void {
   ctx.closePath();
   ctx.fill();
 }
+
+/**
+ * Your castle's landing on the sea (data/hq.ts CASTLE_LANDING): a square stone quay standing in the water, mooring
+ * posts at its front corners and steps down into the sea; on its back half a gatehouse, a turret either side and a
+ * gold pennant, its arch glowing with Gigantis's green sky, which is where the gate goes.
+ */
+export function drawLanding(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py, zoom: Z, T } = v;
+  // The water lapping round its foot.
+  ctx.strokeStyle = 'rgba(255,255,255,.28)';
+  ctx.lineWidth = 2 * Z;
+  for (let i = 0; i < 2; i++) {
+    const k = (T * 0.35 + i / 2) % 1;
+    ctx.globalAlpha = 1 - k;
+    v.isoEllipse(x, y, 72 + k * 26);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // The quay, and its steps down into the sea on the side toward the viewer.
+  box(v, x - 55, y - 45, 110, 90, -6, 14, '#56645B', '#7A8A7E');
+  for (let i = 0; i < 3; i++)
+    box(v, x - 30, y + 45 + i * 7, 26, 7, -6, 10 - i * 5, '#56645B', '#6E7E72');
+  for (const [dx, dy] of [
+    [-52, 38],
+    [46, 38],
+    [46, -30],
+  ] as const)
+    box(v, x + dx, y + dy, 6, 6, 14, 24, '#2E2A26', '#4A443E');
+  // The gatehouse wall across the back, its arch glowing green.
+  box(v, x - 34, y - 42, 68, 16, 14, 62, '#5C6B62', '#7A8A7E');
+  const glow = 0.75 + 0.2 * Math.sin(T * 2);
+  ctx.fillStyle = `rgba(110,230,160,${glow})`;
+  ctx.beginPath();
+  ctx.moveTo(px(x - 11, y - 26), py(x - 11, y - 26, 14));
+  ctx.lineTo(px(x - 11, y - 26), py(x - 11, y - 26, 38));
+  ctx.quadraticCurveTo(
+    px(x, y - 26),
+    py(x, y - 26, 52),
+    px(x + 11, y - 26),
+    py(x + 11, y - 26, 38),
+  );
+  ctx.lineTo(px(x + 11, y - 26), py(x + 11, y - 26, 14));
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#3E4A43';
+  ctx.lineWidth = 2 * Z;
+  ctx.stroke();
+  // A turret either side, with merlons, and the pennant over the right-hand one.
+  for (const tx of [-56, 34]) {
+    box(v, x + tx, y - 46, 22, 24, 14, 86, '#5C6B62', '#7A8A7E');
+    for (const [mx, my] of [
+      [0, 0],
+      [14, 0],
+      [0, 16],
+      [14, 16],
+    ] as const)
+      box(v, x + tx + mx, y - 46 + my, 8, 8, 86, 94, '#5C6B62', '#7A8A7E');
+  }
+  const fx = x + 45;
+  const fy = y - 34;
+  ctx.strokeStyle = '#3A2A1A';
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(px(fx, fy), py(fx, fy, 86));
+  ctx.lineTo(px(fx, fy), py(fx, fy, 124));
+  ctx.stroke();
+  const wave = Math.sin(T * 3) * 2.5 * Z;
+  ctx.fillStyle = v.coin;
+  ctx.beginPath();
+  ctx.moveTo(px(fx, fy), py(fx, fy, 124));
+  ctx.quadraticCurveTo(
+    px(fx, fy) + 10 * Z,
+    py(fx, fy, 121) + wave,
+    px(fx, fy) + 20 * Z,
+    py(fx, fy, 119) + wave,
+  );
+  ctx.lineTo(px(fx, fy), py(fx, fy, 114));
+  ctx.closePath();
+  ctx.fill();
+}
