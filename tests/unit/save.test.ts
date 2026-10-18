@@ -812,6 +812,32 @@ describe('who stays at the castle', () => {
   });
 });
 
+describe("the tar ocean's fish", () => {
+  it('has none caught in a save from before them, and keeps the day, the dozen taken and the bucket', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.tarDay, s.tarTaken, s.tarBucket, s.tarCaught]).toEqual([0, 0, 0, 0]);
+    s.tarDay = 9;
+    s.tarTaken = 0b101000000011;
+    s.tarBucket = 4;
+    s.tarCaught = 7;
+    const r = parseSave(serializeSave(s), bounds);
+    expect([r.tarDay, r.tarTaken, r.tarBucket, r.tarCaught]).toEqual([9, 0b101000000011, 4, 7]);
+  });
+
+  it('keeps only the dozen bits, and never fewer caught than are in the bucket', () => {
+    const s = parseSave(legacy, bounds);
+    const odd = {
+      ...JSON.parse(serializeSave(s)),
+      tarTaken: 0xffff,
+      tarBucket: 5,
+      tarCaught: 2,
+      tarDay: -3,
+    };
+    const r = parseSave(JSON.stringify(odd), bounds);
+    expect([r.tarDay, r.tarTaken, r.tarBucket, r.tarCaught]).toEqual([0, 0xfff, 5, 5]);
+  });
+});
+
 describe('the abyss', () => {
   it('is unseen and undived in a save from before it, and stays seen and dived once it is', () => {
     const s = parseSave(legacy, bounds);
