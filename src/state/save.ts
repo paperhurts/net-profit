@@ -182,6 +182,14 @@ export type SaveData = {
   invis: boolean;
   /** The friends left at your castle at the roll-call board, waiting in its courtyard: not with you, ashore or at sea. */
   stay: Companion[];
+  /**
+   * The tar ocean's fish (world/tarfish.ts): the day the last was caught, which of that day's dozen are taken (a bit
+   * each), how many are in the chemistry boat's tar bucket for the scientist, and how many ever caught.
+   */
+  tarDay: number;
+  tarTaken: number;
+  tarBucket: number;
+  tarCaught: number;
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
@@ -402,6 +410,10 @@ export function defaultSave(b: Bounds): SaveData {
     stealth1: false,
     invis: false,
     stay: [],
+    tarDay: 0,
+    tarTaken: 0,
+    tarBucket: 0,
+    tarCaught: 0,
     remoroDay: 0,
     hunterDay: 0,
     hq: noHq(),
@@ -593,6 +605,10 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.stealth1 = !!o.stealth1;
   d.invis = !!o.invis;
   d.stay = parseStay(o.stay);
+  d.tarDay = Math.max(0, int(o.tarDay));
+  d.tarTaken = int(o.tarTaken) & 0xfff;
+  d.tarBucket = Math.max(0, int(o.tarBucket));
+  d.tarCaught = Math.max(d.tarBucket, int(o.tarCaught));
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
@@ -763,6 +779,10 @@ export function serializeSave(d: SaveData): string {
     stealth1: d.stealth1,
     invis: d.invis,
     stay: d.stay,
+    tarDay: d.tarDay,
+    tarTaken: d.tarTaken,
+    tarBucket: d.tarBucket,
+    tarCaught: d.tarCaught,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
     hq: d.hq,

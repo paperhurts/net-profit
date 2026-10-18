@@ -126,6 +126,14 @@ type Np = {
   HQ_HEAP: { x: number; y: number };
   tarSail: { x: number; y: number; h: number; v: number } | null;
   TAR_BERTH: { x: number; y: number };
+  tarFish: {
+    schools: { x: number; y: number }[];
+    taken: number;
+    bucket: number;
+    caught: number;
+    day: number;
+  };
+  tarRod: { state: string };
   fishCaught: number;
   trophiesWon: number;
   HQ_WAIT: Record<string, { x: number; y: number }>;
@@ -9444,6 +9452,124 @@ test('the tar ocean: out from the tar dock in the chemistry boat, sailed, and ba
   expect(await page.evaluate(() => window.__np.tarSail)).toBeNull();
   // The flagship never moved from the door.
   expect(await page.evaluate(() => [window.__np.boat.x, window.__np.boat.y])).toEqual(parked);
+  expect(errors).toEqual([]);
+});
+
+test('tar fish: cast for from the chemistry boat by a school, kept in the tar bucket, and bought by the scientist', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  // In at the bridge's door, through to the tar dock, and out in the chemistry boat.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB.find((h) => h.to === n.BRIDGE_TARDOCK);
+    if (d) {
+      n.walker.x = d.x;
+      n.walker.y = d.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Out to the tar dock', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_TARDOCK);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((t) => t.act === 'bboat');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Sail the chemistry boat', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('tar fish');
+  // Nowhere near a school at the berth: no rod.
+  const cast = page.locator('#tarcast');
+  await expect(cast).toBeHidden();
+  // Stopped by the day's first school: cast, wait for the float to go under, reel in.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const s = n.tarFish.schools[0];
+    if (!n.tarSail || !s) return;
+    n.tarSail.x = s.x + 130;
+    n.tarSail.y = s.y;
+    n.tarSail.v = 0;
+  });
+  await expect(cast).toHaveText('Cast for tar fish', { timeout: 3000 });
+  await cast.click();
+  await expect(cast).toHaveText(/Wait/);
+  await page.waitForFunction(() => window.__np.tarRod.state === 'bite', null, { timeout: 4000 });
+  await cast.click({ force: true });
+  await page.waitForFunction(() => window.__np.tarFish.bucket === 1, null, { timeout: 1000 });
+  await expect(page.locator('#toast')).toContainText('Nobody buys them but the scientist');
+  await expect(page.locator('#tarBucket')).toHaveText('1');
+  expect(await page.evaluate(() => [window.__np.tarFish.taken !== 0, window.__np.coins])).toEqual([
+    true,
+    0,
+  ]);
+  // Back to the bridge, through to the science room, and the scientist buys it.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.tarSail === null);
+  await expect(cast).toBeHidden();
+  await page.evaluate(() => {
+    const n = window.__np;
+    const p = n.bridgeBack(n.BRIDGE_TARDOCK);
+    n.walker.x = p.x;
+    n.walker.y = p.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Back to the observatory', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  const sci = await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB[1] as { to: number; x: number; y: number };
+    n.walker.x = d.x;
+    n.walker.y = d.y;
+    return d.to;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the science room', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction((to) => window.__np.floor === to, sci);
+  await page.evaluate((to) => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((k) => k.room === to && k.act === 'bsci');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  }, sci);
+  await expect(page.locator('#climb')).toHaveText('Talk to the scientist', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('You sell a tar fish for 250 coins');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.tarFish.bucket])).toEqual([
+    250, 0,
+  ]);
+  await expect(page.locator('#tarBucket')).toBeHidden();
   expect(errors).toEqual([]);
 });
 
