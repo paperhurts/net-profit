@@ -9,6 +9,7 @@
  */
 import {
   ABYSS_FISH,
+  ATTACK_NIBBLER,
   DEEP_RINGS,
   FAR_RINGS,
   ISLE2_RINGS,
@@ -100,6 +101,7 @@ export const BLURBS: readonly string[] = [
   'Big and deep blue, spotted white, with fins on fleshy stalks like little legs. Everyone thought coelacanths died out with the dinosaurs, until a fisherman caught one in 1938.',
   'A shark as long and thin as an eel, with frilly gills and a mouth full of little three-pointed teeth. It has hardly changed in eighty million years.',
   'Silver from nose to tail and as long as Star, with a striped sucker plate on top of its head, as the real remoras have, that ride about stuck to sharks and whales. Sailors long ago told of a fish like this that could hold a ship still. Named by the kid who found it.',
+  "The nibbler's big, bad cousin: shark-shaped, with a fin on its back, two clawed fins underneath and a mouth full of teeth. It hunts the gloomers and the nibblers, and snaps them up. Keep out of its way when it charges. Drawn by the kid who found it.",
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -134,6 +136,8 @@ export function whereText(sp: number): string {
     return 'On the floor under the ice floe, on the ice fishing line. Steer the hook down onto one.';
   if (ABYSS_FISH.includes(sp))
     return 'On the floor of the abyss, the blue hole past the white buoys, 1,000 metres down. Go down in the dive cage with scuba gear and a spear.';
+  if (sp === ATTACK_NIBBLER)
+    return 'Prowling the floor of the abyss, 1,000 metres down past the white buoys, hunting the gloomers and the nibblers. It takes three spears: each one sends it darting off.';
   if (sp === REMORO)
     return 'Cruising slow laps over the floor of the abyss, 1,000 metres down past the white buoys. It takes three spears: each one sends it darting off.';
   return 'Out there somewhere.';
@@ -156,6 +160,8 @@ export function whenText(sp: number): string {
     return SPECIES[sp]?.glow
       ? 'Day and night: 1,000 metres down it is always dark. Glows.'
       : 'Day and night: 1,000 metres down it is always dark. Only your lamp shows it.';
+  if (sp === ATTACK_NIBBLER)
+    return 'One a day: land it, and the next is out hunting tomorrow. Its eye glints amber in the dark.';
   if (sp === REMORO)
     return 'One a day: land it, and the next is there tomorrow. Its silver glints in the dark.';
   return '';

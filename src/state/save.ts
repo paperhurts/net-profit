@@ -172,6 +172,8 @@ export type SaveData = {
   abyssDown: boolean;
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
+  /** And the attack nibbler, the hunter of the floor: one a day too. */
+  hunterDay: number;
   trenchDeep: number;
   /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
   trenchLoot: number;
@@ -379,6 +381,7 @@ export function defaultSave(b: Bounds): SaveData {
     abyssSeen: false,
     abyssDown: false,
     remoroDay: 0,
+    hunterDay: 0,
     trenchDeep: 0,
     trenchLoot: 0,
     iceLoot: 0,
@@ -561,6 +564,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.abyssSeen = !!o.abyssSeen;
   d.abyssDown = !!o.abyssDown;
   d.remoroDay = Math.max(0, int(o.remoroDay));
+  d.hunterDay = Math.max(0, int(o.hunterDay));
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
   d.iceLoot = int(o.iceLoot) & ICE_LOOT_ALL;
@@ -722,6 +726,7 @@ export function serializeSave(d: SaveData): string {
     abyssSeen: d.abyssSeen,
     abyssDown: d.abyssDown,
     remoroDay: d.remoroDay,
+    hunterDay: d.hunterDay,
     trenchDeep: d.trenchDeep,
     trenchLoot: d.trenchLoot,
     iceLoot: d.iceLoot,

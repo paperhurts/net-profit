@@ -459,6 +459,7 @@ const DEEP_FAT: Readonly<Record<string, number>> = {
   coelacanth: 0.32,
   frilled: 0.12,
   remoro: 0.24,
+  attack: 0.36,
 };
 
 /** Every fish in a shoal, each round the shoal's middle at its own place, heading the way the shoal goes. */

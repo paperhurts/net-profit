@@ -2,10 +2,12 @@
  * The abyss, side on, while the figure dives (world/abyss.ts): the reef shelf under the blue hole, pale and sunlit on
  * top, with the hole through it; the hole's walls going down into the dark and widening until there are none; and
  * the floor of black sand, 1,000 metres down. And the cage on the boat's rope, the diver in it, a lamp on its roof.
- * And the Remoro, cruising over the floor, its silver glinting through the dark.
+ * And the Remoro, cruising over the floor, its silver glinting through the dark; and the attack nibbler hunting
+ * there, its amber eye glinting.
  * On the sea: the blue hole itself, a round patch of the brightest blue with its small dark middle.
  */
 
+import { type AttackNibbler, HUNTER_H, HUNTER_LEN } from '../entities/attacknibbler';
 import type { DrawView } from '../entities/entity';
 import { REMORO_H, REMORO_LEN, type Remoro } from '../entities/remoro';
 import {
@@ -266,6 +268,70 @@ export function drawRemoroGlint(
   ctx.beginPath();
   ctx.arc(X(gx), Y(gy), 12 * s, 0, Math.PI * 2);
   ctx.fill();
+}
+
+/** The attack nibbler (entities/attacknibbler.ts), under the dark: the kid's drawing, white a moment when speared. */
+export function drawHunter(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  h: AttackNibbler,
+  T: number,
+): void {
+  if (!h.here) return;
+  ctx.save();
+  ctx.translate(X(h.x), Y(h.y));
+  ctx.scale(h.face * s, s);
+  drawDeepFish(
+    ctx,
+    'attack',
+    HUNTER_LEN,
+    HUNTER_H,
+    h.ph * (h.state === 'chase' || h.state === 'dart' ? 14 : 5),
+    T,
+  );
+  if (h.flash > 0) {
+    ctx.globalAlpha = h.flash * 0.8;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, HUNTER_LEN * 0.4, HUNTER_H * 0.46, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/** Over the dark: its amber eye, and its teeth catching the light as it charges, so it can be seen coming. */
+export function drawHunterGlow(
+  ctx: CanvasRenderingContext2D,
+  X: Proj,
+  Y: Proj,
+  s: number,
+  h: AttackNibbler,
+  T: number,
+): void {
+  if (!h.here) return;
+  const ex = X(h.x + h.face * HUNTER_LEN * 0.22);
+  const ey = Y(h.y - HUNTER_H * 0.22);
+  const r = (h.state === 'chase' ? 10 : 7) * s;
+  const g = ctx.createRadialGradient(ex, ey, 0, ex, ey, r);
+  g.addColorStop(0, `rgba(255,200,90,${0.75 + 0.2 * Math.sin(T * 4)})`);
+  g.addColorStop(1, 'rgba(255,200,90,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(ex, ey, r, 0, Math.PI * 2);
+  ctx.fill();
+  if (h.state === 'chase') {
+    ctx.strokeStyle = 'rgba(255,251,239,.55)';
+    ctx.lineWidth = 1.5 * s;
+    const mx = X(h.x + h.face * HUNTER_LEN * 0.45);
+    ctx.beginPath();
+    ctx.moveTo(mx, Y(h.y - HUNTER_H * 0.24));
+    ctx.lineTo(X(h.x + h.face * HUNTER_LEN * 0.2), Y(h.y));
+    ctx.lineTo(mx, Y(h.y + HUNTER_H * 0.32));
+    ctx.stroke();
+  }
 }
 
 /** The blue hole on the sea: the bright reef shallows round it, its rim, and its small dark middle. */

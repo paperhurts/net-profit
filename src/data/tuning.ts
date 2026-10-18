@@ -417,6 +417,19 @@ export const SPECIES: readonly Species[] = [
     tail: 0.6,
     mark: '#4E5E70',
   },
+  // And the attack nibbler, the kid's drawing: big and shark-shaped, brown as the nibblers it is named for, a fin on
+  // its back, two clawed fins under it and a mouth full of teeth. It hunts the deep fish on the abyss's floor (the
+  // owner's call); three spears land it, one a day (entities/attacknibbler.ts).
+  {
+    name: 'attack nibbler',
+    pl: 'attack nibblers',
+    v: 150,
+    c: '#7A5234',
+    s: 26,
+    fat: 0.36,
+    tail: 0.7,
+    mark: '#B08A64',
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -439,6 +452,8 @@ export const GIANT_SQUID = 27;
 export const ABYSS_FISH: readonly number[] = [27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
 /** The Remoro, the abyss's great silver fish: three spears, one a day. */
 export const REMORO = 37;
+/** The attack nibbler, the hunter of the abyss's floor: three spears, one a day. */
+export const ATTACK_NIBBLER = 38;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;
