@@ -796,6 +796,22 @@ describe('the metal bridge', () => {
   });
 });
 
+describe('who stays at the castle', () => {
+  it('is nobody in a save from before the roll-call board, and keeps who was left there', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.stay).toEqual([]);
+    s.stay = ['warlock', 'cat'];
+    expect(parseSave(serializeSave(s), bounds).stay).toEqual(['warlock', 'cat']);
+  });
+
+  it('reads nobody it does not know, and each friend once', () => {
+    const s = parseSave(legacy, bounds);
+    const odd = { ...JSON.parse(serializeSave(s)), stay: ['naga', 'dragon', 'naga', 3, null] };
+    expect(parseSave(JSON.stringify(odd), bounds).stay).toEqual(['naga']);
+    expect(parseSave(JSON.stringify({ ...odd, stay: 'naga' }), bounds).stay).toEqual([]);
+  });
+});
+
 describe('the abyss', () => {
   it('is unseen and undived in a save from before it, and stays seen and dived once it is', () => {
     const s = parseSave(legacy, bounds);
