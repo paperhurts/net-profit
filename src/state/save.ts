@@ -175,6 +175,10 @@ export type SaveData = {
   bridgeSeen: boolean;
   /** In through its door: the first time, the way round it is told. */
   bridgeIn: boolean;
+  /** Stealth mission 1 won: the sorcerer kicked off his tower, the chemistry boat yours. */
+  stealth1: boolean;
+  /** The scientist's invisibility potion, given at the start of stealth mission 1. */
+  invis: boolean;
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
@@ -392,6 +396,8 @@ export function defaultSave(b: Bounds): SaveData {
     abyssDown: false,
     bridgeSeen: false,
     bridgeIn: false,
+    stealth1: false,
+    invis: false,
     remoroDay: 0,
     hunterDay: 0,
     hq: noHq(),
@@ -580,6 +586,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.abyssDown = !!o.abyssDown;
   d.bridgeSeen = !!o.bridgeSeen;
   d.bridgeIn = !!o.bridgeIn;
+  d.stealth1 = !!o.stealth1;
+  d.invis = !!o.invis;
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
@@ -747,6 +755,8 @@ export function serializeSave(d: SaveData): string {
     abyssDown: d.abyssDown,
     bridgeSeen: d.bridgeSeen,
     bridgeIn: d.bridgeIn,
+    stealth1: d.stealth1,
+    invis: d.invis,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
     hq: d.hq,

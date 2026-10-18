@@ -779,6 +779,15 @@ describe('the metal bridge', () => {
     expect(parseSave(serializeSave(s), bounds).bridgeSeen).toBe(true);
   });
 
+  it('has stealth mission 1 not won and no potion in a save from before it, and keeps both once had', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.stealth1, s.invis]).toEqual([false, false]);
+    s.stealth1 = true;
+    s.invis = true;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.stealth1, back.invis]).toEqual([true, true]);
+  });
+
   it('has not been inside in a save from before it, and remembers having been', () => {
     const s = parseSave(legacy, bounds);
     expect(s.bridgeIn).toBe(false);

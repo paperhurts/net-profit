@@ -71,13 +71,17 @@ describe("inside the kid's metal bridge", () => {
     for (const t of BRIDGE_THINGS) {
       expect(roomAt(t.at.x, t.at.y)).toBe(t.room);
       expect(walkable(t.at.x, t.at.y, 0)).toBe(true);
-      expect(bridgeAction(t.room, t.at.x, t.at.y, true)).toBe(t.act);
+      expect(bridgeAction(t.room, t.at.x, t.at.y, true, true)).toBe(t.act);
       expect(bridgeLabel(t.act)).not.toBe('');
     }
     // The bed only when there is a night to sleep through.
     const bed = BRIDGE_THINGS.find((t) => t.act === 'bbed');
     expect(bed?.room).toBe(BRIDGE_YOU);
     if (bed) expect(bridgeAction(bed.room, bed.at.x, bed.at.y, false)).toBeNull();
+    // The chemistry boat only once stealth mission 1 is won.
+    const boat = BRIDGE_THINGS.find((t) => t.act === 'bboat');
+    expect(boat?.room).toBe(BRIDGE_TARDOCK);
+    if (boat) expect(bridgeAction(boat.room, boat.at.x, boat.at.y, true, false)).toBeNull();
     // The tar animal stays out in the tar, off the dock.
     expect(walkable(TAR_ANIMAL.x, TAR_ANIMAL.y, 0)).toBe(false);
     expect(roomAt(TAR_ANIMAL.x, TAR_ANIMAL.y)).not.toBe(BRIDGE_TARDOCK);
