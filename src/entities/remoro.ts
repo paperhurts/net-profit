@@ -147,7 +147,7 @@ export class Remoro {
 }
 
 /** The least distance between two segments, a..b and c..d: none if they cross. */
-function segSeg(
+export function segSeg(
   ax: number,
   ay: number,
   bx: number,

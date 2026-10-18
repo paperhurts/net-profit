@@ -274,6 +274,16 @@ type Np = {
     shake: number;
   };
   floorGulper: { x: number; y: number; state: string; wait: number; away: number; out: boolean };
+  hunter: {
+    x: number;
+    y: number;
+    dx: number;
+    state: string;
+    hits: number;
+    here: boolean;
+    reset(here: boolean): void;
+  };
+  hunterDay: number;
   boneSharks: { x: number; y: number; state: string; t: number }[];
   WRECK_CHEST: { x: number; y: number };
   charter: { wants: string[]; seen: string[]; shirts: number[] } | null;
@@ -2380,6 +2390,7 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   await page.evaluate(() => {
     window.__np.giants.list = [];
     window.__np.floorGulper.away = 1e9;
+    window.__np.hunter.reset(false);
   });
   // In the cage, going down: no spear, and the way back is the cage.
   expect(await page.evaluate(() => window.__np.diver.cage?.go)).toBe('down');
@@ -2471,6 +2482,7 @@ test("the abyss: the kid's Remoro cruises over the floor, three spears land it, 
   await page.evaluate(() => {
     window.__np.giants.list = [];
     window.__np.floorGulper.away = 1e9;
+    window.__np.hunter.reset(false);
     const c = window.__np.diver.cage;
     if (c) c.y = 2800;
   });
@@ -2609,6 +2621,7 @@ test('the abyss: out of the cage a gulper comes and bites air, and back in the c
   });
   await page.evaluate(() => {
     window.__np.giants.list = [];
+    window.__np.hunter.reset(false);
     const c = window.__np.diver.cage;
     if (c) c.y = 2800;
   });
@@ -2656,6 +2669,80 @@ test('the abyss: out of the cage a gulper comes and bites air, and back in the c
   await page.waitForTimeout(3500);
   expect(await page.evaluate(() => window.__np.floorGulper.state)).toBe('hide');
   expect(await page.evaluate(() => window.__np.diver.inCage)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("the abyss: the kid's attack nibbler hunts the floor, and three spears land it, one a day", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    abyssSeen: true,
+    abyssDown: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7620, y: -4300, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#diveBtn')).toHaveText('Dive into the abyss', { timeout: 4000 });
+  await page.locator('#diveBtn').click();
+  await page.waitForFunction(() => window.__np.diving && window.__np.diveSite === 'abyss', null, {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => window.__np.hunter.here)).toBe(true);
+  await page.evaluate(() => {
+    const np = window.__np;
+    np.giants.list = [];
+    np.floorGulper.away = 1e9;
+    np.remoro.reset(false);
+    const c = np.diver.cage;
+    if (c) c.y = 2800;
+  });
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 6000 });
+  // Close under it, and throw until it is landed (a deep fish in the way may take a spear first).
+  for (let i = 0; i < 20; i++) {
+    if (await page.evaluate(() => window.__np.hunter.state === 'gone')) break;
+    await page.waitForFunction(
+      () => !document.querySelector('#throw')?.classList.contains('wait'),
+      null,
+      {
+        timeout: 3000,
+      },
+    );
+    const hits = await page.evaluate(() => {
+      const { diver: d, hunter: h } = window.__np;
+      d.x = h.x;
+      d.y = h.y + 36;
+      d.vx = 0;
+      d.vy = 0;
+      d.face = h.dx >= 0 ? 1 : -1;
+      return h.hits;
+    });
+    await page.click('#throw');
+    await page
+      .waitForFunction(
+        (n) => window.__np.hunter.hits !== n || window.__np.hunter.state === 'gone',
+        hits,
+        {
+          timeout: 1500,
+        },
+      )
+      .catch(() => {});
+    if (hits === 0 && (await page.evaluate(() => window.__np.hunter.hits)) === 1)
+      await expect(page.locator('#toast')).toContainText('The attack nibbler darts off');
+  }
+  expect(await page.evaluate(() => window.__np.hunter.state)).toBe('gone');
+  await expect(page.locator('#toast')).toContainText('You landed the attack nibbler!');
+  const day = await page.evaluate(() => window.__np.day);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.hunterDay, saved.log[38]]).toEqual([day, 1]);
   expect(errors).toEqual([]);
 });
 

@@ -788,6 +788,13 @@ describe('the abyss', () => {
     expect(parseSave(serializeSave(s), bounds).remoroDay).toBe(7);
     expect(parseSave(JSON.stringify({ ...s, remoroDay: -3 }), bounds).remoroDay).toBe(0);
   });
+
+  it('has the attack nibbler hunting in a save from before it, and keeps the day it was landed', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.hunterDay).toBe(0);
+    s.hunterDay = 4;
+    expect(parseSave(serializeSave(s), bounds).hunterDay).toBe(4);
+  });
 });
 
 describe('islands 8 and 9', () => {

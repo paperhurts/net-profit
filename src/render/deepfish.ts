@@ -4,7 +4,8 @@
  * each drawn side on at the origin, nose toward +x, L long from tail tip to nose and H high: the dive draws them in
  * the dark over the floor, the aquarium in its tank. The nibbler is his drawing (2026-10-17): a little brown fish
  * with a forked tail and a big open mouth; the gloomer is his "flower mouth on a naga's body", the long one with the
- * frilled flower of a head in the same drawing. And the Remoro, his great silver fish (entities/remoro.ts).
+ * frilled flower of a head in the same drawing. And the Remoro, his great silver fish (entities/remoro.ts), and the
+ * attack nibbler, the big toothy one in the same drawing biting a gloomer's tail (entities/attacknibbler.ts).
  */
 
 import type { DeepKind } from '../world/trench';
@@ -21,6 +22,7 @@ export const DEEP_KINDS: Readonly<Record<string, DeepKind>> = {
   coelacanth: 'coelacanth',
   'frilled shark': 'frilled',
   remoro: 'remoro',
+  'attack nibbler': 'attack',
 };
 
 function eye(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, c = '#FFFFFF'): void {
@@ -267,6 +269,65 @@ export function drawDeepFish(
       for (let i = 0; i < 3; i++)
         ctx.fillRect(L * (0.38 + i * 0.03), H * 0.12, Math.max(0.5, L * 0.012), H * 0.18);
       eye(ctx, L * 0.38, -H * 0.15, Math.max(0.8, H * 0.18), '#D8E86A');
+      break;
+    }
+    case 'attack': {
+      // The kid's drawing: shark-shaped and brown as the nibblers it is named for, a fin on its back, two clawed fins
+      // under it, and a big mouth full of teeth, wide open.
+      tail(ctx, -L * 0.36, H * 0.55, L * 0.18, beat, '#5E3E26', 'fork');
+      ctx.fillStyle = '#5E3E26';
+      ctx.beginPath();
+      ctx.moveTo(-L * 0.06, -H * 0.36);
+      ctx.lineTo(-L * 0.17, -H * 0.98);
+      ctx.lineTo(L * 0.1, -H * 0.38);
+      ctx.closePath();
+      ctx.fill();
+      oval(ctx, 0, 0, L * 0.4, H * 0.46, '#7A5234');
+      oval(ctx, L * 0.02, H * 0.2, L * 0.32, H * 0.2, '#B08A64');
+      // The two clawed fins under it, three claws on each.
+      for (const fx of [0.1, -0.14]) {
+        ctx.fillStyle = '#5E3E26';
+        ctx.beginPath();
+        ctx.moveTo(L * fx, H * 0.3);
+        ctx.lineTo(L * (fx - 0.08), H * (0.86 + beat * 0.06));
+        ctx.lineTo(L * (fx + 0.05), H * 0.36);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#F2EAD8';
+        ctx.lineWidth = Math.max(0.5, H * 0.04);
+        for (let c = -1; c <= 1; c++) {
+          ctx.beginPath();
+          ctx.moveTo(L * (fx - 0.08), H * (0.86 + beat * 0.06));
+          ctx.lineTo(L * (fx - 0.1 + c * 0.02), H * (0.98 + beat * 0.06));
+          ctx.stroke();
+        }
+      }
+      // The mouth, wide open, dark inside, a row of teeth along each jaw.
+      ctx.fillStyle = '#2A140C';
+      ctx.beginPath();
+      ctx.moveTo(L * 0.45, -H * 0.24);
+      ctx.lineTo(L * 0.2, H * 0.02);
+      ctx.lineTo(L * 0.45, H * 0.32);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#FFFBEF';
+      for (let i = 0; i < 5; i++) {
+        const k = (i + 0.5) / 5;
+        const jx = L * (0.45 - 0.25 * k);
+        const uy = -H * 0.24 + H * 0.26 * k;
+        const ly = H * 0.32 - H * 0.3 * k;
+        ctx.beginPath();
+        ctx.moveTo(jx - L * 0.02, uy);
+        ctx.lineTo(jx, uy + H * 0.12);
+        ctx.lineTo(jx + L * 0.02, uy);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(jx - L * 0.02, ly);
+        ctx.lineTo(jx, ly - H * 0.12);
+        ctx.lineTo(jx + L * 0.02, ly);
+        ctx.fill();
+      }
+      eye(ctx, L * 0.22, -H * 0.22, Math.max(1, H * 0.1), '#FFD86A');
       break;
     }
     case 'remoro': {
