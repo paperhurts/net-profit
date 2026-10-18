@@ -120,6 +120,8 @@ type Np = {
   gardenDay: number;
   HQ_PLANS: { x: number; y: number };
   HQ_ROSTER: { x: number; y: number };
+  trophyStand(i: number): { x: number; y: number };
+  trophiesWon: number;
   HQ_WAIT: Record<string, { x: number; y: number }>;
   stay: string[];
   rosterOpen: boolean;
@@ -7383,6 +7385,79 @@ test("your headquarters' roll-call board: leave the warlock at the castle, and c
   await page.waitForFunction(() => window.__np.warlock.shown && window.__np.wboat.free, null, {
     timeout: 3000,
   });
+  expect(errors).toEqual([]);
+});
+
+test("your headquarters' trophy hall: a trophy for each boss beaten, and empty stands say who to beat", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 1000,
+    spear: 4,
+    day: 5,
+    towerTaken: true,
+    isle4Stage: 1,
+    isle5Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  // Up through the courtyard and the first hall, to the second.
+  for (const [floor, y, r] of [
+    [12, -6000, 170],
+    [13, -6900, 160],
+  ] as const) {
+    await page.evaluate(
+      ([y0, r0]) => {
+        window.__np.walker.x = -13500 - r0 * 0.6 * Math.SQRT1_2 + 6;
+        window.__np.walker.y = y0 - r0 * 0.6 * Math.SQRT1_2 + 6;
+      },
+      [y, r] as const,
+    );
+    await expect(page.locator('#climb')).toHaveText('Through the door', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction((f) => window.__np.floor === f + 1, floor);
+  }
+  // The island 2 sorcerer, the Tar Anchorer, the Shark King, island 7's sorcerer, the Forgotten One twice, the Old One.
+  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 21 stands', {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => window.__np.trophiesWon)).toBe(7);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const s = n.trophyStand(4);
+    n.walker.x = s.x + 10;
+    n.walker.y = s.y + 8;
+  });
+  await expect(page.locator('#climb')).toHaveText("Look at the Shark King's jaws", {
+    timeout: 3000,
+  });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('every tooth still sharp');
+  // The Heron's stand, empty: where to go to fill it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const s = n.trophyStand(10);
+    n.walker.x = s.x + 10;
+    n.walker.y = s.y + 8;
+  });
+  await expect(page.locator('#climb')).toHaveText('Look at the empty stand', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('An empty stand. Beat the Heron for good');
   expect(errors).toEqual([]);
 });
 
