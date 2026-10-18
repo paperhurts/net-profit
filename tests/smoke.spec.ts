@@ -122,6 +122,7 @@ type Np = {
   HQ_ROSTER: { x: number; y: number };
   trophyStand(i: number): { x: number; y: number };
   HQ_FISH_FRONT: { x: number; y: number };
+  armouryAt(id: string): { x: number; y: number };
   fishCaught: number;
   trophiesWon: number;
   HQ_WAIT: Record<string, { x: number; y: number }>;
@@ -7508,6 +7509,75 @@ test("your headquarters' fish board: every kind you've caught on it, and the fie
   });
   await page.click('#climb');
   await expect(page.locator('#guide')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("your headquarters' armoury: the armour and weapons you've had, on stands in the throne room", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 1000,
+    spear: 2,
+    armour: 3,
+    day: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  // Up through the courtyard and both halls, to the throne room.
+  for (const [floor, y, r] of [
+    [12, -6000, 170],
+    [13, -6900, 160],
+    [14, -7800, 160],
+  ] as const) {
+    await page.evaluate(
+      ([y0, r0]) => {
+        window.__np.walker.x = -13500 - r0 * 0.6 * Math.SQRT1_2 + 6;
+        window.__np.walker.y = y0 - r0 * 0.6 * Math.SQRT1_2 + 6;
+      },
+      [y, r] as const,
+    );
+    await expect(page.locator('#climb')).toHaveText('Through the door', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction((f) => window.__np.floor === f + 1, floor);
+  }
+  const lookAt = async (id: string) =>
+    page.evaluate((i) => {
+      const n = window.__np;
+      const s = n.armouryAt(i);
+      n.walker.x = s.x + 6;
+      n.walker.y = s.y + 6;
+    }, id);
+  // The gold armour, the best of the three: worn, and one like it on its stand.
+  await lookAt('a2');
+  await expect(page.locator('#climb')).toHaveText('Look at the gold armour', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText("It's the best you have");
+  // The leather, outgrown.
+  await lookAt('a0');
+  await expect(page.locator('#climb')).toHaveText('Look at the leather armour', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText("You've got better now");
+  // No harpoon yet: its rack is empty.
+  await lookAt('w3');
+  await expect(page.locator('#climb')).toHaveText('Look at the empty rack', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('An empty rack, for the harpoon');
   expect(errors).toEqual([]);
 });
 
