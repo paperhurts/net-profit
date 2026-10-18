@@ -771,6 +771,15 @@ describe('the trench', () => {
   });
 });
 
+describe('the metal bridge', () => {
+  it('is unseen in a save from before it, and stays seen once it is', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.bridgeSeen).toBe(false);
+    s.bridgeSeen = true;
+    expect(parseSave(serializeSave(s), bounds).bridgeSeen).toBe(true);
+  });
+});
+
 describe('the abyss', () => {
   it('is unseen and undived in a save from before it, and stays seen and dived once it is', () => {
     const s = parseSave(legacy, bounds);
