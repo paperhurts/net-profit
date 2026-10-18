@@ -129,6 +129,11 @@ type Np = {
   METAL_BRIDGE: { x: number; len: number; face: number; depth: number };
   BRIDGE_DOOR: { x: number; y: number };
   bridgeSeen: boolean;
+  bridgeIn: boolean;
+  BRIDGE_OBS: number;
+  BRIDGE_HUB: { to: number; x: number; y: number }[];
+  bridgeBack(i: number): { x: number; y: number };
+  BRIDGE_THINGS: { room: number; at: { x: number; y: number }; act: string }[];
   viaLanding: boolean;
   walkerAt: [number, number];
   toast(msg: string, ms?: number, pri?: number): void;
@@ -8884,7 +8889,7 @@ test("Caterman's swan paddle boat: he pedals it at sea, and the kid puts a frien
   expect(errors).toEqual([]);
 });
 
-test('the metal bridge: seen across the far far sea, the tar ocean past it, and a knock on its door', async ({
+test('the metal bridge: seen across the far far sea, the tar ocean past it, and in through its door', async ({
   context,
   page,
 }) => {
@@ -8913,17 +8918,63 @@ test('the metal bridge: seen across the far far sea, the tar ocean past it, and 
   });
   await page.waitForTimeout(200);
   expect(await page.evaluate(() => window.__np.boat.y > window.__np.METAL_BRIDGE.face)).toBe(true);
-  // Stopped at the door, you knock; nobody is ready to let you in yet.
+  // Stopped at the door, in: the observatory, the way round it told the first time.
   await page.evaluate(() => {
     const n = window.__np;
     n.boat.x = n.BRIDGE_DOOR.x + 30;
     n.boat.y = n.BRIDGE_DOOR.y + 110;
     n.boat.v = 0;
   });
-  await expect(page.locator('#climb')).toHaveText('Knock on the door', { timeout: 3000 });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
   await page.click('#climb');
-  await expect(page.locator('#toast')).toContainText('Knock, knock!');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  await expect(page.locator('#toast')).toContainText('this round room is the observatory');
+  expect(await page.evaluate(() => window.__np.bridgeIn)).toBe(true);
+  // Through the science room's door, and talk to the scientist.
+  const sci = await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB[1] as { to: number; x: number; y: number };
+    n.walker.x = d.x;
+    n.walker.y = d.y;
+    return d.to;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the science room', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction((to) => window.__np.floor === to, sci);
+  await expect(page.locator('#climb')).toBeHidden();
+  await page.evaluate((to) => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((k) => k.room === to && k.act === 'bsci');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  }, sci);
+  await expect(page.locator('#climb')).toHaveText('Talk to the scientist', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('The scientist: "Oh! A visitor!');
+  // Back to the observatory by its door, and out from anywhere, aboard where the boat was left.
+  await page.evaluate((to) => {
+    const n = window.__np;
+    const p = n.bridgeBack(to);
+    n.walker.x = p.x;
+    n.walker.y = p.y;
+  }, sci);
+  await expect(page.locator('#climb')).toHaveText('Back to the observatory', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  await expect(page.locator('#leave')).toHaveText('Back to your boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('aboard');
+  const at = await page.evaluate(() =>
+    Math.hypot(
+      window.__np.boat.x - window.__np.BRIDGE_DOOR.x,
+      window.__np.boat.y - window.__np.BRIDGE_DOOR.y,
+    ),
+  );
+  expect(at).toBeLessThan(200);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
-  expect(saved.bridgeSeen).toBe(true);
+  expect([saved.bridgeSeen, saved.bridgeIn]).toEqual([true, true]);
   expect(errors).toEqual([]);
 });

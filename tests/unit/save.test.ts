@@ -778,6 +778,13 @@ describe('the metal bridge', () => {
     s.bridgeSeen = true;
     expect(parseSave(serializeSave(s), bounds).bridgeSeen).toBe(true);
   });
+
+  it('has not been inside in a save from before it, and remembers having been', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.bridgeIn).toBe(false);
+    s.bridgeIn = true;
+    expect(parseSave(serializeSave(s), bounds).bridgeIn).toBe(true);
+  });
 });
 
 describe('the abyss', () => {
