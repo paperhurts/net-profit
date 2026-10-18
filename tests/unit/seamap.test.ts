@@ -4,6 +4,7 @@ import {
   drawMapCastle,
   drawMapFish,
   drawMapMark,
+  labelX,
   mapFish,
   Projection,
 } from '../../src/render/seamap';
@@ -33,6 +34,28 @@ function countingCtx() {
   }) as unknown as CanvasRenderingContext2D;
   return { ctx, calls, texts };
 }
+
+describe('a name on the sea map', () => {
+  /** A map w wide whose letters are each 6 wide. */
+  const ctxW = (w: number) =>
+    ({
+      canvas: { width: w },
+      measureText: (s: string) => ({ width: s.length * 6 }),
+    }) as unknown as CanvasRenderingContext2D;
+
+  it('is kept whole inside the map at either side, and left where it is between', () => {
+    const name = 'Abyss: 1,000 m down';
+    const half = (name.length * 6) / 2 + 2;
+    expect(labelX(ctxW(300), name, 150, 1)).toBe(150);
+    expect(labelX(ctxW(300), name, 290, 1)).toBe(300 - half);
+    expect(labelX(ctxW(300), name, 10, 1)).toBe(half);
+  });
+
+  it('stays put on a map too narrow for it, or a context that cannot measure', () => {
+    expect(labelX(ctxW(40), 'Abyss: 1,000 m down', 30, 1)).toBe(30);
+    expect(labelX(countingCtx().ctx, 'Abyss: 1,000 m down', 7, 1)).toBe(7);
+  });
+});
 
 describe('a mark on the sea map', () => {
   it('is a dark ring with bubbles coming up out of it, and its name under it', () => {
