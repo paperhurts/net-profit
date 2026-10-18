@@ -116,6 +116,11 @@ type Np = {
   closeScope(): void;
   HQ_SCOPE: { x: number; y: number };
   HQ_BED: { x: number; y: number };
+  hq: { garden: boolean; dock: boolean; forge: boolean; tower: boolean };
+  gardenDay: number;
+  HQ_PLANS: { x: number; y: number };
+  HQ_GARDEN: Record<'apple' | 'carrot' | 'banana', { x: number; y: number }>;
+  hqOpen: boolean;
   walkerAt: [number, number];
   toast(msg: string, ms?: number, pri?: number): void;
   seaTarK: number;
@@ -7179,6 +7184,82 @@ test('your headquarters: a bed in the first hall, slept in till morning with eve
   expect(await page.evaluate(() => window.__np.hearts === window.__np.maxHearts)).toBe(true);
   // Morning already: nothing to sleep through.
   await expect(page.locator('#climb')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("your headquarters' plans: build the garden, and pick a snack from it once a day", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 3000,
+    spear: 4,
+    day: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  // The plans, on their table near the way in.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HQ_PLANS.x + 16;
+    n.walker.y = n.HQ_PLANS.y - 16;
+  });
+  await expect(page.locator('#climb')).toHaveText('Look at the castle plans', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#hqCard')).toBeVisible();
+  const items = page.locator('#hqShelf .item');
+  await expect(items).toHaveCount(4);
+  await expect(items.nth(0)).toContainText('Garden');
+  await expect(items.nth(0)).toHaveAttribute('aria-disabled', 'false');
+  // The rest are still to come.
+  for (const i of [1, 2, 3]) await expect(items.nth(i)).toContainText('Soon');
+  await items.nth(0).click();
+  await expect(page.locator('#hqCard')).toBeHidden();
+  await expect(page.locator('#toast')).toContainText('The garden is planted!');
+  expect(await page.evaluate(() => [window.__np.hq.garden, window.__np.coins])).toEqual([
+    true,
+    1000,
+  ]);
+  // Today's snack, off the apple tree.
+  const apples = await page.evaluate(() => window.__np.snacks.apple);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HQ_GARDEN.apple.x + 14;
+    n.walker.y = n.HQ_GARDEN.apple.y + 14;
+  });
+  await expect(page.locator('#climb')).toHaveText('Pick an apple', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('fresh off your own tree');
+  expect(await page.evaluate(() => [window.__np.snacks.apple, window.__np.gardenDay])).toEqual([
+    apples + 1,
+    5,
+  ]);
+  // Only one a day: nothing more to pick, here or at the carrots.
+  await expect(page.locator('#climb')).toBeHidden();
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HQ_GARDEN.carrot.x + 14;
+    n.walker.y = n.HQ_GARDEN.carrot.y - 14;
+  });
+  await page.waitForTimeout(300);
+  await expect(page.locator('#climb')).toBeHidden();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.hq.garden, saved.gardenDay]).toEqual([true, 5]);
   expect(errors).toEqual([]);
 });
 

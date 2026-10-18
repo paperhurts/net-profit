@@ -11,6 +11,7 @@ import { type BargeSetup, defaultBarge, parseBarge } from '../data/barge';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
+import { type HqBuilt, noHq, parseHq } from '../data/hq';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { type Look, parseLook, SKIPPER } from '../data/look';
 import { isScanKind, type ScanKind } from '../data/scans';
@@ -174,6 +175,9 @@ export type SaveData = {
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
   hunterDay: number;
+  /** Your headquarters' upgrades built (data/hq.ts), and the day the garden's snack was last picked. */
+  hq: HqBuilt;
+  gardenDay: number;
   trenchDeep: number;
   /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
   trenchLoot: number;
@@ -382,6 +386,8 @@ export function defaultSave(b: Bounds): SaveData {
     abyssDown: false,
     remoroDay: 0,
     hunterDay: 0,
+    hq: noHq(),
+    gardenDay: 0,
     trenchDeep: 0,
     trenchLoot: 0,
     iceLoot: 0,
@@ -565,6 +571,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.abyssDown = !!o.abyssDown;
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
+  d.hq = parseHq(o.hq);
+  d.gardenDay = Math.max(0, int(o.gardenDay));
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
   d.iceLoot = int(o.iceLoot) & ICE_LOOT_ALL;
@@ -727,6 +735,8 @@ export function serializeSave(d: SaveData): string {
     abyssDown: d.abyssDown,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
+    hq: d.hq,
+    gardenDay: d.gardenDay,
     trenchDeep: d.trenchDeep,
     trenchLoot: d.trenchLoot,
     iceLoot: d.iceLoot,

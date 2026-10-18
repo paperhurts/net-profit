@@ -1,0 +1,268 @@
+/**
+ * Your headquarters' courtyard (data/hq.ts): the castle's plans on a table near the way in, where its upgrades are
+ * built, and the garden, once it is: an apple tree, a row of carrots and a banana plant, a little star twinkling over
+ * each while today's snack is still to be picked.
+ */
+
+import type { DrawView } from '../entities/entity';
+
+/** A box standing on the floor from z0 to z1, w along x and d along y from (x, y): its two near faces and its top. */
+function box(
+  v: DrawView,
+  x: number,
+  y: number,
+  w: number,
+  d: number,
+  z0: number,
+  z1: number,
+  side: string,
+  top: string,
+): void {
+  const { ctx, px, py } = v;
+  const face = (pts: [number, number, number][], c: string) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    pts.forEach(([a, b, z], i) => {
+      if (i) ctx.lineTo(px(a, b), py(a, b, z));
+      else ctx.moveTo(px(a, b), py(a, b, z));
+    });
+    ctx.closePath();
+    ctx.fill();
+  };
+  face(
+    [
+      [x, y + d, z0],
+      [x + w, y + d, z0],
+      [x + w, y + d, z1],
+      [x, y + d, z1],
+    ],
+    side,
+  );
+  face(
+    [
+      [x + w, y, z0],
+      [x + w, y + d, z0],
+      [x + w, y + d, z1],
+      [x + w, y, z1],
+    ],
+    side,
+  );
+  face(
+    [
+      [x, y, z1],
+      [x + w, y, z1],
+      [x + w, y + d, z1],
+      [x, y + d, z1],
+    ],
+    top,
+  );
+}
+
+function shadow(v: DrawView, x: number, y: number, r: number): void {
+  v.ctx.fillStyle = 'rgba(0,0,0,.22)';
+  v.isoEllipse(x, y, r);
+  v.ctx.fill();
+}
+
+/** A star twinkling over (x, y) at height z, for something there to be had. */
+function twinkle(v: DrawView, x: number, y: number, z: number, ph: number): void {
+  const k = 0.6 + 0.4 * Math.sin(v.T * 4 + ph);
+  v.ctx.fillStyle = v.coin;
+  v.ctx.globalAlpha = k;
+  v.star(v.px(x, y), v.py(x, y, z + Math.sin(v.T * 2 + ph) * 2), 4.5 * v.zoom * k);
+  v.ctx.globalAlpha = 1;
+}
+
+/** The castle's plans: a heavy table, a big sheet unrolled on it with the castle drawn in brown ink, an ink pot and
+ * a quill. */
+export function drawPlans(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py, zoom: Z } = v;
+  shadow(v, x, y, 26);
+  for (const [dx, dy] of [
+    [-18, -10],
+    [14, -10],
+    [-18, 8],
+    [14, 8],
+  ] as const)
+    box(v, x + dx, y + dy, 3, 3, 0, 18, '#4A2E18', '#6A4426');
+  box(v, x - 20, y - 12, 40, 24, 18, 22, '#5A3A22', '#8A5E36');
+  // The sheet, curling at either end.
+  const sheet: [number, number][] = [
+    [-16, -9],
+    [14, -9],
+    [14, 9],
+    [-16, 9],
+  ];
+  ctx.fillStyle = '#F2E6C4';
+  ctx.beginPath();
+  sheet.forEach(([a, b], i) => {
+    if (i) ctx.lineTo(px(x + a, y + b), py(x + a, y + b, 22.4));
+    else ctx.moveTo(px(x + a, y + b), py(x + a, y + b, 22.4));
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#E2D2A6';
+  for (const a of [-16, 14]) {
+    ctx.beginPath();
+    ctx.ellipse(px(x + a, y), py(x + a, y, 23.5), 2.4 * Z, 9 * Z, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // The castle on it: walls, two towers, a gate.
+  ctx.strokeStyle = '#6A4A2A';
+  ctx.lineWidth = 1 * Z;
+  const ink = (pts: [number, number][]) => {
+    ctx.beginPath();
+    pts.forEach(([a, b], i) => {
+      if (i) ctx.lineTo(px(x + a, y + b), py(x + a, y + b, 22.6));
+      else ctx.moveTo(px(x + a, y + b), py(x + a, y + b, 22.6));
+    });
+    ctx.stroke();
+  };
+  ink([
+    [-10, -5],
+    [8, -5],
+    [8, 5],
+    [-10, 5],
+    [-10, -5],
+  ]);
+  ink([
+    [-10, -5],
+    [-12, -7],
+  ]);
+  ink([
+    [8, 5],
+    [10, 7],
+  ]);
+  ink([
+    [-1, 5],
+    [-1, 2],
+    [1, 2],
+    [1, 5],
+  ]);
+  // The ink pot and the quill.
+  box(v, x + 8, y + 3, 4, 4, 22, 26, '#1E2A3A', '#2E3E54');
+  ctx.strokeStyle = '#F4F1E6';
+  ctx.lineWidth = 1.4 * Z;
+  ctx.beginPath();
+  ctx.moveTo(px(x + 10, y + 5), py(x + 10, y + 5, 26));
+  ctx.lineTo(px(x + 4, y + 9), py(x + 4, y + 9, 38));
+  ctx.stroke();
+}
+
+export type GardenPlant = 'apple' | 'carrot' | 'banana';
+
+/** One of the garden's plants, in its patch of dark earth, a star over it while today's snack is to be picked. */
+export function drawGardenPlant(
+  v: DrawView,
+  kind: GardenPlant,
+  x: number,
+  y: number,
+  ready: boolean,
+): void {
+  const { ctx, px, py, zoom: Z, T } = v;
+  ctx.fillStyle = '#5A3E26';
+  v.isoEllipse(x, y, kind === 'carrot' ? 24 : 18);
+  ctx.fill();
+  ctx.fillStyle = '#6E4C2E';
+  v.isoEllipse(x, y, kind === 'carrot' ? 18 : 12);
+  ctx.fill();
+  if (kind === 'apple') {
+    // A little tree: a trunk, a round green crown and red apples in it.
+    ctx.strokeStyle = '#6A4426';
+    ctx.lineWidth = 4 * Z;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(px(x, y), py(x, y, 0));
+    ctx.lineTo(px(x, y), py(x, y, 30));
+    ctx.stroke();
+    const sway = Math.sin(T * 0.8) * 0.6 * Z;
+    for (const [dx, dz, r, c] of [
+      [-8, 34, 11, '#3E7A3A'],
+      [8, 34, 11, '#3E7A3A'],
+      [0, 42, 13, '#4E9446'],
+      [-4, 48, 8, '#5EA352'],
+    ] as const) {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.arc(px(x, y) + dx * Z + sway, py(x, y, dz), r * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#E0453A';
+    for (const [dx, dz] of [
+      [-9, 32],
+      [6, 38],
+      [-2, 44],
+      [10, 30],
+    ] as const) {
+      ctx.beginPath();
+      ctx.arc(px(x, y) + dx * Z + sway, py(x, y, dz), 2.6 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (ready) twinkle(v, x, y, 62, 0);
+    return;
+  }
+  if (kind === 'carrot') {
+    // A row of carrots: orange shoulders out of the earth, feathery green tops.
+    for (let i = 0; i < 4; i++) {
+      const cx = x - 12 + i * 8;
+      const cy = y + 4 - i * 3;
+      ctx.fillStyle = '#F07A2A';
+      ctx.beginPath();
+      ctx.ellipse(px(cx, cy), py(cx, cy, 1.5), 2.6 * Z, 1.8 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4E9A3E';
+      ctx.lineWidth = 1.6 * Z;
+      for (const a of [-0.5, 0, 0.5]) {
+        ctx.beginPath();
+        ctx.moveTo(px(cx, cy), py(cx, cy, 2));
+        ctx.quadraticCurveTo(
+          px(cx, cy) + a * 6 * Z,
+          py(cx, cy, 8),
+          px(cx, cy) + (a * 10 + Math.sin(T * 1.5 + i) * 1.2) * Z,
+          py(cx, cy, 13),
+        );
+        ctx.stroke();
+      }
+    }
+    if (ready) twinkle(v, x, y, 26, 2);
+    return;
+  }
+  // A banana plant: big arching leaves, and a bunch of yellow bananas under them.
+  ctx.strokeStyle = '#4E7A34';
+  ctx.lineWidth = 4 * Z;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(px(x, y), py(x, y, 0));
+  ctx.lineTo(px(x, y), py(x, y, 26));
+  ctx.stroke();
+  ctx.fillStyle = '#5E9E3E';
+  for (const a of [-2.4, -1.6, -0.8, 0.2, 1]) {
+    const tip = a + Math.sin(T * 0.9 + a) * 0.05;
+    ctx.beginPath();
+    ctx.ellipse(
+      px(x, y) + Math.cos(tip) * 12 * Z,
+      py(x, y, 30) + Math.sin(tip) * 6 * Z,
+      14 * Z,
+      4 * Z,
+      tip,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.fillStyle = '#F2C230';
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(
+      px(x, y) + (4 + i * 2) * Z,
+      py(x, y, 22 - i * 2),
+      4 * Z,
+      1.6 * Z,
+      -0.6,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  if (ready) twinkle(v, x, y, 46, 4);
+}
