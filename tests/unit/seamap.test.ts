@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { drawMapMark, Projection } from '../../src/render/seamap';
+import { SPECIES } from '../../src/data/tuning';
+import { drawMapFish, drawMapMark, mapFish, Projection } from '../../src/render/seamap';
 import { SEA_MIN, SEA_SPAN } from '../../src/state/sailed';
 import { DEEP, WS } from '../../src/world/island';
+import { createSchools } from '../../src/world/schools';
 import { TRENCH } from '../../src/world/trench';
 
 /** A context that counts its calls and keeps what it was asked to write. */
@@ -50,5 +52,35 @@ describe('a mark on the sea map', () => {
     expect(TRENCH.y).toBeGreaterThan(-DEEP);
     expect(TRENCH.x).toBeLessThan(WS);
     expect(SEA_MIN + SEA_SPAN).toBeGreaterThan(WS + DEEP);
+  });
+});
+
+describe("the fish schools on the sea map, from your headquarters' tower", () => {
+  it('shows each school with fish in it, in its fish colour, and the night ones only once they are up', () => {
+    const schools = createSchools();
+    const night = schools.filter((sc) => sc.night).length;
+    expect(night).toBeGreaterThan(0);
+    const day = mapFish(schools, 0);
+    expect(day.length).toBe(schools.length - night);
+    expect(mapFish(schools, 1).length).toBe(schools.length);
+    const first = schools.find((sc) => !sc.night);
+    if (!first) throw new Error('no day school');
+    expect(day[0]).toEqual({ x: first.cx, y: first.cy, c: SPECIES[first.sp]?.c, full: 1 });
+    // A school fished out is not on it until its fish come back.
+    first.alive = 0;
+    expect(mapFish(schools, 0).length).toBe(schools.length - night - 1);
+  });
+
+  it('draws a school as one to three little fish, more for a fuller school', () => {
+    for (const [full, n] of [
+      [0, 1],
+      [0.5, 2],
+      [1, 3],
+    ] as const) {
+      const { ctx, calls } = countingCtx();
+      drawMapFish(ctx, 100, 100, 1, '#6FC3D6', full);
+      expect(calls.ellipse).toBe(n);
+      expect(calls.fill).toBe(n);
+    }
   });
 });

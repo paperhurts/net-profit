@@ -338,3 +338,102 @@ export function drawForge(v: DrawView, x: number, y: number, sharp: boolean, wor
   }
   if (!sharp) twinkle(v, x + 22, y + 14, 34, 1);
 }
+
+/** A flat face of a wall, from (x0, y0) to (x1, y1) along the floor and z0 to z1 up it, filled. */
+function face(
+  v: DrawView,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  z0: number,
+  z1: number,
+  c: string,
+): void {
+  const { ctx, px, py } = v;
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.moveTo(px(x0, y0), py(x0, y0, z0));
+  ctx.lineTo(px(x1, y1), py(x1, y1, z0));
+  ctx.lineTo(px(x1, y1), py(x1, y1, z1));
+  ctx.lineTo(px(x0, y0), py(x0, y0, z1));
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** The tower's height, to the top of its walk. */
+export const TOWER_TALL = 170;
+
+/**
+ * The bigger tower: a tall square lookout of the castle's grey-green stone standing on its wall, arrow slits up it,
+ * a wooden door at its foot on the courtyard's side, merlons round its top and a pennant flying over them.
+ */
+export function drawHqTower(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py, zoom: Z, T } = v;
+  const h = 20;
+  const top = TOWER_TALL;
+  shadow(v, x, y, 30);
+  box(v, x - h, y - h, h * 2, h * 2, 0, top, '#5C6B62', '#7A8A7E');
+  // The right-hand face a shade darker, and courses of stone round it.
+  face(v, x + h, y - h, x + h, y + h, 0, top, 'rgba(0,0,0,.14)');
+  ctx.strokeStyle = 'rgba(30,40,34,.35)';
+  ctx.lineWidth = 1 * Z;
+  for (let z = 24; z < top; z += 24) {
+    ctx.beginPath();
+    ctx.moveTo(px(x - h, y + h), py(x - h, y + h, z));
+    ctx.lineTo(px(x + h, y + h), py(x + h, y + h, z));
+    ctx.lineTo(px(x + h, y - h), py(x + h, y - h, z));
+    ctx.stroke();
+  }
+  // Arrow slits up both faces.
+  for (const z of [62, 104, 146]) {
+    face(v, x - 2, y + h, x + 2, y + h, z - 10, z + 10, '#1E2622');
+    face(v, x + h, y - 2, x + h, y + 2, z - 10, z + 10, '#1E2622');
+  }
+  // The door at its foot, toward the courtyard, under a round arch.
+  face(v, x + 4, y + h, x + 18, y + h, 0, 24, '#5A3A22');
+  ctx.fillStyle = '#5A3A22';
+  ctx.beginPath();
+  ctx.arc(px(x + 11, y + h), py(x + 11, y + h, 24), 7 * Z, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#C9A24A';
+  ctx.beginPath();
+  ctx.arc(px(x + 15, y + h), py(x + 15, y + h, 12), 1.2 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  // Merlons round the top, the far ones first, then the pennant's pole, then the near ones over its foot.
+  const merlons: [number, number][] = [
+    [-h, -h],
+    [-4, -h],
+    [h - 8, -h],
+    [-h, -4],
+    [-h, h - 8],
+    [-4, h - 8],
+    [h - 8, h - 8],
+    [h - 8, -4],
+  ];
+  merlons.sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
+  for (const [dx, dy] of merlons)
+    if (dx + dy < 0) box(v, x + dx, y + dy, 8, 8, top, top + 12, '#5C6B62', '#7A8A7E');
+  ctx.strokeStyle = '#3A2A1A';
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.moveTo(px(x, y), py(x, y, top));
+  ctx.lineTo(px(x, y), py(x, y, top + 46));
+  ctx.stroke();
+  for (const [dx, dy] of merlons)
+    if (dx + dy >= 0) box(v, x + dx, y + dy, 8, 8, top, top + 12, '#5C6B62', '#7A8A7E');
+  // The pennant, flying over it.
+  const wave = Math.sin(T * 3) * 3 * Z;
+  ctx.fillStyle = v.coin;
+  ctx.beginPath();
+  ctx.moveTo(px(x, y), py(x, y, top + 46));
+  ctx.quadraticCurveTo(
+    px(x, y) + 12 * Z,
+    py(x, y, top + 42) + wave,
+    px(x, y) + 24 * Z,
+    py(x, y, top + 40) + wave,
+  );
+  ctx.lineTo(px(x, y), py(x, y, top + 34));
+  ctx.closePath();
+  ctx.fill();
+}
