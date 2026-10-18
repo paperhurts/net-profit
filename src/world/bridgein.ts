@@ -78,6 +78,9 @@ export const TANK = onWall(BRIDGE_NEWS, Math.PI * 1.64, 26);
 /** The dock's open edge onto the tar at the back, and the tar animal out in the tar past it. */
 export const TAR_EDGE = onWall(BRIDGE_TARDOCK, Math.PI * 1.25, 22);
 export const TAR_ANIMAL = onWall(BRIDGE_TARDOCK, Math.PI * 1.25, -110);
+/** Won in stealth mission 1, the chemistry boat, tied up in the tar off the dock's right-hand rail. */
+export const CHEM_BOAT = onWall(BRIDGE_TARDOCK, Math.PI * 1.42, -76);
+export const CHEM_BOAT_LOOK = onWall(BRIDGE_TARDOCK, Math.PI * 1.42, 22);
 
 /** Things you can use inside the bridge, by the button's action. */
 export const BRIDGE_THINGS: readonly { room: number; at: Pt; act: string }[] = [
@@ -85,24 +88,38 @@ export const BRIDGE_THINGS: readonly { room: number; at: Pt; act: string }[] = [
   { room: BRIDGE_YOU, at: BED_IN, act: 'bbed' },
   { room: BRIDGE_YOU, at: MIRROR_IN, act: 'bmirror' },
   { room: BRIDGE_SCIENCE, at: SCIENTIST, act: 'bsci' },
-  { room: BRIDGE_MISSIONS, at: HOLO, act: 'bholo' },
+  { room: BRIDGE_MISSIONS, at: HOLO, act: 'bmission' },
   { room: BRIDGE_NEWS, at: NEWS_READ, act: 'bnews' },
   { room: BRIDGE_NEWS, at: TANK, act: 'btank' },
   { room: BRIDGE_TARDOCK, at: TAR_EDGE, act: 'btar' },
+  { room: BRIDGE_TARDOCK, at: CHEM_BOAT_LOOK, act: 'bboat' },
 ];
 
 /**
  * What the climb button does for the figure at (x, y) in room i inside the bridge: through a door ('bdoor-' and the
- * room it goes to), or one of the things in the room; or nothing. The bed only while there is a night to sleep through.
+ * room it goes to), or one of the things in the room; or nothing. The bed only while there is a night to sleep through,
+ * the chemistry boat only once it is yours.
  */
-export function bridgeAction(i: number, x: number, y: number, canSleep: boolean): string | null {
+export function bridgeAction(
+  i: number,
+  x: number,
+  y: number,
+  canSleep: boolean,
+  hasBoat = false,
+): string | null {
   const near = (p: Pt, r: number) => Math.hypot(x - p.x, y - p.y) < r;
   if (i === BRIDGE_OBS) {
     for (const d of HUB_DOORS) if (near(doorStep(i, d.a), DOOR_IN_REACH)) return `bdoor-${d.to}`;
   } else if (BRIDGE_SIDE.includes(i) && near(doorStep(i, BACK_A), DOOR_IN_REACH))
     return `bdoor-${BRIDGE_OBS}`;
   for (const t of BRIDGE_THINGS)
-    if (t.room === i && (t.act !== 'bbed' || canSleep) && near(t.at, THING_REACH)) return t.act;
+    if (
+      t.room === i &&
+      (t.act !== 'bbed' || canSleep) &&
+      (t.act !== 'bboat' || hasBoat) &&
+      near(t.at, THING_REACH)
+    )
+      return t.act;
   return null;
 }
 
@@ -120,10 +137,11 @@ export function bridgeLabel(act: string): string {
       bbed: 'Sleep till morning',
       bmirror: 'Look in the mirror',
       bsci: 'Talk to the scientist',
-      bholo: 'Look at the hologram',
+      bmission: 'Start mission 1',
       bnews: 'Read the tar news',
       btank: 'Tap the glass',
       btar: 'Look at the tar animal',
+      bboat: 'Look at your chemistry boat',
     }[act] ?? ''
   );
 }
@@ -141,7 +159,7 @@ export const TAR_NEWS: readonly string[] = [
 /** What the scientist says, one after another, the first only the first time. */
 export const SCIENTIST_SAYS: readonly string[] = [
   'The scientist: "Oh! A visitor! Welcome to the bridge. I study the tar: where it comes from, and how to keep it on its side of the sea. This bridge holds it back."',
-  'The scientist: "Soon I will have missions for you. Sneaky ones! Sneaking is very important on the tar side."',
+  'The scientist: "I have a mission for you. A sneaky one! Go to the missions room and start mission 1 at the table. Sneaking is very important on the tar side."',
   'The scientist: "Have you seen the tentacle in the news room? We keep it for testing. Do not tap the glass. Everybody taps the glass."',
-  'The scientist: "Look through the telescope in the observatory. You can see the tar island from here, with its tower on the hill."',
+  'The scientist: "Look through the telescope in the observatory. You can see island 2 of the tar ocean from here, with the sorcerer\'s tower on the hill."',
 ];

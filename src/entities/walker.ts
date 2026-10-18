@@ -132,6 +132,7 @@ import {
   TREES11,
   WORKSHOP11,
 } from '../world/isle11';
+import { inTunnelBounds, tunnelWalkable } from '../world/stealth';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { BAKERY, DRURY_LANE } from './muffinman';
@@ -338,6 +339,8 @@ export function setWalkLand(l: WalkLand | null): void {
  */
 export function onLand(x: number, y: number): boolean {
   if (walkLand?.on(x, y)) return true;
+  // Stealth mission 1's tunnels, far from everything: their own floor and nothing else.
+  if (inTunnelBounds(x, y)) return tunnelWalkable(x, y);
   if (Math.hypot(x - IX, y - IY) <= SHORE) return true;
   if (onIsle4(x, y)) return true;
   if (onIsle6(x, y)) return true;

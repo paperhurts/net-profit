@@ -130,6 +130,21 @@ type Np = {
   BRIDGE_DOOR: { x: number; y: number };
   bridgeSeen: boolean;
   bridgeIn: boolean;
+  enterTunnels(): void;
+  tunnels: {
+    guards: { x: number; y: number; look: number; down: boolean }[];
+    roof: boolean;
+    kickT: number;
+  } | null;
+  STEALTH_START: { x: number; y: number };
+  STEALTH_GOAL: { x: number; y: number };
+  ROOF_START: { x: number; y: number };
+  SORC_AT: { x: number; y: number };
+  BRIDGE_MISSIONS: number;
+  BRIDGE_TARDOCK: number;
+  stealth1: boolean;
+  invis: boolean;
+  invisT: number;
   BRIDGE_OBS: number;
   BRIDGE_HUB: { to: number; x: number; y: number }[];
   bridgeBack(i: number): { x: number; y: number };
@@ -8976,5 +8991,118 @@ test('the metal bridge: seen across the far far sea, the tar ocean past it, and 
   expect(at).toBeLessThan(200);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect([saved.bridgeSeen, saved.bridgeIn]).toEqual([true, true]);
+  expect(errors).toEqual([]);
+});
+
+test('stealth mission 1: from the missions room, spotted, a backstab, invisible, the sorcerer kicked off, the chemistry boat won', async ({
+  context,
+  page,
+}) => {
+  // Stopped at the bridge's door, in, and through to the missions room's table.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB.find((h) => h.to === n.BRIDGE_MISSIONS);
+    if (d) {
+      n.walker.x = d.x;
+      n.walker.y = d.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the missions room', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_MISSIONS);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((k) => k.act === 'bmission');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Start mission 1', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Mission 1!');
+  expect(await page.evaluate(() => [!!window.__np.tunnels, window.__np.invis])).toEqual([
+    true,
+    true,
+  ]);
+  await expect(page.locator('#leave')).toHaveText('Leave the tunnels');
+  await expect(page.locator('#bargeBtn')).toBeHidden();
+  // Stood in a guard's light: seen, and the mission starts over.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.tunnels?.guards[0];
+    if (!g) return;
+    n.walker.x = g.x + Math.cos(g.look) * 40;
+    n.walker.y = g.y + Math.sin(g.look) * 40;
+  });
+  await expect(page.locator('#toast')).toContainText('Spotted!', { timeout: 3000 });
+  const back = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.walker.x - n.STEALTH_START.x, n.walker.y - n.STEALTH_START.y);
+  });
+  expect(back).toBeLessThan(40);
+  // Close behind a guard: backstab.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.tunnels?.guards[0];
+    if (!g) return;
+    n.walker.x = g.x - Math.cos(g.look) * 20;
+    n.walker.y = g.y - Math.sin(g.look) * 20;
+  });
+  await expect(page.locator('#climb')).toHaveText('Backstab!', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Backstab!');
+  expect(await page.evaluate(() => window.__np.tunnels?.guards[0]?.down)).toBe(true);
+  // Invisible for a few seconds.
+  await expect(page.locator('#invisBtn')).toBeVisible();
+  await page.locator('#invisBtn').click();
+  expect(await page.evaluate(() => window.__np.invisT)).toBeGreaterThan(0);
+  // Up the ladder at the top: the tower top and the sorcerer.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.STEALTH_GOAL.x;
+    n.walker.y = n.STEALTH_GOAL.y;
+  });
+  await expect(page.locator('#toast')).toContainText('out on top of the tower', { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.tunnels?.roof)).toBe(true);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.SORC_AT.x + 20;
+    n.walker.y = n.SORC_AT.y + 20;
+  });
+  await expect(page.locator('#climb')).toHaveText('Kick him off!', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('You kick the sorcerer off');
+  await expect(page.locator('#toast')).toContainText('"Come on!"', { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Tada!', { timeout: 6000 });
+  expect(
+    await page.evaluate(() => [window.__np.tunnels, window.__np.stealth1, window.__np.floor]),
+  ).toEqual([null, true, await page.evaluate(() => window.__np.BRIDGE_TARDOCK)]);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect([saved.stealth1, saved.invis]).toEqual([true, true]);
   expect(errors).toEqual([]);
 });

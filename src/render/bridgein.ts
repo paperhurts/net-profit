@@ -9,6 +9,7 @@ import type { DrawView } from '../entities/entity';
 import {
   BACK_A,
   BED_IN,
+  CHEM_BOAT,
   HOLO,
   HUB_DOORS,
   MIRROR_IN,
@@ -40,7 +41,7 @@ const DOOR_W = 20;
 const TAR = '#17121B';
 
 /** What is going on in there now: the scientist talking, the tentacle slapping its glass, and which news is up. */
-export type BridgeAnim = { talk: number; slap: number; news: number };
+export type BridgeAnim = { talk: number; slap: number; news: number; boat?: boolean };
 
 const hash = (i: number, k: number): number => {
   const h = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
@@ -393,6 +394,7 @@ export function bridgeSolids(v: DrawView, i: number, anim: BridgeAnim): Solid[] 
   if (i === BRIDGE_MISSIONS) at(HOLO, () => drawHolo(v, HOLO));
   if (i === BRIDGE_NEWS) at(TANK, () => drawTank(v, TANK, anim.slap), 13);
   if (i === BRIDGE_TARDOCK) at(TAR_ANIMAL, () => drawTarAnimal(v, TAR_ANIMAL));
+  if (i === BRIDGE_TARDOCK && anim.boat) at(CHEM_BOAT, () => drawChemBoat(v, CHEM_BOAT));
   return out;
 }
 
@@ -795,6 +797,75 @@ function drawTarAnimal(v: DrawView, p: Pt): void {
   for (const ex of [-8, 8]) {
     ctx.beginPath();
     ctx.ellipse(x + ex * Z, y - 6 * Z, 1 * Z, 2 * Z * blink, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** The chemistry boat, won in stealth mission 1: a white hull with a green stripe and a flask on its side, a little
+ * cabin, and a chimney puffing green bubbles; riding the tar, made to sail on it. */
+function drawChemBoat(v: DrawView, p: Pt): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  const bob = Math.sin(T * 1.4) * 1.5;
+  const at = (dx: number, dy: number, z: number) => ({
+    x: px(p.x + dx, p.y + dy),
+    y: py(p.x + dx, p.y + dy, z + bob),
+  });
+  v.isoEllipse(p.x, p.y, 34);
+  ctx.strokeStyle = 'rgba(181,124,255,.35)';
+  ctx.lineWidth = 1.6 * Z;
+  ctx.stroke();
+  // The hull, long along the dock's rail.
+  const hull = (z: number) => [
+    at(-30, 30, z),
+    at(30, -30, z),
+    at(38, -24, z + 2),
+    at(34, -14, z),
+    at(-22, 34, z),
+  ];
+  ctx.fillStyle = '#EEF3F0';
+  ctx.beginPath();
+  for (const q of hull(0)) ctx.lineTo(q.x, q.y);
+  for (const q of hull(14).reverse()) ctx.lineTo(q.x, q.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#3FB37A';
+  ctx.lineWidth = 3 * Z;
+  ctx.beginPath();
+  for (const q of hull(8)) ctx.lineTo(q.x, q.y);
+  ctx.stroke();
+  // The deck, and the cabin.
+  ctx.fillStyle = '#C9D4CF';
+  ctx.beginPath();
+  for (const q of hull(14)) ctx.lineTo(q.x, q.y);
+  ctx.closePath();
+  ctx.fill();
+  box(v, p.x - 8, p.y - 8, 18, 18, 14 + bob, 32 + bob, '#E8EEF0', '#C9D4CF', '#3FB37A');
+  // The flask on its side: a round bottom, a neck, green inside.
+  const f = at(-10, 22, 7);
+  ctx.fillStyle = '#7CFC9A';
+  ctx.strokeStyle = '#1E5E3A';
+  ctx.lineWidth = 1 * Z;
+  ctx.beginPath();
+  ctx.arc(f.x, f.y, 4 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillRect(f.x - 1.2 * Z, f.y - 8 * Z, 2.4 * Z, 4.5 * Z);
+  // The chimney, bubbling.
+  const c = at(6, -6, 32);
+  ctx.fillStyle = '#5E6B74';
+  ctx.fillRect(c.x - 2 * Z, c.y - 10 * Z, 4 * Z, 10 * Z);
+  for (let k = 0; k < 3; k++) {
+    const r = (T * 0.7 + k / 3) % 1;
+    ctx.fillStyle = `rgba(124,252,154,${0.7 * (1 - r)})`;
+    ctx.beginPath();
+    ctx.arc(
+      c.x + Math.sin(T * 2 + k) * 2 * Z,
+      c.y - (12 + r * 20) * Z,
+      (1.6 + r * 2) * Z,
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
   }
 }
