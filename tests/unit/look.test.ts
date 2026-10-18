@@ -100,4 +100,46 @@ describe('choose your character', () => {
     // Facing away, it still draws, with the hair over the back of the head.
     expect(calls({ ...SKIPPER, hat: 'none', hair: 'long' }, -Math.PI * 0.75)).toBeTruthy();
   });
+
+  it('shows the back of the head as hair, not a blank face, walking away under a hat (the owner)', () => {
+    const p = new Walker();
+    // What each fill painted: its colour, and the round shape it filled.
+    const fills = (look: Look, h: number) => {
+      p.look = look;
+      p.h = h;
+      const { v } = fakeView();
+      const out: { style: string; x: number; y: number; r: number }[] = [];
+      let shape = { x: 0, y: 0, r: 0 };
+      const ctx = v.ctx as unknown as Record<string, unknown>;
+      ctx.arc = (x: number, y: number, r: number) => {
+        shape = { x, y, r };
+      };
+      ctx.ellipse = (x: number, y: number, rx: number, ry: number) => {
+        shape = { x, y, r: Math.min(rx, ry) };
+      };
+      ctx.fill = () => out.push({ style: String(ctx.fillStyle), ...shape });
+      p.drawPortrait(v);
+      return out;
+    };
+    const away = -Math.PI * 0.75;
+    for (const [hat] of HATS)
+      for (const [hair] of HAIRS) {
+        if (hair === 'none') continue;
+        const look = { ...SKIPPER, hat, hair, hairColour: 4 };
+        const out = fills(look, away);
+        const head = out.findIndex((f) => f.style === SKINS[look.skin] && f.r === 3.8);
+        expect(head, `${hat} ${hair}`).toBeGreaterThan(-1);
+        const at = out[head] as { x: number; y: number; r: number };
+        // Over the skin, a round of hair covering it whole, with no edge of skin showing under it.
+        expect(
+          out
+            .slice(head + 1)
+            .some(
+              (f) =>
+                f.style === HAIR_COLOURS[4] && Math.hypot(f.x - at.x, f.y - at.y) + at.r <= f.r,
+            ),
+          `${hat} ${hair}`,
+        ).toBe(true);
+      }
+  });
 });

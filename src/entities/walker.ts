@@ -1456,7 +1456,14 @@ export class Walker implements Entity {
     const colour = HAIR_COLOURS[look.hairColour] ?? (HAIR_COLOURS[0] as string);
     ctx.fillStyle = colour;
     if (covered) {
-      // Under a hat, only a little shows at the sides.
+      // Under a hat, from behind, the back of the head is all hair below the brim (bare, it read as a blank face
+      // looking back, the owner, 2026-10-18); from the front, only a little shows at the sides.
+      if (fy <= -0.1) {
+        ctx.beginPath();
+        ctx.arc(hx, hy - 0.1 * Z, 4 * Z, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
       for (const side of [-1, 1]) {
         ctx.beginPath();
         ctx.ellipse(hx + side * 3.3 * Z, hy - 0.4 * Z, 1 * Z, 1.8 * Z, 0, 0, Math.PI * 2);
@@ -1479,7 +1486,7 @@ export class Walker implements Entity {
     ctx.fill();
     if (fy <= -0.1) {
       ctx.beginPath();
-      ctx.arc(hx, hy - 0.2 * Z, 3.9 * Z, 0, Math.PI * 2);
+      ctx.arc(hx, hy - 0.1 * Z, 4 * Z, 0, Math.PI * 2);
       ctx.fill();
     }
     if (look.hair === 'spiky') {
