@@ -802,6 +802,10 @@ describe('the abyss', () => {
     s.gardenDay = 3;
     const back = parseSave(serializeSave(s), bounds);
     expect([back.hq.garden, back.hq.forge, back.gardenDay]).toEqual([true, false, 3]);
+    expect([s.sharp, parseSave(serializeSave({ ...s, sharp: true }), bounds).sharp]).toEqual([
+      false,
+      true,
+    ]);
   });
 
   it('has the attack nibbler hunting in a save from before it, and keeps the day it was landed', () => {

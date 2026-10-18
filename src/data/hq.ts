@@ -2,7 +2,8 @@
  * Your headquarters' upgrades, the kid's (his answers, 2026-10-17: "a dock, a forge, a bigger tower, a garden: all of
  * them"), with the owner's calls (2026-10-18): 2,000 to 10,000 each, a full hold of abyss fish selling for about
  * 10,000, and what each does. The garden grows a free snack a day; the dock is a landing on the sea by island 7, to
- * sail straight to Gigantis; the forge sharpens the spear, the knife and the harpoon for good; the bigger tower shows
+ * sail straight to Gigantis; the forge sharpens the spear and the knife for good, each hitting one harder, and makes
+ * the harpoon fire faster (the owner's call: +1 on the harpoon would halve every sea fight); the bigger tower shows
  * the fish schools on the sea map. Each is built from the castle's plans, on a table in the courtyard. An upgrade not
  * built into the game yet shows on the plans as coming.
  */
@@ -36,8 +37,9 @@ export const HQ: Readonly<Record<HqKind, HqSpec>> = {
   forge: {
     name: 'Forge',
     price: 6000,
-    blurb: 'Sharpens your spear, your knife and your harpoon for good: each hits one harder.',
-    ready: false,
+    blurb:
+      'A smithy in the courtyard. Sharpen your weapons there once and for good: your spear and your knife each hit one harder, and your harpoon fires faster.',
+    ready: true,
   },
   tower: {
     name: 'Bigger tower',
@@ -72,6 +74,19 @@ export const GARDEN_AT = {
   banana: { dx: -138, dy: -10 },
 } as const;
 export const PICK_REACH = 30;
+/** The forge, in the courtyard's front-right corner, and how near to work at it. */
+export const FORGE_AT = { dx: 115, dy: 75 } as const;
+export const FORGE_REACH = 38;
+
+/** Sharpened at the forge: how much harder the spear and the knife hit, and the harpoon's reload, faster than its
+ * own (data/harpoon.ts HARPOON_RELOAD, 1.2 s). */
+export const SHARP_POWER = 1;
+export const SHARP_RELOAD = 0.8;
+
+/** A blow's power, sharpened or not. */
+export function sharpened(power: number, sharp: boolean): number {
+  return sharp ? power + SHARP_POWER : power;
+}
 
 /** Whether today's snack is still on the garden's plants, given the day one was last picked. */
 export function gardenReady(gardenDay: number, day: number): boolean {
