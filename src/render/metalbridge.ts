@@ -26,7 +26,7 @@ const GLASS = '#BFE6F2';
 const FLAG = '#B5652F';
 
 /** A flat face from (x0, y0) to (x1, y1) along the floor and z0 to z1 up it, filled. */
-function face(
+export function face(
   v: DrawView,
   x0: number,
   y0: number,
@@ -48,7 +48,7 @@ function face(
 }
 
 /** A box from z0 to z1, w along x and d along y from (x, y): its sea face, its east end and its top. */
-function box(
+export function box(
   v: DrawView,
   x: number,
   y: number,

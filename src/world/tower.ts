@@ -14,8 +14,8 @@ import { TOWER } from './isle2';
 
 /**
  * A stone floor, a roof under the sky, the hall under island 3's tower, the demon dimension, the drowned
- * temple, Gigantis (its courtyard under the green sky, its halls, its throne room, and the ruins behind it), or the
- * Heron's nest on top of island 9's tower.
+ * temple, Gigantis (its courtyard under the green sky, its halls, its throne room, and the ruins behind it), the
+ * Heron's nest on top of island 9's tower, or a room inside the metal bridge.
  */
 export type RoomKind =
   | 'floor'
@@ -30,7 +30,8 @@ export type RoomKind =
   | 'nest'
   | 'perch'
   | 'crypt'
-  | 'arena';
+  | 'arena'
+  | 'bridge';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -77,6 +78,14 @@ export const ROOMS: readonly Room[] = [
   { x: -19500, y: -6000, r: 150, roof: false, kind: 'arena' },
   { x: -19500, y: -7000, r: 200, roof: false, kind: 'arena' },
   { x: -19500, y: -8200, r: 260, roof: false, kind: 'arena' },
+  // Inside the metal bridge (world/bridgein.ts), through its door from the boat: the round observatory in its middle,
+  // and the rooms off it, your room, the science room, the missions room, the news room and the dock on the tar side.
+  { x: -21000, y: -6000, r: 200, roof: false, kind: 'bridge' },
+  { x: -21000, y: -7000, r: 130, roof: false, kind: 'bridge' },
+  { x: -21000, y: -8000, r: 140, roof: false, kind: 'bridge' },
+  { x: -22000, y: -6000, r: 140, roof: false, kind: 'bridge' },
+  { x: -22000, y: -7000, r: 140, roof: false, kind: 'bridge' },
+  { x: -22000, y: -8000, r: 150, roof: false, kind: 'bridge' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -103,6 +112,13 @@ export const RUINS = 16;
 export const CRYPT = 24;
 /** The Battle Barge's arenas, by size. */
 export const ARENAS = { small: 25, medium: 26, large: 27 } as const;
+/** Inside the metal bridge: the observatory, then the rooms off it. */
+export const BRIDGE_OBS = 28;
+export const BRIDGE_YOU = 29;
+export const BRIDGE_SCIENCE = 30;
+export const BRIDGE_MISSIONS = 31;
+export const BRIDGE_NEWS = 32;
+export const BRIDGE_TARDOCK = 33;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },
