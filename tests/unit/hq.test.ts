@@ -4,11 +4,15 @@ import {
   BIG_TOWER_AT,
   BIG_TOWER_DOOR,
   BIG_TOWER_REACH,
+  CASTLE_LANDING,
   FORGE_AT,
   GARDEN_AT,
   gardenReady,
   HQ,
   HQ_KINDS,
+  LANDING_R,
+  LANDING_REACH,
+  LANDING_STOP,
   noHq,
   PICK_REACH,
   PLANS_AT,
@@ -22,9 +26,21 @@ import {
   drawForge,
   drawGardenPlant,
   drawHqTower,
+  drawLanding,
   drawPlans,
   TOWER_TALL,
 } from '../../src/render/hq';
+import { ICE_FLOE } from '../../src/world/icefloe';
+import { pastBuoys, pastFar } from '../../src/world/island';
+import { ISLE2 } from '../../src/world/isle2';
+import { ISLE3 } from '../../src/world/isle3';
+import { ISLE4 } from '../../src/world/isle4';
+import { ISLE5 } from '../../src/world/isle5';
+import { ISLE6 } from '../../src/world/isle6';
+import { ISLE7 } from '../../src/world/isle7';
+import { ISLE8, ISLE9 } from '../../src/world/isle8';
+import { ISLE10 } from '../../src/world/isle10';
+import { ISLE11 } from '../../src/world/isle11';
 import { GATE, ROOMS, STEP, stairs } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 
@@ -38,6 +54,7 @@ describe("your headquarters' upgrades", () => {
     }
     expect(HQ.garden.ready).toBe(true);
     expect(HQ.forge.ready).toBe(true);
+    expect(HQ.dock.ready).toBe(true);
     expect(HQ.tower.ready).toBe(true);
   });
 
@@ -143,5 +160,35 @@ describe("your headquarters' upgrades", () => {
     drawHqTower(v.v, 0, 0);
     expect((v.calls.fill ?? 0) + (v.calls.stroke ?? 0)).toBeGreaterThan(20);
     expect(TOWER_TALL).toBeGreaterThan(120);
+  });
+
+  it('put the castle landing at sea by island 7, clear of every island and the ice floe, and reachable by a stopped boat', () => {
+    const near7 = Math.hypot(CASTLE_LANDING.x - ISLE7.x, CASTLE_LANDING.y - ISLE7.y);
+    expect(near7).toBeLessThan(ISLE7.r + 500);
+    for (const isle of [
+      ISLE2,
+      ISLE3,
+      ISLE4,
+      ISLE5,
+      ISLE6,
+      ISLE7,
+      ISLE8,
+      ISLE9,
+      ISLE10,
+      ISLE11,
+      ICE_FLOE,
+    ])
+      expect(Math.hypot(CASTLE_LANDING.x - isle.x, CASTLE_LANDING.y - isle.y)).toBeGreaterThan(
+        isle.r + LANDING_REACH + 60,
+      );
+    // Out past the buoys, in the far deep with island 7, not in home water.
+    expect(pastBuoys(CASTLE_LANDING.x, CASTLE_LANDING.y)).toBe(true);
+    expect(pastFar(CASTLE_LANDING.x, CASTLE_LANDING.y)).toBe(true);
+    // A hull kept off the quay can still stop within reach of the gate: the quay's edge, a hull's half length, and room.
+    expect(LANDING_REACH).toBeGreaterThan(LANDING_R + 24 * 1.6 + 60);
+    expect(LANDING_STOP).toBeGreaterThan(0);
+    const v = fakeView();
+    drawLanding(v.v, 0, 0);
+    expect((v.calls.fill ?? 0) + (v.calls.stroke ?? 0)).toBeGreaterThan(30);
   });
 });

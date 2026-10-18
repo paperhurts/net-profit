@@ -8,6 +8,8 @@
  * built into the game yet shows on the plans as coming.
  */
 
+import { ISLE7 } from '../world/isle7';
+
 export type HqKind = 'garden' | 'dock' | 'forge' | 'tower';
 export const HQ_KINDS: readonly HqKind[] = ['garden', 'dock', 'forge', 'tower'];
 
@@ -31,8 +33,8 @@ export const HQ: Readonly<Record<HqKind, HqSpec>> = {
     name: 'Dock',
     price: 4000,
     blurb:
-      'A landing on the sea by island 7: sail straight to Gigantis and walk in through the gate, no portal needed.',
-    ready: false,
+      'A castle landing on the sea by island 7, on your map: sail straight up to it and go in through its gate, no portal needed.',
+    ready: true,
   },
   forge: {
     name: 'Forge',
@@ -86,6 +88,17 @@ export const FORGE_REACH = 38;
 export const BIG_TOWER_AT = { dx: -89, dy: -154 } as const;
 export const BIG_TOWER_DOOR = { dx: -75, dy: -130 } as const;
 export const BIG_TOWER_REACH = 22;
+
+/**
+ * The dock: Gigantis's landing on the sea, off island 7's north-east, clear of its sand and its dock, and on the sea
+ * map beside the island rather than on its name. The quay it stands on is LANDING_R across, a hull is kept off it,
+ * and a boat stopped within LANDING_REACH of its middle (all but still, slower than LANDING_STOP) can go in through
+ * the gate.
+ */
+export const CASTLE_LANDING = { x: ISLE7.x + 560, y: ISLE7.y - 480 } as const;
+export const LANDING_R = 62;
+export const LANDING_REACH = 190;
+export const LANDING_STOP = 25;
 
 /** Sharpened at the forge: how much harder the spear and the knife hit, and the harpoon's reload, faster than its
  * own (data/harpoon.ts HARPOON_RELOAD, 1.2 s). */

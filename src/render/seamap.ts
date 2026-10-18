@@ -36,8 +36,9 @@ export type MapIsle = {
   nameAbove?: boolean;
 };
 
-/** A place to go back to that is not an island: where, and its name on the map. */
-export type MapMark = { x: number; y: number; name: string };
+/** A place to go back to that is not an island: where, its name on the map, and whether it is your castle's landing
+ * (a little castle) rather than a place to dive (a ring of bubbles). */
+export type MapMark = { x: number; y: number; name: string; castle?: boolean };
 
 /** A fish school, as your tower shows it: where, its fish's colour, and how full it is, 0 to 1. */
 export type MapFish = { x: number; y: number; c: string; full: number };
@@ -188,6 +189,55 @@ export function drawMapMark(
   ctx.fillText(name, x, y + 9 * k);
 }
 
+/** Your castle's landing: a little gold castle, three merlons and a dark gate, and its name over it. */
+export function drawMapCastle(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  k: number,
+  name: string,
+): void {
+  ctx.fillStyle = '#F2C230';
+  ctx.strokeStyle = 'rgba(8,24,32,.85)';
+  ctx.lineWidth = 1.4 * k;
+  ctx.beginPath();
+  ctx.moveTo(x - 7 * k, y + 5 * k);
+  ctx.lineTo(x - 7 * k, y - 6 * k);
+  for (const [a, b] of [
+    [-4.5, -6],
+    [-4.5, -3.5],
+    [-1.5, -3.5],
+    [-1.5, -6],
+    [1.5, -6],
+    [1.5, -3.5],
+    [4.5, -3.5],
+    [4.5, -6],
+    [7, -6],
+  ] as const)
+    ctx.lineTo(x + a * k, y + b * k);
+  ctx.lineTo(x + 7 * k, y + 5 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#2A1A08';
+  ctx.beginPath();
+  ctx.arc(x, y + 1.5 * k, 2.2 * k, Math.PI, 0);
+  ctx.lineTo(x + 2.2 * k, y + 5 * k);
+  ctx.lineTo(x - 2.2 * k, y + 5 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = `800 ${Math.round(10 * k)}px Grandstander, ui-rounded, system-ui, sans-serif`;
+  // Its name over it: the island beside it has its own name under it.
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3 * k;
+  ctx.strokeStyle = 'rgba(8,24,32,.85)';
+  ctx.strokeText(name, x, y - 8 * k);
+  ctx.fillStyle = '#F2C230';
+  ctx.fillText(name, x, y - 8 * k);
+}
+
 /**
  * The schools your tower sees: those with fish in them now, and the ones that rise only at night only once it is
  * dark enough for them to be up (as the game has it: dark past 0.75).
@@ -313,7 +363,8 @@ export class SeaMap {
       ctx.fillStyle = '#FFF6E5';
       ctx.fillText(isle.name, x, y);
     }
-    for (const m of v.marks ?? []) drawMapMark(ctx, p.x(m.x, m.y), p.y(m.x, m.y), k, m.name);
+    for (const m of v.marks ?? [])
+      (m.castle ? drawMapCastle : drawMapMark)(ctx, p.x(m.x, m.y), p.y(m.x, m.y), k, m.name);
     // Names that would sit on one already placed go over their mark instead.
     const placed: { x: number; y: number }[] = [];
     for (const m of v.beasts ?? []) {
