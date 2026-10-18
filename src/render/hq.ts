@@ -266,3 +266,75 @@ export function drawGardenPlant(
   }
   if (ready) twinkle(v, x, y, 46, 4);
 }
+
+/** The forge: a stone hearth under a hood with its chimney, coals glowing in it (brighter while it is worked), an
+ * anvil beside it and a pair of bellows; and a star over it until your weapons have been sharpened there. */
+export function drawForge(v: DrawView, x: number, y: number, sharp: boolean, work: number): void {
+  const { ctx, px, py, zoom: Z, T } = v;
+  shadow(v, x, y, 34);
+  // The hearth, and its coals.
+  box(v, x - 18, y - 16, 30, 26, 0, 20, '#6A6A66', '#8C8C86');
+  const glow = 0.55 + 0.25 * Math.sin(T * 5) + work * 0.4;
+  const g = ctx.createRadialGradient(
+    px(x - 3, y - 3),
+    py(x - 3, y - 3, 21),
+    0,
+    px(x - 3, y - 3),
+    py(x - 3, y - 3, 21),
+    16 * Z,
+  );
+  g.addColorStop(0, `rgba(255,214,120,${Math.min(1, glow)})`);
+  g.addColorStop(0.5, `rgba(242,122,42,${Math.min(1, glow * 0.8)})`);
+  g.addColorStop(1, 'rgba(242,122,42,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(px(x - 3, y - 3), py(x - 3, y - 3, 21), 16 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  // The hood and its chimney, behind.
+  box(v, x - 18, y - 16, 30, 6, 20, 34, '#5A5A56', '#7A7A74');
+  box(v, x - 10, y - 14, 12, 6, 34, 58, '#5A5A56', '#7A7A74');
+  // Smoke curling up from the chimney.
+  ctx.fillStyle = 'rgba(200,200,196,.35)';
+  for (let i = 0; i < 3; i++) {
+    const k = (T * 0.4 + i / 3) % 1;
+    ctx.beginPath();
+    ctx.arc(
+      px(x - 4, y - 11) + Math.sin(k * 6 + i) * 4 * Z,
+      py(x - 4, y - 11, 60 + k * 40),
+      (3 + k * 6) * Z,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  // The anvil, on its block.
+  box(v, x + 18, y + 10, 8, 8, 0, 10, '#5A3A22', '#7A5230');
+  box(v, x + 14, y + 11, 16, 6, 10, 15, '#3A3E42', '#5A6066');
+  ctx.fillStyle = '#5A6066';
+  ctx.beginPath();
+  ctx.moveTo(px(x + 30, y + 11), py(x + 30, y + 11, 15));
+  ctx.lineTo(px(x + 37, y + 14), py(x + 37, y + 14, 14));
+  ctx.lineTo(px(x + 30, y + 17), py(x + 30, y + 17, 15));
+  ctx.closePath();
+  ctx.fill();
+  // The bellows, by the hearth.
+  ctx.fillStyle = '#7A5230';
+  ctx.beginPath();
+  ctx.ellipse(px(x - 26, y + 8), py(x - 26, y + 8, 6), 7 * Z, 4 * Z, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  // Sparks off the anvil while it is worked.
+  if (work > 0) {
+    ctx.fillStyle = '#FFD86A';
+    for (let i = 0; i < 8; i++) {
+      const a = i * 0.8 + T * 9;
+      const r = (1 - work) * 18 + 4;
+      ctx.fillRect(
+        px(x + 24, y + 14) + Math.cos(a) * r * Z,
+        py(x + 24, y + 14, 18) - Math.abs(Math.sin(a)) * r * Z,
+        2 * Z,
+        2 * Z,
+      );
+    }
+  }
+  if (!sharp) twinkle(v, x + 22, y + 14, 34, 1);
+}

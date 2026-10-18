@@ -178,6 +178,8 @@ export type SaveData = {
   /** Your headquarters' upgrades built (data/hq.ts), and the day the garden's snack was last picked. */
   hq: HqBuilt;
   gardenDay: number;
+  /** Your weapons sharpened at your headquarters' forge. */
+  sharp: boolean;
   trenchDeep: number;
   /** The trench's treasures found, one bit each, and the day the giant clam's pearl was last taken. */
   trenchLoot: number;
@@ -388,6 +390,7 @@ export function defaultSave(b: Bounds): SaveData {
     hunterDay: 0,
     hq: noHq(),
     gardenDay: 0,
+    sharp: false,
     trenchDeep: 0,
     trenchLoot: 0,
     iceLoot: 0,
@@ -573,6 +576,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
   d.gardenDay = Math.max(0, int(o.gardenDay));
+  d.sharp = o.sharp === true;
   d.trenchDeep = Math.max(0, Math.min(TD, int(o.trenchDeep)));
   d.trenchLoot = int(o.trenchLoot) & LOOT_ALL;
   d.iceLoot = int(o.iceLoot) & ICE_LOOT_ALL;
@@ -737,6 +741,7 @@ export function serializeSave(d: SaveData): string {
     hunterDay: d.hunterDay,
     hq: d.hq,
     gardenDay: d.gardenDay,
+    sharp: d.sharp,
     trenchDeep: d.trenchDeep,
     trenchLoot: d.trenchLoot,
     iceLoot: d.iceLoot,
