@@ -6,9 +6,12 @@
  * everywhere the boat has not sailed, soft at its edges; and the boat, pointing
  * the way it is going. Islands are named once they have been found. Places to
  * go back to that are not islands, the trench to dive, are marked over the fog
- * with their names, so they can be found again.
+ * with their names, so they can be found again. Once your headquarters' tower is
+ * built, every fish school in the sea is on it too, in its own colour, under the
+ * fog like the rest.
  */
 
+import { SPECIES } from '../data/tuning';
 import {
   cellMiddle,
   isSailed,
@@ -18,6 +21,7 @@ import {
   SEA_SPAN,
 } from '../state/sailed';
 import { DEEP, FAR, FARFAR, IX, IY, WS } from '../world/island';
+import type { School } from '../world/schools';
 
 export type MapIsle = {
   x: number;
@@ -35,6 +39,9 @@ export type MapIsle = {
 /** A place to go back to that is not an island: where, and its name on the map. */
 export type MapMark = { x: number; y: number; name: string };
 
+/** A fish school, as your tower shows it: where, its fish's colour, and how full it is, 0 to 1. */
+export type MapFish = { x: number; y: number; c: string; full: number };
+
 export type MapView = {
   sailed: Sailed;
   boat: { x: number; y: number; h: number };
@@ -43,6 +50,8 @@ export type MapView = {
   marks?: readonly MapMark[];
   /** Every leviathan, live, once Gigantis's observatory is yours. */
   beasts?: readonly MapMark[];
+  /** Every fish school, once your headquarters' tower is built. */
+  fish?: readonly MapFish[];
   /** Seconds, for the boat's pulse. */
   T: number;
   /**
@@ -101,7 +110,6 @@ function square(
   ctx.closePath();
 }
 
-/** A dive mark: dark water in a pale ring with bubbles coming up out of it, and its name under it. */
 /** A leviathan, as the observatory spots it: a red eye in a pulsing ring, and its name under it. */
 export function drawMapBeast(
   ctx: CanvasRenderingContext2D,
@@ -144,6 +152,7 @@ export function drawMapBeast(
   ctx.fillText(name, x, ty);
 }
 
+/** A dive mark: dark water in a pale ring with bubbles coming up out of it, and its name under it. */
 export function drawMapMark(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -177,6 +186,51 @@ export function drawMapMark(
   ctx.strokeText(name, x, y + 9 * k);
   ctx.fillStyle = '#9FE3F0';
   ctx.fillText(name, x, y + 9 * k);
+}
+
+/**
+ * The schools your tower sees: those with fish in them now, and the ones that rise only at night only once it is
+ * dark enough for them to be up (as the game has it: dark past 0.75).
+ */
+export function mapFish(schools: readonly School[], dark: number): MapFish[] {
+  const out: MapFish[] = [];
+  for (const sc of schools) {
+    if (sc.alive <= 0 || (sc.night && dark < 0.75)) continue;
+    out.push({
+      x: sc.cx,
+      y: sc.cy,
+      c: SPECIES[sc.sp]?.c ?? '#DCEBEE',
+      full: sc.n ? sc.alive / sc.n : 0,
+    });
+  }
+  return out;
+}
+
+/** A school on the map: one to three little fish in its colour, outlined dark so pale ones show on the sea. */
+export function drawMapFish(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  k: number,
+  c: string,
+  full: number,
+): void {
+  const n = 1 + Math.round(Math.max(0, Math.min(1, full)) * 2);
+  ctx.fillStyle = c;
+  ctx.strokeStyle = 'rgba(8,24,32,.75)';
+  ctx.lineWidth = 1 * k;
+  for (let i = 0; i < n; i++) {
+    const fx = x + ([0, -4, 4][i] ?? 0) * k;
+    const fy = y + ([0, 3.5, 3.5][i] ?? 0) * k;
+    ctx.beginPath();
+    ctx.ellipse(fx, fy, 3 * k, 1.6 * k, 0, 0, Math.PI * 2);
+    ctx.moveTo(fx - 2.4 * k, fy);
+    ctx.lineTo(fx - 4.6 * k, fy - 1.7 * k);
+    ctx.lineTo(fx - 4.6 * k, fy + 1.7 * k);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+  }
 }
 
 export class SeaMap {
@@ -235,6 +289,11 @@ export class SeaMap {
       ctx.beginPath();
       ctx.arc(x, y - r * 0.08, r * 0.66, 0, Math.PI * 2);
       ctx.fill();
+    }
+    // The fish schools your tower sees, under the fog: the water you have not sailed keeps its fish to itself.
+    for (const f of v.fish ?? []) {
+      if (Math.max(Math.abs(f.x - WS / 2), Math.abs(f.y - WS / 2)) >= WS / 2 + reach) continue;
+      drawMapFish(ctx, p.x(f.x, f.y), p.y(f.x, f.y), k, f.c, f.full);
     }
     // Fog over all of it the boat has not seen.
     ctx.drawImage(this.fogFor(v.sailed, w, h, p, reach), 0, 0);

@@ -45,8 +45,8 @@ export const HQ: Readonly<Record<HqKind, HqSpec>> = {
     name: 'Bigger tower',
     price: 10000,
     blurb:
-      'A tall tower over the gate. From the top you see the fish schools, and the sea map shows where they are.',
-    ready: false,
+      'A tall lookout tower on the castle wall. Climb it and see the whole sea: from then on your map shows every fish school, each in its own colour.',
+    ready: true,
   },
 };
 
@@ -77,6 +77,15 @@ export const PICK_REACH = 30;
 /** The forge, in the courtyard's front-right corner, and how near to work at it. */
 export const FORGE_AT = { dx: 115, dy: 75 } as const;
 export const FORGE_REACH = 38;
+
+/**
+ * The bigger tower: on the courtyard's back wall, between the way up into the castle and the portal (clear of the
+ * portal's ring on the screen), its foot just outside the floor; its door on the courtyard side, far enough from the
+ * stairs that each is used on its own.
+ */
+export const BIG_TOWER_AT = { dx: -89, dy: -154 } as const;
+export const BIG_TOWER_DOOR = { dx: -75, dy: -130 } as const;
+export const BIG_TOWER_REACH = 22;
 
 /** Sharpened at the forge: how much harder the spear and the knife hit, and the harpoon's reload, faster than its
  * own (data/harpoon.ts HARPOON_RELOAD, 1.2 s). */

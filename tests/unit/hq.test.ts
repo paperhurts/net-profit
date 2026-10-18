@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { HARPOON_RELOAD } from '../../src/data/harpoon';
 import {
+  BIG_TOWER_AT,
+  BIG_TOWER_DOOR,
+  BIG_TOWER_REACH,
   FORGE_AT,
   GARDEN_AT,
   gardenReady,
@@ -15,8 +18,14 @@ import {
   sharpened,
 } from '../../src/data/hq';
 import { SCOPE_AT } from '../../src/data/observatory';
-import { drawForge, drawGardenPlant, drawPlans } from '../../src/render/hq';
-import { GATE, ROOMS } from '../../src/world/tower';
+import {
+  drawForge,
+  drawGardenPlant,
+  drawHqTower,
+  drawPlans,
+  TOWER_TALL,
+} from '../../src/render/hq';
+import { GATE, ROOMS, STEP, stairs } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 
 describe("your headquarters' upgrades", () => {
@@ -29,6 +38,7 @@ describe("your headquarters' upgrades", () => {
     }
     expect(HQ.garden.ready).toBe(true);
     expect(HQ.forge.ready).toBe(true);
+    expect(HQ.tower.ready).toBe(true);
   });
 
   it("sharpen at the forge: the spear and the knife one harder, the harpoon faster but no harder (the owner's call)", () => {
@@ -103,5 +113,35 @@ describe("your headquarters' upgrades", () => {
       expect(ready.calls.star ?? 0).toBe(1);
       expect(picked.calls.star ?? 0).toBe(0);
     }
+  });
+
+  it('put the bigger tower on the back wall, its door on the floor and used on its own, clear of the portal', () => {
+    const court = ROOMS[GATE];
+    if (!court) throw new Error('no courtyard');
+    // On the wall: its middle just outside the floor, round the back half where the wall stands.
+    const r = Math.hypot(BIG_TOWER_AT.dx, BIG_TOWER_AT.dy);
+    expect(r).toBeGreaterThan(court.r - 12);
+    expect(r).toBeLessThan(court.r + 20);
+    const a = Math.atan2(BIG_TOWER_AT.dy, BIG_TOWER_AT.dx) + Math.PI * 2;
+    expect(a).toBeGreaterThan(Math.PI * 0.75);
+    expect(a).toBeLessThan(Math.PI * 1.75);
+    // Its door can be reached from the floor, and not from where the stairs up are used.
+    expect(Math.hypot(BIG_TOWER_DOOR.dx, BIG_TOWER_DOOR.dy) - BIG_TOWER_REACH).toBeLessThan(
+      court.r - 12,
+    );
+    const st = stairs(GATE);
+    const sx = st.x - court.x;
+    const sy = st.y - court.y;
+    expect(Math.hypot(BIG_TOWER_DOOR.dx - sx, BIG_TOWER_DOOR.dy - sy)).toBeGreaterThan(
+      STEP + 6 + BIG_TOWER_REACH,
+    );
+    // On the screen it stands clear of the portal's ring and of the way up into the castle.
+    const col = BIG_TOWER_AT.dx - BIG_TOWER_AT.dy;
+    expect(Math.abs(col - (75 - -75))).toBeGreaterThan(80);
+    expect(Math.abs(col - (sx - sy))).toBeGreaterThan(40);
+    const v = fakeView();
+    drawHqTower(v.v, 0, 0);
+    expect((v.calls.fill ?? 0) + (v.calls.stroke ?? 0)).toBeGreaterThan(20);
+    expect(TOWER_TALL).toBeGreaterThan(120);
   });
 });
