@@ -18,6 +18,7 @@ import {
   takenToday,
   tarSchools,
 } from '../../src/world/tarfish';
+import { TAR_ISLE } from '../../src/world/tarisle';
 import { onTar, TAR_BERTH } from '../../src/world/tarsea';
 import { fakeView } from './helpers/view';
 
@@ -35,6 +36,7 @@ describe('the tar fish', () => {
       for (const sc of s) {
         expect(onTar(sc.x, sc.y)).toBe(true);
         expect(Math.hypot(sc.x - TAR_BERTH.x, sc.y - TAR_BERTH.y)).toBeGreaterThan(1000);
+        expect(Math.hypot(sc.x - TAR_ISLE.x, sc.y - TAR_ISLE.y)).toBeGreaterThan(TAR_ISLE.r + 300);
       }
       const first = s[0];
       if (first)

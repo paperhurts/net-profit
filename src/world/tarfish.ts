@@ -6,6 +6,7 @@
  * in the chemistry boat's tar bucket until the scientist has them.
  */
 
+import { TAR_ISLE } from './tarisle';
 import { TAR_BERTH, TAR_SEA } from './tarsea';
 
 /** Coins the scientist pays for each tar fish. */
@@ -16,8 +17,9 @@ export const TAR_PER_DAY = TAR_SCHOOLS * PER_SCHOOL;
 /** How far out from a school's middle its fish swim round. */
 export const SCHOOL_R = 46;
 
-/** Schools keep this far inside the tar's edges, this far from the dock and from each other. */
+/** Schools keep this far inside the tar's edges, this far from the dock and from each other, and this far off the tar island's shore. */
 const EDGE_IN = 600;
+const ISLE_CLEAR = 500;
 const DOCK_CLEAR = 1400;
 const APART = 2600;
 /** The day's first school is no further than this from the dock, so there is always one to find. */
@@ -71,6 +73,7 @@ export function tarSchools(day: number): TarSchool[] {
       const ok =
         inTar(x, y) &&
         Math.hypot(x - TAR_BERTH.x, y - TAR_BERTH.y) >= DOCK_CLEAR &&
+        Math.hypot(x - TAR_ISLE.x, y - TAR_ISLE.y) >= TAR_ISLE.r + ISLE_CLEAR &&
         out.every((s) => Math.hypot(s.x - x, s.y - y) >= APART);
       if (ok) {
         at = { x, y };
