@@ -789,6 +789,21 @@ describe('the abyss', () => {
     expect(parseSave(JSON.stringify({ ...s, remoroDay: -3 }), bounds).remoroDay).toBe(0);
   });
 
+  it('has nothing built at your headquarters in a save from before its upgrades, and keeps what is', () => {
+    const s = parseSave(legacy, bounds);
+    expect([s.hq.garden, s.hq.dock, s.hq.forge, s.hq.tower, s.gardenDay]).toEqual([
+      false,
+      false,
+      false,
+      false,
+      0,
+    ]);
+    s.hq.garden = true;
+    s.gardenDay = 3;
+    const back = parseSave(serializeSave(s), bounds);
+    expect([back.hq.garden, back.hq.forge, back.gardenDay]).toEqual([true, false, 3]);
+  });
+
   it('has the attack nibbler hunting in a save from before it, and keeps the day it was landed', () => {
     const s = parseSave(legacy, bounds);
     expect(s.hunterDay).toBe(0);
