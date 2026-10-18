@@ -121,6 +121,8 @@ type Np = {
   HQ_PLANS: { x: number; y: number };
   HQ_ROSTER: { x: number; y: number };
   trophyStand(i: number): { x: number; y: number };
+  HQ_FISH_FRONT: { x: number; y: number };
+  fishCaught: number;
   trophiesWon: number;
   HQ_WAIT: Record<string, { x: number; y: number }>;
   stay: string[];
@@ -7458,6 +7460,54 @@ test("your headquarters' trophy hall: a trophy for each boss beaten, and empty s
   await expect(page.locator('#climb')).toHaveText('Look at the empty stand', { timeout: 3000 });
   await page.click('#climb');
   await expect(page.locator('#toast')).toContainText('An empty stand. Beat the Heron for good');
+  expect(errors).toEqual([]);
+});
+
+test("your headquarters' fish board: every kind you've caught on it, and the field guide from it", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 1000,
+    spear: 4,
+    day: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    log: [4, 0, 2, 0, 1],
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  await page.evaluate(() => {
+    window.__np.walker.x = -13500 - 170 * 0.6 * Math.SQRT1_2 + 6;
+    window.__np.walker.y = -6000 - 170 * 0.6 * Math.SQRT1_2 + 6;
+  });
+  await expect(page.locator('#climb')).toHaveText('Through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 13);
+  expect(await page.evaluate(() => window.__np.fishCaught)).toBe(3);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.HQ_FISH_FRONT.x;
+    n.walker.y = n.HQ_FISH_FRONT.y;
+  });
+  await expect(page.locator('#climb')).toHaveText(/^Look at your fish \(3 of \d+\)$/, {
+    timeout: 3000,
+  });
+  await page.click('#climb');
+  await expect(page.locator('#guide')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
