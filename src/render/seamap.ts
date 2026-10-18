@@ -149,9 +149,21 @@ export function drawMapBeast(
   ctx.lineWidth = 3 * k;
   ctx.strokeStyle = 'rgba(8,24,32,.85)';
   const ty = above ? y - 8 * k : y + 8 * k;
-  ctx.strokeText(name, x, ty);
+  const tx = labelX(ctx, name, x, k);
+  ctx.strokeText(name, tx, ty);
   ctx.fillStyle = '#FFB3A0';
-  ctx.fillText(name, x, ty);
+  ctx.fillText(name, tx, ty);
+}
+
+/**
+ * Where a name centred on x is written so none of it is cut off at the map's sides: the abyss's, out by the far far
+ * sea's east corner, ran off the right edge.
+ */
+export function labelX(ctx: CanvasRenderingContext2D, name: string, x: number, k: number): number {
+  const w = ctx.canvas?.width;
+  const half = (ctx.measureText(name)?.width ?? 0) / 2 + 2 * k;
+  if (typeof w !== 'number' || !(half > 2 * k) || w < 2 * half) return x;
+  return Math.min(w - half, Math.max(half, x));
 }
 
 /** A dive mark: dark water in a pale ring with bubbles coming up out of it, and its name under it. */
@@ -185,9 +197,10 @@ export function drawMapMark(
   ctx.lineJoin = 'round';
   ctx.lineWidth = 3 * k;
   ctx.strokeStyle = 'rgba(8,24,32,.85)';
-  ctx.strokeText(name, x, y + 9 * k);
+  const tx = labelX(ctx, name, x, k);
+  ctx.strokeText(name, tx, y + 9 * k);
   ctx.fillStyle = '#9FE3F0';
-  ctx.fillText(name, x, y + 9 * k);
+  ctx.fillText(name, tx, y + 9 * k);
 }
 
 /** Your castle's landing: a little gold castle, three merlons and a dark gate, and its name over it. */
@@ -234,9 +247,10 @@ export function drawMapCastle(
   ctx.lineJoin = 'round';
   ctx.lineWidth = 3 * k;
   ctx.strokeStyle = 'rgba(8,24,32,.85)';
-  ctx.strokeText(name, x, y - 8 * k);
+  const tx = labelX(ctx, name, x, k);
+  ctx.strokeText(name, tx, y - 8 * k);
   ctx.fillStyle = '#F2C230';
-  ctx.fillText(name, x, y - 8 * k);
+  ctx.fillText(name, tx, y - 8 * k);
 }
 
 /** The metal bridge: a little grey building along the sea's edge, its purple orb on top, and its name over it. */
@@ -270,9 +284,10 @@ export function drawMapBridge(
   ctx.lineJoin = 'round';
   ctx.lineWidth = 3 * k;
   ctx.strokeStyle = 'rgba(8,24,32,.85)';
-  ctx.strokeText(name, x, y - 9 * k);
+  const tx = labelX(ctx, name, x, k);
+  ctx.strokeText(name, tx, y - 9 * k);
   ctx.fillStyle = '#D5DEE3';
-  ctx.fillText(name, x, y - 9 * k);
+  ctx.fillText(name, tx, y - 9 * k);
 }
 
 /**
@@ -396,9 +411,10 @@ export class SeaMap {
       const y = p.y(isle.x, isle.y) + (isle.nameAbove ? -r - 11 * k : r);
       ctx.lineWidth = 3 * k;
       ctx.strokeStyle = 'rgba(8,24,32,.85)';
-      ctx.strokeText(isle.name, x, y);
+      const tx = labelX(ctx, isle.name, x, k);
+      ctx.strokeText(isle.name, tx, y);
       ctx.fillStyle = '#FFF6E5';
-      ctx.fillText(isle.name, x, y);
+      ctx.fillText(isle.name, tx, y);
     }
     for (const m of v.marks ?? [])
       (m.castle ? drawMapCastle : m.bridge ? drawMapBridge : drawMapMark)(
