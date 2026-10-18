@@ -37,8 +37,9 @@ export type MapIsle = {
 };
 
 /** A place to go back to that is not an island: where, its name on the map, and whether it is your castle's landing
- * (a little castle) rather than a place to dive (a ring of bubbles). */
-export type MapMark = { x: number; y: number; name: string; castle?: boolean };
+ * (a little castle) or the kid's metal bridge (a little building on legs) rather than a place to dive (a ring of
+ * bubbles). */
+export type MapMark = { x: number; y: number; name: string; castle?: boolean; bridge?: boolean };
 
 /** A fish school, as your tower shows it: where, its fish's colour, and how full it is, 0 to 1. */
 export type MapFish = { x: number; y: number; c: string; full: number };
@@ -238,6 +239,42 @@ export function drawMapCastle(
   ctx.fillText(name, x, y - 8 * k);
 }
 
+/** The metal bridge: a little grey building on legs, a purple orb on top, and its name under it. */
+export function drawMapBridge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  k: number,
+  name: string,
+): void {
+  // The building along the sea's edge, as the edge runs on the map, and its orb on top.
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.strokeStyle = 'rgba(8,24,32,.85)';
+  ctx.lineWidth = 1.2 * k;
+  ctx.fillStyle = '#8B98A1';
+  ctx.beginPath();
+  ctx.rect(-12 * k, -2.5 * k, 24 * k, 5 * k);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#B57CFF';
+  ctx.beginPath();
+  ctx.arc(x, y - 4.5 * k, 2.4 * k, 0, Math.PI * 2);
+  ctx.fill();
+  // Its name over it, out on the tar side: island 11 and the abyss have theirs under them.
+  ctx.font = `800 ${Math.round(10 * k)}px Grandstander, ui-rounded, system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3 * k;
+  ctx.strokeStyle = 'rgba(8,24,32,.85)';
+  ctx.strokeText(name, x, y - 9 * k);
+  ctx.fillStyle = '#D5DEE3';
+  ctx.fillText(name, x, y - 9 * k);
+}
+
 /**
  * The schools your tower sees: those with fish in them now, and the ones that rise only at night only once it is
  * dark enough for them to be up (as the game has it: dark past 0.75).
@@ -364,7 +401,13 @@ export class SeaMap {
       ctx.fillText(isle.name, x, y);
     }
     for (const m of v.marks ?? [])
-      (m.castle ? drawMapCastle : drawMapMark)(ctx, p.x(m.x, m.y), p.y(m.x, m.y), k, m.name);
+      (m.castle ? drawMapCastle : m.bridge ? drawMapBridge : drawMapMark)(
+        ctx,
+        p.x(m.x, m.y),
+        p.y(m.x, m.y),
+        k,
+        m.name,
+      );
     // Names that would sit on one already placed go over their mark instead.
     const placed: { x: number; y: number }[] = [];
     for (const m of v.beasts ?? []) {

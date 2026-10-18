@@ -171,6 +171,8 @@ export type SaveData = {
   /** The abyss past the white buoys: seen from the boat, and gone down to its floor in the cage. */
   abyssSeen: boolean;
   abyssDown: boolean;
+  /** The kid's metal bridge across the far far sea's north edge, the tar ocean past it: seen from the boat. */
+  bridgeSeen: boolean;
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
@@ -386,6 +388,7 @@ export function defaultSave(b: Bounds): SaveData {
     trenchSeen: false,
     abyssSeen: false,
     abyssDown: false,
+    bridgeSeen: false,
     remoroDay: 0,
     hunterDay: 0,
     hq: noHq(),
@@ -572,6 +575,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.trenchSeen = !!o.trenchSeen;
   d.abyssSeen = !!o.abyssSeen;
   d.abyssDown = !!o.abyssDown;
+  d.bridgeSeen = !!o.bridgeSeen;
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
@@ -737,6 +741,7 @@ export function serializeSave(d: SaveData): string {
     trenchSeen: d.trenchSeen,
     abyssSeen: d.abyssSeen,
     abyssDown: d.abyssDown,
+    bridgeSeen: d.bridgeSeen,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
     hq: d.hq,

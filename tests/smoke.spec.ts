@@ -126,6 +126,9 @@ type Np = {
   HQ_TOWER_DOOR: { x: number; y: number };
   mapFishN: number;
   CASTLE_LANDING: { x: number; y: number };
+  METAL_BRIDGE: { x: number; len: number; face: number; depth: number };
+  BRIDGE_DOOR: { x: number; y: number };
+  bridgeSeen: boolean;
   viaLanding: boolean;
   walkerAt: [number, number];
   toast(msg: string, ms?: number, pri?: number): void;
@@ -8878,5 +8881,49 @@ test("Caterman's swan paddle boat: he pedals it at sea, and the kid puts a frien
     swan: 'caterman',
     swan2: 'necro',
   });
+  expect(errors).toEqual([]);
+});
+
+test('the metal bridge: seen across the far far sea, the tar ocean past it, and a knock on its door', async ({
+  context,
+  page,
+}) => {
+  // Island 11 found, sailing north of it toward the sea's north edge.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7140, y: -4790, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#toast')).toContainText('A huge metal building', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.bridgeSeen)).toBe(true);
+  // A boat driven at its sea face is kept off it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.METAL_BRIDGE.x - 500;
+    n.boat.y = n.METAL_BRIDGE.face - 40;
+    n.boat.v = 0;
+  });
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.__np.boat.y > window.__np.METAL_BRIDGE.face)).toBe(true);
+  // Stopped at the door, you knock; nobody is ready to let you in yet.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Knock on the door', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Knock, knock!');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.bridgeSeen).toBe(true);
   expect(errors).toEqual([]);
 });
