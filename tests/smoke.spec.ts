@@ -40,6 +40,11 @@ type Np = {
   bakerAt: [number, number];
   isle10Seen: boolean;
   isle11Seen: boolean;
+  isle12Seen: boolean;
+  revealView: number;
+  DOCK12: { x: number; y: number; r: number };
+  TOWER12_DOOR: { x: number; y: number };
+  fromSkull: (u: number, v: number) => [number, number];
   farFarOpen: boolean;
   crowGoShown: boolean;
   guide: { state: string; x: number; y: number };
@@ -2513,6 +2518,12 @@ test('the abyss: a blue hole past the white buoys, down 1,000 metres in the cage
   await page.evaluate(() => window.__np.remoro.reset(false));
   const nib = await page.evaluate(() => window.__np.abyssSh.findIndex((s) => s.deep === 'nibbler'));
   expect(nib).toBeGreaterThan(0);
+  // The viper fish swim just over the nibblers and can cross the spear's way first: every other shoal goes up out of it.
+  await page.evaluate((si) => {
+    window.__np.abyssSh.forEach((s, i) => {
+      if (i !== si) s.cy -= 3000;
+    });
+  }, nib);
   const put = () =>
     page.evaluate((si) => {
       const np = window.__np;
@@ -6866,6 +6877,80 @@ test('island 11: tie up at its pier, walk up into the jungle, and look at the po
   });
   await expect(page.locator('#toast')).toContainText('black lagoon', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Island 11 found');
+  expect(errors).toEqual([]);
+});
+
+test('Skull Island: sighted, the camera takes in the whole skull, tie up off its chin and walk up through its teeth', async ({
+  context,
+  page,
+}) => {
+  // A flagship out past the white buoys' bottom corner, sailing down on the top of the skull.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7600, y: 7600, h: Math.PI / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 150;
+  });
+  await expect(page.locator('#toast')).toContainText('Skull Island', { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.isle12Seen)).toBe(true);
+  // The camera pulls right back to show the whole skull, then comes back in to the boat.
+  await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.revealView < 0.1, null, { timeout: 9000 });
+  // Round to its chin, stopped in the dock ring off the end of its pier.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromSkull(0, 1610);
+    n.boat.x = x;
+    n.boat.y = y;
+    n.boat.v = 0;
+    n.boat.h = (-3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Skull Island');
+  // Straight up the screen: off the pier, up the jaw, and through the gap where its front teeth were.
+  const along = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const dx = n.walker.x - n.fromSkull(0, 0)[0];
+      const dy = n.walker.y - n.fromSkull(0, 0)[1];
+      return [(dx - dy) * Math.SQRT1_2, (dx + dy) * Math.SQRT1_2] as const;
+    });
+  const [, v0] = await along();
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX, CY - 60, { steps: 3 });
+  await page.waitForTimeout(9500);
+  await page.mouse.up();
+  const [u1, v1] = await along();
+  expect(v0).toBeGreaterThan(1400);
+  expect(v1).toBeLessThan(900);
+  expect(Math.abs(u1)).toBeLessThan(45);
+  // At the rim of an eye socket it says what it is; at the tower's door, that the door is shut and someone laughs.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromSkull(-360, 645);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await expect(page.locator('#toast')).toContainText('eye socket', { timeout: 8000 });
+  await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.TOWER12_DOOR.x;
+    n.walker.y = n.TOWER12_DOOR.y + 8;
+  });
+  await expect(page.locator('#toast')).toContainText('mwa ha ha', { timeout: 9000 });
+  await expect(page.locator('#log')).toContainText('Skull Island found');
   expect(errors).toEqual([]);
 });
 

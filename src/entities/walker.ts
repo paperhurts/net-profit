@@ -132,6 +132,7 @@ import {
   TREES11,
   WORKSHOP11,
 } from '../world/isle11';
+import { berth12, CRATES12, DOCK12, groundZ12, LANDING12, onIsle12 } from '../world/isle12';
 import { inTunnelBounds, tunnelWalkable } from '../world/stealth';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -254,6 +255,14 @@ export const ISLE11_DOCK: Dock = {
   berth: berth11,
   landing: LANDING11,
 };
+/** Skull Island's dock, past the end of the pier off its chin. */
+export const ISLE12_DOCK: Dock = {
+  x: DOCK12.x,
+  y: DOCK12.y,
+  r: DOCK12.r,
+  berth: berth12,
+  landing: LANDING12,
+};
 export const DOCKS: readonly Dock[] = [
   HOME_DOCK,
   ISLE2_DOCK,
@@ -263,6 +272,7 @@ export const DOCKS: readonly Dock[] = [
   ISLE8_DOCK,
   ISLE10_DOCK,
   ISLE11_DOCK,
+  ISLE12_DOCK,
 ];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
@@ -335,7 +345,8 @@ export function setWalkLand(l: WalkLand | null): void {
  * Dry land, ignoring what stands on it: the island, the pier, the bridge deck between the rails, the
  * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
  * gets into, island 6 and its pier, island 7, islands 8 and 9 with the sandbar between, island 10 and its
- * pier, round its pond and pools, island 11 and its pier, round its black lagoon, and whatever land comes and goes.
+ * pier, round its pond and pools, island 11 and its pier, round its black lagoon, Skull Island and its pier, round
+ * its eye sockets, nose and teeth, and whatever land comes and goes.
  */
 export function onLand(x: number, y: number): boolean {
   if (walkLand?.on(x, y)) return true;
@@ -348,6 +359,7 @@ export function onLand(x: number, y: number): boolean {
   if (onTwins(x, y)) return true;
   if (onIsle10(x, y)) return true;
   if (onIsle11(x, y)) return true;
+  if (onIsle12(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
@@ -365,6 +377,7 @@ export function groundZ(x: number, y: number): number {
   if (onIsle6(x, y)) return groundZ6(x, y);
   if (onIsle10(x, y)) return groundZ10(x, y);
   if (onIsle11(x, y)) return groundZ11(x, y);
+  if (onIsle12(x, y)) return groundZ12(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -550,6 +563,14 @@ export const PROPS: readonly Prop[] = [
     CRATES11.x + 19,
     CRATES11.y + 15,
     CRATES11.x + CRATES11.y + 10,
+  ),
+  // Skull Island's crates, at its pier's root.
+  prop(
+    CRATES12.x - 10,
+    CRATES12.y - 8,
+    CRATES12.x + 19,
+    CRATES12.y + 15,
+    CRATES12.x + CRATES12.y + 10,
   ),
   // Caterman's workshop, at the back of the Heron's brother's clearing.
   prop(WORKSHOP11.x0, WORKSHOP11.y0, WORKSHOP11.x1, WORKSHOP11.y1, WORKSHOP11.x1 + WORKSHOP11.y1),
