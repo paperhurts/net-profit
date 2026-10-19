@@ -335,6 +335,39 @@ export function drawMapFish(
   }
 }
 
+/** The boat on a map: a pulse round it and an arrow the way it points, heading h as the world has it. */
+export function drawMapBoat(
+  ctx: CanvasRenderingContext2D,
+  bx: number,
+  by: number,
+  h: number,
+  k: number,
+  T: number,
+): void {
+  const pulse = (T * 0.8) % 1;
+  ctx.strokeStyle = `rgba(255,246,229,${0.8 * (1 - pulse)})`;
+  ctx.lineWidth = 2 * k;
+  ctx.beginPath();
+  ctx.arc(bx, by, (5 + pulse * 12) * k, 0, Math.PI * 2);
+  ctx.stroke();
+  const dx = Math.cos(h) - Math.sin(h);
+  const dy = Math.cos(h) + Math.sin(h);
+  const dl = Math.hypot(dx, dy) || 1;
+  const ux = dx / dl;
+  const uy = dy / dl;
+  ctx.fillStyle = '#E4572E';
+  ctx.strokeStyle = '#FFF6E5';
+  ctx.lineWidth = 1.5 * k;
+  ctx.beginPath();
+  ctx.moveTo(bx + ux * 8 * k, by + uy * 8 * k);
+  ctx.lineTo(bx - ux * 5 * k - uy * 5 * k, by - uy * 5 * k + ux * 5 * k);
+  ctx.lineTo(bx - ux * 2 * k, by - uy * 2 * k);
+  ctx.lineTo(bx - ux * 5 * k + uy * 5 * k, by - uy * 5 * k - ux * 5 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
 export class SeaMap {
   private fog: HTMLCanvasElement | null = null;
   private fogKey = '';
@@ -433,31 +466,7 @@ export class SeaMap {
       drawMapBeast(ctx, x, y, k, m.name, v.T, above);
       placed.push({ x, y: above ? y - 20 * k : y });
     }
-    // The boat: a pulse round it and an arrow the way it points.
-    const bx = p.x(v.boat.x, v.boat.y);
-    const by = p.y(v.boat.x, v.boat.y);
-    const pulse = (v.T * 0.8) % 1;
-    ctx.strokeStyle = `rgba(255,246,229,${0.8 * (1 - pulse)})`;
-    ctx.lineWidth = 2 * k;
-    ctx.beginPath();
-    ctx.arc(bx, by, (5 + pulse * 12) * k, 0, Math.PI * 2);
-    ctx.stroke();
-    const dx = Math.cos(v.boat.h) - Math.sin(v.boat.h);
-    const dy = Math.cos(v.boat.h) + Math.sin(v.boat.h);
-    const dl = Math.hypot(dx, dy) || 1;
-    const ux = dx / dl;
-    const uy = dy / dl;
-    ctx.fillStyle = '#E4572E';
-    ctx.strokeStyle = '#FFF6E5';
-    ctx.lineWidth = 1.5 * k;
-    ctx.beginPath();
-    ctx.moveTo(bx + ux * 8 * k, by + uy * 8 * k);
-    ctx.lineTo(bx - ux * 5 * k - uy * 5 * k, by - uy * 5 * k + ux * 5 * k);
-    ctx.lineTo(bx - ux * 2 * k, by - uy * 2 * k);
-    ctx.lineTo(bx - ux * 5 * k + uy * 5 * k, by - uy * 5 * k - ux * 5 * k);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    drawMapBoat(ctx, p.x(v.boat.x, v.boat.y), p.y(v.boat.x, v.boat.y), v.boat.h, k, v.T);
   }
 
   /** The fog, drawn once for each new stretch of sea sailed. */

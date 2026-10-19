@@ -46,7 +46,7 @@ import { HEAP_R, HEAP_REACH, TREASURES, treasuresFound, treasureStory } from './
 import { drawTreasureHeap } from './render/treasury';
 import { atBerth, CHEM_SPEED, keepOnTar, TAR_BERTH } from './world/tarsea';
 import { CHEM_LOOK, drawBerth, drawChemTop, drawTarSea, tarEdgeBuoys, tarJetty } from './render/tarsea';
-import { fishAt as tarFishAt, leftToday, nearestSchool, nearestTarFish, scientistBuys, take as tarTake, takenToday, TAR_FISH_PRICE, TAR_PER_DAY, tarSchools } from './world/tarfish';
+import { fishAt as tarFishAt, leftIn, leftToday, nearestSchool, nearestTarFish, scientistBuys, take as tarTake, takenToday, TAR_FISH_PRICE, TAR_PER_DAY, tarSchools } from './world/tarfish';
 import { drawTarFishEyes, drawTarLine, tarFishSolids } from './render/tarfish';
 import { atIsleBerth, ISLE_BERTH, JETTY_END, keepOffIsle, onTarIsle, TAR_ISLE, TOWER_DOOR, tarIsleAction, tarIsleZ } from './world/tarisle';
 import { drawTarIsleGround, tarIsleSolids } from './render/tarisle';
@@ -56,6 +56,7 @@ import { LEADER_PRIZE, TarLeader } from './entities/tarleader';
 import { drawLeaderMark, drawTarLeader } from './render/tarleader';
 import { DRAGON_PRIZE, TarDragon } from './entities/tardragon';
 import { drawDragonBalls, drawDragonMark, drawDragonShadow, drawTarDragon } from './render/tardragon';
+import { drawMapTower, drawTarMap } from './render/tarmap';
 import { atBridgeDoor, BRIDGE_SIGHT, bridgeDistance, METAL_BRIDGE, BRIDGE_DOOR, pushOffMetalBridge } from './world/metalbridge';
 import { drawTarOcean, metalBridgeSolids } from './render/metalbridge';
 import { arrive, BACK_A, BRIDGE_THINGS, bridgeAction, CHEM_BOAT_LOOK, bridgeLabel, doorStep, HUB_DOORS, SCIENTIST_SAYS, TAR_NEWS } from './world/bridgein';
@@ -2728,7 +2729,7 @@ function hudTar(){ const el = $('tarBucket'); el.hidden = tarBucket <= 0; if (ta
 $('tarcast').addEventListener('click', useTarRod);
 function startTarSail(){ if (!stealth1) return; tarSail = {x: TAR_BERTH.x, y: TAR_BERTH.y - 20, h: -Math.PI/2, v: 0}; cam.x = tarSail.x; cam.y = tarSail.y;
   climbShown = leaveShown = undefined; elClimb.hidden = true; sfx.whump(); toasts.clear();
-  toast('Out onto the tar ocean in your chemistry boat! Black tar as far as you can see, as big as the whole sea. Black tar fish swim out here: stop by them and cast, and the arrow points to the nearest. Sail back to the green ring at the tar dock to go in.', 6500, 1); }
+  toast('Out onto the tar ocean in your chemistry boat! Black tar as far as you can see, as big as the whole sea. Black tar fish swim out here: stop by them and cast, and the fish arrow points to the nearest. The tar island is out here too: follow the arrow with the tower on it, or look on the map. Sail back to the green ring at the tar dock to go in.', 7500, 1); }
 function endTarSail(){ if (!tarSail) return; if (tarAshore) tarBoard(); tarSail = null; tarRod.stop(); tarRodAt = null; hudTarCast(false); walker.x = CHEM_BOAT_LOOK.x; walker.y = CHEM_BOAT_LOOK.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y;
   climbShown = leaveShown = undefined; sfx.hop(); toasts.clear(); toast('Back in at the tar dock, the chemistry boat tied up again.', 2600, 1); }
 function updateTarSail(dt){ const b = tarSail; T += dt; updateClock(dt); world.T = T;
@@ -2767,7 +2768,7 @@ function drawTarSail(){ const b = tarSail, sch = tarToday(), taken = tarTakenNow
   drawTarFishEyes(drawView, sch, taken, dark);
   // Sailing, the way to the nearest of today's tar fish, to the tar island and back to the tar dock.
   if (!tarAshore){ const near = nearestSchool(sch, taken, b.x, b.y); if (near) indicator(near.x, near.y, '#B8A6CC', '#0E0B12', false);
-    if (Math.hypot(b.x - TAR_ISLE.x, b.y - TAR_ISLE.y) > TAR_ISLE.r + 600) indicator(TAR_ISLE.x, TAR_ISLE.y, '#8A7A6C', 'dock', !tarIsleSeen);
+    if (Math.hypot(b.x - TAR_ISLE.x, b.y - TAR_ISLE.y) > TAR_ISLE.r + 600) indicator(TAR_ISLE.x, TAR_ISLE.y, '#8A7A6C', 'tower', !tarIsleSeen);
     indicator(TAR_BERTH.x, TAR_BERTH.y, '#3FA34D', 'dock', tarBucket > 0 && !near); }
   drawTexts(); drawStick(); }
 // The tar island (world/tarisle.ts): tied up at its jetty, ashore on foot; the sea's own update runs while the figure
@@ -4054,8 +4055,11 @@ function drawMap(){ if (!mapOpen) return; const dpr = Math.min(2, window.deviceP
   if (mapCanvas.style.width !== side + 'px'){ mapCanvas.style.width = mapCanvas.style.height = side + 'px'; }
   const w = Math.round(side * dpr), h = w;
   if (mapCanvas.width !== w || mapCanvas.height !== h){ mapCanvas.width = w; mapCanvas.height = h; }
+  // Out on the tar ocean, its own map: the bridge and the tar dock, the tar island, today's tar fish, the boat.
+  if (tarSail){ const taken = tarTakenNow(); drawTarMap(mapCanvas.getContext('2d'), w, h, {boat: tarSail, schools: tarToday().filter((f, i) => leftIn(taken, i) > 0), T: performance.now() / 1000}); return; }
   seaMap.draw(mapCanvas.getContext('2d'), w, h, {sailed, boat, isles: mapIsles(), marks: mapMarks(), beasts: mapBeasts(), fish: hq.tower ? mapFish(schools, dark) : undefined, T: performance.now() / 1000, farFar: farFarOpen()}); }
-function openMap(){ audio(); sfx.click(); mapOpen = true; elMap.hidden = false;
+function openMap(){ audio(); sfx.click(); mapOpen = true; elMap.hidden = false; $('mapTitle').textContent = tarSail ? 'Tar map' : 'Sea map';
+  if (tarSail){ $('mapNote').textContent = 'The tar ocean, as big as the whole sea. The tar island, with the sorcerer\'s old tower on it, is out on the tar: sail to it and tie up at its jetty. The green ring is the tar dock, the way back in. The little pale fish are today\'s tar fish.'; drawMap(); return; }
   const share = sailedShare(sailed, farFarOpen());
   $('mapNote').textContent = (share >= 1 ? 'No fog left: the whole sea is on the map.' : `You have sailed ${Math.max(1, Math.round(share * 100))}% of the sea. Fog is where you have not been yet.`)
     + (castleHQ ? ' Your observatory marks every leviathan in red.' : '') + (hq.tower ? ' From your tower you see every fish school, each in its own colour.' : ''); drawMap(); }
@@ -5421,6 +5425,7 @@ function indicator(wx,wy,bg,kind,pulse){
   if (kind === 'dock'){ ctx.fillStyle = C.wood; ctx.fillRect(ix-7,iy-6,14,12); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.strokeRect(ix-7,iy-6,14,12);
     ctx.beginPath(); ctx.moveTo(ix-7,iy); ctx.lineTo(ix+7,iy); ctx.stroke(); }
   else if (kind === 'crab') drawSpiderCrab(ctx, ix, iy, 4.2, 0, T*5);
+  else if (kind === 'tower') drawMapTower(ctx, ix, iy + 7, 1.1);
   else if (kind === 'crow') drawFlying(ctx, ix, iy + 5, 1, T*10, 1.9);
   else if (kind === 'bubbles'){ ctx.fillStyle = '#BFEFFF'; for (const [bx, by, br] of [[-3,3,3.2],[3,-1,2.4],[-1,-5,1.8]]){ ctx.beginPath(); ctx.arc(ix+bx, iy+by, br, 0, Math.PI*2); ctx.fill(); } }
   else if (kind === 'pirate'){ ctx.fillStyle = '#fff'; ctx.font = '800 20px Grandstander, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', ix, iy+2); }

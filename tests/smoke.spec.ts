@@ -144,6 +144,7 @@ type Np = {
     hit(n: number): boolean;
   };
   tarLeaderBeaten: boolean;
+  openMap(): void;
   tarDragon: {
     state: string;
     hp: number;
@@ -9636,6 +9637,43 @@ async function outOnTheTar(page: Page): Promise<void> {
   await page.click('#climb');
   await page.waitForFunction(() => window.__np.tarSail !== null);
 }
+
+test('finding the tar island: the sail-out message and the tar map show the way', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  await expect(page.locator('#toast')).toContainText('follow the arrow with the tower on it');
+  // The map button, out on the tar, shows the tar ocean, not the sea.
+  await page.click('#mapBtn');
+  await expect(page.locator('#seamap')).toBeVisible();
+  await expect(page.locator('#mapTitle')).toHaveText('Tar map');
+  await expect(page.locator('#mapNote')).toContainText('The tar island');
+  await page.click('#mapClose');
+  await expect(page.locator('#seamap')).toBeHidden();
+  // Back in at the bridge, the sea map again.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.tarSail === null);
+  await page.evaluate(() => window.__np.openMap());
+  await expect(page.locator('#mapTitle')).toHaveText('Sea map');
+  expect(errors).toEqual([]);
+});
 
 test('the tar island: tied up at its jetty, ashore, up the hill to the tower door, and back aboard', async ({
   context,
