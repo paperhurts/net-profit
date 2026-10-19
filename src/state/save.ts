@@ -190,6 +190,8 @@ export type SaveData = {
   tarTaken: number;
   tarBucket: number;
   tarCaught: number;
+  /** Ashore on the tar island once (world/tarisle.ts): its arrow at the screen's edge stops pulsing. */
+  tarIsleSeen: boolean;
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
@@ -414,6 +416,7 @@ export function defaultSave(b: Bounds): SaveData {
     tarTaken: 0,
     tarBucket: 0,
     tarCaught: 0,
+    tarIsleSeen: false,
     remoroDay: 0,
     hunterDay: 0,
     hq: noHq(),
@@ -609,6 +612,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.tarTaken = int(o.tarTaken) & 0xfff;
   d.tarBucket = Math.max(0, int(o.tarBucket));
   d.tarCaught = Math.max(d.tarBucket, int(o.tarCaught));
+  d.tarIsleSeen = o.tarIsleSeen === true;
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
@@ -783,6 +787,7 @@ export function serializeSave(d: SaveData): string {
     tarTaken: d.tarTaken,
     tarBucket: d.tarBucket,
     tarCaught: d.tarCaught,
+    tarIsleSeen: d.tarIsleSeen,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
     hq: d.hq,

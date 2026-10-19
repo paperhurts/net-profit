@@ -134,6 +134,12 @@ type Np = {
     day: number;
   };
   tarRod: { state: string };
+  tarAshore: boolean;
+  tarIsleSeen: boolean;
+  TAR_ISLE: { x: number; y: number; r: number };
+  ISLE_BERTH: { x: number; y: number };
+  JETTY_END: { x: number; y: number };
+  TOWER_DOOR: { x: number; y: number };
   fishCaught: number;
   trophiesWon: number;
   HQ_WAIT: Record<string, { x: number; y: number }>;
@@ -9570,6 +9576,125 @@ test('tar fish: cast for from the chemistry boat by a school, kept in the tar bu
     250, 0,
   ]);
   await expect(page.locator('#tarBucket')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+/** In at the bridge's door, through to the tar dock, and out on the tar ocean in the chemistry boat. */
+async function outOnTheTar(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB.find((h) => h.to === n.BRIDGE_TARDOCK);
+    if (d) {
+      n.walker.x = d.x;
+      n.walker.y = d.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Out to the tar dock', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_TARDOCK);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((t) => t.act === 'bboat');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Sail the chemistry boat', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.tarSail !== null);
+}
+
+test('the tar island: tied up at its jetty, ashore, up the hill to the tower door, and back aboard', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  // Stopped alongside the island's jetty: ashore.
+  await page.evaluate(() => {
+    const n = window.__np;
+    if (!n.tarSail) return;
+    n.tarSail.x = n.ISLE_BERTH.x + 20;
+    n.tarSail.y = n.ISLE_BERTH.y + 50;
+    n.tarSail.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Ashore on the tar island');
+  expect(
+    await page.evaluate(() => [
+      window.__np.tarAshore,
+      window.__np.walker.state,
+      window.__np.tarIsleSeen,
+    ]),
+  ).toEqual([true, 'ashore', true]);
+  await expect(page.locator('#leave')).toHaveText('Back to the chemistry boat');
+  await expect(page.locator('#bargeBtn')).toBeHidden();
+  // Up the jetty on foot, and no further than its planks and the rock.
+  const y0 = await page.evaluate(() => window.__np.walker.y);
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction((y) => window.__np.walker.y < y - 40, y0, { timeout: 4000 });
+  await page.keyboard.up('ArrowUp');
+  // At the tower's door on the hilltop: barred.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.TOWER_DOOR.x + 4;
+    n.walker.y = n.TOWER_DOOR.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Try the tower door', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('barred from inside');
+  // Back down to the jetty's end, and aboard again: sailing, the walk's buttons put away.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.JETTY_END.x;
+    n.walker.y = n.JETTY_END.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Back aboard', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => !window.__np.tarAshore);
+  expect(
+    await page.evaluate(() => [
+      !!window.__np.tarSail,
+      window.__np.floor === window.__np.BRIDGE_TARDOCK,
+    ]),
+  ).toEqual([true, true]);
+  await expect(page.locator('#leave')).toHaveText('Back to the bridge');
+  await expect(page.locator('#throw')).toBeHidden();
+  await expect(page.locator('#bargeBtn')).toBeHidden();
+  // Ashore again, and straight back aboard with the leave button.
+  await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.tarAshore);
+  await page.click('#leave');
+  await page.waitForFunction(() => !window.__np.tarAshore);
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.tarSail === null);
   expect(errors).toEqual([]);
 });
 
