@@ -45,6 +45,18 @@ type Np = {
     list: { x: number; y: number; hp: number; state: string; t: number }[];
     hit: (m: unknown, power: number) => boolean;
   };
+  displacers: {
+    list: {
+      x: number;
+      y: number;
+      ix: number;
+      iy: number;
+      hp: number;
+      state: string;
+      t: number;
+      shownT: number;
+    }[];
+  };
   revealView: number;
   DOCK12: { x: number; y: number; r: number };
   TOWER12_DOOR: { x: number; y: number };
@@ -7028,6 +7040,77 @@ test("Skull Island: Skrill's men in bone armour come on in pairs, sweep a red fa
   );
   await expect.poll(() => page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(c0 + 70);
   await expect(page.locator('#toast')).toContainText('falls apart', { timeout: 8000 });
+  expect(errors).toEqual([]);
+});
+
+test("Skull Island's displacer beasts: never where they look, a spear goes through, a lash takes three hearts, and just after it a spear lands", async ({
+  context,
+  page,
+}) => {
+  // Ashore off its chin, in the Honor Guard armour, whose knife hits for 4: a displacer beast's four hits.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    armour: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    isle12Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9700, y: 9700, h: (-3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromSkull(0, 1610);
+    n.boat.x = x;
+    n.boat.y = y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Skrill's men out of the way; over to the beast prowling the left of the jaw.
+  await page.evaluate(() => {
+    const n = window.__np;
+    for (const m of n.boneMen.list) m.state = 'gone';
+    const [x, y] = n.fromSkull(-270, 1110);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await expect(page.locator('#toast')).toContainText('displacer beast', { timeout: 4000 });
+  // Its picture stands off to one side of it; a throw at it goes straight through.
+  expect(
+    await page.evaluate(() => {
+      const b = window.__np.displacers.list.find((o) => o.state !== 'prowl');
+      return b ? Math.hypot(b.ix - b.x, b.iy - b.y) : 0;
+    }),
+  ).toBeGreaterThan(20);
+  await page.click('#throw');
+  await expect(page.locator('#toast')).toContainText('not really there', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.displacers.list.every((b) => b.hp === 4))).toBe(
+    true,
+  );
+  // Standing still, a lash lands: three hearts.
+  const h0 = await page.evaluate(() => window.__np.hearts);
+  await page.waitForFunction((h) => window.__np.hearts <= h - 3, h0, { timeout: 8000 });
+  // Just after, it shows where it really is, and the knife lands: beaten, and 60 coins.
+  await page.waitForFunction(
+    () => window.__np.displacers.list.some((b) => b.state === 'recover'),
+    null,
+    { timeout: 2000 },
+  );
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.click('#throw');
+  await page.waitForFunction(
+    () => window.__np.displacers.list.some((b) => b.state === 'fall' || b.state === 'gone'),
+    null,
+    { timeout: 4000 },
+  );
+  await expect.poll(() => page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(c0 + 60);
+  await expect(page.locator('#toast')).toContainText('beaten', { timeout: 8000 });
   expect(errors).toEqual([]);
 });
 
