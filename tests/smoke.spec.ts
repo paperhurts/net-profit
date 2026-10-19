@@ -166,6 +166,7 @@ type Np = {
   };
   eelStage: number;
   chemHp: number;
+  tarTents: { list: { x: number; y: number; state: string; hp: number }[] };
   tarDragon: {
     state: string;
     hp: number;
@@ -10207,6 +10208,72 @@ test('the tar eel: mission 2 at the hologram, it finds the chemistry boat, the h
     2,
     c0 + 4000,
   ]);
+  expect(errors).toEqual([]);
+});
+
+test("red tar tentacles: up in the chemistry boat's way, a slap takes four off, and two harpoons sink one", async ({
+  context,
+  page,
+}) => {
+  // The tar eel beaten, so the boat has its harpoon and the eel is gone.
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    eelStage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  // Out on the open tar and under way: before long one comes up ahead.
+  await page.evaluate(() => {
+    const n = window.__np;
+    if (!n.tarSail) return;
+    n.tarSail.y -= 1400;
+    n.tarSail.h = -Math.PI / 2;
+    // Kept going, as a sailor holding the stick forward would.
+    const keep = setInterval(() => {
+      if (!n.tarSail || n.tarTents.list.length > 0) {
+        clearInterval(keep);
+        return;
+      }
+      n.tarSail.v = 200;
+    }, 50);
+  });
+  await page.waitForFunction(() => window.__np.tarTents.list.length > 0, null, { timeout: 12000 });
+  await page.waitForFunction(() => window.__np.tarTents.list.some((t) => t.state === 'up'), null, {
+    timeout: 4000,
+  });
+  await expect(page.locator('#toast')).toContainText('red tar tentacle');
+  // Stopped right beside it: it slaps, four off the boat's health.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.tarTents.list.find((o) => o.state === 'up');
+    if (!n.tarSail || !t) return;
+    n.tarSail.x = t.x + 60;
+    n.tarSail.y = t.y;
+    n.tarSail.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.chemHp <= 96, null, { timeout: 4000 });
+  await expect(page.locator('#hull')).toBeVisible();
+  // Two harpoons, and it sinks for good: 50 coins.
+  await expect(page.locator('#throw')).toBeVisible();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.tarTents.list.some((t) => t.hp === 1), null, {
+    timeout: 4000,
+  });
+  await page.waitForTimeout(1300);
+  await page.click('#throw');
+  await expect.poll(() => page.evaluate(() => window.__np.coins), { timeout: 4000 }).toBe(50);
   expect(errors).toEqual([]);
 });
 
