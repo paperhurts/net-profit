@@ -45,6 +45,11 @@ type Np = {
     list: { x: number; y: number; hp: number; state: string; t: number }[];
     hit: (m: unknown, power: number) => boolean;
   };
+  skullMen: { list: { state: string }[]; hit: (m: unknown, power: number) => boolean }[];
+  skullBeasts: {
+    list: { state: string; shownT: number }[];
+    hit: (b: unknown, power: number) => boolean;
+  }[];
   displacers: {
     list: {
       x: number;
@@ -7111,6 +7116,88 @@ test("Skull Island's displacer beasts: never where they look, a spear goes throu
   );
   await expect.poll(() => page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(c0 + 60);
   await expect(page.locator('#toast')).toContainText('beaten', { timeout: 8000 });
+  expect(errors).toEqual([]);
+});
+
+test("Skrill's tower: in at its door, up four floors held by his men and his beasts, and his own door shut at the top", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    armour: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    isle12Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9700, y: 9700, h: (-3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromSkull(0, 1610);
+    n.boat.x = x;
+    n.boat.y = y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Up to the tower door, past its guards.
+  await page.evaluate(() => {
+    const n = window.__np;
+    for (const m of n.boneMen.list) m.state = 'gone';
+    for (const b of n.displacers.list) b.state = 'gone';
+    n.walker.x = n.TOWER12_DOOR.x + 6;
+    n.walker.y = n.TOWER12_DOOR.y + 6;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the tower', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction((f) => window.__np.floor === f, 34, { timeout: 3000 });
+  // Each floor: no stairs until all of them are beaten, then up.
+  for (const [k, f] of [34, 35, 36, 37].entries()) {
+    expect(await page.evaluate(() => window.__np.floor)).toBe(f);
+    await page.evaluate(
+      ([k, y]) => {
+        const n = window.__np;
+        n.walker.x = -23500 - 170 * 0.6 * Math.SQRT1_2;
+        n.walker.y = (y as number) - 170 * 0.6 * Math.SQRT1_2;
+        // All but one beaten: still no way up.
+        const men = n.skullMen[k as number];
+        const beasts = n.skullBeasts[k as number];
+        if (!men || !beasts) return;
+        for (const m of men.list) men.hit(m, 99);
+        for (const b of beasts.list.slice(1)) {
+          b.shownT = 5;
+          beasts.hit(b, 99);
+        }
+      },
+      [k, -6000 - 900 * k],
+    );
+    await page.waitForTimeout(300);
+    await expect(page.locator('#climb')).toBeHidden();
+    await page.evaluate((k) => {
+      const n = window.__np;
+      const beasts = n.skullBeasts[k];
+      const b = beasts?.list[0];
+      if (!beasts || !b) return;
+      b.shownT = 5;
+      beasts.hit(b, 99);
+    }, k);
+    if (f === 37) break;
+    await expect(page.locator('#climb')).toHaveText('Climb the stairs', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction((f) => window.__np.floor === f, f + 1, { timeout: 3000 });
+  }
+  // The top: no stairs, only Skrill's own door, shut, and him laughing behind it.
+  await expect(page.locator('#toast')).toContainText('mwa ha ha', { timeout: 4000 });
+  await expect(page.locator('#climb')).toBeHidden();
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 
