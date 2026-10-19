@@ -33,6 +33,7 @@ import {
   drawTarDragon,
 } from '../../src/render/tardragon';
 import { JETTY_END, onTarIsle, tarIsleZ } from '../../src/world/tarisle';
+import { ARENAS, onFloor, ROOMS, type Room } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
@@ -332,6 +333,19 @@ describe('the tar dragon', () => {
     const fig = { ...UNDER };
     until(D, 'spit', 5, () => fig);
     expect(D.x + D.y).toBeLessThan(fig.x + fig.y - 60);
+  });
+
+  it("circles over wherever it is put, as over the Battle Barge's deck, and lands its swoop on the deck", () => {
+    setWalkLand(null);
+    const R = ROOMS[ARENAS.large] as Room;
+    const D = new TarDragon({ x: R.x, y: R.y }, (x, y) => onFloor(x, y));
+    D.here = true;
+    D.reset();
+    expect(Math.hypot(D.x - R.x, D.y - R.y)).toBeLessThan(100);
+    const fig = { x: R.x + 60, y: R.y + 60 };
+    until(D, 'landed', 12, () => fig);
+    expect(D.state).toBe('landed');
+    expect(onFloor(D.x, D.y)).toBe(true);
   });
 });
 

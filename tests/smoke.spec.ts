@@ -650,7 +650,9 @@ type Np = {
     | 'oldone'
     | 'reaper'
     | 'anchorer'
-    | 'spider',
+    | 'spider'
+    | 'tarleader'
+    | 'tardragon',
     {
       up: boolean;
       low?: boolean;
@@ -9484,6 +9486,61 @@ test('the Battle Barge: the giant spider in a web on the deck, beaten only by bu
   await page.locator('#bargeBtn').click();
   await expect(page.locator('#bargeList')).toContainText('You have no bug spray');
   await expect(page.locator('#bargeList [data-foe="spider"][data-d="1"]')).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge: the tar island's bosses, the tar leader on the deck and the tar dragon circling over it, both beaten", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: { size: 'large', pick: { tarleader: 1, tardragon: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeList')).toContainText('The tar leader');
+  await expect(page.locator('#bargeList')).toContainText('The tar dragon');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.large, null, {
+    timeout: 3000,
+  });
+  // Both there; the dragon up off its circle at once, over the deck.
+  await page.waitForFunction(
+    () => {
+      const b = window.__np.bargeBoss;
+      return b.tarleader.length === 1 && b.tardragon.length === 1 && b.tardragon[0]?.up;
+    },
+    null,
+    { timeout: 4000 },
+  );
+  // The leader beaten, calling up two tar humans at half; the dragon only once it is down low, after a swoop: then
+  // the fight's coin.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    for (const b of n.bargeBoss.tarleader) for (let i = 0; i < 4; i++) b.hit(9);
+  });
+  expect(await page.evaluate(() => window.__np.bargeTar.list.length)).toBe(2);
+  for (let i = 0; i < 60; i++) {
+    const done = await page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(9);
+      const d = n.bargeBoss.tardragon[0];
+      // The tar humans he called up at half, as on his island.
+      for (const f of n.bargeTar.list) n.bargeTar.hit(f, 99);
+      if (!d || d.state === 'melt' || d.state === 'gone') return true;
+      if (d.low) d.hit(9);
+      return false;
+    });
+    if (done) break;
+    await page.waitForTimeout(250);
+  }
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 6000 });
   expect(errors).toEqual([]);
 });
 
