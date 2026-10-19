@@ -144,6 +144,16 @@ type Np = {
     hit(n: number): boolean;
   };
   tarLeaderBeaten: boolean;
+  tarDragon: {
+    state: string;
+    hp: number;
+    x: number;
+    y: number;
+    z: number;
+    up: boolean;
+    low: boolean;
+    hit(n: number): boolean;
+  };
   tarFolk: {
     list: { kind: string; state: string; hp: number; x: number; y: number }[];
     hit(f: unknown, n: number): boolean;
@@ -9885,6 +9895,87 @@ test('the tar leader: comes down off the high ground, calls for help at half, is
   await expect(page.locator('#climb')).toHaveText('Try the tower door', { timeout: 3000 });
   await page.click('#climb');
   await expect(page.locator('#toast')).toContainText('All is quiet up on the high ground');
+  expect(errors).toEqual([]);
+});
+
+test('the tar dragon: circles over the tar island, out of reach up high, speared when it lands, and back next landing', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  // Seen from the boat, round and round over the island.
+  const at0 = await page.evaluate(() => ({
+    x: window.__np.tarDragon.x,
+    y: window.__np.tarDragon.y,
+  }));
+  await page.waitForTimeout(600);
+  const moved = await page.evaluate(
+    (a) => Math.hypot(window.__np.tarDragon.x - a.x, window.__np.tarDragon.y - a.y),
+    at0,
+  );
+  expect(moved).toBeGreaterThan(5);
+  expect(await page.evaluate(() => window.__np.tarDragon.state)).toBe('circle');
+  const land = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      if (!n.tarSail) return;
+      n.tarSail.x = n.ISLE_BERTH.x + 20;
+      n.tarSail.y = n.ISLE_BERTH.y + 50;
+      n.tarSail.v = 0;
+    });
+    await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction(() => window.__np.tarAshore);
+  };
+  await land();
+  // Under it on the south-east slope: it shrieks and comes, and up there no spear reaches it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(20);
+    n.walker.x = n.TAR_ISLE.x + 210;
+    n.walker.y = n.TAR_ISLE.y + 190;
+  });
+  await page.waitForFunction(() => window.__np.tarDragon.up, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('The tar dragon!');
+  await expect(page.locator('#throw')).toBeHidden();
+  // It swoops and lands: now the spear reaches it.
+  await page.waitForFunction(() => window.__np.tarDragon.state === 'landed', null, {
+    timeout: 12000,
+  });
+  await expect(page.locator('#throw')).toBeVisible();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.tarDragon.hp < 18, null, { timeout: 3000 });
+  // Beaten while it is down: coins, and it melts away.
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.waitForFunction(() => window.__np.tarDragon.low, null, { timeout: 12000 });
+  expect(await page.evaluate(() => window.__np.tarDragon.hit(99))).toBe(true);
+  await expect(page.locator('#toast')).toContainText('You beat the tar dragon!');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(c0 + 500);
+  // Gone while you sail; back circling the next landing.
+  await page.click('#leave');
+  await page.waitForFunction(() => !window.__np.tarAshore);
+  expect(await page.evaluate(() => window.__np.tarDragon.state)).toBe('gone');
+  await land();
+  expect(
+    await page.evaluate(() => [window.__np.tarDragon.state, window.__np.tarDragon.hp]),
+  ).toEqual(['circle', 18]);
   expect(errors).toEqual([]);
 });
 
