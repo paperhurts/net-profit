@@ -23,6 +23,7 @@ export const SCAN_KINDS = [
   'gator',
   'tarhuman',
   'tarbeast',
+  'tarleader',
   'spider',
   'pelican',
   'sorcerer',
@@ -163,6 +164,11 @@ export const SCANS: Record<ScanKind, Scan> = {
     name: 'A tar beast',
     beat: "Eighteen hits. When it crouches, a red line shows where it will lunge: step off the line! A lunge takes four hearts. It's wise: losing, it runs. Corner it with its back to the tar and it fights again.",
     weak: 'It will not fight a fight it knows it will lose.',
+  },
+  tarleader: {
+    name: 'The tar leader',
+    beat: "Twenty-five hits. When he draws his sword back, a red fan shows where it will sweep: get out of it! When he crouches, a red ring shows where he'll land: get out of that too. Each takes four hearts. At half he calls two tar humans out of the rock.",
+    weak: 'Slow to turn: keep moving round him.',
   },
   spider: {
     name: 'The giant spider',

@@ -53,6 +53,7 @@ const GLOW: Partial<Record<TrophyKind, string>> = {
   lure: 'rgba(255,230,120,.55)',
   light: 'rgba(255,120,200,.5)',
   meteor: 'rgba(255,150,60,.5)',
+  tarsword: 'rgba(181,124,255,.4)',
 };
 
 type Pen = CanvasRenderingContext2D;
@@ -480,6 +481,33 @@ const DRAW: Readonly<Record<TrophyKind, (c: Pen, T: number) => void>> = {
     line(c, `rgba(255,150,60,${k})`, 1, [
       [-1, -7],
       [-2, -11],
+    ]);
+  },
+  // The tar leader's sword, standing point down, a purple gleam running along its edge.
+  tarsword: (c, T) => {
+    oval(c, '#3A3236', 0, -1, 4, 1.6);
+    poly(c, '#100C14', [
+      [-1.6, -1],
+      [1.6, -1],
+      [1.2, -22],
+      [-1.2, -22],
+    ]);
+    poly(c, '#18141C', [
+      [-5, -22],
+      [5, -22],
+      [5, -24],
+      [-5, -24],
+    ]);
+    poly(c, '#18141C', [
+      [-1.2, -24],
+      [1.2, -24],
+      [1.2, -29],
+      [-1.2, -29],
+    ]);
+    const k = 0.55 + 0.45 * Math.sin(T * 2.2);
+    line(c, `rgba(181,124,255,${k})`, 0.8, [
+      [1.3, -3],
+      [1, -21],
     ]);
   },
   // A long white tooth.

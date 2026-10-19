@@ -135,6 +135,15 @@ type Np = {
   };
   tarRod: { state: string };
   tarAshore: boolean;
+  tarLeader: {
+    state: string;
+    hp: number;
+    x: number;
+    y: number;
+    up: boolean;
+    hit(n: number): boolean;
+  };
+  tarLeaderBeaten: boolean;
   tarFolk: {
     list: { kind: string; state: string; hp: number; x: number; y: number }[];
     hit(f: unknown, n: number): boolean;
@@ -7457,7 +7466,7 @@ test("your headquarters' trophy hall: a trophy for each boss beaten, and empty s
     await page.waitForFunction((f) => window.__np.floor === f + 1, floor);
   }
   // The island 2 sorcerer, the Tar Anchorer, the Shark King, island 7's sorcerer, the Forgotten One twice, the Old One.
-  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 21 stands', {
+  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 22 stands', {
     timeout: 3000,
   });
   expect(await page.evaluate(() => window.__np.trophiesWon)).toBe(7);
@@ -9796,6 +9805,86 @@ test('tar creatures: they rise on the tar island, take spears, melt for coins, a
   ]);
   await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
   await expect(page.locator('#leave')).toHaveText('Back to the bridge');
+  expect(errors).toEqual([]);
+});
+
+test('the tar leader: comes down off the high ground, calls for help at half, is beaten for a trophy, and stays beaten', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  const land = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      if (!n.tarSail) return;
+      n.tarSail.x = n.ISLE_BERTH.x + 20;
+      n.tarSail.y = n.ISLE_BERTH.y + 50;
+      n.tarSail.v = 0;
+    });
+    await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction(() => window.__np.tarAshore);
+  };
+  await land();
+  // Up the hill toward him: he roars and comes down.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.tarLeader.x + 60;
+    n.walker.y = n.tarLeader.y + 140;
+  });
+  await page.waitForFunction(() => window.__np.tarLeader.up, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('The tar leader!');
+  const trophies = await page.evaluate(() => window.__np.trophiesWon);
+  // Hurt to half: he roars for help, and two tar humans rise.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    n.tarLeader.hit(13);
+  });
+  await expect(page.locator('#toast')).toContainText('roars for help');
+  expect(await page.evaluate(() => window.__np.tarFolk.list.length)).toBe(8);
+  // Beaten: 3,000 coins, his sword for the trophy hall, and he stays beaten.
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => window.__np.tarLeader.hit(99));
+  await expect(page.locator('#toast')).toContainText('The tar leader is beaten!');
+  expect(
+    await page.evaluate(() => [
+      window.__np.tarLeaderBeaten,
+      window.__np.coins,
+      window.__np.trophiesWon,
+    ]),
+  ).toEqual([true, c0 + 3000, trophies + 1]);
+  await page.click('#leave');
+  await page.waitForFunction(() => !window.__np.tarAshore);
+  await land();
+  expect(
+    await page.evaluate(() => [window.__np.tarLeader.state, window.__np.tarFolk.list.length]),
+  ).toEqual(['gone', 6]);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.TOWER_DOOR.x + 4;
+    n.walker.y = n.TOWER_DOOR.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Try the tower door', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('All is quiet up on the high ground');
   expect(errors).toEqual([]);
 });
 

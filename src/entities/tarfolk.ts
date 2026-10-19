@@ -103,6 +103,8 @@ export type TarFolk = {
   /** A beast that has been cornered fights on to the end. */
   cornered: boolean;
   stuckT: number;
+  /** Called up out of the rock by the tar leader: gone again at the next landing. */
+  extra?: boolean;
 };
 
 /** Where they stand: tar humans round the shore, tar beasts up the hill, none near the jetty. */
@@ -149,8 +151,35 @@ export class TarFolks implements Entity {
     });
   }
 
-  /** All back where they stand, whole. */
+  /** Tar humans called up out of the rock round (x, y), rising at once: the tar leader's help. */
+  summon(at: readonly Point[]): void {
+    for (const p of at) {
+      const f: TarFolk = {
+        kind: 'human',
+        x: p[0],
+        y: p[1],
+        h: 0,
+        home: p,
+        hp: TAR_SPEC.human.hp,
+        state: 'rise',
+        t: 0,
+        flash: 0,
+        stunT: 0,
+        from: p,
+        to: p,
+        step: 0,
+        cornered: false,
+        stuckT: 0,
+        extra: true,
+      };
+      this.list.push(f);
+      this.onRise?.(f);
+    }
+  }
+
+  /** All back where they stand, whole; any called up are gone. */
   reset(): void {
+    for (let i = this.list.length - 1; i >= 0; i--) if (this.list[i]?.extra) this.list.splice(i, 1);
     for (const f of this.list) {
       [f.x, f.y] = f.home;
       f.hp = TAR_SPEC[f.kind].hp;

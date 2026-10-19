@@ -824,6 +824,13 @@ describe("the tar ocean's fish", () => {
     expect([r.tarDay, r.tarTaken, r.tarBucket, r.tarCaught]).toEqual([9, 0b101000000011, 4, 7]);
   });
 
+  it('has the tar leader unbeaten in a save from before him, and keeps him beaten', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.tarLeaderBeaten).toBe(false);
+    s.tarLeaderBeaten = true;
+    expect(parseSave(serializeSave(s), bounds).tarLeaderBeaten).toBe(true);
+  });
+
   it('has the tar island unvisited in a save from before it, and keeps it visited', () => {
     const s = parseSave(legacy, bounds);
     expect(s.tarIsleSeen).toBe(false);
