@@ -31,7 +31,8 @@ export type RoomKind =
   | 'perch'
   | 'crypt'
   | 'arena'
-  | 'bridge';
+  | 'bridge'
+  | 'skull';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -86,6 +87,11 @@ export const ROOMS: readonly Room[] = [
   { x: -22000, y: -6000, r: 140, roof: false, kind: 'bridge' },
   { x: -22000, y: -7000, r: 140, roof: false, kind: 'bridge' },
   { x: -22000, y: -8000, r: 150, roof: false, kind: 'bridge' },
+  // Skrill's tower on Skull Island: four floors of black stone lit purple, held by his men and his displacer beasts.
+  { x: -23500, y: -6000, r: ROOM_R + 40, roof: false, kind: 'skull' },
+  { x: -23500, y: -6900, r: ROOM_R + 40, roof: false, kind: 'skull' },
+  { x: -23500, y: -7800, r: ROOM_R + 40, roof: false, kind: 'skull' },
+  { x: -23500, y: -8700, r: ROOM_R + 40, roof: false, kind: 'skull' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -119,6 +125,8 @@ export const BRIDGE_SCIENCE = 30;
 export const BRIDGE_MISSIONS = 31;
 export const BRIDGE_NEWS = 32;
 export const BRIDGE_TARDOCK = 33;
+/** Skrill's tower: its four floors, in order, in ROOMS. The way up from the last is his own door, shut. */
+export const SKULL_FLOORS: readonly number[] = [34, 35, 36, 37];
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },
