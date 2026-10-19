@@ -69,6 +69,13 @@ export const BED_IN = onWall(BRIDGE_YOU, Math.PI * 1.32, 34);
 export const MIRROR_IN = onWall(BRIDGE_YOU, Math.PI * 1.66, 20);
 /** The scientist, at the back of the science room between the benches. */
 export const SCIENTIST = onWall(BRIDGE_SCIENCE, Math.PI * 1.3, 52);
+/**
+ * The evil monkey's cage, in the science room's far corner from the door, once the tar eel is beaten: the kid's ("in the
+ * bridge"; "it is the same monkey as island 4 DO NOT LET IT OUT").
+ */
+export const MONKEY_CAGE = onWall(BRIDGE_SCIENCE, Math.PI * 1.68, 20);
+/** Where to stand to look at it: in front of it, not in it. */
+export const CAGE_LOOK = onWall(BRIDGE_SCIENCE, Math.PI * 1.68, 64);
 /** The round table the hologram turns over, in the middle of the missions room. */
 export const HOLO = centre(BRIDGE_MISSIONS, 8);
 /** The news screen on the news room's back wall, and the tank with the tentacle in it. */
@@ -88,6 +95,7 @@ export const BRIDGE_THINGS: readonly { room: number; at: Pt; act: string }[] = [
   { room: BRIDGE_YOU, at: BED_IN, act: 'bbed' },
   { room: BRIDGE_YOU, at: MIRROR_IN, act: 'bmirror' },
   { room: BRIDGE_SCIENCE, at: SCIENTIST, act: 'bsci' },
+  { room: BRIDGE_SCIENCE, at: CAGE_LOOK, act: 'bcage' },
   { room: BRIDGE_MISSIONS, at: HOLO, act: 'bmission' },
   { room: BRIDGE_NEWS, at: NEWS_READ, act: 'bnews' },
   { room: BRIDGE_NEWS, at: TANK, act: 'btank' },
@@ -98,7 +106,7 @@ export const BRIDGE_THINGS: readonly { room: number; at: Pt; act: string }[] = [
 /**
  * What the climb button does for the figure at (x, y) in room i inside the bridge: through a door ('bdoor-' and the
  * room it goes to), or one of the things in the room; or nothing. The bed only while there is a night to sleep through,
- * the chemistry boat only once it is yours.
+ * the chemistry boat only once it is yours, the monkey's cage only once it is in it.
  */
 export function bridgeAction(
   i: number,
@@ -106,6 +114,7 @@ export function bridgeAction(
   y: number,
   canSleep: boolean,
   hasBoat = false,
+  caged = false,
 ): string | null {
   const near = (p: Pt, r: number) => Math.hypot(x - p.x, y - p.y) < r;
   if (i === BRIDGE_OBS) {
@@ -117,6 +126,7 @@ export function bridgeAction(
       t.room === i &&
       (t.act !== 'bbed' || canSleep) &&
       (t.act !== 'bboat' || hasBoat) &&
+      (t.act !== 'bcage' || caged) &&
       near(t.at, THING_REACH)
     )
       return t.act;
@@ -142,6 +152,7 @@ export function bridgeLabel(act: string): string {
       btank: 'Tap the glass',
       btar: 'Look at the tar animal',
       bboat: 'Sail the chemistry boat',
+      bcage: 'Look at the monkey',
     }[act] ?? ''
   );
 }
@@ -154,6 +165,14 @@ export const TAR_NEWS: readonly string[] = [
   'TAR NEWS: A tar dragon flew over the tower on the hill. It had a lot of legs. Nobody counted them all.',
   'TAR NEWS: The scientist says the tentacle in the tank is "doing fine" and "only a little bit grumpy".',
   'TAR NEWS: Weather on the tar side: sticky, with a chance of bubbles.',
+];
+
+/** The evil monkey in its cage, one look after another; and the scientist, every time: do not let it out. */
+export const MONKEY_SAYS: readonly string[] = [
+  'The evil monkey from island 4, the one that called up the tar monster! It rattles the bars and chatters at you. The scientist: "DO NOT LET IT OUT!"',
+  'The evil monkey holds out its paw through the bars, all sweet, as if it wants to shake hands. The scientist: "Don\'t. Do NOT let it out."',
+  'The evil monkey points at the lock, then at you, and grins. The scientist: "Nope. It stays in there."',
+  'The evil monkey blows a raspberry at you and hangs upside down from the top of the cage. The scientist: "Ignore it. It wants you to open the door."',
 ];
 
 /** What the scientist says, one after another, the first only the first time. */

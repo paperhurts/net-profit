@@ -13,6 +13,7 @@ import {
   HOLO,
   HUB_DOORS,
   MIRROR_IN,
+  MONKEY_CAGE,
   NEWS_SCREEN,
   onWall,
   type Pt,
@@ -40,8 +41,18 @@ const DOOR_H = 62;
 const DOOR_W = 20;
 const TAR = '#17121B';
 
-/** What is going on in there now: the scientist talking, the tentacle slapping its glass, and which news is up. */
-export type BridgeAnim = { talk: number; slap: number; news: number; boat?: boolean };
+/**
+ * What is going on in there now: the scientist talking, the tentacle slapping its glass, and which news is up; and
+ * whether the evil monkey is in its cage, and how hard it is rattling the bars.
+ */
+export type BridgeAnim = {
+  talk: number;
+  slap: number;
+  news: number;
+  boat?: boolean;
+  caged?: boolean;
+  rattle?: number;
+};
 
 const hash = (i: number, k: number): number => {
   const h = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
@@ -390,6 +401,7 @@ export function bridgeSolids(v: DrawView, i: number, anim: BridgeAnim): Solid[] 
       at(b, () => drawBench(v, b, a), 10);
     }
     at(SCIENTIST, () => drawScientist(v, SCIENTIST, anim.talk));
+    if (anim.caged) at(MONKEY_CAGE, () => drawMonkeyCage(v, MONKEY_CAGE, anim.rattle ?? 0), 14);
   }
   if (i === BRIDGE_MISSIONS) at(HOLO, () => drawHolo(v, HOLO));
   if (i === BRIDGE_NEWS) at(TANK, () => drawTank(v, TANK, anim.slap), 13);
@@ -868,4 +880,108 @@ function drawChemBoat(v: DrawView, p: Pt): void {
     );
     ctx.fill();
   }
+}
+
+/**
+ * The evil monkey from island 4 in its cage: a round cage of iron bars on a plate, a ring on top to hang it by, a
+ * padlock on its door; inside, the monkey in its skull mask, hanging on the bars and grinning, rattling them when looked at.
+ */
+function drawMonkeyCage(v: DrawView, p: Pt, rattle: number): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  const R = 15;
+  const H = 46;
+  const shake = rattle > 0 ? Math.sin(T * 50) * 1.6 * rattle : 0;
+  box(v, p.x - 18, p.y - 18, 36, 36, 0, 6, '#3E474F', '#353D44', '#59646D');
+  const at = (a: number, z: number) => ({
+    x: px(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R) + shake * Z,
+    y: py(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, z),
+  });
+  const bars = 14;
+  // The bars behind the monkey first.
+  const bar = (k: number) => {
+    const a = (k / bars) * Math.PI * 2;
+    const lo = at(a, 6);
+    const hi = at(a, H);
+    ctx.beginPath();
+    ctx.moveTo(lo.x, lo.y);
+    ctx.lineTo(hi.x, hi.y);
+    ctx.stroke();
+  };
+  ctx.strokeStyle = '#2A2F35';
+  ctx.lineWidth = 1.6 * Z;
+  const front = (k: number) => Math.sin((k / bars) * Math.PI * 2 + Math.PI / 4) > 0;
+  for (let k = 0; k < bars; k++) if (!front(k)) bar(k);
+  // The monkey: brown, in its skull mask, hanging on the bars with its arms up, swinging a little.
+  const mx = px(p.x, p.y) + shake * Z + Math.sin(T * 2) * 1.5 * Z;
+  const my = py(p.x, p.y, 10);
+  const K = Z * 1.5;
+  ctx.strokeStyle = '#6B4A2C';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2.2 * K;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(mx + side * 3 * K, my - 12 * K);
+    ctx.lineTo(mx + side * (7 + rattle * 2) * K, my - (20 + rattle * 3) * K);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mx + side * 2 * K, my - 4 * K);
+    ctx.lineTo(mx + side * 4 * K, my);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#7A5634';
+  ctx.beginPath();
+  ctx.ellipse(mx, my - 8 * K, 4 * K, 5 * K, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#7A5634';
+  ctx.lineWidth = 1.4 * K;
+  ctx.beginPath();
+  ctx.moveTo(mx + 3 * K, my - 4 * K);
+  ctx.quadraticCurveTo(mx + 10 * K, my - 2 * K, mx + 8 * K, my - 10 * K);
+  ctx.stroke();
+  ctx.fillStyle = '#F4F1E6';
+  ctx.beginPath();
+  ctx.arc(mx, my - 16 * K, 3.6 * K, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1E2227';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(mx + e * 1.4 * K, my - 16.5 * K, 0.9 * K, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = `rgba(255,60,40,${0.6 + 0.4 * Math.sin(T * 4)})`;
+  for (const e of [-1, 1])
+    ctx.fillRect(mx + e * 1.4 * K - 0.4 * K, my - 16.9 * K, 0.8 * K, 0.8 * K);
+  ctx.strokeStyle = '#1E2227';
+  ctx.lineWidth = 0.7 * K;
+  ctx.beginPath();
+  ctx.arc(mx, my - 15 * K, 1.6 * K, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+  // The bars in front, the rings round the top and bottom, the hanging ring, and the padlock.
+  ctx.strokeStyle = '#2A2F35';
+  ctx.lineWidth = 1.6 * Z;
+  for (let k = 0; k < bars; k++) if (front(k)) bar(k);
+  for (const z of [6, H]) {
+    ctx.beginPath();
+    for (let k = 0; k <= 24; k++) {
+      const q = at((k / 24) * Math.PI * 2, z);
+      if (k === 0) ctx.moveTo(q.x, q.y);
+      else ctx.lineTo(q.x, q.y);
+    }
+    ctx.lineWidth = 2.2 * Z;
+    ctx.stroke();
+  }
+  const top = { x: px(p.x, p.y) + shake * Z, y: py(p.x, p.y, H + 8) };
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.arc(top.x, top.y, 4 * Z, 0, Math.PI * 2);
+  ctx.stroke();
+  const lock = at(Math.PI / 4, 24);
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(lock.x - 3 * Z, lock.y - 2 * Z, 6 * Z, 5 * Z);
+  ctx.strokeStyle = '#8A6A1A';
+  ctx.lineWidth = 1.2 * Z;
+  ctx.beginPath();
+  ctx.arc(lock.x, lock.y - 2 * Z, 2 * Z, Math.PI, 0);
+  ctx.stroke();
 }

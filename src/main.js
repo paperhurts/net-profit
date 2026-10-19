@@ -63,7 +63,7 @@ import { EEL_BITE, EEL_CALM, EEL_HP, EEL_PRIZE, TarEel } from './entities/tareel
 import { drawEelMark, eelSolids } from './render/tareel';
 import { atBridgeDoor, BRIDGE_SIGHT, bridgeDistance, METAL_BRIDGE, BRIDGE_DOOR, pushOffMetalBridge } from './world/metalbridge';
 import { drawTarOcean, metalBridgeSolids } from './render/metalbridge';
-import { arrive, BACK_A, BRIDGE_THINGS, bridgeAction, CHEM_BOAT_LOOK, bridgeLabel, doorStep, HUB_DOORS, SCIENTIST_SAYS, TAR_NEWS } from './world/bridgein';
+import { arrive, BACK_A, BRIDGE_THINGS, bridgeAction, CHEM_BOAT_LOOK, bridgeLabel, doorStep, HUB_DOORS, MONKEY_SAYS, SCIENTIST_SAYS, TAR_NEWS } from './world/bridgein';
 import { bridgeSolids, drawBridgeBack } from './render/bridgein';
 import { INVIS_T, INVIS_WAIT, PORTAL_AT, ROOF_START, SORC_AT, Stealth, STEALTH_GOAL, STEALTH_START, TOWER_H } from './world/stealth';
 import { drawRoofBack, drawTunnelBack, roofSolids, tunnelSolids } from './render/stealth';
@@ -2721,7 +2721,7 @@ function throughLandingGate(){ if (!landingNear()) return; walker.landIn(LANDING
 // off it; out again from anywhere, back aboard where the boat was left, as at the castle's landing.
 const BRIDGEIN_DOCK = {x: BRIDGE_DOOR.x, y: BRIDGE_DOOR.y, r: 170, berth: () => ({x: boat.x, y: boat.y, h: boat.h}), landing: BRIDGE_DOOR};
 const BRIDGE_TOWER = {dock: BRIDGEIN_DOCK, door: BRIDGE_DOOR, first: BRIDGE_OBS, roof: -1, boss: null};
-let bridgeTalk = 0, bridgeSlap = 0, bridgeNews = 0, sciSaid = 0, sciPraised = false;
+let bridgeTalk = 0, bridgeSlap = 0, bridgeNews = 0, sciSaid = 0, sciPraised = false, cageRattle = 0, monkeySaid = 0;
 function bridgeDoorNear(){ return walker.aboard && !cine && !seaFight && swallowT <= 0 && atBridgeDoor(boat.x, boat.y, boat.v); }
 function intoBridge(){ if (!bridgeDoorNear()) return; walker.landIn(BRIDGEIN_DOCK, BRIDGE_DOOR.x, BRIDGE_DOOR.y); walkView = 1;
   resetTowers(); towerWon = false; tower = BRIDGE_TOWER; toRoom(BRIDGE_OBS); sfx.whump(); toasts.clear(); const first = !bridgeIn; bridgeIn = true; save();
@@ -2777,7 +2777,8 @@ tarEel.onFree = () => { if (tarSail) addText(tarSail.x, tarSail.y, 50, 'Free!', 
 tarEel.onPull = () => pullUnder(true);
 tarEel.onBeaten = () => { eelStage = 2; coins += EEL_PRIZE; earned += EEL_PRIZE; sfx.orderFilled(); shake = Math.max(shake, .7);
   addText(tarEel.x, tarEel.y, 80, '+' + EEL_PRIZE, C.coin, 26, 2.4); hud(); save(); toasts.clear();
-  toast(`You beat the tar eel! Six harpoons, and it thrashes and sinks into the tar for good. Mission 2 done: ${EEL_PRIZE.toLocaleString()} coins!`, 6500, 2); };
+  toast(`You beat the tar eel! Six harpoons, and it thrashes and sinks into the tar for good. Mission 2 done: ${EEL_PRIZE.toLocaleString()} coins!`, 6500, 2);
+  toast('Up where it sank, a cage bobs to the top of the tar, with a monkey in it: the evil monkey from island 4! The scientist keeps it in the science room. Do NOT let it out.', 6000, 1); };
 function startMission2(){ sfx.portal(); toasts.clear();
   if (eelStage === 0){ eelStage = 1; save(); }
   toast('Mission 2: the tar eel! Its hologram turns over the table: twice as long as a leviathan, and it hunts the whole tar ocean. The scientist has fitted a harpoon to your chemistry boat. Sail out on the tar and it will find you. Harpoon its head when it is up, six times. Its bite takes a fifth of the boat\'s health, and if it wraps you, it pulls you under!', 9000, 2); }
@@ -2898,6 +2899,7 @@ function useBridge(a){
   else if (a === 'bmission'){ if (stealth1 && eelStage < 2) startMission2(); else startMission1(); }
   else if (a === 'bboat') startTarSail();
   else if (a === 'bnews'){ sfx.click(); toast(TAR_NEWS[bridgeNews], 5200, 1); bridgeNews = (bridgeNews + 1) % TAR_NEWS.length; }
+  else if (a === 'bcage'){ cageRattle = 1; sfx.squeak(); toast(MONKEY_SAYS[monkeySaid], 5000, 1); monkeySaid = (monkeySaid + 1) % MONKEY_SAYS.length; }
   else if (a === 'btank'){ bridgeSlap = 1; sfx.whump(); shake = Math.max(shake, .2); toast('Tap, tap... SLAP! The tentacle in the tank slaps the glass right where you tapped. It is kept here for testing, and it does not like being tapped.', 5000, 1); }
   else if (a === 'btar'){ sfx.click(); toast('Out in the tar past the rail, a tar animal with tentacles watches you with glowing yellow eyes. It stays in the tar and never comes out of it.', 5200, 1); } }
 // Stealth mission 1 (world/stealth.ts), the kid's: from the bridge's missions room, down into his tunnels under the tar
@@ -3105,7 +3107,7 @@ function climbAction(){
     if (walker.dock === ISLE7_DOCK && isle7Stage >= 1 && portalOpen >= 1 && Math.hypot(walker.x - PORTAL7.x, walker.y - PORTAL7.y) < PORTAL7.r * .7) return 'castle';
     if (walker.dock === ISLE11_DOCK && isle7Stage >= 4 && Math.hypot(walker.x - PORTAL11_FRONT.x, walker.y - PORTAL11_FRONT.y) < STEP + 4) return 'oldplace';
     return towerAtDoor() ? 'door' : null; }
-  if (tower === BRIDGE_TOWER) return bridgeAction(floor, walker.x, walker.y, phase !== 'Dawn', stealth1);
+  if (tower === BRIDGE_TOWER) return bridgeAction(floor, walker.x, walker.y, phase !== 'Dawn', stealth1, eelStage >= 2);
   if (inGigantis()){ const h = hordes[floor], st = stairs(floor); if (fgScene) return null;
     if (floor === THRONE){ if (isle7Stage >= 3 && Math.hypot(walker.x - LOCKED.x, walker.y - LOCKED.y) < LOCKED_REACH) return 'onward';
       const a = castleHQ ? nearArmoury(walker.x - ROOMS[THRONE].x, walker.y - ROOMS[THRONE].y) : null; return a ? 'armoury-' + a : null; }
@@ -3425,7 +3427,7 @@ function eatSnack(k){ audio(); if (!snacks[k]) return;
   else { carrotT = SNACK_FOR; addText(walker.x, walker.y, 34, 'Crunch! Strong!', '#FFB45A', 17, 1.3); }
   snacks[k]--; sfx.nom(); hudSnacks(); save(); }
 for (const k of SNACK_KINDS) $(SNACK_ID[k]).addEventListener('click', () => eatSnack(k));
-function updateSnacks(dt){ forgeT = Math.max(0, forgeT - dt); bridgeTalk = Math.max(0, bridgeTalk - dt); bridgeSlap = Math.max(0, bridgeSlap - dt * 2); updateCrows(); updateSunken(); appleT = Math.max(0, appleT - dt); carrotT = Math.max(0, carrotT - dt); walker.speedK = appleT > 0 ? APPLE_PACE : 1;
+function updateSnacks(dt){ forgeT = Math.max(0, forgeT - dt); bridgeTalk = Math.max(0, bridgeTalk - dt); bridgeSlap = Math.max(0, bridgeSlap - dt * 2); cageRattle = Math.max(0, cageRattle - dt * 1.2); updateCrows(); updateSunken(); appleT = Math.max(0, appleT - dt); carrotT = Math.max(0, carrotT - dt); walker.speedK = appleT > 0 ? APPLE_PACE : 1;
   if (storeOpen && (walker.state !== 'ashore' || !OldMan.reaches(walker.x, walker.y))) closeStore10();
   if (rosterOpen && (floor !== GATE || walker.state !== 'ashore' || Math.hypot(walker.x - HQ_ROSTER.x, walker.y - HQ_ROSTER.y) > ROSTER_REACH + 30)) closeRoster();
   if (hqOpen && (floor !== GATE || walker.state !== 'ashore' || Math.hypot(walker.x - HQ_PLANS.x, walker.y - HQ_PLANS.y) > PLANS_REACH + 30)) closeHq();
@@ -5663,7 +5665,7 @@ function drawRoom(){
     if (towerWon){ ctx.strokeStyle = C.wood; ctx.lineWidth = 2.4*Z; ctx.beginPath(); ctx.moveTo(px(R.x,R.y),py(R.x,R.y,0)); ctx.lineTo(px(R.x,R.y),py(R.x,R.y,60)); ctx.stroke();
       drawFlagAt(px(R.x,R.y), py(R.x,R.y,60), 22*Z, 15*Z, flag || START_FLAG, Math.sin(T*5)*3*Z, 1); } }
   else if (R.kind === 'arena') drawArenaBack(drawView, R, W, H);
-  else if (R.kind === 'bridge') drawBridgeBack(drawView, R, floor, W, H, {talk: bridgeTalk, slap: bridgeSlap, news: bridgeNews, boat: stealth1});
+  else if (R.kind === 'bridge') drawBridgeBack(drawView, R, floor, W, H, {talk: bridgeTalk, slap: bridgeSlap, news: bridgeNews, boat: stealth1, caged: eelStage >= 2, rattle: cageRattle});
   else if (under){ if (R.kind === 'hall'){ drawHallBack(drawView, R, W, H); if (isle3Stage >= 2) drawPortal(drawView, PORTAL.x, PORTAL.y); } else if (R.kind === 'temple') drawHallBack(drawView, R, W, H, true); else drawDemonBack(drawView, R, W, H); }
   else {
   const perch = R.kind === 'perch';
@@ -5720,7 +5722,7 @@ function drawRoom(){
   if (floor === HALL_B && castleHQ){ const got = treasuresFound(finds()); actors.push({d: HQ_HEAP.x + HQ_HEAP.y, f: () => drawTreasureHeap(drawView, HQ_HEAP.x, HQ_HEAP.y, got)}); }
   if (floor === HALL_B && castleHQ){ const b = beaten(); TROPHY_KINDS.forEach((k, i) => { const s = standAt(i), x = ROOMS[HALL_B].x + s.dx, y = ROOMS[HALL_B].y + s.dy;
     actors.push({d: x + y, f: () => drawStand(drawView, x, y, TROPHIES[k].won(b) ? k : null)}); }); }
-  if (R.kind === 'bridge') actors.push(...bridgeSolids(drawView, floor, {talk: bridgeTalk, slap: bridgeSlap, news: bridgeNews, boat: stealth1}));
+  if (R.kind === 'bridge') actors.push(...bridgeSolids(drawView, floor, {talk: bridgeTalk, slap: bridgeSlap, news: bridgeNews, boat: stealth1, caged: eelStage >= 2, rattle: cageRattle}));
   for (const a of allies.list) actors.push({d: a.x + a.y, f: () => allies.drawBody(drawView, a)});
   if (floor === ROOF10){ drawScoopRing(drawView, pelican); actors.push({d: pelican.nest.x + pelican.nest.y - 30, f: () => drawPerchNest(drawView, pelican)});
     // Up in the air it is over everything on the roof.
