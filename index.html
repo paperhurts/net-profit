@@ -318,12 +318,12 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
-#tester,#boats,#bargeCard,#badges,#stayCard,#charCard,#store10,#hqCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#bargeCard h2,#badges h2,#stayCard h2,#charCard h2,#store10 h2,#hqCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
-#tester .tnote,#boats .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
+#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#charCard,#store10,#hqCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#charCard h2,#store10 h2,#hqCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester .tnote,#boats .tnote,#orbCard .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
 #carry input{flex:1;min-width:0;height:40px;padding:0 10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);font:700 14px var(--font);box-shadow:inset 0 2px 0 rgba(0,0,0,.12)}
@@ -336,9 +336,10 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #tester .tstep.added{background:#3FB37A;color:#fff;opacity:1}
 #tester .tstep .tk{flex:none;font-size:13px}
 #testerBtn{border:2px dashed rgba(0,0,0,.35)}
-#boats .boat,#bargeCard .boat,#badges .boat,#stayCard .boat{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
-#boats .boat b,#bargeCard .boat b,#badges .boat b,#stayCard .boat b{display:block;font-size:15px;font-weight:800}
+#boats .boat,#orbCard .boat,#bargeCard .boat,#badges .boat,#stayCard .boat{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
+#boats .boat b,#orbCard .boat b,#bargeCard .boat b,#badges .boat b,#stayCard .boat b{display:block;font-size:15px;font-weight:800}
 #boats .boat small,#bargeCard .boat small,#badges .boat small,#stayCard .boat small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:2px 0 8px}
+#orbCard ul{margin:6px 0 0;padding-left:18px;font-size:13px;font-weight:700;line-height:1.35}#orbCard li{margin:0 0 5px}#orbCard .boat p{margin:6px 0 0;font-size:13px;font-weight:700;line-height:1.35}#orbCard .boat b{color:#7A4CC2}
 #boats .boat small.seat{margin:10px 0 5px;color:var(--card-fg)}
 #boats .bchips,#bargeCard .bchips,#badges .bchips,#stayCard .bchips,#charCard .bchips{display:flex;flex-wrap:wrap;gap:6px}
 #boats .rchip,#bargeCard .rchip,#badges .rchip,#stayCard .rchip,#charCard .rchip{height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 13px var(--font)}
@@ -583,6 +584,15 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
       <p class="tnote" id="bargeTotal"></p>
       <button class="go" id="bargeGo">Fight!</button>
     </div>
+  </div>
+</section>
+<section id="orbCard" hidden aria-label="The orb">
+  <div class="planks">
+    <h2>The orb <button class="pill icon" id="orbClose" aria-label="Take your hand out of the orb">✕</button></h2>
+    <p class="tnote">You put your hand in the orb. It is warm, and it fills with light, and it shows you things.</p>
+    <div class="boat"><b>The boats</b><ul id="orbBoats"></ul></div>
+    <div class="boat"><b>The past</b><ul id="orbPast"></ul></div>
+    <div class="boat"><b>And more</b><p id="orbNext"></p></div>
   </div>
 </section>
 <section id="boats" hidden aria-label="Boats">

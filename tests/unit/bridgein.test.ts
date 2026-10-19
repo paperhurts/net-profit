@@ -10,14 +10,19 @@ import {
   bridgeAction,
   bridgeLabel,
   doorStep,
+  HATCH,
   HUB_DOORS,
+  LADDER_UP,
   MONKEY_SAYS,
+  ORB_ROOF,
+  ORB_TOUCH,
   SCIENTIST_SAYS,
   TAR_ANIMAL,
   TAR_NEWS,
 } from '../../src/world/bridgein';
 import {
   BRIDGE_OBS,
+  BRIDGE_ROOF,
   BRIDGE_SCIENCE,
   BRIDGE_TARDOCK,
   BRIDGE_YOU,
@@ -30,9 +35,10 @@ import { fakeView } from './helpers/view';
 const anim = { talk: 0, slap: 0, news: 0 };
 
 describe("inside the kid's metal bridge", () => {
-  it('is the observatory with a door to each of five rooms, each with a door back', () => {
-    expect(BRIDGE_INSIDE).toHaveLength(6);
-    expect(new Set(BRIDGE_INSIDE).size).toBe(6);
+  it('is the observatory with a door to each of five rooms, each with a door back, and its roof', () => {
+    expect(BRIDGE_INSIDE).toHaveLength(7);
+    expect(new Set(BRIDGE_INSIDE).size).toBe(7);
+    expect(BRIDGE_INSIDE).toContain(BRIDGE_ROOF);
     for (const i of BRIDGE_INSIDE) expect((ROOMS[i] as Room).kind).toBe('bridge');
     expect(HUB_DOORS.map((d) => d.sign)).toEqual([
       'YOU',
@@ -106,13 +112,15 @@ describe("inside the kid's metal bridge", () => {
     for (const i of BRIDGE_INSIDE) {
       const { v, calls } = fakeView();
       drawBridgeBack(v, ROOMS[i] as Room, i, 390, 780, anim);
-      expect(calls.fill ?? 0).toBeGreaterThan(20);
+      // The roof is open sky, the sea and the tar, and its deck; the rooms are walls and windows and doors.
+      expect(calls.fill ?? 0).toBeGreaterThan(i === BRIDGE_ROOF ? 4 : 20);
       const solids = bridgeSolids(v, i, { talk: 1, slap: 1, news: 3 });
       for (const s of solids) s.f();
       counts.push(solids.length);
     }
-    // The telescope; the bed and the mirror; two benches and the scientist; the table; the tank; the tar animal.
-    expect(counts).toEqual([1, 2, 3, 1, 1, 1]);
+    // The telescope and the ladder; the bed and the mirror; two benches and the scientist; the table; the tank; the tar
+    // animal; and on the roof, the orb and the near side of its rail.
+    expect(counts).toEqual([2, 2, 3, 1, 1, 1, 2]);
     // With the evil monkey in its cage, the science room has it too.
     const { v } = fakeView();
     const caged = bridgeSolids(v, BRIDGE_SCIENCE, {
@@ -124,5 +132,35 @@ describe("inside the kid's metal bridge", () => {
     });
     expect(caged.length).toBe(4);
     for (const s of caged) s.f();
+  });
+
+  it("has a ladder up from the observatory to the roof, and the orb in the roof's middle to put a hand in", () => {
+    // Up the ladder, onto the roof by its hatch, a step clear of it; and back down the same way.
+    expect(roomAt(LADDER_UP.x, LADDER_UP.y)).toBe(BRIDGE_OBS);
+    expect(bridgeAction(BRIDGE_OBS, LADDER_UP.x, LADDER_UP.y, true)).toBe(`bdoor-${BRIDGE_ROOF}`);
+    expect(bridgeLabel(`bdoor-${BRIDGE_ROOF}`)).toBe('Up the ladder to the roof');
+    const up = arrive(BRIDGE_OBS, BRIDGE_ROOF);
+    expect(roomAt(up.x, up.y)).toBe(BRIDGE_ROOF);
+    expect(walkable(up.x, up.y, 0)).toBe(true);
+    expect(bridgeAction(BRIDGE_ROOF, up.x, up.y, true)).toBeNull();
+    expect(bridgeAction(BRIDGE_ROOF, HATCH.x, HATCH.y, true)).toBe(`bdoor-${BRIDGE_OBS}`);
+    const down = arrive(BRIDGE_ROOF, BRIDGE_OBS);
+    expect(roomAt(down.x, down.y)).toBe(BRIDGE_OBS);
+    expect(bridgeAction(BRIDGE_OBS, down.x, down.y, true)).toBeNull();
+    // The orb in the middle, and in front of it, where to stand.
+    expect(
+      Math.hypot(
+        ORB_ROOF.x - (ROOMS[BRIDGE_ROOF] as Room).x,
+        ORB_ROOF.y - (ROOMS[BRIDGE_ROOF] as Room).y,
+      ),
+    ).toBeLessThan(1);
+    expect(bridgeAction(BRIDGE_ROOF, ORB_TOUCH.x, ORB_TOUCH.y, true)).toBe('borb');
+    expect(bridgeLabel('borb')).toBe('Put your hand in the orb');
+    // With a hand in it, the orb glows brighter.
+    const calm = fakeView();
+    for (const s of bridgeSolids(calm.v, BRIDGE_ROOF, anim)) s.f();
+    const lit = fakeView();
+    for (const s of bridgeSolids(lit.v, BRIDGE_ROOF, { ...anim, orb: 1 })) s.f();
+    expect(lit.calls.fill).toBe(calm.calls.fill);
   });
 });

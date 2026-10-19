@@ -3,13 +3,16 @@
  * his own tab, "the bridge for rowan" (2026-10-18): in through its door on the sea side from the boat, the round room
  * in its middle is the observatory, and off it are your room ("your character"), the science room where the scientist
  * is, the missions room with a hologram of the tar eel, the news room with news about the tar and a tentacle for
- * testing, and the dock on the tar side, where a tar animal with tentacles stays in the water. The rooms are ROOMS in
- * world/tower.ts; this says where the doors and the things in them stand, and what the climb button does by each.
+ * testing, and the dock on the tar side, where a tar animal with tentacles stays in the water. Up a ladder from the
+ * observatory is the roof, and on it the orb from his drawing, island 9's, which shows you knowledge when you put your
+ * hand in it (data/orb.ts). The rooms are ROOMS in world/tower.ts; this says where the doors and the things in them
+ * stand, and what the climb button does by each.
  */
 import {
   BRIDGE_MISSIONS,
   BRIDGE_NEWS,
   BRIDGE_OBS,
+  BRIDGE_ROOF,
   BRIDGE_SCIENCE,
   BRIDGE_TARDOCK,
   BRIDGE_YOU,
@@ -37,8 +40,13 @@ export const HUB_DOORS: readonly { to: number; a: number; sign: string; label: s
 ];
 /** The rooms off the observatory, in the order of its doors. */
 export const BRIDGE_SIDE = HUB_DOORS.map((d) => d.to);
-/** Every room inside the bridge. */
-export const BRIDGE_INSIDE = [BRIDGE_OBS, ...BRIDGE_SIDE];
+/** Every room inside the bridge, and its roof. */
+export const BRIDGE_INSIDE = [BRIDGE_OBS, ...BRIDGE_SIDE, BRIDGE_ROOF];
+/**
+ * The ladder up to the roof: free-standing at the observatory's front left, clear of its doors; and the hatch it comes
+ * up through, the same way round on the roof.
+ */
+export const LADDER_A = Math.PI * 0.6;
 /** Where each side room's door back to the observatory is: on its back wall, to the left. */
 export const BACK_A = Math.PI * 0.9;
 
@@ -56,6 +64,7 @@ export function cameIn(i: number, a: number): Pt {
 }
 /** Where the figure stands going from room `from` into room `to`, both in the bridge. */
 export function arrive(from: number, to: number): Pt {
+  if (to === BRIDGE_ROOF || from === BRIDGE_ROOF) return cameIn(to, LADDER_A);
   if (to !== BRIDGE_OBS) return cameIn(to, BACK_A);
   const d = HUB_DOORS.find((h) => h.to === from);
   return d ? cameIn(BRIDGE_OBS, d.a) : onWall(BRIDGE_OBS, Math.PI * 0.25, 70);
@@ -85,6 +94,12 @@ export const TANK = onWall(BRIDGE_NEWS, Math.PI * 1.64, 26);
 /** The dock's open edge onto the tar at the back, and the tar animal out in the tar past it. */
 export const TAR_EDGE = onWall(BRIDGE_TARDOCK, Math.PI * 1.25, 22);
 export const TAR_ANIMAL = onWall(BRIDGE_TARDOCK, Math.PI * 1.25, -110);
+/** The ladder in the observatory, the hatch on the roof, the orb on its pedestal in the roof's middle, and where to
+ * stand to put your hand in it. */
+export const LADDER_UP = onWall(BRIDGE_OBS, LADDER_A, 24);
+export const HATCH = onWall(BRIDGE_ROOF, LADDER_A, 24);
+export const ORB_ROOF = centre(BRIDGE_ROOF);
+export const ORB_TOUCH = onWall(BRIDGE_ROOF, Math.PI * 0.25, room(BRIDGE_ROOF).r - 34);
 /** Won in stealth mission 1, the chemistry boat, tied up in the tar off the dock's right-hand rail. */
 export const CHEM_BOAT = onWall(BRIDGE_TARDOCK, Math.PI * 1.42, -76);
 export const CHEM_BOAT_LOOK = onWall(BRIDGE_TARDOCK, Math.PI * 1.42, 22);
@@ -101,6 +116,9 @@ export const BRIDGE_THINGS: readonly { room: number; at: Pt; act: string }[] = [
   { room: BRIDGE_NEWS, at: TANK, act: 'btank' },
   { room: BRIDGE_TARDOCK, at: TAR_EDGE, act: 'btar' },
   { room: BRIDGE_TARDOCK, at: CHEM_BOAT_LOOK, act: 'bboat' },
+  { room: BRIDGE_OBS, at: LADDER_UP, act: `bdoor-${BRIDGE_ROOF}` },
+  { room: BRIDGE_ROOF, at: HATCH, act: `bdoor-${BRIDGE_OBS}` },
+  { room: BRIDGE_ROOF, at: ORB_TOUCH, act: 'borb' },
 ];
 
 /**
@@ -139,7 +157,9 @@ export function bridgeLabel(act: string): string {
     const to = Number(act.slice(6));
     return to === BRIDGE_OBS
       ? 'Back to the observatory'
-      : (HUB_DOORS.find((d) => d.to === to)?.label ?? 'Through the door');
+      : to === BRIDGE_ROOF
+        ? 'Up the ladder to the roof'
+        : (HUB_DOORS.find((d) => d.to === to)?.label ?? 'Through the door');
   }
   return (
     {
@@ -153,6 +173,7 @@ export function bridgeLabel(act: string): string {
       btar: 'Look at the tar animal',
       bboat: 'Sail the chemistry boat',
       bcage: 'Look at the monkey',
+      borb: 'Put your hand in the orb',
     }[act] ?? ''
   );
 }

@@ -242,6 +242,8 @@ type Np = {
   invis: boolean;
   invisT: number;
   BRIDGE_OBS: number;
+  BRIDGE_ROOF: number;
+  orbOpen: boolean;
   BRIDGE_HUB: { to: number; x: number; y: number }[];
   bridgeBack(i: number): { x: number; y: number };
   BRIDGE_THINGS: { room: number; at: { x: number; y: number }; act: string }[];
@@ -9709,6 +9711,83 @@ test("Caterman's swan paddle boat: he pedals it at sea, and the kid puts a frien
     swan: 'caterman',
     swan2: 'necro',
   });
+  expect(errors).toEqual([]);
+});
+
+test("the bridge's orb: up the ladder to the roof, a hand in the orb, and it shows your boats, the past and what's next", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    towerTaken: true,
+    isle3Stage: 3,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7140, y: -4790, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.bridgeSeen, null, { timeout: 6000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  // The ladder in the observatory, up to the roof.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((k) => k.act === `bdoor-${n.BRIDGE_ROOF}`);
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Up the ladder to the roof', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_ROOF);
+  await expect(page.locator('#toast')).toContainText('the orb', { timeout: 3000 });
+  // A hand in the orb: the boats, the past and what's next.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((k) => k.act === 'borb');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Put your hand in the orb', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#orbCard')).toBeVisible();
+  await expect(page.locator('#orbBoats')).toContainText('flagship');
+  await expect(page.locator('#orbPast')).toContainText("The sorcerer's staff");
+  await expect(page.locator('#orbPast')).toContainText("A demon's horns");
+  await expect(page.locator('#orbNext')).toContainText('Shark King');
+  await page.click('#orbClose');
+  await expect(page.locator('#orbCard')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.orbOpen)).toBe(false);
+  // And back down the ladder.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find(
+      (k) => k.room === n.BRIDGE_ROOF && k.act === `bdoor-${n.BRIDGE_OBS}`,
+    );
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Back to the observatory', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
   expect(errors).toEqual([]);
 });
 
