@@ -23,6 +23,7 @@ export const TROPHY_KINDS = [
   'claw',
   'blade',
   'hat',
+  'tarsword',
   'spine',
   'shard',
   'lure',
@@ -45,6 +46,8 @@ export interface Beaten {
   reaperEgg: number;
   cryptWon: boolean;
   stealth1: boolean;
+  /** The tar leader beaten on the tar island. */
+  tarLeader: boolean;
   driven: Driven;
 }
 
@@ -164,6 +167,13 @@ export const TROPHIES: Readonly<Record<TrophyKind, Trophy>> = {
     hint: 'Win stealth mission 1, from the missions room in the metal bridge.',
     won: (b) => b.stealth1,
   },
+  tarsword: {
+    name: "the tar leader's sword",
+    story:
+      "The tar leader's long black sword, a purple gleam along its edge. He left it on the high ground of the tar island when he melted away.",
+    hint: 'Beat the tar leader, up on the high ground of the tar island.',
+    won: (b) => b.tarLeader,
+  },
   spine: {
     name: "the leviathan's spine",
     story:
@@ -218,7 +228,7 @@ export const STAND_RING = 126;
 /** How wide each gap is, either side of the way up (angle 1.25 pi) and the way in (0.25 pi). */
 export const GAP_UP = 0.27;
 export const GAP_IN = 0.28;
-export const LEFT_STANDS = 10;
+export const LEFT_STANDS = 11;
 /** How near a stand to look at it. */
 export const STAND_REACH = 20;
 
