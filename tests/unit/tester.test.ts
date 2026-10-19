@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CROWS } from '../../src/entities/crows';
 import {
   type Bounds,
   defaultSave,
@@ -36,6 +37,16 @@ function fresh(): Story {
     soulArmour: false,
     isle8Seen: false,
     heronStage: 0,
+    pelicanBeaten: false,
+    feederFull: false,
+    crows: 0,
+    catermanFree: false,
+    skullKey: false,
+    cryptWon: false,
+    stealth1: false,
+    invis: false,
+    tarLeaderBeaten: false,
+    eelStage: 0,
   };
 }
 
@@ -84,11 +95,70 @@ describe('the tester panel', () => {
       heronStage: HERON_STAGES,
       soulArmour: true,
       isle8Seen: true,
+      pelicanBeaten: true,
+      crows: CROWS,
+      catermanFree: true,
+      skullKey: true,
+      cryptWon: true,
+      stealth1: true,
+      tarLeaderBeaten: true,
+      eelStage: 2,
     });
     expect(stepsDone(s)).toBe(STEPS.length);
     // Each step is something a real game can save and load back as it is.
     const back = parseSave(serializeSave({ ...defaultSave(bounds), ...s }), bounds);
     for (const k of Object.keys(s) as (keyof Story)[]) expect(back[k]).toBe(s[k]);
+  });
+
+  it('goes on past the Heron: island 10, island 11, the bridge and the tar ocean, in the order they come', () => {
+    expect(STEPS.map((s) => s.id).slice(at('heron'))).toEqual([
+      'heron',
+      'pelican',
+      'caterman',
+      'crypt',
+      'mission1',
+      'tarleader',
+      'eel',
+    ]);
+    const s = fresh();
+    skipTo(s, at('pelican'));
+    // The crows: one is all the far far sea needs to open.
+    expect(s).toMatchObject({
+      heronStage: HERON_STAGES,
+      pelicanBeaten: true,
+      feederFull: true,
+      crows: CROWS,
+    });
+    expect(s.catermanFree).toBe(false);
+    skipTo(s, at('mission1'));
+    expect(s).toMatchObject({
+      catermanFree: true,
+      skullKey: true,
+      cryptWon: true,
+      stealth1: true,
+      invis: true,
+    });
+    expect(s.tarLeaderBeaten).toBe(false);
+    expect(s.eelStage).toBe(0);
+    expect(stepsDone(s)).toBe(at('mission1') + 1);
+  });
+
+  it('marks only who is beaten and what was won: the places are still to find, and the castle tour still to play', () => {
+    const s = fresh();
+    skipTo(s, STEPS.length - 1);
+    const back = parseSave(serializeSave({ ...defaultSave(bounds), ...s }), bounds);
+    for (const k of [
+      'isle10Seen',
+      'isle11Seen',
+      'isle12Seen',
+      'bridgeSeen',
+      'tarIsleSeen',
+    ] as const)
+      expect(back[k]).toBe(false);
+    // The Forgotten One kneels in the crypt, waiting to show you his castle: his cutscene, then the scanner.
+    expect(back.cryptWon).toBe(true);
+    expect(back.castleHQ).toBe(false);
+    expect(back.scanner).toBe(0);
   });
 
   it('is switched on and off by the end of the link, and by nothing else', () => {

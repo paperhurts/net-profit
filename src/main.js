@@ -3862,7 +3862,8 @@ function testerSay(said){
     tester = localStorage.getItem(TESTER_KEY) === '1'; } catch { if (said) tester = said === 'on'; }
   if (said && started) toast(tester ? 'Tester on: open it from the shop.' : 'Tester off.', 2400);
   $('testerBtn').hidden = !tester; }
-function story(){ return {isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage}; }
+function story(){ return {isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage,
+  pelicanBeaten, feederFull, crows: crowsOwned, catermanFree, skullKey, cryptWon, stealth1, invis, tarLeaderBeaten, eelStage}; }
 function openTester(){ audio(); sfx.click(); const done = stepsDone(story());
   $('testerSteps').innerHTML = STEPS.map((st, i) => `<button class="tstep${i < done ? ' done' : ''}" data-step="${i}"><span>${st.label}</span><span class="tk">${i < done ? 'Done' : 'Skip to here'}</span></button>`).join('');
   renderExtras(); $('tester').hidden = false; }
@@ -4130,7 +4131,8 @@ $('testerSteps').addEventListener('click', (e) => { const b = e.target.closest('
   // Cutscenes are the kid's favourite part: a skip never skips one. The tar monster's plays the next time the boat is
   // out (the step leaves island 3 at stage 3); the Old One's, the next time the figure goes into the ruins.
   if (!hadOld && s.isle7Stage >= 4) oldOwed = true;
-  ({isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage} = s);
+  ({isle3Seen, isle3Stage, isle4Stage, isle5Seen, isle5Stage, isle6Seen, isle6Stage, isle7Seen, isle7Stage, soulArmour, isle8Seen, heronStage,
+    pelicanBeaten, feederFull, crows: crowsOwned, catermanFree, skullKey, cryptWon, stealth1, invis, tarLeaderBeaten, eelStage} = s);
   save(); location.reload(); });
 $('testerExtras').addEventListener('click', (e) => { const b = e.target.closest('[data-extra]'); if (!b) return; const k = b.dataset.extra;
   if (k === 'coins'){ coins += 10000; hud(); }
