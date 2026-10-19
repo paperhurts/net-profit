@@ -12,6 +12,8 @@
  * Nothing in it is shown to a player who has not opened the link.
  */
 
+import { CROWS } from '../entities/crows';
+
 /** The story as the save keeps it: how far each part has gone. */
 export type Story = {
   isle3Seen: boolean;
@@ -26,6 +28,16 @@ export type Story = {
   soulArmour: boolean;
   isle8Seen: boolean;
   heronStage: number;
+  pelicanBeaten: boolean;
+  feederFull: boolean;
+  crows: number;
+  catermanFree: boolean;
+  skullKey: boolean;
+  cryptWon: boolean;
+  stealth1: boolean;
+  invis: boolean;
+  tarLeaderBeaten: boolean;
+  eelStage: number;
 };
 
 /** A step of the story: what the panel calls it, what a game past it is past, and what marking it beaten sets (never lowers). */
@@ -102,6 +114,61 @@ export const STEPS: readonly Step[] = [
       s.isle8Seen = true;
       atLeast(s, 'heronStage', 2);
     },
+  },
+  // From here on the islands, the bridge and the tar island are left to be found: a step marks only who is beaten and
+  // what was won, so each landfall still says what it is the first time.
+  {
+    id: 'pelican',
+    short: 'the giant pelican',
+    label:
+      "Island 10's giant pelican beaten, and its crows won: they show the way past the far far buoys",
+    apply: (s) => {
+      s.pelicanBeaten = true;
+      s.feederFull = true;
+      atLeast(s, 'crows', CROWS);
+    },
+  },
+  {
+    id: 'caterman',
+    short: "the Heron's brother",
+    label: "Island 11: the Heron's brother, and Caterman with his swan paddle boat",
+    apply: (s) => {
+      s.catermanFree = true;
+    },
+  },
+  {
+    // Not the castle tour after: his cutscene plays when you go to him in the crypt, where he kneels, waiting.
+    id: 'crypt',
+    short: 'the crypt',
+    label: 'Island 11: the skull key, and the Forgotten One beaten again in the crypt',
+    apply: (s) => {
+      s.skullKey = true;
+      s.cryptWon = true;
+    },
+  },
+  {
+    id: 'mission1',
+    short: 'stealth mission 1',
+    label:
+      "The metal bridge's stealth mission 1 won: the chemistry boat, and the invisibility potion",
+    apply: (s) => {
+      s.stealth1 = true;
+      s.invis = true;
+    },
+  },
+  {
+    id: 'tarleader',
+    short: 'the tar leader',
+    label: 'The tar leader beaten on the tar island',
+    apply: (s) => {
+      s.tarLeaderBeaten = true;
+    },
+  },
+  {
+    id: 'eel',
+    short: 'the tar eel',
+    label: "Mission 2's tar eel beaten: the evil monkey caged in the bridge",
+    apply: (s) => atLeast(s, 'eelStage', 2),
   },
 ];
 

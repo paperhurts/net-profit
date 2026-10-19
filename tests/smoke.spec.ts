@@ -5575,6 +5575,56 @@ test('tester: the #tester link shows a Tester button in the shop, and skipping t
   expect(errors).toEqual([]);
 });
 
+test("tester: the story goes on past the Heron, to the tar eel, leaving the places to find and the Forgotten One's castle tour to play", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true, coins: 300 }, './#tester');
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#tester')).toBeVisible();
+  const steps = await page.locator('#testerSteps .tstep').count();
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.locator('#testerSteps .tstep', { hasText: 'tar eel' }).click(),
+  ]);
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(
+    await page.evaluate(() => {
+      const n = window.__np;
+      return {
+        heron: n.heronStage,
+        pelican: n.pelicanBeaten,
+        crows: n.crowsOwned,
+        caterman: n.catermanFree,
+        key: n.skullKey,
+        crypt: n.cryptWon,
+        mission1: n.stealth1,
+        invis: n.invis,
+        leader: n.tarLeaderBeaten,
+        eel: n.eelStage,
+        // His cutscene is still to come: he kneels in the crypt, waiting to show you his castle.
+        tour: n.castleHQ,
+      };
+    }),
+  ).toEqual({
+    heron: 2,
+    pelican: true,
+    crows: 3,
+    caterman: true,
+    key: true,
+    crypt: true,
+    mission1: true,
+    invis: true,
+    leader: true,
+    eel: 2,
+    tour: false,
+  });
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#testerSteps .tstep.done')).toHaveCount(steps);
+  expect(errors).toEqual([]);
+});
+
 test('tester: the egg buttons leave a Reaper on land never beaten asleep by his nest, and a button brings him back for a rematch', async ({
   context,
   page,
