@@ -194,6 +194,8 @@ export type SaveData = {
   tarIsleSeen: boolean;
   /** The tar leader beaten on the tar island's high ground (entities/tarleader.ts): he stays beaten. */
   tarLeaderBeaten: boolean;
+  /** Mission 2, the tar eel (entities/tareel.ts): 0 not taken, 1 taken and the eel hunting the tar, 2 beaten. */
+  eelStage: number;
   /** The day the Remoro was last landed on the abyss's floor: one a day. */
   remoroDay: number;
   /** And the attack nibbler, the hunter of the floor: one a day too. */
@@ -420,6 +422,7 @@ export function defaultSave(b: Bounds): SaveData {
     tarCaught: 0,
     tarIsleSeen: false,
     tarLeaderBeaten: false,
+    eelStage: 0,
     remoroDay: 0,
     hunterDay: 0,
     hq: noHq(),
@@ -617,6 +620,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.tarCaught = Math.max(d.tarBucket, int(o.tarCaught));
   d.tarIsleSeen = o.tarIsleSeen === true;
   d.tarLeaderBeaten = o.tarLeaderBeaten === true;
+  d.eelStage = Math.min(2, Math.max(0, int(o.eelStage)));
   d.remoroDay = Math.max(0, int(o.remoroDay));
   d.hunterDay = Math.max(0, int(o.hunterDay));
   d.hq = parseHq(o.hq);
@@ -793,6 +797,7 @@ export function serializeSave(d: SaveData): string {
     tarCaught: d.tarCaught,
     tarIsleSeen: d.tarIsleSeen,
     tarLeaderBeaten: d.tarLeaderBeaten,
+    eelStage: d.eelStage,
     remoroDay: d.remoroDay,
     hunterDay: d.hunterDay,
     hq: d.hq,
