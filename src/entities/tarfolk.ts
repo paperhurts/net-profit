@@ -129,7 +129,20 @@ export class TarFolks implements Entity {
   onFlee: ((f: TarFolk) => void) | null = null;
   onBeaten: ((f: TarFolk) => void) | null = null;
 
-  constructor(at: readonly { kind: TarKind; at: Point }[] = TAR_HOMES) {
+  /**
+   * Their ground: the tar island, or, on the Battle Barge, its deck (ground). A tar beast lunges only as far as it goes,
+   * and runs only over it.
+   */
+  constructor(
+    at: readonly { kind: TarKind; at: Point }[] = TAR_HOMES,
+    readonly ground: (x: number, y: number) => boolean = onTarIsle,
+  ) {
+    this.place(at);
+  }
+
+  /** These ones standing here, in place of any before. */
+  place(at: readonly { kind: TarKind; at: Point }[]): void {
+    this.list.length = 0;
     at.forEach((o, i) => {
       this.list.push({
         kind: o.kind,
@@ -149,6 +162,15 @@ export class TarFolks implements Entity {
         stuckT: 0,
       });
     });
+  }
+
+  /** All of them up at once, as on the Battle Barge. */
+  wake(): void {
+    for (const f of this.list) {
+      if (f.state !== 'idle') continue;
+      this.set(f, 'rise');
+      this.onRise?.(f);
+    }
   }
 
   /** Tar humans called up out of the rock round (x, y), rising at once: the tar leader's help. */
@@ -325,7 +347,7 @@ export class TarFolks implements Entity {
         for (const da of ahead ? [0, 0.6, -0.6, 1.2, -1.2, 1.6, -1.6] : [0, 0.6, -0.6]) {
           const nx = f.x + Math.cos(away + da) * sp;
           const ny = f.y + Math.sin(away + da) * sp;
-          if (!onTarIsle(nx, ny)) continue;
+          if (!this.ground(nx, ny)) continue;
           f.x = nx;
           f.y = ny;
           f.h = away + da;
@@ -376,7 +398,7 @@ export class TarFolks implements Entity {
     for (let i = 1; i <= n; i++) {
       const x = f.from[0] + ((f.to[0] - f.from[0]) * i) / n;
       const y = f.from[1] + ((f.to[1] - f.from[1]) * i) / n;
-      if (!onTarIsle(x, y)) break;
+      if (!this.ground(x, y)) break;
       f.x = x;
       f.y = y;
     }

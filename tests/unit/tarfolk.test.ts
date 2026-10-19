@@ -13,6 +13,7 @@ import {
 import { setWalkLand, WALK_SPEED } from '../../src/entities/walker';
 import { drawTarFolk, drawTarMark } from '../../src/render/tarfolk';
 import { JETTY_END, onTarIsle, shoreR, TAR_ISLE, tarIsleZ } from '../../src/world/tarisle';
+import { ARENAS, onFloor, ROOMS, type Room } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
@@ -270,5 +271,30 @@ describe('the tar creatures', () => {
       expect(won).toBe(6);
       expect(lost).toBeLessThanOrEqual(TAR_SPEC[kind].dmg);
     }
+  });
+
+  it("fight on the Battle Barge's deck too: put there, all up at once, and a tar beast lunges over the deck", () => {
+    setWalkLand(null);
+    const R = ROOMS[ARENAS.medium] as Room;
+    const g = new TarFolks([], (x, y) => onFloor(x, y));
+    g.place([
+      { kind: 'human', at: [R.x - 90, R.y] },
+      { kind: 'beast', at: [R.x, R.y - 60] },
+    ]);
+    g.here = true;
+    let risen = 0;
+    g.onRise = () => risen++;
+    g.wake();
+    expect(risen).toBe(2);
+    expect(g.list.every((f) => f.state === 'rise')).toBe(true);
+    const q = g.list[1] as TarFolk;
+    const at = { x: R.x, y: R.y + 40 };
+    until(g, q, 'windup', 6, () => at);
+    expect(q.state).toBe('windup');
+    const [x0, y0] = [q.x, q.y];
+    until(g, q, 'strike', 3, () => at);
+    expect(Math.hypot(q.x - x0, q.y - y0)).toBeGreaterThan(30);
+    g.place([]);
+    expect(g.list).toHaveLength(0);
   });
 });

@@ -191,4 +191,20 @@ describe("Skrill's men", () => {
       expect((g.calls.fill ?? 0) > 0).toBe(marked);
     }
   });
+
+  it('can be put anywhere and all woken at once, as on the Battle Barge', () => {
+    const b = new BoneMen([]);
+    expect(b.list).toHaveLength(0);
+    b.place([
+      [0, 0],
+      [400, 0],
+    ]);
+    let risen = 0;
+    b.onRise = () => risen++;
+    b.wake();
+    expect(risen).toBe(2);
+    expect(b.list.every((m) => m.state === 'rise')).toBe(true);
+    b.place([]);
+    expect(b.list).toHaveLength(0);
+  });
 });

@@ -232,4 +232,19 @@ describe("Skrill's displacer beasts", () => {
       expect((g.calls.fill ?? 0) > 0).toBe(marked);
     }
   });
+
+  it('can be put anywhere and all set after the figure at once, as on the Battle Barge', () => {
+    const b = new DisplacerBeasts([]);
+    b.place([
+      [0, 0],
+      [400, 0],
+      [0, 400],
+    ]);
+    let spotted = 0;
+    b.onSpot = () => spotted++;
+    b.wake();
+    expect(spotted).toBe(3);
+    expect(b.list.every((m) => m.state === 'spot')).toBe(true);
+    expect(b.list.every((m) => !DisplacerBeasts.shown(m))).toBe(true);
+  });
 });
