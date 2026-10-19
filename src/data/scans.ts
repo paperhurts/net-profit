@@ -26,6 +26,7 @@ export const SCAN_KINDS = [
   'tarleader',
   'tardragon',
   'boneman',
+  'displacer',
   'spider',
   'pelican',
   'sorcerer',
@@ -181,6 +182,11 @@ export const SCANS: Record<ScanKind, Scan> = {
     name: "One of Skrill's men",
     beat: "Eighteen hits. He wears armour made of bones and swings a jawblade. When he draws it back over his shoulder, a red fan shows where it will sweep: step back or round behind him! A sweep takes two hearts. He's open just after.",
     weak: "Slow: he can't catch you if you keep moving. And his back is open while he sweeps.",
+  },
+  displacer: {
+    name: 'A displacer beast',
+    beat: "Four hits, but it's never where it looks: a spear goes right through! Its shadow shows where it really is. When it rears its tentacles back, get out of the red wedge: a lash takes three hearts. Just after, it shows itself: hit it then.",
+    weak: 'A hit makes it show itself for a moment, so keep hitting.',
   },
   spider: {
     name: 'The giant spider',
