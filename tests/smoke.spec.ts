@@ -8468,6 +8468,12 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
   const toast = page.locator('#toast');
+  /** Whether this message of ours is the one showing: the sea's own (a turtle, say) may come and go meanwhile. */
+  const showing = (text: string) =>
+    page.evaluate((t) => {
+      const el = document.querySelector('#toast');
+      return !!el && el.classList.contains('show') && el.textContent === t;
+    }, text);
   // Let the game's own first messages pass, so only ours shows.
   await page.waitForTimeout(500);
   await page.evaluate(() => window.__np.toast('A message to tap away.', 20000, 2));
@@ -8475,7 +8481,7 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
   await expect(toast).toHaveClass(/show/);
   const v0 = await page.evaluate(() => window.__np.boat.v);
   await toast.click();
-  await expect(toast).not.toHaveClass(/show/);
+  await expect.poll(() => showing('A message to tap away.')).toBe(false);
   // The press did not steer.
   expect(await page.evaluate(() => window.__np.boat.v)).toBeLessThanOrEqual(v0);
   // Flicked sideways, it slides off and goes.
@@ -8491,12 +8497,12 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
   await page.mouse.move(cx + 60, cy, { steps: 4 });
   await page.mouse.move(cx + 120, cy, { steps: 4 });
   await page.mouse.up();
-  await expect(toast).not.toHaveClass(/show/);
+  await expect.poll(() => showing('A message to flick away.')).toBe(false);
   // Said again straight away, it keeps away.
   await page.waitForTimeout(400);
   await page.evaluate(() => window.__np.toast('A message to flick away.', 20000, 2));
   await page.waitForTimeout(300);
-  await expect(toast).not.toHaveClass(/show/);
+  expect(await showing('A message to flick away.')).toBe(false);
   // A short drag is not a flick: it goes back and stays.
   await page.evaluate(() => window.__np.toast('A message to keep.', 20000, 2));
   await expect(toast).toHaveText('A message to keep.');
