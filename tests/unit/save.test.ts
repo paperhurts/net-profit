@@ -831,6 +831,18 @@ describe("the tar ocean's fish", () => {
     expect(parseSave(serializeSave(s), bounds).tarLeaderBeaten).toBe(true);
   });
 
+  it('has mission 2 not taken in a save from before the tar eel, and keeps where it got to', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.eelStage).toBe(0);
+    for (const n of [1, 2]) {
+      s.eelStage = n;
+      expect(parseSave(serializeSave(s), bounds).eelStage).toBe(n);
+    }
+    expect(
+      parseSave(JSON.stringify({ ...JSON.parse(serializeSave(s)), eelStage: 9 }), bounds).eelStage,
+    ).toBe(2);
+  });
+
   it('has the tar island unvisited in a save from before it, and keeps it visited', () => {
     const s = parseSave(legacy, bounds);
     expect(s.tarIsleSeen).toBe(false);

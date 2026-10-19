@@ -164,6 +164,8 @@ body.cine #toast{pointer-events:none}
 #hearts[hidden]{display:none}
 #hearts svg{display:block}
 #hull[hidden]{display:none}
+/* Out on the tar, the chemistry boat's health shows though the walker is inside the bridge. */
+body.inside.tarsail #hull:not([hidden]){display:flex}
 .hbar{width:48px;height:9px;border-radius:9px;background:var(--track);overflow:hidden;margin-top:-2px}
 .hbar i{display:block;height:100%;border-radius:9px}
 #wood,#phase,#market,#hull,#junk,#tarBucket,#muffinBtn,#rchips .snack{

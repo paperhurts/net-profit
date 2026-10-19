@@ -145,6 +145,18 @@ type Np = {
   };
   tarLeaderBeaten: boolean;
   openMap(): void;
+  tarEel: {
+    state: string;
+    hp: number;
+    x: number;
+    y: number;
+    up: boolean;
+    found: number;
+    awayFor: number;
+    onPull: (() => void) | null;
+  };
+  eelStage: number;
+  chemHp: number;
   tarDragon: {
     state: string;
     hp: number;
@@ -9939,6 +9951,101 @@ test('the tar leader: comes down off the high ground, calls for help at half, is
   await expect(page.locator('#climb')).toHaveText('Try the tower door', { timeout: 3000 });
   await page.click('#climb');
   await expect(page.locator('#toast')).toContainText('All is quiet up on the high ground');
+  expect(errors).toEqual([]);
+});
+
+test('the tar eel: mission 2 at the hologram, it finds the chemistry boat, the harpoon hits it, it pulls you under, and six sink it', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  // In through the bridge's door to the missions room's table: mission 2.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB.find((h) => h.to === n.BRIDGE_MISSIONS);
+    if (d) {
+      n.walker.x = d.x;
+      n.walker.y = d.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the missions room', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_MISSIONS);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const t = n.BRIDGE_THINGS.find((k) => k.act === 'bmission');
+    if (t) {
+      n.walker.x = t.at.x;
+      n.walker.y = t.at.y;
+    }
+  });
+  await expect(page.locator('#climb')).toHaveText('Mission 2: the tar eel', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Mission 2: the tar eel!');
+  expect(await page.evaluate(() => window.__np.eelStage)).toBe(1);
+  await expect(page.locator('#leave')).toHaveText('Back to your boat');
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.walker.state === 'aboard');
+  // Out on the tar, away from the dock: before long it finds you, and the boat's health shows.
+  await outOnTheTar(page);
+  await expect(page.locator('#hull')).toBeVisible();
+  await page.evaluate(() => {
+    const n = window.__np;
+    if (!n.tarSail) return;
+    n.tarSail.y -= 1400;
+    n.tarSail.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.tarEel.up, null, { timeout: 15000 });
+  await expect(page.locator('#toast')).toContainText('The tar eel!');
+  await expect(page.locator('#throw')).toBeVisible();
+  await page.click('#throw');
+  await page.waitForFunction(() => window.__np.tarEel.hp < 6, null, { timeout: 4000 });
+  // Pulled under: up again at the nearest dock, the boat whole.
+  await page.evaluate(() => window.__np.tarEel.onPull?.());
+  await expect(page.locator('#toast')).toContainText('pulled it under the tar');
+  expect(await page.evaluate(() => window.__np.chemHp)).toBe(100);
+  // Down to its last, then the last harpoon: it sinks for good, mission 2 done.
+  await page.evaluate(() => {
+    const n = window.__np;
+    if (!n.tarSail) return;
+    n.tarSail.y -= 1400;
+    n.tarEel.hp = 1;
+    n.tarEel.awayFor = 0;
+    n.tarEel.found = 6;
+  });
+  await page.waitForFunction(() => window.__np.tarEel.up, null, { timeout: 30000 });
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.click('#throw');
+  await expect(page.locator('#toast')).toContainText('You beat the tar eel!', { timeout: 4000 });
+  expect(await page.evaluate(() => [window.__np.eelStage, window.__np.coins])).toEqual([
+    2,
+    c0 + 4000,
+  ]);
   expect(errors).toEqual([]);
 });
 
