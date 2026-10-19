@@ -65,7 +65,17 @@ describe('the Battle Barge: picking a fight', () => {
       BARGE_FOES.filter(
         (k) => !UNDEAD_FOES.includes(k) && !FIGHTER_FOES.includes(k) && !BOSS_FOES.includes(k),
       ),
-    ).toEqual(['monkey', 'hired', 'gorilla', 'gator', 'lancer']);
+    ).toEqual([
+      'monkey',
+      'hired',
+      'gorilla',
+      'gator',
+      'lancer',
+      'tarhuman',
+      'tarbeast',
+      'boneman',
+      'displacer',
+    ]);
     expect(FIGHTER_FOES).toEqual(['swordsman', 'red', 'blue', 'green']);
     // The bosses come last on the card.
     expect(BARGE_FOES.slice(-BOSS_FOES.length)).toEqual([...BOSS_FOES]);
@@ -80,6 +90,13 @@ describe('the Battle Barge: picking a fight', () => {
     expect(b.pick).toEqual({ ...noPick(), monkey: 2, skeleton: 1, lagoon: 3 });
     expect(b.pick.gorilla).toBe(0);
     expect(b.pick.swordsman).toBe(0);
+  });
+
+  it("reads an old save from before the fourth stage, with none of the tar island's or Skull Island's picked", () => {
+    const b = parseBarge({ size: 'large', pick: { gorilla: 2, heron: 1 } });
+    expect(b.pick).toEqual({ ...noPick(), gorilla: 2, heron: 1 });
+    for (const k of ['tarhuman', 'tarbeast', 'boneman', 'displacer'] as const)
+      expect(b.pick[k]).toBe(0);
   });
 });
 

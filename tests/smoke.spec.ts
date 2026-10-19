@@ -46,6 +46,12 @@ type Np = {
     hit: (m: unknown, power: number) => boolean;
   };
   skullMen: { list: { state: string }[]; hit: (m: unknown, power: number) => boolean }[];
+  bargeTar: { list: { state: string }[]; hit: (f: unknown, power: number) => boolean };
+  bargeMen: { list: { state: string }[]; hit: (m: unknown, power: number) => boolean };
+  bargeBeasts: {
+    list: { state: string; shownT: number }[];
+    hit: (b: unknown, power: number) => boolean;
+  };
   skullBeasts: {
     list: { state: string; shownT: number }[];
     hit: (b: unknown, power: number) => boolean;
@@ -8306,6 +8312,61 @@ test('the Battle Barge from the boat: pick a fight, beat them all for a coin, an
   // The setup is kept.
   await page.reload();
   await page.waitForFunction(() => window.__np?.barge?.size === 'small', null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test("the Battle Barge: the tar island's tar creatures and Skull Island's men and displacer beasts, picked and beaten", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeCard')).toBeVisible();
+  // Off with the start's monkeys and skeletons; one of each of the newest instead.
+  for (let i = 0; i < 3; i++)
+    await page.locator('#bargeList [data-foe="monkey"][data-d="-1"]').click();
+  for (let i = 0; i < 2; i++)
+    await page.locator('#bargeList [data-foe="skeleton"][data-d="-1"]').click();
+  for (const k of ['tarhuman', 'tarbeast', 'boneman', 'displacer'])
+    await page.locator(`#bargeList [data-foe="${k}"][data-d="1"]`).click();
+  await expect(page.locator('#bargeTotal')).toHaveText('4 of 10 picked.');
+  await expect(page.locator('#bargeList')).toContainText('Displacer beasts');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  // All four on the deck and up at once.
+  expect(
+    await page.evaluate(() => {
+      const n = window.__np;
+      return [
+        n.bargeTar.list.map((f) => f.state).join(','),
+        n.bargeMen.list.map((m) => m.state).join(','),
+        n.bargeBeasts.list.map((b) => b.state).join(','),
+      ];
+    }),
+  ).toEqual(['rise,rise', 'rise', 'spot']);
+  // Beat them all: a coin.
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    for (const f of n.bargeTar.list) n.bargeTar.hit(f, 99);
+    for (const m of n.bargeMen.list) n.bargeMen.hit(m, 99);
+    for (const b of n.bargeBeasts.list) {
+      b.shownT = 5;
+      n.bargeBeasts.hit(b, 99);
+    }
+  });
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1);
   expect(errors).toEqual([]);
 });
 

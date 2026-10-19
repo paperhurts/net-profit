@@ -8,7 +8,9 @@
  * those that fight in a room of their own first: the leviathan sorcerer, the Forgotten One, the Heron and the giant
  * pelican; then Cthulhu from the drowned temple, and the Old One, who rises out of the sea at the barge's back; then the
  * Reaper on land, off island 6's sand; then the Tar Anchorer, wading in the sea round the barge as it wades in its tar;
- * then island 10's spider, in a web strung between two posts on the deck, whom only bug spray beats.
+ * then island 10's spider, in a web strung between two posts on the deck, whom only bug spray beats. The fourth stage
+ * brings the newest on foot: the tar island's tar humans and tar beasts (a tar beast has nowhere to run on the barge, so
+ * it fights), and Skull Island's men in bone armour and its displacer beasts.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -24,7 +26,8 @@ export const ARENA_NAMES: Readonly<Record<ArenaSize, string>> = {
 
 /**
  * The on-foot enemies, in the card's order, island by island: the monkeys' and the hired men's camps, island 10's
- * gorillas and gators, island 3's swordsman and demons, and the undead of Gigantis, its lancers and the lagoon's.
+ * gorillas and gators, island 3's swordsman and demons, the undead of Gigantis, its lancers and the lagoon's, the tar
+ * island's tar humans and tar beasts, and Skull Island's men and displacer beasts.
  */
 export type BargeFoe =
   | 'monkey'
@@ -42,6 +45,10 @@ export type BargeFoe =
   | 'necro'
   | 'lancer'
   | 'lagoon'
+  | 'tarhuman'
+  | 'tarbeast'
+  | 'boneman'
+  | 'displacer'
   | 'sorcerer'
   | 'forgotten'
   | 'heron'
@@ -67,6 +74,10 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'necro',
   'lancer',
   'lagoon',
+  'tarhuman',
+  'tarbeast',
+  'boneman',
+  'displacer',
   'sorcerer',
   'forgotten',
   'heron',
@@ -117,6 +128,19 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   necro: ['Necromancers', 'Raise skeletons out of the floor. 6 hits.'],
   lancer: ['Lancers', 'Slow, with long lances: 2 hearts a thrust. 10 hits.'],
   lagoon: ['Lagoon creatures', 'Quick, with claws. 2 hits.'],
+  tarhuman: [
+    'Tar humans',
+    'Slam their arms down on the red ring: get out of it. 3 hearts. 15 hits.',
+  ],
+  tarbeast: ['Tar beasts', 'Lunge along the red line: step off it. 4 hearts. 18 hits.'],
+  boneman: [
+    "Skrill's men",
+    'Bone armour and jawblades: get out of the red fan. 2 hearts. 18 hits.',
+  ],
+  displacer: [
+    'Displacer beasts',
+    'Never where they look: hit one just after it lashes. 3 hearts. 4 hits.',
+  ],
   sorcerer: [
     'The leviathan sorcerer',
     'Flies round throwing purple bolts, and swoops to peck. 8 hits.',

@@ -90,6 +90,12 @@ export class BoneMen implements Entity {
   onBeaten: ((m: BoneMan) => void) | null = null;
 
   constructor(at: readonly Point[] = BONE_HOMES) {
+    this.place(at);
+  }
+
+  /** These men on guard here, in place of any before. */
+  place(at: readonly Point[]): void {
+    this.list.length = 0;
     at.forEach((p, i) => {
       this.list.push({
         x: p[0],
@@ -104,6 +110,15 @@ export class BoneMen implements Entity {
         step: i * 1.3,
       });
     });
+  }
+
+  /** All of them up at once, as on the Battle Barge. */
+  wake(): void {
+    for (const m of this.list) {
+      if (m.state !== 'guard') continue;
+      this.set(m, 'rise');
+      this.onRise?.(m);
+    }
   }
 
   /** All back at their posts, whole. */

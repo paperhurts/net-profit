@@ -107,6 +107,12 @@ export class DisplacerBeasts implements Entity {
   onMiss: ((b: Displacer) => void) | null = null;
 
   constructor(at: readonly Point[] = DISP_HOMES) {
+    this.place(at);
+  }
+
+  /** These beasts in their dens here, in place of any before. */
+  place(at: readonly Point[]): void {
+    this.list.length = 0;
     at.forEach((p, i) => {
       const ia = i * 2.4;
       this.list.push({
@@ -130,6 +136,15 @@ export class DisplacerBeasts implements Entity {
     });
   }
 
+  /** All of them after the figure at once, as on the Battle Barge. */
+  wake(): void {
+    for (const b of this.list) {
+      if (b.state !== 'prowl') continue;
+      this.set(b, 'spot');
+      this.onSpot?.(b);
+    }
+  }
+
   /** All back in their dens, whole, and their trick back on. */
   reset(): void {
     this.list.forEach((b, i) => {
@@ -144,7 +159,7 @@ export class DisplacerBeasts implements Entity {
       b.k = 1;
       b.ia = i * 2.4;
       b.ph = i * 1.7;
-      this.place(b);
+      this.picture(b);
     });
   }
 
@@ -227,11 +242,11 @@ export class DisplacerBeasts implements Entity {
       if (b.state === 'gone') continue;
       if (b.state === 'fall') {
         if (b.t >= DISP_FALL) b.state = 'gone';
-        this.place(b, dt);
+        this.picture(b, dt);
         continue;
       }
       this.act(b, fig, dt);
-      this.place(b, dt);
+      this.picture(b, dt);
     }
   }
 
@@ -306,7 +321,7 @@ export class DisplacerBeasts implements Entity {
   }
 
   /** Its picture: off to one side, drifting slowly round it, and drawn in onto it while it shows where it is. */
-  private place(b: Displacer, dt = 0): void {
+  private picture(b: Displacer, dt = 0): void {
     const want = DisplacerBeasts.shown(b) ? 0 : 1;
     b.k += Math.sign(want - b.k) * Math.min(Math.abs(want - b.k), dt * 5);
     b.ia += dt * 0.5;
