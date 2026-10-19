@@ -229,6 +229,8 @@ export type SaveData = {
   isle10Seen: boolean;
   /** Island 11 has been sighted, out in the far far sea past island 10. Missing in old saves and read as not. */
   isle11Seen: boolean;
+  /** Skull Island has been sighted, in the far far sea's bottom corner. Missing in old saves and read as not. */
+  isle12Seen: boolean;
   /** The Heron's brother has flown from island 11, and Caterman has come out of his workshop to join you. */
   catermanFree: boolean;
   /** The skull key, fetched up from the bottom of island 11's black lagoon (world/lagoondive.ts). Missing in old saves and read as not. */
@@ -442,6 +444,7 @@ export function defaultSave(b: Bounds): SaveData {
     isle8Seen: false,
     isle10Seen: false,
     isle11Seen: false,
+    isle12Seen: false,
     catermanFree: false,
     skullKey: false,
     cryptWon: false,
@@ -640,6 +643,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.isle8Seen = !!o.isle8Seen;
   d.isle10Seen = !!o.isle10Seen;
   d.isle11Seen = !!o.isle11Seen;
+  d.isle12Seen = !!o.isle12Seen;
   d.catermanFree = !!o.catermanFree;
   d.skullKey = !!o.skullKey;
   d.cryptWon = !!o.cryptWon;
@@ -817,6 +821,7 @@ export function serializeSave(d: SaveData): string {
     isle8Seen: d.isle8Seen,
     isle10Seen: d.isle10Seen,
     isle11Seen: d.isle11Seen,
+    isle12Seen: d.isle12Seen,
     catermanFree: d.catermanFree,
     skullKey: d.skullKey,
     cryptWon: d.cryptWon,

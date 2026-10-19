@@ -34,6 +34,9 @@ export type MapIsle = {
   top: string;
   /** Its name goes over it, not under, where another island's name is under its neighbour. */
   nameAbove?: boolean;
+  /** Its own shape, its shoreline in the world, for an island that is not round; and dark pits in it. */
+  outline?: readonly (readonly [number, number])[];
+  pits?: readonly { x: number; y: number; r: number }[];
 };
 
 /** A place to go back to that is not an island: where, its name on the map, and whether it is your castle's landing
@@ -416,6 +419,30 @@ export class SeaMap {
       const x = p.x(isle.x, isle.y);
       const y = p.y(isle.x, isle.y);
       const r = Math.max(3 * k, isle.r * p.s * Math.SQRT2);
+      if (isle.outline) {
+        // Its own shape, in its sand, and its pits in its top colour.
+        ctx.fillStyle = isle.sand;
+        ctx.beginPath();
+        isle.outline.forEach(([ox, oy], i) => {
+          if (i === 0) ctx.moveTo(p.x(ox, oy), p.y(ox, oy));
+          else ctx.lineTo(p.x(ox, oy), p.y(ox, oy));
+        });
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = isle.top;
+        for (const q of isle.pits ?? []) {
+          ctx.beginPath();
+          ctx.arc(
+            p.x(q.x, q.y),
+            p.y(q.x, q.y),
+            Math.max(1.2 * k, q.r * p.s * Math.SQRT2),
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        }
+        continue;
+      }
       ctx.fillStyle = isle.sand;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);

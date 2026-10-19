@@ -954,6 +954,13 @@ describe('islands 8 and 9', () => {
     expect(parseSave(serializeSave(s), bounds).isle11Seen).toBe(true);
   });
 
+  it('read Skull Island as not found in an old save, and keep it found once it is', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.isle12Seen).toBe(false);
+    s.isle12Seen = true;
+    expect(parseSave(serializeSave(s), bounds).isle12Seen).toBe(true);
+  });
+
   it('read Caterman as not yet with you in an old save, and keep him once he is', () => {
     const s = parseSave(legacy, bounds);
     expect(s.catermanFree).toBe(false);
