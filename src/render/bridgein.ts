@@ -4,17 +4,21 @@
  * in the other rooms; the dock's back open onto the tar ocean behind a rail. Then the things in each room, each sorted
  * with the figure by its depth: the telescope, your bed and mirror, the science benches and the scientist, the round
  * table with the tar eel's hologram turning over it, the tank with the tentacle, and the tar animal out in the tar.
+ * The roof, up the observatory's ladder, and the orb on it, are render/bridgeroof.ts.
  */
 import type { DrawView } from '../entities/entity';
 import {
   BACK_A,
   BED_IN,
   CHEM_BOAT,
+  HATCH,
   HOLO,
   HUB_DOORS,
+  LADDER_UP,
   MIRROR_IN,
   MONKEY_CAGE,
   NEWS_SCREEN,
+  ORB_ROOF,
   onWall,
   type Pt,
   SCIENTIST,
@@ -27,11 +31,14 @@ import {
   BRIDGE_MISSIONS,
   BRIDGE_NEWS,
   BRIDGE_OBS,
+  BRIDGE_ROOF,
   BRIDGE_SCIENCE,
   BRIDGE_TARDOCK,
   BRIDGE_YOU,
+  ROOMS,
   type Room,
 } from '../world/tower';
+import { drawLadder, drawOrbStand, drawRoofBack, drawRoofRail } from './bridgeroof';
 import type { Solid } from './layers';
 import { box } from './metalbridge';
 
@@ -52,6 +59,8 @@ export type BridgeAnim = {
   boat?: boolean;
   caged?: boolean;
   rattle?: number;
+  /** How bright the orb on the roof is with a hand in it, 0 to 1. */
+  orb?: number;
 };
 
 const hash = (i: number, k: number): number => {
@@ -96,6 +105,10 @@ export function drawBridgeBack(
   anim: BridgeAnim,
 ): void {
   const { ctx } = v;
+  if (i === BRIDGE_ROOF) {
+    drawRoofBack(v, R, HATCH, W, H);
+    return;
+  }
   ctx.fillStyle = '#0B0F14';
   ctx.fillRect(0, 0, W, H);
   const dock = i === BRIDGE_TARDOCK;
@@ -390,7 +403,15 @@ function drawNewsScreen(v: DrawView, R: Room, news: number): void {
 export function bridgeSolids(v: DrawView, i: number, anim: BridgeAnim): Solid[] {
   const out: Solid[] = [];
   const at = (p: Pt, f: () => void, back = 0) => out.push({ d: p.x + p.y + back, f });
-  if (i === BRIDGE_OBS) at(SCOPE_IN, () => drawTelescope(v, SCOPE_IN));
+  if (i === BRIDGE_OBS) {
+    at(SCOPE_IN, () => drawTelescope(v, SCOPE_IN));
+    at(LADDER_UP, () => drawLadder(v, LADDER_UP));
+  }
+  if (i === BRIDGE_ROOF) {
+    at(ORB_ROOF, () => drawOrbStand(v, ORB_ROOF, anim.orb ?? 0));
+    // The near half of its rail, in front of everyone.
+    out.push({ d: 1e9, f: () => drawRoofRail(v, ROOMS[BRIDGE_ROOF] as Room) });
+  }
   if (i === BRIDGE_YOU) {
     at(BED_IN, () => drawBed(v, BED_IN), 12);
     at(MIRROR_IN, () => drawMirror(v, MIRROR_IN));
