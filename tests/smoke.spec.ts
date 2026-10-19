@@ -4565,7 +4565,7 @@ test("island 10's prairie: prairie dogs duck as you come, bunnies hop when tappe
   await page.waitForFunction(() => {
     const p = window.__np.prairie10;
     const b = p.bunnies[4];
-    if (!b || b.hop !== 0 || (p.play && (p.play.i === 4 || p.play.i + 1 === 4))) return false;
+    if (b?.hop !== 0 || (p.play && (p.play.i === 4 || p.play.i + 1 === 4))) return false;
     b.wait = 10;
     return true;
   });
