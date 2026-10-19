@@ -11,12 +11,14 @@ import {
   bridgeLabel,
   doorStep,
   HUB_DOORS,
+  MONKEY_SAYS,
   SCIENTIST_SAYS,
   TAR_ANIMAL,
   TAR_NEWS,
 } from '../../src/world/bridgein';
 import {
   BRIDGE_OBS,
+  BRIDGE_SCIENCE,
   BRIDGE_TARDOCK,
   BRIDGE_YOU,
   ROOMS,
@@ -71,7 +73,7 @@ describe("inside the kid's metal bridge", () => {
     for (const t of BRIDGE_THINGS) {
       expect(roomAt(t.at.x, t.at.y)).toBe(t.room);
       expect(walkable(t.at.x, t.at.y, 0)).toBe(true);
-      expect(bridgeAction(t.room, t.at.x, t.at.y, true, true)).toBe(t.act);
+      expect(bridgeAction(t.room, t.at.x, t.at.y, true, true, true)).toBe(t.act);
       expect(bridgeLabel(t.act)).not.toBe('');
     }
     // The bed only when there is a night to sleep through.
@@ -82,6 +84,12 @@ describe("inside the kid's metal bridge", () => {
     const boat = BRIDGE_THINGS.find((t) => t.act === 'bboat');
     expect(boat?.room).toBe(BRIDGE_TARDOCK);
     if (boat) expect(bridgeAction(boat.room, boat.at.x, boat.at.y, true, false)).toBeNull();
+    // The evil monkey's cage only once the tar eel is beaten and it is in it, and in the science room.
+    const cage = BRIDGE_THINGS.find((t) => t.act === 'bcage');
+    expect(cage?.room).toBe(BRIDGE_SCIENCE);
+    if (cage) expect(bridgeAction(cage.room, cage.at.x, cage.at.y, true, true, false)).toBeNull();
+    expect(MONKEY_SAYS.length).toBeGreaterThan(2);
+    for (const m of MONKEY_SAYS) expect(m).toMatch(/let it out|stays in there|open the door/i);
     // The tar animal stays out in the tar, off the dock.
     expect(walkable(TAR_ANIMAL.x, TAR_ANIMAL.y, 0)).toBe(false);
     expect(roomAt(TAR_ANIMAL.x, TAR_ANIMAL.y)).not.toBe(BRIDGE_TARDOCK);
@@ -105,5 +113,16 @@ describe("inside the kid's metal bridge", () => {
     }
     // The telescope; the bed and the mirror; two benches and the scientist; the table; the tank; the tar animal.
     expect(counts).toEqual([1, 2, 3, 1, 1, 1]);
+    // With the evil monkey in its cage, the science room has it too.
+    const { v } = fakeView();
+    const caged = bridgeSolids(v, BRIDGE_SCIENCE, {
+      talk: 0,
+      slap: 0,
+      news: 0,
+      caged: true,
+      rattle: 1,
+    });
+    expect(caged.length).toBe(4);
+    for (const s of caged) s.f();
   });
 });

@@ -10210,6 +10210,71 @@ test('the tar eel: mission 2 at the hologram, it finds the chemistry boat, the h
   expect(errors).toEqual([]);
 });
 
+test('the evil monkey: caged in the science room once the tar eel is beaten, and the scientist says do not let it out', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    eelStage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  // In through the bridge's door, and through to the science room.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.BRIDGE_DOOR.x + 30;
+    n.boat.y = n.BRIDGE_DOOR.y + 110;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('In through the door', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.BRIDGE_OBS);
+  const sci = await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.BRIDGE_HUB[1] as { to: number; x: number; y: number };
+    n.walker.x = d.x;
+    n.walker.y = d.y;
+    return d.to;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the science room', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction((to) => window.__np.floor === to, sci);
+  // Its cage, in the far corner: look, and it rattles the bars; the scientist will not have it let out.
+  const goCage = () =>
+    page.evaluate((to) => {
+      const n = window.__np;
+      const t = n.BRIDGE_THINGS.find((k) => k.room === to && k.act === 'bcage');
+      if (t) {
+        n.walker.x = t.at.x;
+        n.walker.y = t.at.y;
+      }
+    }, sci);
+  await goCage();
+  await expect(page.locator('#climb')).toHaveText('Look at the monkey', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('DO NOT LET IT OUT');
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('let it out');
+  // Before the tar eel is beaten, there is no cage.
+  await page.evaluate(() => {
+    window.__np.eelStage = 1;
+  });
+  await goCage();
+  await expect(page.locator('#climb')).toBeHidden({ timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
 test('the tar dragon: circles over the tar island, out of reach up high, speared when it lands, and back next landing', async ({
   context,
   page,
