@@ -10,7 +10,8 @@
  * Reaper on land, off island 6's sand; then the Tar Anchorer, wading in the sea round the barge as it wades in its tar;
  * then island 10's spider, in a web strung between two posts on the deck, whom only bug spray beats. The fourth stage
  * brings the newest on foot: the tar island's tar humans and tar beasts (a tar beast has nowhere to run on the barge, so
- * it fights), and Skull Island's men in bone armour and its displacer beasts.
+ * it fights), and Skull Island's men in bone armour and its displacer beasts; and the fifth, two more bosses, the tar
+ * island's: the tar leader, up out of his wait at his spot, and the tar dragon, circling over the deck.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -57,7 +58,9 @@ export type BargeFoe =
   | 'oldone'
   | 'reaper'
   | 'anchorer'
-  | 'spider';
+  | 'spider'
+  | 'tarleader'
+  | 'tardragon';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
@@ -87,6 +90,8 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'reaper',
   'anchorer',
   'spider',
+  'tarleader',
+  'tardragon',
 ];
 /** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
@@ -110,6 +115,8 @@ export const BOSS_FOES: readonly BargeFoe[] = [
   'reaper',
   'anchorer',
   'spider',
+  'tarleader',
+  'tardragon',
 ];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
@@ -167,6 +174,14 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   spider: [
     'The giant spider',
     'Wraps you up and hangs you in his web. Only bug spray beats him: 3 sprays.',
+  ],
+  tarleader: [
+    'The tar leader',
+    'Sweeps his sword through a red fan and leaps into a red ring: 4 hearts each. At half, he calls up tar humans. 25 hits.',
+  ],
+  tardragon: [
+    'The tar dragon',
+    'Spits tar into three red rings and swoops down a red lane. Spear it when it lands. 18 hits.',
   ],
 };
 

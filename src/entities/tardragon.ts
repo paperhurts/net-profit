@@ -111,11 +111,30 @@ export class TarDragon implements Entity {
   onHit: ((n: number) => void) | null = null;
   onBeaten: (() => void) | null = null;
 
+  /**
+   * What it circles over, the tar island's roost, and the ground its swoop lands on: the island; or, on the Battle
+   * Barge, a spot over its deck, and the deck.
+   */
+  constructor(
+    readonly roost: { x: number; y: number } = DRAGON_ROOST,
+    readonly ground: (x: number, y: number) => boolean = onTarIsle,
+  ) {
+    this.x = roost.x + ROOST_R;
+    this.y = roost.y;
+  }
+
+  /** Off its circle and after the figure at once, as on the Battle Barge. */
+  wake(): void {
+    if (this.state !== 'circle') return;
+    this.set('shriek');
+    this.onRise?.();
+  }
+
   /** Back up circling, whole: each landing. */
   reset(): void {
     this.round = 0;
-    this.x = DRAGON_ROOST.x + ROOST_R;
-    this.y = DRAGON_ROOST.y;
+    this.x = this.roost.x + ROOST_R;
+    this.y = this.roost.y;
     this.z = DRAGON_HIGH;
     this.h = Math.PI / 2;
     this.hp = DRAGON_HP;
@@ -189,25 +208,25 @@ export class TarDragon implements Entity {
       return;
     }
     const fig = w.figure;
-    const far = !fig || Math.hypot(fig.x - DRAGON_ROOST.x, fig.y - DRAGON_ROOST.y) > DRAGON_LEASH;
+    const far = !fig || Math.hypot(fig.x - this.roost.x, fig.y - this.roost.y) > DRAGON_LEASH;
     if (this.state === 'circle') {
       this.circle(dt);
-      if (fig && Math.hypot(fig.x - DRAGON_ROOST.x, fig.y - DRAGON_ROOST.y) < DRAGON_WAKE) {
+      if (fig && Math.hypot(fig.x - this.roost.x, fig.y - this.roost.y) < DRAGON_WAKE) {
         this.set('shriek');
         this.onRise?.();
       }
       return;
     }
     if (this.state === 'back') {
-      if (!far && fig && Math.hypot(fig.x - DRAGON_ROOST.x, fig.y - DRAGON_ROOST.y) < DRAGON_WAKE) {
+      if (!far && fig && Math.hypot(fig.x - this.roost.x, fig.y - this.roost.y) < DRAGON_WAKE) {
         this.set('shriek');
         this.onRise?.();
         return;
       }
-      const a = Math.atan2(this.y - DRAGON_ROOST.y, this.x - DRAGON_ROOST.x);
+      const a = Math.atan2(this.y - this.roost.y, this.x - this.roost.x);
       this.z = Math.min(DRAGON_HIGH, this.z + 60 * dt);
       if (
-        this.fly(DRAGON_ROOST.x + Math.cos(a) * ROOST_R, DRAGON_ROOST.y + Math.sin(a) * ROOST_R, dt)
+        this.fly(this.roost.x + Math.cos(a) * ROOST_R, this.roost.y + Math.sin(a) * ROOST_R, dt)
       ) {
         this.round = a;
         this.set('circle');
@@ -312,7 +331,7 @@ export class TarDragon implements Entity {
     this.to = { x: fig.x, y: fig.y };
     for (const past of [SWOOP_PAST, 60, 30]) {
       const p = { x: fig.x + ux * past, y: fig.y + uy * past };
-      if (onTarIsle(p.x, p.y)) {
+      if (this.ground(p.x, p.y)) {
         this.to = p;
         break;
       }
@@ -355,8 +374,8 @@ export class TarDragon implements Entity {
 
   private circle(dt: number): void {
     this.round += dt * 0.5;
-    this.x = DRAGON_ROOST.x + Math.cos(this.round) * ROOST_R;
-    this.y = DRAGON_ROOST.y + Math.sin(this.round) * ROOST_R;
+    this.x = this.roost.x + Math.cos(this.round) * ROOST_R;
+    this.y = this.roost.y + Math.sin(this.round) * ROOST_R;
     this.h = this.round + Math.PI / 2;
   }
 

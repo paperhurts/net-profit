@@ -93,10 +93,31 @@ export class TarLeader implements Entity {
   onCall: ((x: number, y: number) => void) | null = null;
   onBeaten: (() => void) | null = null;
 
+  /**
+   * Where he stands, up on the tar island's high ground, and the ground he leaps onto: the island's; or, on the Battle
+   * Barge, his spot on its deck and the deck.
+   */
+  constructor(
+    readonly home: { x: number; y: number } = LEADER_HOME,
+    readonly ground: (x: number, y: number) => boolean = onTarIsle,
+  ) {
+    this.x = home.x;
+    this.y = home.y;
+    this.from = { ...home };
+    this.to = { ...home };
+  }
+
+  /** Up out of his wait and after the figure at once, as on the Battle Barge. */
+  wake(): void {
+    if (this.state !== 'wait') return;
+    this.set('rise');
+    this.onRise?.();
+  }
+
   /** Back up on the high ground, whole: each landing, until he is beaten. */
   reset(): void {
-    this.x = LEADER_HOME.x;
-    this.y = LEADER_HOME.y;
+    this.x = this.home.x;
+    this.y = this.home.y;
     this.h = Math.PI * 0.75;
     this.hp = LEADER_HP;
     this.state = this.beaten ? 'gone' : 'wait';
@@ -187,7 +208,7 @@ export class TarLeader implements Entity {
         this.onRise?.();
         return;
       }
-      if (this.toward(LEADER_HOME.x, LEADER_HOME.y, LEADER_SPEED * 0.8, dt)) this.set('wait');
+      if (this.toward(this.home.x, this.home.y, LEADER_SPEED * 0.8, dt)) this.set('wait');
       return;
     }
     if (!fig) return;
@@ -264,7 +285,7 @@ export class TarLeader implements Entity {
       d >= LEAP_NEAR &&
       d <= LEAP_FAR &&
       this.sinceLeap >= LEAP_EVERY &&
-      onTarIsle(fig.x, fig.y)
+      this.ground(fig.x, fig.y)
     ) {
       this.h = a;
       this.to = { x: fig.x, y: fig.y };

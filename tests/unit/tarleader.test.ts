@@ -17,6 +17,7 @@ import {
 import { setWalkLand, WALK_SPEED } from '../../src/entities/walker';
 import { drawLeaderMark, drawTarLeader } from '../../src/render/tarleader';
 import { HILL_H, JETTY_END, onTarIsle, tarIsleZ } from '../../src/world/tarisle';
+import { ARENAS, onFloor, ROOMS, type Room } from '../../src/world/tower';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
@@ -257,5 +258,29 @@ describe('the tar leader', () => {
     drawLeaderMark(f.v, L);
     drawTarLeader(f.v, L);
     expect(f.calls.fill ?? 0).toBeGreaterThan(before + 6);
+  });
+
+  it("stands anywhere he is put, as on the Battle Barge's deck, and leaps only onto the deck there", () => {
+    setWalkLand(null);
+    const R = ROOMS[ARENAS.large] as Room;
+    const home = { x: R.x, y: R.y - 120 };
+    const L = new TarLeader(home, (x, y) => onFloor(x, y));
+    L.here = true;
+    L.reset();
+    expect([L.x, L.y]).toEqual([home.x, home.y]);
+    // A figure on the deck, a leap away: he crouches for it.
+    const fig = { x: home.x + 10, y: home.y + 160 };
+    awake(L, fig);
+    until(L, 'crouch', 3, () => fig);
+    expect(L.state).toBe('crouch');
+    // One off the deck, out over the sea, never.
+    const M = new TarLeader(home, (x, y) => onFloor(x, y));
+    M.here = true;
+    M.reset();
+    const off = { x: home.x - 60, y: home.y - 200 };
+    expect(onFloor(off.x, off.y)).toBe(false);
+    awake(M, off);
+    run(M, 2, () => off);
+    expect(M.state).not.toBe('crouch');
   });
 });
