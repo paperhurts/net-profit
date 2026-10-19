@@ -41,6 +41,10 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
+  boneMen: {
+    list: { x: number; y: number; hp: number; state: string; t: number }[];
+    hit: (m: unknown, power: number) => boolean;
+  };
   revealView: number;
   DOCK12: { x: number; y: number; r: number };
   TOWER12_DOOR: { x: number; y: number };
@@ -6917,6 +6921,10 @@ test('Skull Island: sighted, the camera takes in the whole skull, tie up off its
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('Skull Island');
+  // Skrill's men have a test of their own: here only the walk.
+  await page.evaluate(() => {
+    for (const m of window.__np.boneMen.list) m.state = 'gone';
+  });
   // Straight up the screen: off the pier, up the jaw, and through the gap where its front teeth were.
   const along = () =>
     page.evaluate(() => {
@@ -6951,6 +6959,74 @@ test('Skull Island: sighted, the camera takes in the whole skull, tie up off its
   });
   await expect(page.locator('#toast')).toContainText('mwa ha ha', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Skull Island found');
+  expect(errors).toEqual([]);
+});
+
+test("Skull Island: Skrill's men in bone armour come on in pairs, sweep a red fan, and fall apart into bones", async ({
+  context,
+  page,
+}) => {
+  // Ashore off its chin, in the Honor Guard armour, with a spear.
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    armour: 5,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    isle12Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9700, y: 9700, h: (-3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromSkull(0, 1610);
+    n.boat.x = x;
+    n.boat.y = y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // All on guard at the landing; up the jaw, the pair guarding it raise their jawblades and come on.
+  expect(
+    await page.evaluate(() => window.__np.boneMen.list.every((m) => m.state === 'guard')),
+  ).toBe(true);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromSkull(0, 1260);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await expect(page.locator('#toast')).toContainText('bone armour', { timeout: 4000 });
+  expect(
+    await page.evaluate(() => window.__np.boneMen.list.filter((m) => m.state !== 'guard').length),
+  ).toBe(2);
+  // Standing still, a sweep lands: two hearts.
+  const h0 = await page.evaluate(() => window.__np.hearts);
+  await page.waitForFunction((h) => window.__np.hearts <= h - 2, h0, { timeout: 8000 });
+  // Seventeen hits on each of the pair, and a throw lands the eighteenth: his armour falls apart, and 70 coins.
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const n = window.__np;
+    for (const m of n.boneMen.list.filter((o) => o.state !== 'guard')) n.boneMen.hit(m, 17);
+  });
+  await page.waitForFunction(() => window.__np.boneMen.list.some((m) => m.hp === 1), null, {
+    timeout: 2000,
+  });
+  await page.click('#throw');
+  await page.waitForFunction(
+    () => window.__np.boneMen.list.some((m) => m.state === 'fall' || m.state === 'gone'),
+    null,
+    {
+      timeout: 4000,
+    },
+  );
+  await expect.poll(() => page.evaluate(() => window.__np.coins)).toBeGreaterThanOrEqual(c0 + 70);
+  await expect(page.locator('#toast')).toContainText('falls apart', { timeout: 8000 });
   expect(errors).toEqual([]);
 });
 
