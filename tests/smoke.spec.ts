@@ -135,6 +135,10 @@ type Np = {
   };
   tarRod: { state: string };
   tarAshore: boolean;
+  tarFolk: {
+    list: { kind: string; state: string; hp: number; x: number; y: number }[];
+    hit(f: unknown, n: number): boolean;
+  };
   tarIsleSeen: boolean;
   TAR_ISLE: { x: number; y: number; r: number };
   ISLE_BERTH: { x: number; y: number };
@@ -9695,6 +9699,103 @@ test('the tar island: tied up at its jetty, ashore, up the hill to the tower doo
   await page.waitForFunction(() => !window.__np.tarAshore);
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.tarSail === null);
+  expect(errors).toEqual([]);
+});
+
+test('tar creatures: they rise on the tar island, take spears, melt for coins, a beast runs, and a slam bonks you back aboard', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  await page.evaluate(() => {
+    const n = window.__np;
+    if (!n.tarSail) return;
+    n.tarSail.x = n.ISLE_BERTH.x + 20;
+    n.tarSail.y = n.ISLE_BERTH.y + 50;
+    n.tarSail.v = 0;
+  });
+  await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.tarAshore);
+  // Up to the first tar human: it rises, and its friends with it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.tarFolk.list[0];
+    if (!g) return;
+    n.walker.x = g.x + 110;
+    n.walker.y = g.y + 10;
+  });
+  await page.waitForFunction(() => window.__np.tarFolk.list[0]?.state !== 'idle', null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#toast')).toContainText('Tar creatures!');
+  // A spear from the throw button hurts it.
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 3000 });
+  await page.locator('#throw').dispatchEvent('pointerdown');
+  await page.waitForFunction(() => (window.__np.tarFolk.list[0]?.hp ?? 15) < 15, null, {
+    timeout: 3000,
+  });
+  // Beaten, it melts and leaves 60 coins.
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.tarFolk.list[0];
+    if (g) n.tarFolk.hit(g, 99);
+  });
+  expect(await page.evaluate(() => window.__np.tarFolk.list[0]?.state)).toBe('melt');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(c0 + 60);
+  // A tar beast losing runs, and says so.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const b = n.tarFolk.list[4];
+    if (!b) return;
+    n.walker.x = b.x + 120;
+    n.walker.y = b.y;
+  });
+  await page.waitForFunction(() => window.__np.tarFolk.list[4]?.state === 'chase', null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const b = n.tarFolk.list[4];
+    if (b) n.tarFolk.hit(b, 12);
+  });
+  expect(await page.evaluate(() => window.__np.tarFolk.list[4]?.state)).toBe('flee');
+  await expect(page.locator('#toast')).toContainText('it runs');
+  // One heart left, stood in front of a tar human: slammed, and back aboard the chemistry boat, nothing lost.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.tarFolk.list[1];
+    if (!g) return;
+    n.walker.x = g.x + 26;
+    n.walker.y = g.y;
+    n.setHearts(1);
+  });
+  await page.waitForFunction(() => !window.__np.tarAshore, null, { timeout: 10000 });
+  await expect(page.locator('#toast')).toContainText('aboard the chemistry boat');
+  expect(await page.evaluate(() => [!!window.__np.tarSail, window.__np.hearts > 1])).toEqual([
+    true,
+    true,
+  ]);
+  await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+  await expect(page.locator('#leave')).toHaveText('Back to the bridge');
   expect(errors).toEqual([]);
 });
 
