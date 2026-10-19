@@ -144,6 +144,7 @@ type Np = {
     hit(n: number): boolean;
   };
   tarLeaderBeaten: boolean;
+  openMap(): void;
   tarDragon: {
     state: string;
     hp: number;
@@ -8467,6 +8468,12 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
   const toast = page.locator('#toast');
+  /** Whether this message of ours is the one showing: the sea's own (a turtle, say) may come and go meanwhile. */
+  const showing = (text: string) =>
+    page.evaluate((t) => {
+      const el = document.querySelector('#toast');
+      return !!el && el.classList.contains('show') && el.textContent === t;
+    }, text);
   // Let the game's own first messages pass, so only ours shows.
   await page.waitForTimeout(500);
   await page.evaluate(() => window.__np.toast('A message to tap away.', 20000, 2));
@@ -8474,7 +8481,7 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
   await expect(toast).toHaveClass(/show/);
   const v0 = await page.evaluate(() => window.__np.boat.v);
   await toast.click();
-  await expect(toast).not.toHaveClass(/show/);
+  await expect.poll(() => showing('A message to tap away.')).toBe(false);
   // The press did not steer.
   expect(await page.evaluate(() => window.__np.boat.v)).toBeLessThanOrEqual(v0);
   // Flicked sideways, it slides off and goes.
@@ -8490,12 +8497,12 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
   await page.mouse.move(cx + 60, cy, { steps: 4 });
   await page.mouse.move(cx + 120, cy, { steps: 4 });
   await page.mouse.up();
-  await expect(toast).not.toHaveClass(/show/);
+  await expect.poll(() => showing('A message to flick away.')).toBe(false);
   // Said again straight away, it keeps away.
   await page.waitForTimeout(400);
   await page.evaluate(() => window.__np.toast('A message to flick away.', 20000, 2));
   await page.waitForTimeout(300);
-  await expect(toast).not.toHaveClass(/show/);
+  expect(await showing('A message to flick away.')).toBe(false);
   // A short drag is not a flick: it goes back and stays.
   await page.evaluate(() => window.__np.toast('A message to keep.', 20000, 2));
   await expect(toast).toHaveText('A message to keep.');
@@ -9636,6 +9643,43 @@ async function outOnTheTar(page: Page): Promise<void> {
   await page.click('#climb');
   await page.waitForFunction(() => window.__np.tarSail !== null);
 }
+
+test('finding the tar island: the sail-out message and the tar map show the way', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  await expect(page.locator('#toast')).toContainText('follow the arrow with the tower on it');
+  // The map button, out on the tar, shows the tar ocean, not the sea.
+  await page.click('#mapBtn');
+  await expect(page.locator('#seamap')).toBeVisible();
+  await expect(page.locator('#mapTitle')).toHaveText('Tar map');
+  await expect(page.locator('#mapNote')).toContainText('The tar island');
+  await page.click('#mapClose');
+  await expect(page.locator('#seamap')).toBeHidden();
+  // Back in at the bridge, the sea map again.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.tarSail === null);
+  await page.evaluate(() => window.__np.openMap());
+  await expect(page.locator('#mapTitle')).toHaveText('Sea map');
+  expect(errors).toEqual([]);
+});
 
 test('the tar island: tied up at its jetty, ashore, up the hill to the tower door, and back aboard', async ({
   context,
