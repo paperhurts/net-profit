@@ -166,14 +166,6 @@ export function drawSkrill(v: DrawView, s: Skrill): void {
   ctx.beginPath();
   ctx.ellipse(sx, sy, 26 * Z * sh, 9 * Z * sh, 0, 0, Math.PI * 2);
   ctx.fill();
-  if (down) {
-    // The snapped horn beside him.
-    ctx.save();
-    ctx.translate(sx + 30 * Z, sy + 4 * Z);
-    ctx.rotate(0.4);
-    horn(ctx, Z * SCALE, 1);
-    ctx.restore();
-  }
   const laugh = s.state === 'laugh' ? Math.sin(s.t * 30) * 1.5 : 0;
   ctx.save();
   ctx.translate(sx, py(s.x, s.y, s.z) + laugh * Z);
@@ -332,6 +324,17 @@ export function drawSkrill(v: DrawView, s: Skrill): void {
     v.isoEllipse(s.x, s.y, 20 + k * 30);
     ctx.stroke();
   }
+}
+
+/** His snapped horn on his floor where he fell, once he has crashed down; there after he is gone, too. */
+export function drawSkrillHorn(v: DrawView, s: Skrill): void {
+  if (!s.hornAt) return;
+  const { ctx, px, py, zoom: Z } = v;
+  ctx.save();
+  ctx.translate(px(s.hornAt.x, s.hornAt.y), py(s.hornAt.x, s.hornAt.y));
+  ctx.rotate(0.4);
+  horn(ctx, Z * SCALE, 1);
+  ctx.restore();
 }
 
 /** A horn, curling up and out: s its size, side which way it curls. */
