@@ -32,7 +32,8 @@ export type RoomKind =
   | 'crypt'
   | 'arena'
   | 'bridge'
-  | 'skull';
+  | 'skull'
+  | 'skrill';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -94,6 +95,8 @@ export const ROOMS: readonly Room[] = [
   { x: -23500, y: -8700, r: ROOM_R + 40, roof: false, kind: 'skull' },
   // Up the ladder from the bridge's observatory: its roof, open to the sky, with the orb in the middle.
   { x: -21000, y: -9100, r: 150, roof: false, kind: 'bridge' },
+  // Through Skrill's own door at the top of his fourth floor: the open top of his tower, where he waits.
+  { x: -23500, y: -9700, r: ROOM_R + 80, roof: true, kind: 'skrill' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -129,8 +132,10 @@ export const BRIDGE_NEWS = 32;
 export const BRIDGE_TARDOCK = 33;
 /** The bridge's roof, up the observatory's ladder, where the orb is. */
 export const BRIDGE_ROOF = 38;
-/** Skrill's tower: its four floors, in order, in ROOMS. The way up from the last is his own door, shut. */
+/** Skrill's tower: its four floors, in order, in ROOMS. The way up from the last is his own door. */
 export const SKULL_FLOORS: readonly number[] = [34, 35, 36, 37];
+/** Through it, the top of his tower, open to the sky: Skrill's own floor, the fifth. */
+export const SKRILL_TOP = 39;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },

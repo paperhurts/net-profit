@@ -2,7 +2,8 @@
  * Inside Skrill's tower (world/skulltower.ts): its floors are the towers' stone rooms (drawn in the game), but black,
  * lit purple. This adds what only his has: a skull carved into the back wall with purple light in its eyes, old bones
  * about the floor, and, at the back of the last floor where the stairs would be, Skrill's own door, black iron with a
- * bone skull on it, shut fast, purple light under it.
+ * bone skull on it, shut fast, purple light under it; once the floor is beaten, standing open on stairs going up into
+ * the night.
  */
 
 import type { DrawView } from '../entities/entity';
@@ -57,8 +58,8 @@ export function drawSkullRoom(v: DrawView, R: Room): void {
   }
 }
 
-/** Skrill's own door at (x, y), at the back of the last floor: black iron, a bone skull on it, shut fast. */
-export function drawSkrillDoor(v: DrawView, x: number, y: number): void {
+/** Skrill's own door at (x, y), at the back of the last floor: black iron, a bone skull on it, shut fast, or open. */
+export function drawSkrillDoor(v: DrawView, x: number, y: number, open = false): void {
   const { ctx, px, py, T, zoom: Z } = v;
   const sx = px(x, y);
   const sy = py(x, y);
@@ -77,6 +78,25 @@ export function drawSkrillDoor(v: DrawView, x: number, y: number): void {
   ctx.lineTo(sx + 18 * Z, sy);
   ctx.closePath();
   ctx.fill();
+  if (open) {
+    // Open: the doorway full of red night, steps going up into it, the door swung back against the wall.
+    ctx.fillStyle = '#3A0F1E';
+    ctx.beginPath();
+    ctx.moveTo(sx - 14 * Z, sy);
+    ctx.lineTo(sx - 14 * Z, sy - 38 * Z);
+    ctx.quadraticCurveTo(sx, sy - 54 * Z, sx + 14 * Z, sy - 38 * Z);
+    ctx.lineTo(sx + 14 * Z, sy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#2A2430';
+    for (let i = 0; i < 5; i++)
+      ctx.fillRect(sx - (12 - i) * Z, sy - (4 + i * 7) * Z, (24 - i * 2) * Z, 3 * Z);
+    ctx.fillStyle = '#1C1822';
+    ctx.fillRect(sx + 14 * Z, sy - 44 * Z, 6 * Z, 44 * Z);
+    ctx.fillStyle = `rgba(200,140,255,${k})`;
+    ctx.fillRect(sx - 16 * Z, sy - 2 * Z, 32 * Z, 2 * Z);
+    return;
+  }
   ctx.strokeStyle = '#3A3344';
   ctx.lineWidth = 2.2 * Z;
   for (const h of [10, 26]) {

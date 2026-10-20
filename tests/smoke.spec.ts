@@ -176,6 +176,15 @@ type Np = {
     hit(n: number): boolean;
   };
   tarLeaderBeaten: boolean;
+  skrill: {
+    state: string;
+    t: number;
+    z: number;
+    hp: number;
+    low: boolean;
+    hit(n: number): boolean;
+  };
+  skrillBeaten: boolean;
   openMap(): void;
   tarEel: {
     state: string;
@@ -437,7 +446,7 @@ type Np = {
   wboat: { free: boolean; x: number; y: number; catches: number };
   cine: { t: number; kind: string } | null;
   floors: {
-    list: { x: number; y: number }[];
+    list: { x: number; y: number; state: string }[];
     hit(m: unknown, power: number, fx: number, fy: number): void;
   }[];
   boss: { up: boolean; hit(power: number): void };
@@ -5621,7 +5630,8 @@ test("tester: the story goes on past the Heron, to the tar eel, leaving the plac
     tour: false,
   });
   await page.locator('#testerBtn').dispatchEvent('click');
-  await expect(page.locator('#testerSteps .tstep.done')).toHaveCount(steps);
+  // Every step done but the one after the eel's: Skrill.
+  await expect(page.locator('#testerSteps .tstep.done')).toHaveCount(steps - 1);
   expect(errors).toEqual([]);
 });
 
@@ -7179,11 +7189,14 @@ test("Skull Island's displacer beasts: never where they look, a spear goes throu
   expect(errors).toEqual([]);
 });
 
-test("Skrill's tower: in at its door, up four floors held by his men and his beasts, and his own door shut at the top", async ({
-  context,
-  page,
-}) => {
+/** Ashore on Skull Island, in at the tower's door, and up its four floors, each beaten: at the top of the fourth. */
+async function upSkrillsTower(
+  context: BrowserContext,
+  page: Page,
+  extra: Record<string, unknown> = {},
+) {
   const errors = await boot(context, page, {
+    ...extra,
     muted: true,
     spear: 2,
     armour: 5,
@@ -7253,11 +7266,92 @@ test("Skrill's tower: in at its door, up four floors held by his men and his bea
     await page.click('#climb');
     await page.waitForFunction((f) => window.__np.floor === f, f + 1, { timeout: 3000 });
   }
-  // The top: no stairs, only Skrill's own door, shut, and him laughing behind it.
+  return errors;
+}
+
+test("Skrill's tower: in at its door, up four floors held by his men and his beasts, and his own door open at the top", async ({
+  context,
+  page,
+}) => {
+  const errors = await upSkrillsTower(context, page);
+  // The top of the fourth: no stairs, only Skrill's own door, creaking open, and him laughing up beyond it.
   await expect(page.locator('#toast')).toContainText('mwa ha ha', { timeout: 4000 });
-  await expect(page.locator('#climb')).toBeHidden();
+  await expect(page.locator('#climb')).toHaveText("Through Skrill's door", { timeout: 3000 });
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('Skrill: up through his door to the top of his tower, he laughs and comes with his five monkeys, a spear reaches him only down low, and beaten his horn goes to the trophy hall', async ({
+  context,
+  page,
+}) => {
+  const errors = await upSkrillsTower(context, page);
+  await expect(page.locator('#climb')).toHaveText("Through Skrill's door", { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction((f) => window.__np.floor === f, 39, { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [
+      window.__np.skrill.state,
+      (window.__np.floors[39]?.list ?? []).length,
+    ]),
+  ).toEqual(['wait', 5]);
+  // A step in, and he wakes: his laugh, and his monkeys come.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = -23500 + 20;
+    n.walker.y = -9700 + 20;
+  });
+  await expect(page.locator('#toast')).toContainText('Skrill!', { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('hehe ha ha mwa ha ha');
+  await page.waitForFunction(
+    () => (window.__np.floors[39]?.list ?? []).some((m) => m.state === 'chase'),
+    null,
+    { timeout: 3000 },
+  );
+  const trophies = await page.evaluate(() => window.__np.trophiesWon);
+  // Up on his wings, a spear can't reach him.
+  const high = await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    n.skrill.state = 'hover';
+    n.skrill.t = 0;
+    n.skrill.z = 100;
+    return [n.skrill.low, n.skrill.hit(1), n.skrill.hp];
+  });
+  expect(high).toEqual([false, false, 20]);
+  // Landed after a swoop: open. Beaten: coins, his horn, and his monkeys run.
+  const c0 = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.skrill.state = 'landed';
+    n.skrill.t = 0;
+    n.skrill.z = 0;
+    n.skrill.hit(99);
+  });
+  await expect(page.locator('#toast')).toContainText('You beat Skrill!', { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [
+      window.__np.skrillBeaten,
+      window.__np.coins,
+      window.__np.trophiesWon,
+    ]),
+  ).toEqual([true, c0 + 8000, trophies + 1]);
+  await page.waitForFunction(
+    () =>
+      (window.__np.floors[39]?.list ?? []).every((m) => m.state === 'flee' || m.state === 'gone'),
+    null,
+    { timeout: 3000 },
+  );
+  await page.waitForFunction(() => window.__np.skrill.state === 'down', null, { timeout: 4000 });
+  // Out, and up again: he stays beaten, his throne empty.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').skrillBeaten,
+    ),
+  ).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -7881,7 +7975,7 @@ test("your headquarters' trophy hall: a trophy for each boss beaten, and empty s
     await page.waitForFunction((f) => window.__np.floor === f + 1, floor);
   }
   // The island 2 sorcerer, the Tar Anchorer, the Shark King, island 7's sorcerer, the Forgotten One twice, the Old One.
-  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 22 stands', {
+  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 23 stands', {
     timeout: 3000,
   });
   expect(await page.evaluate(() => window.__np.trophiesWon)).toBe(7);

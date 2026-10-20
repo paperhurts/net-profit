@@ -28,13 +28,14 @@ const none = (): Beaten => ({
   cryptWon: false,
   stealth1: false,
   tarLeader: false,
+  skrill: false,
   driven: noDriven(),
 });
 const won = (b: Beaten): TrophyKind[] => TROPHY_KINDS.filter((k) => TROPHIES[k].won(b));
 
 describe('the trophy hall', () => {
   it('has a trophy for each boss, named, with a story and where to win it', () => {
-    expect(TROPHY_KINDS).toHaveLength(22);
+    expect(TROPHY_KINDS).toHaveLength(23);
     for (const k of TROPHY_KINDS) {
       const t = TROPHIES[k];
       expect(t.name.length).toBeGreaterThan(5);
@@ -58,9 +59,10 @@ describe('the trophy hall', () => {
       cryptWon: true,
       stealth1: true,
       tarLeader: true,
+      skrill: true,
       driven: { guard: 1, cthulu: 1, angler: 1, gulper: 1, meteor: 1, reaper: 1 },
     };
-    expect(trophiesWon(all)).toBe(22);
+    expect(trophiesWon(all)).toBe(23);
   });
 
   it('fills each stand from its own boss', () => {
@@ -82,6 +84,7 @@ describe('the trophy hall', () => {
     expect(won({ ...none(), cryptWon: true })).toEqual(['blade']);
     expect(won({ ...none(), stealth1: true })).toEqual(['hat']);
     expect(won({ ...none(), tarLeader: true })).toEqual(['tarsword']);
+    expect(won({ ...none(), skrill: true })).toEqual(['skrillhorn']);
     const beasts = {
       guard: 'spine',
       cthulu: 'shard',

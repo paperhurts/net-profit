@@ -24,6 +24,7 @@ export const TROPHY_KINDS = [
   'blade',
   'hat',
   'tarsword',
+  'skrillhorn',
   'spine',
   'shard',
   'lure',
@@ -48,6 +49,8 @@ export interface Beaten {
   stealth1: boolean;
   /** The tar leader beaten on the tar island. */
   tarLeader: boolean;
+  /** Skrill beaten at the top of his tower on Skull Island. */
+  skrill: boolean;
   driven: Driven;
 }
 
@@ -173,6 +176,13 @@ export const TROPHIES: Readonly<Record<TrophyKind, Trophy>> = {
       "The tar leader's long black sword, a purple gleam along its edge. He left it on the high ground of the tar island when he melted away.",
     hint: 'Beat the tar leader, up on the high ground of the tar island.',
     won: (b) => b.tarLeader,
+  },
+  skrillhorn: {
+    name: "Skrill's horn",
+    story:
+      "One of Skrill's horns, snapped clean off when he crashed down on top of his own tower on Skull Island. It still curls up as if it were laughing.",
+    hint: 'Beat Skrill, at the very top of his tower on Skull Island.',
+    won: (b) => b.skrill,
   },
   spine: {
     name: "the leviathan's spine",

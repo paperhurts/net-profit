@@ -38,6 +38,7 @@ export type Story = {
   invis: boolean;
   tarLeaderBeaten: boolean;
   eelStage: number;
+  skrillBeaten: boolean;
 };
 
 /** A step of the story: what the panel calls it, what a game past it is past, and what marking it beaten sets (never lowers). */
@@ -169,6 +170,14 @@ export const STEPS: readonly Step[] = [
     short: 'the tar eel',
     label: "Mission 2's tar eel beaten: the evil monkey caged in the bridge",
     apply: (s) => atLeast(s, 'eelStage', 2),
+  },
+  {
+    id: 'skrill',
+    short: 'Skrill',
+    label: 'Skrill beaten, at the top of his tower on Skull Island',
+    apply: (s) => {
+      s.skrillBeaten = true;
+    },
   },
 ];
 
