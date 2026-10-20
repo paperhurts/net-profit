@@ -16,6 +16,7 @@ const start: Beaten = {
   cryptWon: false,
   stealth1: false,
   tarLeader: false,
+  skrill: false,
   driven: noDriven(),
 };
 
@@ -58,7 +59,7 @@ describe('the orb on the bridge', () => {
   it('and more: the next boss to beat, and where, until there are none left', () => {
     expect(orbNext(start)).toBe(TROPHIES.staff.hint);
     expect(orbNext({ ...start, towerTaken: true })).toBe(TROPHIES.sword.hint);
-    // With every one of them won, what is still out there: Skull Island.
+    // With every one of them won, Skrill too: nothing it has seen yet.
     const all: Beaten = {
       towerTaken: true,
       isle3Stage: 9,
@@ -72,10 +73,13 @@ describe('the orb on the bridge', () => {
       cryptWon: true,
       stealth1: true,
       tarLeader: true,
+      skrill: true,
       driven: { guard: 1, cthulu: 1, angler: 1, gulper: 1, meteor: 1, reaper: 1 },
     };
     expect(TROPHY_KINDS.every((k) => TROPHIES[k].won(all))).toBe(true);
     expect(orbPast(all)).toHaveLength(TROPHY_KINDS.length);
-    expect(orbNext(all)).toContain('Skull Island');
+    expect(orbNext(all)).toContain('even Skrill');
+    // Skrill the only one left: his hint, his tower.
+    expect(orbNext({ ...all, skrill: false })).toBe(TROPHIES.skrillhorn.hint);
   });
 });

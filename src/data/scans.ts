@@ -27,6 +27,7 @@ export const SCAN_KINDS = [
   'tardragon',
   'boneman',
   'displacer',
+  'skrill',
   'spider',
   'pelican',
   'sorcerer',
@@ -187,6 +188,11 @@ export const SCANS: Record<ScanKind, Scan> = {
     name: 'A displacer beast',
     beat: "Four hits, but it's never where it looks: a spear goes right through! Its shadow shows where it really is. When it rears its tentacles back, get out of the red wedge: a lash takes three hearts. Just after, it shows itself: hit it then.",
     weak: 'A hit makes it show itself for a moment, so keep hitting.',
+  },
+  skrill: {
+    name: 'Skrill',
+    beat: "Twenty hits, only when he's down on his floor: up on his wings a spear can't reach him. A red fan: his sword, get out of it. Three red rings: his orb's bolts, step out. A red lane: he swoops, get off it, then spear him while he gets his breath.",
+    weak: 'He has to land after every swoop.',
   },
   spider: {
     name: 'The giant spider',

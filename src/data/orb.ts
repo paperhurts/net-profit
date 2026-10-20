@@ -53,5 +53,5 @@ export function orbNext(b: Beaten): string {
   const k = TROPHY_KINDS.find((t) => !TROPHIES[t].won(b));
   return k
     ? TROPHIES[k].hint
-    : 'Every boss so far is beaten. Far past the white buoys, on Skull Island, someone is laughing in a tower.';
+    : 'Every boss so far is beaten, even Skrill. The orb goes dim, and quiet: whatever is next, it has not seen it yet.';
 }

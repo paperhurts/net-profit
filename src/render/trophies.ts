@@ -510,6 +510,33 @@ const DRAW: Readonly<Record<TrophyKind, (c: Pen, T: number) => void>> = {
       [1, -21],
     ]);
   },
+  // Skrill's horn, ivory, curling up off a black cushion, a jagged end where it snapped.
+  skrillhorn: (c) => {
+    oval(c, '#2A1B3A', 0, -1.5, 5, 2);
+    c.fillStyle = '#E9DFC4';
+    c.strokeStyle = 'rgba(120,100,70,.8)';
+    c.lineWidth = 0.6;
+    c.beginPath();
+    c.moveTo(-4, -2);
+    c.quadraticCurveTo(-5, -14, 2, -20);
+    c.quadraticCurveTo(7, -24, 5, -28);
+    c.quadraticCurveTo(10, -22, 5, -15);
+    c.quadraticCurveTo(1, -9, 3.5, -2);
+    c.lineTo(1.5, -3.5);
+    c.lineTo(0, -1.5);
+    c.lineTo(-2, -3.2);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    line(c, 'rgba(150,130,100,.7)', 0.6, [
+      [-2.5, -8],
+      [1.5, -9],
+    ]);
+    line(c, 'rgba(150,130,100,.7)', 0.6, [
+      [-1, -14],
+      [3, -14.5],
+    ]);
+  },
   // A long white tooth.
   tooth: (c) => {
     oval(c, '#3A3236', 0, -1, 4, 1.6);

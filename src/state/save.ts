@@ -237,6 +237,8 @@ export type SaveData = {
   skullKey: boolean;
   /** The crypt behind the skull door won: the Forgotten One beaten again, and yielded. Missing in old saves and read as not. */
   cryptWon: boolean;
+  /** Skrill beaten at the top of his tower on Skull Island. Missing in old saves and read as not. */
+  skrillBeaten: boolean;
   /** The Forgotten One has shown you round his castle and given it you: Gigantis is your headquarters, and he is gone,
    *  saving you from the Old One. Missing in old saves and read as not. */
   castleHQ: boolean;
@@ -448,6 +450,7 @@ export function defaultSave(b: Bounds): SaveData {
     catermanFree: false,
     skullKey: false,
     cryptWon: false,
+    skrillBeaten: false,
     castleHQ: false,
     scanner: 0,
     scanned: [],
@@ -647,6 +650,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.catermanFree = !!o.catermanFree;
   d.skullKey = !!o.skullKey;
   d.cryptWon = !!o.cryptWon;
+  d.skrillBeaten = !!o.skrillBeaten;
   d.castleHQ = !!o.castleHQ;
   d.scanner = typeof o.scanner === 'number' && o.scanner > 0 ? Math.floor(o.scanner) : 0;
   d.scanned = Array.isArray(o.scanned) ? [...new Set(o.scanned.filter(isScanKind))] : [];
@@ -825,6 +829,7 @@ export function serializeSave(d: SaveData): string {
     catermanFree: d.catermanFree,
     skullKey: d.skullKey,
     cryptWon: d.cryptWon,
+    skrillBeaten: d.skrillBeaten,
     castleHQ: d.castleHQ,
     scanner: d.scanner,
     scanned: d.scanned,
