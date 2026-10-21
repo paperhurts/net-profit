@@ -39,6 +39,7 @@ export type Story = {
   tarLeaderBeaten: boolean;
   eelStage: number;
   skrillBeaten: boolean;
+  krakenBeaten: boolean;
 };
 
 /** A step of the story: what the panel calls it, what a game past it is past, and what marking it beaten sets (never lowers). */
@@ -177,6 +178,14 @@ export const STEPS: readonly Step[] = [
     label: 'Skrill beaten, at the top of his tower on Skull Island',
     apply: (s) => {
       s.skrillBeaten = true;
+    },
+  },
+  {
+    id: 'kraken',
+    short: 'the tar kraken',
+    label: 'The tar kraken beaten, under the middle of the tar ocean',
+    apply: (s) => {
+      s.krakenBeaten = true;
     },
   },
 ];

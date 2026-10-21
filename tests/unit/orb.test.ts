@@ -17,6 +17,7 @@ const start: Beaten = {
   stealth1: false,
   tarLeader: false,
   skrill: false,
+  kraken: false,
   driven: noDriven(),
 };
 
@@ -74,6 +75,7 @@ describe('the orb on the bridge', () => {
       stealth1: true,
       tarLeader: true,
       skrill: true,
+      kraken: true,
       driven: { guard: 1, cthulu: 1, angler: 1, gulper: 1, meteor: 1, reaper: 1 },
     };
     expect(TROPHY_KINDS.every((k) => TROPHIES[k].won(all))).toBe(true);
@@ -81,5 +83,6 @@ describe('the orb on the bridge', () => {
     expect(orbNext(all)).toContain('even Skrill');
     // Skrill the only one left: his hint, his tower.
     expect(orbNext({ ...all, skrill: false })).toBe(TROPHIES.skrillhorn.hint);
+    expect(orbNext({ ...all, kraken: false })).toBe(TROPHIES.krakenarm.hint);
   });
 });
