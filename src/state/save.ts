@@ -9,6 +9,7 @@ import { ARMOUR_MAX } from '../data/armour';
 import { type Badges, noBadges, parseBadges } from '../data/badges';
 import { type BargeSetup, defaultBarge, parseBarge } from '../data/barge';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
+import { DRONE_COLOURS } from '../data/drone';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { type HqBuilt, noHq, parseHq } from '../data/hq';
@@ -331,6 +332,11 @@ export type SaveData = {
     /** The coast guard radio; missing in old saves and read as not bought. */
     radio: boolean;
   };
+  /**
+   * The drone (island 11's, the owner's): whether it is yours, its colour (an index into render/droneflight.ts
+   * DRONE_COLOURS), flights flown, and the most rings in one; missing in old saves, read as none.
+   */
+  drone: { owned: boolean; colour: number; flights: number; bestRings: number };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -503,6 +509,7 @@ export function defaultSave(b: Bounds): SaveData {
       radar: false,
       radio: false,
     },
+    drone: { owned: false, colour: 0, flights: 0, bestRings: 0 },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -712,6 +719,15 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       radio: !!g.radio,
     };
   }
+  if (o.drone && typeof o.drone === 'object') {
+    const k = o.drone as Record<string, unknown>;
+    d.drone = {
+      owned: !!k.owned,
+      colour: between(int(k.colour), 0, DRONE_COLOURS.length - 1),
+      flights: Math.max(0, int(k.flights)),
+      bestRings: Math.max(0, int(k.bestRings)),
+    };
+  }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
     for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
@@ -874,6 +890,7 @@ export function serializeSave(d: SaveData): string {
     turtleSeen: d.turtleSeen,
     turtleSwims: d.turtleSwims,
     gear: d.gear,
+    drone: d.drone,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
