@@ -14,7 +14,14 @@ import {
   FIGHTER_FOES,
   FOE_NAMES,
   noPick,
+  noTarPick,
   parseBarge,
+  SEA_ARENA,
+  TAR_ARENA,
+  TAR_FOES,
+  TAR_NAMES,
+  tarAdd,
+  tarTotal,
   UNDEAD_FOES,
 } from '../../src/data/barge';
 import { UNDEAD } from '../../src/entities/undead';
@@ -55,6 +62,7 @@ describe('the Battle Barge: picking a fight', () => {
       isles: [],
       tar: [],
       bridges: [],
+      tarFoes: defaultBarge().tarFoes,
     });
   });
 
@@ -97,6 +105,30 @@ describe('the Battle Barge: picking a fight', () => {
     expect(b.pick).toEqual({ ...noPick(), gorilla: 2, heron: 1 });
     for (const k of ['tarhuman', 'tarbeast', 'boneman', 'displacer'] as const)
       expect(b.pick[k]).toBe(0);
+  });
+
+  it('on the tar: the eel, the tentacles and the kraken, ten at most, and an old save starts there with the eel', () => {
+    expect([...TAR_FOES]).toEqual(['eel', 'tentacle', 'kraken']);
+    for (const k of TAR_FOES) expect(TAR_NAMES[k][1].length).toBeGreaterThan(10);
+    let p = noTarPick();
+    p = tarAdd(p, 'eel', 4);
+    p = tarAdd(p, 'kraken', 9);
+    expect(tarTotal(p)).toBe(BARGE_MAX);
+    expect(tarAdd(p, 'kraken', -20).kraken).toBe(0);
+    // Read back: where it was, and who; a save from before it has the eel ready, on foot still.
+    const b = parseBarge({
+      size: 'large',
+      where: 'tar',
+      tarFoes: { eel: 2, tentacle: 3, kraken: 1, nobody: 4 },
+    });
+    expect([b.where, b.tarFoes]).toEqual(['tar', { eel: 2, tentacle: 3, kraken: 1 }]);
+    const old = parseBarge({ size: 'small', where: 'sea', sea: { meteor: 1 } });
+    expect([old.where, old.tarFoes]).toEqual(['sea', { eel: 1, tentacle: 0, kraken: 0 }]);
+    expect(parseBarge({ where: 'moon' }).where).toBe('foot');
+    // Out past everything, north of the sea, and clear of the tar ocean and of the sea's own ring.
+    expect(TAR_ARENA.y).toBeLessThan(-5400 - 1500);
+    expect(TAR_ARENA.x + 1500).toBeLessThan(-5400);
+    expect(Math.hypot(TAR_ARENA.x - SEA_ARENA.x, TAR_ARENA.y - SEA_ARENA.y)).toBeGreaterThan(3000);
   });
 
   it('has Skrill last of all its bosses, and an old save from before him reads with him not picked', () => {

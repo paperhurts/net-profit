@@ -197,6 +197,34 @@ type Np = {
     harpoonEye(n: number): boolean;
   };
   KRAKEN_LAIR: { x: number; y: number };
+  TAR_ARENA: { x: number; y: number };
+  tarRing: {
+    r: number;
+    won: boolean;
+    eels: {
+      state: string;
+      hp: number;
+      mark(): { x: number; y: number } | null;
+      harpoon(n: number): boolean;
+      onBite: ((hit: boolean) => void) | null;
+    }[];
+    tents: {
+      left: number;
+      list: { state: string }[];
+      nearest(x: number, y: number, r: number): unknown;
+      harpoon(t: unknown, n: number): boolean;
+    } | null;
+    krakens: {
+      state: string;
+      up: boolean;
+      chopped: number;
+      hp: number;
+      eyeOpen: boolean;
+      nearestArm(x: number, y: number, r: number): unknown;
+      chop(a: unknown): boolean;
+      harpoonEye(n: number): boolean;
+    }[];
+  } | null;
   krakenBeaten: boolean;
   setChemHp?: (n: number) => void;
   skrillBeaten: boolean;
@@ -9164,6 +9192,126 @@ test('messages: a tap sends one away, a flick slides it off, and the same one ke
   await page.waitForTimeout(400);
   await expect(toast).toHaveClass(/show/);
   await expect(toast).toHaveText('A message to keep.');
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge on the tar: from the chemistry boat, the eel, a tentacle and the kraken in a ring of tar, beaten for the coin', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    stealth1: true,
+    invis: true,
+    eelStage: 2,
+    barge: { size: 'small', where: 'tar', tarFoes: { eel: 1, tentacle: 1, kraken: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeWhere')).toContainText('On the tar');
+  await expect(page.locator('#bargeList')).toContainText('The tar kraken');
+  await page.locator('#bargeGo').click();
+  // Out in the chemistry boat, in the ring of tar, its health bar up, the sea's order put away.
+  await page.waitForFunction(() => !!window.__np.tarRing && !!window.__np.tarSail, null, {
+    timeout: 3000,
+  });
+  const at = await page.evaluate(() => {
+    const n = window.__np;
+    const b = n.tarSail as { x: number; y: number };
+    return Math.hypot(b.x - n.TAR_ARENA.x, b.y - n.TAR_ARENA.y) < (n.tarRing?.r ?? 0);
+  });
+  expect(at).toBe(true);
+  await expect(page.locator('#leave')).toHaveText('Leave the barge');
+  await expect(page.locator('#hull')).toBeVisible();
+  // Fought through: the eel's head when it is up, the kraken's arms and then its eye, and the tentacle once the
+  // kraken is down, sailing round the ring.
+  // Most of the way through already, so the test is quick: the eel one hit off, the kraken one arm and two hits.
+  await page.evaluate(() => {
+    for (const e of window.__np.tarRing?.eels ?? []) e.hp = 1;
+    for (const k of window.__np.tarRing?.krakens ?? []) {
+      k.chopped = 9;
+      k.hp = 2;
+    }
+  });
+  for (let i = 0; i < 160; i++) {
+    const done = await page.evaluate(() => {
+      const n = window.__np;
+      const r = n.tarRing;
+      if (!r || r.won) return true;
+      n.setChemHp?.(100);
+      const b = n.tarSail as { x: number; y: number; h: number; v: number };
+      b.v = 150;
+      b.h += 0.2;
+      for (const k of r.krakens) {
+        if (!k.up) continue;
+        if (k.eyeOpen) k.harpoonEye(1);
+        const a = k.nearestArm(b.x, b.y, 1e4);
+        if (a) k.chop(a);
+      }
+      for (const e of r.eels) if (e.mark()) e.harpoon(1);
+      const t = r.tents?.nearest(b.x, b.y, 1e4);
+      if (t) r.tents?.harpoon(t, 1);
+      return false;
+    });
+    if (done) break;
+    await page.waitForTimeout(300);
+  }
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('beat them all');
+  // Off the barge: back aboard the flagship where it waited.
+  await page.locator('#leave').click();
+  await page.waitForFunction(() => window.__np.tarSail === null, null, { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [
+      window.__np.tarRing,
+      window.__np.walker.state,
+      Math.round(window.__np.boat.x),
+      Math.round(window.__np.boat.y),
+    ]),
+  ).toEqual([null, 'aboard', 3000, 2900]);
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge on the tar: bitten to nothing, the chemistry boat is pulled under and you are back, nothing lost', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 50,
+    spear: 3,
+    stealth1: true,
+    invis: true,
+    eelStage: 1,
+    barge: { size: 'medium', where: 'tar', tarFoes: { eel: 1, kraken: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await page.locator('#bargeBtn').click();
+  // The kraken is not on the card until it is awake, after the tar eel.
+  await expect(page.locator('#bargeList')).toContainText('The tar eel');
+  await expect(page.locator('#bargeList')).not.toContainText('The tar kraken');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => !!window.__np.tarRing, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.tarRing?.krakens.length)).toBe(0);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setChemHp?.(5);
+    n.tarRing?.eels[0]?.onBite?.(true);
+  });
+  await page.waitForFunction(() => window.__np.tarRing === null, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Pulled under the tar');
+  expect(
+    await page.evaluate(() => [
+      window.__np.bargeWins,
+      window.__np.coins,
+      window.__np.walker.state,
+      window.__np.chemHp,
+    ]),
+  ).toEqual([0, 50, 'aboard', 100]);
   expect(errors).toEqual([]);
 });
 

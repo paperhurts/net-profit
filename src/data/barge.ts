@@ -218,7 +218,7 @@ export function bargeZoom(r: number): number {
  * leviathan, which brings every sea boss to the ring. The islands, the tar and the bridge on a map of your own come
  * next.
  */
-export type BargeWhere = 'foot' | 'sea';
+export type BargeWhere = 'foot' | 'sea' | 'tar';
 export type SeaFoe =
   | 'meteor'
   | 'king'
@@ -744,8 +744,58 @@ export function seaAdd(p: SeaPick, k: SeaFoe, d: number): SeaPick {
   return out;
 }
 
+/**
+ * The Battle Barge on the tar, the owner's (2026-10-21, "tar version of the ring"): the tar ocean's own, fought from the
+ * chemistry boat with its harpoon and its health bar of 100, as out on the tar ocean, in a ring of the barge's buoys on
+ * a sea of tar of its own: the tar eel, the red tar tentacles and the tar kraken.
+ */
+export type TarFoe = 'eel' | 'tentacle' | 'kraken';
+export const TAR_FOES: readonly TarFoe[] = ['eel', 'tentacle', 'kraken'];
+export const TAR_NAMES: Readonly<Record<TarFoe, readonly [string, string]>> = {
+  eel: [
+    'The tar eel',
+    'Bites at a red ring, and wraps you in a red ring of coils: sail out through it, or it pulls you under. Harpoon its head when it is up. 6 hits.',
+  ],
+  tentacle: [
+    'Red tar tentacles',
+    'Up in your way as you sail: out of the red ring before one slaps, 4 off the boat. 2 hits each.',
+  ],
+  kraken: [
+    'The tar kraken',
+    'Its arms slam at red rings, 10 off the boat: chop 10, and its giant eye rises. Harpoon the eye when it opens. 9 hits.',
+  ],
+};
+/**
+ * Where the ring of tar is: out past everything, north of the sea where the tar is drawn as on the tar ocean, clear of
+ * the tar ocean itself and of the barge's rooms. Its size is the sea ring's, by the card's size.
+ */
+export const TAR_ARENA = { x: -30000, y: -14000 } as const;
+
+export type TarPick = Record<TarFoe, number>;
+
+/** Nobody picked on the tar. */
+export function noTarPick(): TarPick {
+  return { eel: 0, tentacle: 0, kraken: 0 };
+}
+
+/** How many are picked on the tar, all told. */
+export function tarTotal(p: TarPick): number {
+  return TAR_FOES.reduce((n, k) => n + p[k], 0);
+}
+
+/** One more on the tar of a kind, or one fewer: never under none, and never past ten all told. */
+export function tarAdd(p: TarPick, k: TarFoe, d: number): TarPick {
+  const out = { ...p };
+  if (d > 0) out[k] = p[k] + Math.min(d, BARGE_MAX - tarTotal(p));
+  else out[k] = Math.max(0, p[k] + d);
+  return out;
+}
+
 export type BargePick = Record<BargeFoe, number>;
-/** The arena's size, on foot or at sea, who to fight on foot, who at sea, and the kid's map of islands there. */
+/**
+ * The arena's size, on foot, at sea or on the tar, who to fight on foot, who at sea, the kid's map of islands there,
+ * and who on the tar.
+ */
 export type BargeSetup = {
   size: ArenaSize;
   pick: BargePick;
@@ -754,6 +804,7 @@ export type BargeSetup = {
   isles: SeaIsle[];
   tar: SeaIsle[];
   bridges: SeaIsle[];
+  tarFoes: TarPick;
 };
 
 /** Nobody picked. */
@@ -772,6 +823,7 @@ export function defaultBarge(): BargeSetup {
     isles: [],
     tar: [],
     bridges: [],
+    tarFoes: { ...noTarPick(), eel: 1 },
   };
 }
 
@@ -791,7 +843,7 @@ export function bargeAdd(p: BargePick, k: BargeFoe, d: number): BargePick {
 /**
  * A saved setup read back: a size it knows, counts that are whole and not below none, ten at most; missing, the start.
  * One saved before the sea's is on foot, with the sea's start; one saved before the map has open water, and one
- * saved before the tar has none, nor bridges.
+ * saved before the tar has none, nor bridges; one saved before the Battle Barge on the tar has its start there.
  */
 export function parseBarge(o: unknown): BargeSetup {
   if (!o || typeof o !== 'object') return defaultBarge();
@@ -803,6 +855,7 @@ export function parseBarge(o: unknown): BargeSetup {
     isles?: unknown;
     tar?: unknown;
     bridges?: unknown;
+    tarFoes?: unknown;
   };
   const size = (ARENA_SIZES as readonly unknown[]).includes(src.size)
     ? (src.size as ArenaSize)
@@ -814,7 +867,7 @@ export function parseBarge(o: unknown): BargeSetup {
     if (typeof n === 'number' && Number.isFinite(n) && n > 0)
       pick = bargeAdd(pick, k, Math.floor(n));
   }
-  const where: BargeWhere = src.where === 'sea' ? 'sea' : 'foot';
+  const where: BargeWhere = src.where === 'sea' || src.where === 'tar' ? src.where : 'foot';
   let sea = noSeaPick();
   if (src.sea && typeof src.sea === 'object') {
     const q = src.sea as Record<string, unknown>;
@@ -848,7 +901,16 @@ export function parseBarge(o: unknown): BargeSetup {
   let bridges: SeaIsle[] = [];
   for (const p of points(src.bridges).map(at))
     if (!seaBridgeNo(bridges, p, isles, tar)) bridges = seaBridgeTap(bridges, p, isles, tar);
-  return { size, pick, where, sea, isles, tar, bridges };
+  let tarFoes = noTarPick();
+  if (src.tarFoes && typeof src.tarFoes === 'object') {
+    const q = src.tarFoes as Record<string, unknown>;
+    for (const k of TAR_FOES) {
+      const n = q[k];
+      if (typeof n === 'number' && Number.isFinite(n) && n > 0)
+        tarFoes = tarAdd(tarFoes, k, Math.floor(n));
+    }
+  } else tarFoes = defaultBarge().tarFoes;
+  return { size, pick, where, sea, isles, tar, bridges, tarFoes };
 }
 
 /**

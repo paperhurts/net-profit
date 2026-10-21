@@ -177,6 +177,29 @@ describe('the tar kraken', () => {
     expect(k.hp).toBe(KRAKEN_HP);
   });
 
+  it('on the Battle Barge, given a home of its own: awake at once wherever the boat is, and never giving up on it', () => {
+    const k = new TarKraken(7320, {
+      x: -30000,
+      y: -14000,
+      wake: Number.POSITIVE_INFINITY,
+      leash: Number.POSITIVE_INFINITY,
+    });
+    k.on = true;
+    const b: Boat = { x: -30000 + 900, y: -14000 + 900, h: 0, v: 0 };
+    run(k, b, 1 / 60);
+    expect(k.state).toBe('arms');
+    b.x += 5000;
+    run(k, b, 3);
+    expect(k.up).toBe(true);
+    // And the tar ocean's own still lies under its middle.
+    expect(new TarKraken().home).toMatchObject({
+      x: LAIR.x,
+      y: LAIR.y,
+      wake: LAIR_R,
+      leash: LAIR_LEASH,
+    });
+  });
+
   it('once beaten for good, never comes up again', () => {
     const k = new TarKraken();
     k.on = true;

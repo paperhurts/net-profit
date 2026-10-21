@@ -5,6 +5,8 @@
  * that comes near, it draws back over while a red ring shows on the tar where the boat is, then slaps down there: four
  * off the boat's health, if the boat is still in the ring. Two harpoons and it sinks for good; left alone, it sinks
  * back after a while. None come up for a boat that is sitting still, so fishing stays fishing.
+ *
+ * On the Battle Barge on the tar, as many as were picked come up, quicker, until each has been harpooned to nothing.
  */
 
 import { rng } from '../core/math';
@@ -58,7 +60,9 @@ export class TarTentacles {
   readonly list: Tentacle[] = [];
   /** Whether they come up at all: the boat out on the open tar. */
   on = false;
-  private wait = TENT_EVERY * 0.5;
+  /** How many are still to be harpooned to nothing before no more come up: endless on the tar ocean. */
+  left = Number.POSITIVE_INFINITY;
+  private wait: number;
   private readonly R: () => number;
   onRise: ((t: Tentacle) => void) | null = null;
   onWindup: ((t: Tentacle) => void) | null = null;
@@ -66,14 +70,19 @@ export class TarTentacles {
   onSlap: ((t: Tentacle, hit: boolean) => void) | null = null;
   onBeaten: ((t: Tentacle) => void) | null = null;
 
-  constructor(seed = 4021) {
+  /** Seconds between risings: TENT_EVERY on the tar ocean, quicker on the Battle Barge. */
+  constructor(
+    seed = 4021,
+    readonly every = TENT_EVERY,
+  ) {
     this.R = rng(seed);
+    this.wait = every * 0.5;
   }
 
   /** None up, and the next a while off. */
   reset(): void {
     this.list.length = 0;
-    this.wait = TENT_EVERY * 0.5;
+    this.wait = this.every * 0.5;
   }
 
   /** Up out of the tar, where a harpoon can reach it. */
@@ -104,6 +113,7 @@ export class TarTentacles {
     if (t.hp <= 0) {
       t.hp = 0;
       t.beaten = true;
+      this.left = Math.max(0, this.left - 1);
       this.set(t, 'sink');
       this.onBeaten?.(t);
     }
@@ -120,7 +130,7 @@ export class TarTentacles {
     if (!this.on || !boat) return;
     if (Math.abs(boat.v) < TENT_UNDER_WAY) return;
     this.wait -= dt;
-    if (this.wait > 0 || this.list.length >= TENT_MAX) return;
+    if (this.wait > 0 || this.list.length >= Math.min(TENT_MAX, this.left)) return;
     // In its way: ahead of the boat, off to one side or the other.
     const side = (this.R() * 2 - 1) * TENT_SIDE;
     const ahead = TENT_AHEAD * (0.8 + this.R() * 0.4);
@@ -130,7 +140,7 @@ export class TarTentacles {
       this.wait = 1;
       return;
     }
-    this.wait = TENT_EVERY * (0.8 + this.R() * 0.4);
+    this.wait = this.every * (0.8 + this.R() * 0.4);
     const t: Tentacle = {
       x,
       y,

@@ -122,6 +122,26 @@ describe('the red tar tentacles', () => {
     expect(u.beaten).toBe(false);
   });
 
+  it('on the Battle Barge come quicker, as many as were picked, until each has been harpooned to nothing', () => {
+    const g = new TarTentacles(4021, 3);
+    g.on = true;
+    g.left = 1;
+    const boat = { x: 0, y: 0, h: 0, v: CHEM_SPEED };
+    // Up within the quicker pace, not the tar ocean's.
+    for (let k = 0; k < 3 * 60 && g.list.length === 0; k++) run(g, boat, 1 / 60);
+    expect(g.list.length).toBe(1);
+    // One picked: never a second while it is up.
+    run(g, boat, 6, () => true, true);
+    expect(g.list.filter((t) => t.state !== 'gone').length).toBeLessThanOrEqual(1);
+    // Harpooned to nothing, none left to come, and no more do.
+    const t = g.list.find((x) => TarTentacles.up(x)) ?? (g.list[0] as Tentacle);
+    t.state = 'up';
+    for (let i = 0; i < TENT_HP; i++) g.harpoon(t, 1);
+    expect(g.left).toBe(0);
+    run(g, boat, 10, () => true, true);
+    expect(g.list.length).toBe(0);
+  });
+
   it('is drawn bubbling, up, rearing, slapping and sinking, its ring only while a slap comes', () => {
     const g = new TarTentacles();
     const t = upAt(g, 500, 0);
