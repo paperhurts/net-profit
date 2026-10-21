@@ -48,6 +48,7 @@ function fresh(): Story {
     tarLeaderBeaten: false,
     eelStage: 0,
     skrillBeaten: false,
+    krakenBeaten: false,
   };
 }
 
@@ -105,6 +106,7 @@ describe('the tester panel', () => {
       tarLeaderBeaten: true,
       eelStage: 2,
       skrillBeaten: true,
+      krakenBeaten: true,
     });
     expect(stepsDone(s)).toBe(STEPS.length);
     // Each step is something a real game can save and load back as it is.
@@ -122,6 +124,7 @@ describe('the tester panel', () => {
       'tarleader',
       'eel',
       'skrill',
+      'kraken',
     ]);
     const s = fresh();
     skipTo(s, at('pelican'));

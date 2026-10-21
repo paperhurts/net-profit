@@ -25,6 +25,7 @@ export const TROPHY_KINDS = [
   'hat',
   'tarsword',
   'skrillhorn',
+  'krakenarm',
   'spine',
   'shard',
   'lure',
@@ -51,6 +52,8 @@ export interface Beaten {
   tarLeader: boolean;
   /** Skrill beaten at the top of his tower on Skull Island. */
   skrill: boolean;
+  /** The tar kraken beaten, under the middle of the tar ocean. */
+  kraken: boolean;
   driven: Driven;
 }
 
@@ -183,6 +186,13 @@ export const TROPHIES: Readonly<Record<TrophyKind, Trophy>> = {
       "One of Skrill's horns, snapped clean off when he crashed down on top of his own tower on Skull Island. It still curls up as if it were laughing.",
     hint: 'Beat Skrill, at the very top of his tower on Skull Island.',
     won: (b) => b.skrill,
+  },
+  krakenarm: {
+    name: "the tar kraken's arm",
+    story:
+      "One of the tar kraken's arms, left floating when it sank under the middle of the tar ocean. Its suckers still twitch now and then.",
+    hint: 'Beat the tar kraken, under the very middle of the tar ocean, once the tar eel is beaten.',
+    won: (b) => b.kraken,
   },
   spine: {
     name: "the leviathan's spine",
