@@ -333,7 +333,7 @@ export type SaveData = {
     radio: boolean;
   };
   /**
-   * The drone (island 11's, the owner's): whether it is yours, its colour (an index into render/droneflight.ts
+   * The drone (island 11's, the owner's): whether it is yours, its colour (an index into data/drone.ts
    * DRONE_COLOURS), flights flown, and the most rings in one; missing in old saves, read as none.
    */
   drone: { owned: boolean; colour: number; flights: number; bestRings: number };

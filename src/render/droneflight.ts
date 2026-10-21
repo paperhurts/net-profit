@@ -121,6 +121,51 @@ function drawTrunk(v: View, z: number, x: number, r: number, T: number): void {
   }
 }
 
+/** A number from 0 to 1 that is always the same for the same i and k. */
+function hash(i: number, k: number): number {
+  const h = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+  return h - Math.floor(h);
+}
+
+/** What grows on the jungle floor: a fern, a big-leaved plant with a red flower, or a patch of sun come through. */
+function drawPlant(v: View, x: number, z: number, kind: number, T: number): void {
+  const c = v.ctx;
+  const p = at(v, x, 0, z);
+  if (!p || p.sx < -p.s * 1.5 || p.sx > v.W + p.s * 1.5 || p.sy > v.H + p.s) return;
+  if (kind < 0.3) {
+    // A patch of sun on the floor.
+    c.fillStyle = 'rgba(214,240,150,.22)';
+    c.beginPath();
+    c.ellipse(p.sx, p.sy, 0.9 * p.s, 0.18 * p.s, 0, 0, Math.PI * 2);
+    c.fill();
+    return;
+  }
+  const sway = Math.sin(T * 2 + z) * 0.08;
+  c.fillStyle = kind < 0.7 ? '#4C8A3E' : '#3A7436';
+  const n = kind < 0.7 ? 5 : 3;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.5 + sway;
+    const len = (kind < 0.7 ? 0.5 : 0.65) * p.s;
+    c.beginPath();
+    c.ellipse(
+      p.sx + Math.cos(a) * len * 0.5,
+      p.sy + Math.sin(a) * len * 0.5,
+      len * 0.5,
+      len * (kind < 0.7 ? 0.12 : 0.22),
+      a,
+      0,
+      Math.PI * 2,
+    );
+    c.fill();
+  }
+  if (kind > 0.85) {
+    c.fillStyle = '#E4572E';
+    c.beginPath();
+    c.arc(p.sx, p.sy - 0.45 * p.s, 0.08 * p.s, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
 function drawGate(v: View, o: Obstacle, T: number): void {
   const c = v.ctx;
   if (o.kind === 'trunk') drawTrunk(v, o.z, o.x, o.r, T);
@@ -288,9 +333,9 @@ export function drawDroneFlight(
     W,
     H,
     f: Math.min(W, H) * 0.9,
-    y0: H * 0.42,
+    y0: H * 0.36,
     cx: fl.x * 0.7,
-    cy: 1.3 + fl.y * 0.6,
+    cy: 2.6 + fl.y * 0.6,
     cz: fl.z - CAM_BACK,
   };
   // The haze ahead, the canopy over it and the floor under it.
@@ -326,6 +371,29 @@ export function drawDroneFlight(
       const r = 0.9 + (((z * 7) % 5) / 5) * 0.6;
       if (z > v.cz + 0.4) list.push({ z, f: () => drawTrunk(v, z, x, r, T) });
     }
+  // Plants and sun on the floor, whipping past underneath.
+  const pz0 = Math.floor(v.cz / 2.5);
+  for (let i = pz0; i < pz0 + 18; i++)
+    for (let k = 0; k < 4; k++) {
+      const z = i * 2.5 + hash(i, k) * 2.5;
+      if (z <= v.cz + 0.4) continue;
+      // Half of them about the middle of the way, under the drone, the rest out to the trees.
+      const x = (hash(i, k + 5) * 2 - 1) * (k < 2 ? 3 : LANE_HALF + 3);
+      const kind = hash(i, k + 9);
+      list.push({ z, f: () => drawPlant(v, x, z, kind, T) });
+    }
+  // The drone's shadow on the floor, smaller and fainter the higher it flies: for telling how high it is.
+  const sh = at(v, fl.x, 0, fl.z);
+  if (sh)
+    list.push({
+      z: fl.z + 0.001,
+      f: () => {
+        ctx.fillStyle = `rgba(10,24,10,${0.45 - fl.y * 0.05})`;
+        ctx.beginPath();
+        ctx.ellipse(sh.sx, sh.sy, (0.75 - fl.y * 0.06) * sh.s, 0.16 * sh.s, 0, 0, Math.PI * 2);
+        ctx.fill();
+      },
+    });
   const d = at(v, fl.x, fl.y, fl.z);
   if (d)
     list.push({
@@ -342,8 +410,7 @@ export function drawDroneFlight(
   ctx.fillStyle = 'rgba(120,180,90,.6)';
   for (let i = 0; i < 18; i++) {
     const z = Math.floor(v.cz / 2) * 2 + (i % 9) * 2 + 1;
-    const h = Math.sin(i * 12.9898 + Math.floor(v.cz / 2) * 78.233) * 43758.5453;
-    const fr = h - Math.floor(h);
+    const fr = hash(i, Math.floor(v.cz / 2));
     const p = at(v, (fr * 2 - 1) * (LANE_HALF + 2), 0.3 + ((fr * 7) % 1) * CANOPY, z);
     if (!p) continue;
     ctx.beginPath();
@@ -356,6 +423,29 @@ export function drawDroneFlight(
     ctx.fillRect(0, 0, W, H);
   }
   drawFlightBars(ctx, W, fl, top);
+  if (fl.state !== 'fly') drawFlightOver(ctx, W, H, fl);
+}
+
+/** The flight over: made, or its battery flat, and the rings it went through. */
+function drawFlightOver(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  fl: DroneFlight,
+): void {
+  const w = Math.min(300, W - 40);
+  const x = (W - w) / 2;
+  const y = H * 0.3;
+  ctx.fillStyle = 'rgba(10,20,12,.7)';
+  box(ctx, x, y, w, 76);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = fl.state === 'done' ? '#FFE066' : '#FFF7E6';
+  ctx.font = '800 22px Grandstander, ui-rounded, system-ui, sans-serif';
+  ctx.fillText(fl.state === 'done' ? 'Through the jungle!' : 'Battery flat!', W / 2, y + 26);
+  ctx.fillStyle = '#E8F2E0';
+  ctx.font = '800 15px Grandstander, ui-rounded, system-ui, sans-serif';
+  ctx.fillText(`${fl.rings} of ${fl.ringsOut} rings`, W / 2, y + 54);
 }
 
 /** A rounded box, or a plain one where the browser cannot round it. */

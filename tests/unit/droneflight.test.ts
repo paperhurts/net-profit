@@ -134,6 +134,26 @@ describe("the drone's flight through the jungle", () => {
     }
   });
 
+  it('drifts on after the flight: made, on and up; flat, slowing to a hover; flying, not at all', () => {
+    const made = new DroneFlight();
+    made.gates.length = 0;
+    fly(made, COURSE / CRUISE + 1);
+    const [z, y] = [made.z, made.y];
+    made.drift(1);
+    expect(made.z).toBeGreaterThan(z + CRUISE * 0.5);
+    expect(made.y).toBeGreaterThan(y);
+    expect(made.y).toBeLessThan(CANOPY);
+    const flat = new DroneFlight(1101, COURSE, 1);
+    fly(flat, 2);
+    const fz = flat.z;
+    flat.drift(1);
+    expect(flat.z - fz).toBeGreaterThan(0);
+    expect(flat.z - fz).toBeLessThan(CRUISE * 0.3);
+    const flying = new DroneFlight();
+    flying.drift(1);
+    expect(flying.z).toBe(0);
+  });
+
   it('is drawn: the jungle, the gates, the drone in each colour, and the bars', () => {
     const { v, calls } = fakeView();
     const f = new DroneFlight();
@@ -144,5 +164,19 @@ describe("the drone's flight through the jungle", () => {
     drawDrone(v.ctx, 100, 100, 50, '#E4572E', 1, -1, 3, 0.1);
     expect(calls.fill ?? 0).toBeGreaterThan(100);
     expect(calls.fillText ?? 0).toBeGreaterThan(0);
+  });
+
+  it('says so over the jungle when the flight is over, made or flat', () => {
+    for (const battery of [BATTERY, 1]) {
+      const { v, calls } = fakeView();
+      const f = new DroneFlight(1101, COURSE, battery);
+      f.gates.length = 0;
+      drawDroneFlight(v.ctx, 390, 780, f, DRONE_COLOURS[0][1], 1);
+      const flying = calls.fillText ?? 0;
+      fly(f, COURSE / CRUISE + 1);
+      expect(f.state).toBe(battery === 1 ? 'home' : 'done');
+      drawDroneFlight(v.ctx, 390, 780, f, DRONE_COLOURS[0][1], 1);
+      expect((calls.fillText ?? 0) - flying).toBe(flying + 2);
+    }
   });
 });

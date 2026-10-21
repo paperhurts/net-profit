@@ -205,6 +205,22 @@ export class DroneFlight {
     else if (this.battery <= 0) this.end('home');
   }
 
+  /**
+   * After the flight, the moment before it is put down: made, it flies on and up toward the canopy; flat, it slows to a
+   * hover, about to turn for home. Nothing is in its way now.
+   */
+  drift(dt: number): void {
+    if (this.state === 'fly') return;
+    const k = Math.max(0, 1 - 3 * dt);
+    this.flash = Math.max(0, this.flash - dt);
+    this.vx *= k;
+    this.vy *= k;
+    if (this.state === 'done') {
+      this.z += CRUISE * 0.6 * dt;
+      this.y = Math.min(CANOPY - DRONE_R - 0.1, this.y + 0.8 * dt);
+    } else this.z += CRUISE * 0.15 * dt;
+  }
+
   /** A bump: battery and a moment's speed, and knocked a little clear of what it hit. */
   private bump(o: Obstacle): void {
     this.battery = Math.max(0, this.battery - BUMP);
