@@ -12,7 +12,15 @@ import {
   parseSave,
   serializeSave,
 } from '../../src/state/save';
-import { STEPS, type Story, skipTo, stepsDone, testerFromHash } from '../../src/ui/tester';
+import {
+  type Owed,
+  owedScenes,
+  STEPS,
+  type Story,
+  skipTo,
+  stepsDone,
+  testerFromHash,
+} from '../../src/ui/tester';
 
 const bounds: Bounds = {
   maxLevel: 5,
@@ -165,6 +173,51 @@ describe('the tester panel', () => {
     expect(back.cryptWon).toBe(true);
     expect(back.castleHQ).toBe(false);
     expect(back.scanner).toBe(0);
+  });
+
+  it('lists the cutscenes a skip left still to see, in the story order, each with where it plays', () => {
+    const none: Owed = {
+      isle3Stage: 4,
+      kingOwed: false,
+      heronStage: 0,
+      heronFled: false,
+      oldOwed: false,
+      isle7Stage: 0,
+      cryptWon: false,
+      castleHQ: false,
+    };
+    expect(owedScenes(none)).toEqual([]);
+    // A game skipped from the start to the crypt: every one of them is still to see.
+    const all = owedScenes({
+      isle3Stage: 3,
+      kingOwed: true,
+      heronStage: 2,
+      heronFled: false,
+      oldOwed: true,
+      isle7Stage: 4,
+      cryptWon: true,
+      castleHQ: false,
+    });
+    expect(all.map(([n]) => n)).toEqual([
+      'The tar monster rising',
+      "The Skeleton Shark King's last words",
+      "The Heron's escape",
+      'The Old One rising',
+      'The Forgotten One showing you his castle',
+    ]);
+    expect(all[1]?.[1]).toContain('island 5');
+    // Seen: the Heron fled, and the castle shown (which is the Old One's end too).
+    expect(
+      owedScenes({
+        ...none,
+        heronStage: 2,
+        heronFled: true,
+        oldOwed: true,
+        isle7Stage: 4,
+        cryptWon: true,
+        castleHQ: true,
+      }),
+    ).toEqual([]);
   });
 
   it('is switched on and off by the end of the link, and by nothing else', () => {
