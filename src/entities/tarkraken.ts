@@ -17,6 +17,8 @@
  *    one of its arms is left floating: the prize.
  *
  * Sail off out of its reach and it sinks back down whole, to start over. It is beaten once and for all.
+ *
+ * On the Battle Barge on the tar it is given a home of its own: awake at once, wherever the boat is, never giving up.
  */
 
 import { rng } from '../core/math';
@@ -32,6 +34,9 @@ export const KRAKEN_PRIZE = 900;
 export const LAIR = { x: (TAR_SEA.x0 + TAR_SEA.x1) / 2, y: (TAR_SEA.y0 + TAR_SEA.y1) / 2 } as const;
 export const LAIR_R = 700;
 export const LAIR_LEASH = 1400;
+/** Where it lies, how near a boat wakes it, and how far off it gives up on one. */
+export type KrakenHome = { x: number; y: number; wake: number; leash: number };
+export const TAR_LAIR: KrakenHome = { ...LAIR, wake: LAIR_R, leash: LAIR_LEASH };
 /** Arms to chop before the kraken itself comes up; how many up at once, and how often a new one comes. */
 export const ARMS_TO_CHOP = 10;
 export const ARMS_UP = 2;
@@ -110,7 +115,10 @@ export class TarKraken implements Entity {
   onBeaten: (() => void) | null = null;
   onGiveUp: (() => void) | null = null;
 
-  constructor(seed = 7319) {
+  constructor(
+    seed = 7319,
+    readonly home: KrakenHome = TAR_LAIR,
+  ) {
     this.R = rng(seed);
   }
 
@@ -215,9 +223,9 @@ export class TarKraken implements Entity {
       if (this.t >= SINK_T) this.reset();
       return;
     }
-    const d = boat ? Math.hypot(boat.x - LAIR.x, boat.y - LAIR.y) : Infinity;
+    const d = boat ? Math.hypot(boat.x - this.home.x, boat.y - this.home.y) : Infinity;
     if (this.state === 'sleep') {
-      if (this.on && boat && d < LAIR_R) {
+      if (this.on && boat && d < this.home.wake) {
         this.state = 'arms';
         this.t = 0;
         this.wait = 0.6;
@@ -226,7 +234,7 @@ export class TarKraken implements Entity {
       return;
     }
     // Sailed off out of its reach, or gone ashore: it sinks back, whole.
-    if (!boat || d > LAIR_LEASH) {
+    if (!boat || d > this.home.leash) {
       for (const a of this.arms) if (a.state !== 'gone' && a.state !== 'sink') this.set(a, 'sink');
       this.state = 'sink';
       this.t = 0;
