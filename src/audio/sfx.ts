@@ -479,6 +479,20 @@ export const cues = {
     tone(1500, 0.05, 'square', 0.025, 1.35);
     tone(1900, 0.06, 'sine', 0.03, 0.8, 0.06);
   },
+  /** The drone lifts off: its rotors spinning up, a rising buzz. */
+  droneUp(): void {
+    tone(140, 0.5, 'sawtooth', 0.025, 2.2);
+    tone(280, 0.45, 'square', 0.015, 1.8, 0.1);
+  },
+  /** Through a ring: a bright two-note chime. */
+  ring(): void {
+    tone(1047, 0.08, 'triangle', 0.06);
+    tone(1568, 0.14, 'triangle', 0.06, 1, 0.07);
+  },
+  /** The drone turns for home, its battery low: its buzz winding down. */
+  droneHome(): void {
+    tone(320, 0.5, 'sawtooth', 0.022, 0.45);
+  },
   /** A fish muffin eaten: two crunchy munches and a happy note. */
   nom(): void {
     tone(220, 0.05, 'square', 0.035, 0.7);

@@ -88,6 +88,19 @@ type Np = {
   };
   caterman: { shown: boolean; free: boolean; x: number; y: number };
   catermanFree: boolean;
+  SHOP_DOOR11: { x: number; y: number };
+  droneFly: {
+    x: number;
+    y: number;
+    z: number;
+    battery: number;
+    rings: number;
+    ringsOut: number;
+    state: string;
+    gates: { kind: string; z: number; [k: string]: unknown }[];
+  } | null;
+  drone: { owned: boolean; colour: number; flights: number; bestRings: number };
+  droneOpen: boolean;
   lagoonFolk: {
     list: { x: number; y: number; state: string; hp: number; out: boolean }[];
     left: number;
@@ -10216,6 +10229,103 @@ test("Caterman's swan paddle boat: he pedals it at sea, and the kid puts a frien
     swan: 'caterman',
     swan2: 'necro',
   });
+  expect(errors).toEqual([]);
+});
+
+test("Caterman's drone: bought at his workshop door in a colour of your own, flown on into the jungle, rings paid for", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 3500,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 2,
+    heronFled: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    catermanFree: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // At his workshop's door: in to see him.
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SHOP_DOOR11;
+    w.x = d.x - 14;
+    w.y = d.y;
+  });
+  await expect(page.locator('#climb')).toHaveText("Caterman's workshop", { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#droneCard')).toBeVisible();
+  await expect(page.locator('#droneGo')).toBeHidden();
+  await expect(page.locator('#droneColours .swatch')).toHaveCount(9);
+  // The colour first, then bought: 3,000 coins.
+  await page.locator('#droneColours [data-col="5"]').click();
+  await expect(page.locator('#droneColours [data-col="5"]')).toHaveClass(/on/);
+  await page.locator('#droneShelf [data-buy="drone"]').click();
+  await expect(page.locator('#droneGo')).toBeVisible();
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.drone])).toEqual([
+    500,
+    { owned: true, colour: 5, flights: 0, bestRings: 0 },
+  ]);
+  // Up it goes: the whole screen is the flight, steered with the keys as with a thumb.
+  await page.click('#droneGo');
+  await page.waitForFunction(() => window.__np.droneFly?.state === 'fly', null, { timeout: 3000 });
+  await expect(page.locator('#droneCard')).toBeHidden();
+  await expect(page.locator('#droneLand')).toBeVisible();
+  await expect(page.locator('#climb')).toBeHidden();
+  await expect(page.locator('#hearts')).toBeHidden();
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => (window.__np.droneFly?.x ?? 0) > 2, null, { timeout: 3000 });
+  await page.keyboard.up('ArrowRight');
+  // A ring set right in its way, and through it.
+  await page.evaluate(() => {
+    const f = window.__np.droneFly;
+    if (f) f.gates.push({ kind: 'ring', z: f.z + 6, x: f.x, y: f.y, got: false });
+  });
+  await page.waitForFunction(() => (window.__np.droneFly?.rings ?? 0) >= 1, null, {
+    timeout: 3000,
+  });
+  // Its battery run flat: it turns for home, and is put down at the door, its rings paid for.
+  const rings = await page.evaluate(() => {
+    const f = window.__np.droneFly;
+    if (f) f.battery = 0.2;
+    return f?.rings ?? 0;
+  });
+  await page.waitForFunction(() => window.__np.droneFly?.state === 'home', null, { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 5000 });
+  await expect(page.locator('#toast')).toContainText('battery ran flat');
+  await expect(page.locator('#droneLand')).toBeHidden();
+  await expect(page.locator('#climb')).toHaveText("Caterman's workshop");
+  const after = await page.evaluate(() => [
+    window.__np.coins,
+    window.__np.drone.flights,
+    window.__np.drone.bestRings,
+  ]);
+  expect(after[0]).toBeGreaterThanOrEqual(500 + rings * 10);
+  expect(after[1]).toBe(1);
+  expect(after[2]).toBeGreaterThanOrEqual(rings);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone),
+  ).toEqual({ owned: true, colour: 5, flights: 1, bestRings: after[2] });
+  // Again, and landed early with the button.
+  await page.click('#climb');
+  await page.click('#droneGo');
+  await page.waitForFunction(() => window.__np.droneFly?.state === 'fly', null, { timeout: 3000 });
+  await page.click('#droneLand');
+  await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.drone.flights)).toBe(2);
   expect(errors).toEqual([]);
 });
 

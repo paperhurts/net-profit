@@ -227,8 +227,9 @@ body.inside.tarsail #hull:not([hidden]){display:flex}
 #iceBtn:active,#iceDrop:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #iglooBtn{position:fixed;left:50%;bottom:calc(162px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;font-size:15px;height:40px;padding:3px 16px 0;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 #iglooBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#droneLand{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
 #iceLeave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
-body.icing #order,body.icing #charter,body.icing #hull,body.icing #market,body.icing #wood,body.icing #junk,body.icing #tarBucket,body.icing #muffinBtn,body.icing .snack,body.icing #mapBtn,body.icing #seineBtn,body.icing #potBtn,body.icing #mend,body.icing #rodcast,body.icing #cast,body.icing #throw,body.icing #iglooBtn,body.icing #diveBtn{display:none}
+body.droning #rchips,body.droning #holdPill,body.droning #keys,body.droning #order,body.droning #charter,body.droning #hull,body.droning #market,body.droning #wood,body.droning #junk,body.droning #tarBucket,body.droning #muffinBtn,body.droning .snack,body.droning #mapBtn,body.droning #climb,body.droning #aboard,body.droning #throw,body.droning #hearts,body.droning #boatsBtn,body.droning #bargeBtn,body.droning #diveBtn,body.droning #sprayBtn,body.droning #honeyBtn,body.droning #scanBtn,body.droning #rodcast,body.droning #cast,body.icing #order,body.icing #charter,body.icing #hull,body.icing #market,body.icing #wood,body.icing #junk,body.icing #tarBucket,body.icing #muffinBtn,body.icing .snack,body.icing #mapBtn,body.icing #seineBtn,body.icing #potBtn,body.icing #mend,body.icing #rodcast,body.icing #cast,body.icing #throw,body.icing #iglooBtn,body.icing #diveBtn{display:none}
 /* Alongside the ice floe with scuba gear: Ice fish, then Dive under the ice, then the igloo's button, one over the other. */
 body.floedive #diveBtn{bottom:calc(162px + env(safe-area-inset-bottom))}
 body.floedive #iglooBtn{bottom:calc(220px + env(safe-area-inset-bottom))}
@@ -318,12 +319,12 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
-#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#charCard,#store10,#hqCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#charCard h2,#store10 h2,#hqCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
-#tester .tnote,#boats .tnote,#orbCard .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
+#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneLand[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#droneCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester .tnote,#boats .tnote,#orbCard .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#droneCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
 #carry input{flex:1;min-width:0;height:40px;padding:0 10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);font:700 14px var(--font);box-shadow:inset 0 2px 0 rgba(0,0,0,.12)}
@@ -346,14 +347,17 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #boats .boat small.seat{margin:10px 0 5px;color:var(--card-fg)}
 #boats .bchips,#bargeCard .bchips,#badges .bchips,#stayCard .bchips,#charCard .bchips{display:flex;flex-wrap:wrap;gap:6px}
 #boats .rchip,#bargeCard .rchip,#badges .rchip,#stayCard .rchip,#charCard .rchip{height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 13px var(--font)}
-#store10 .joke{margin:4px 4px 10px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:800;line-height:1.3}
-#store10 .joke small{display:block;margin-top:4px;font-size:12px;color:#8A5A34}
-#store10 .shelf,#hqCard .shelf{display:grid;gap:8px}
-#store10 .item,#hqCard .item{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;cursor:pointer}
-#store10 .item b,#hqCard .item b{display:block;font-size:15px;font-weight:800}
-#store10 .item small,#hqCard .item small{display:block;font-size:12px;font-weight:700;color:var(--muted)}
-#store10 .item .buy,#hqCard .item .buy{font-weight:800;font-size:14px;padding:6px 10px;border-radius:999px;background:var(--coin);color:#2A1E08;white-space:nowrap}
-#store10 .item[aria-disabled="true"],#hqCard .item[aria-disabled="true"]{opacity:.55}
+#store10 .joke,#droneCard .joke{margin:4px 4px 10px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:800;line-height:1.3}
+#store10 .joke small,#droneCard .joke small{display:block;margin-top:4px;font-size:12px;color:#8A5A34}
+#store10 .shelf,#hqCard .shelf,#droneCard .shelf{display:grid;gap:8px}
+#store10 .item,#hqCard .item,#droneCard .item{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:10px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;cursor:pointer}
+#store10 .item b,#hqCard .item b,#droneCard .item b{display:block;font-size:15px;font-weight:800}
+#store10 .item small,#hqCard .item small,#droneCard .item small{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+#store10 .item .buy,#hqCard .item .buy,#droneCard .item .buy{font-weight:800;font-size:14px;padding:6px 10px;border-radius:999px;background:var(--coin);color:#2A1E08;white-space:nowrap}
+#store10 .item[aria-disabled="true"],#hqCard .item[aria-disabled="true"],#droneCard .item[aria-disabled="true"]{opacity:.55}
+#droneCard canvas{position:static;display:block;width:220px;height:96px;max-width:100%;margin:0 auto 6px;touch-action:auto;cursor:default}
+#droneCard .row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 4px 6px}
+#droneCard .lbl{margin:10px 4px 0;font-size:13px;font-weight:800}
 #store10 .item.added,#hqCard .item.added{box-shadow:0 0 0 3px #3FB37A,0 3px 0 rgba(0,0,0,.22)}
 #crowCard .q{margin:4px 4px 10px;padding:12px;border-radius:11px;background:#EEF2FA;color:#17171D;font-size:17px;font-weight:800;line-height:1.3}
 #crowCard .answers{display:grid;gap:8px}
@@ -364,8 +368,8 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #crowCard .fact{margin:10px 4px 4px;padding:10px 12px;border-radius:11px;background:#FFF6DC;color:#4A2E1A;font-size:15px;font-weight:700;line-height:1.35}
 #crowCard .fact b{display:block;font-size:16px;font-weight:800;margin-bottom:2px}
 #crowCard .go{display:block;width:100%;height:48px;margin-top:10px;font-size:16px}
-#bargeCard .go{display:block;width:100%;height:50px;margin-top:6px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:19px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
-#bargeCard .go:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#bargeCard .go,#droneCard .go{display:block;width:100%;height:50px;margin-top:6px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:19px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#bargeCard .go:active,#droneCard .go:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #bargeCard .go:disabled{opacity:.45}
 #bargeCard .planks{display:flex;flex-direction:column;box-sizing:border-box;max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
 #bargeCard .planks > *{flex:none}
@@ -447,8 +451,8 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #charCard .name{font-size:22px;font-weight:800;line-height:1.1;margin:0 0 6px}
 #charCard .crow{margin:0 4px 10px}
 #charCard .crow>small{display:block;font-size:12px;font-weight:800;margin:0 0 4px;opacity:.8}
-#charCard .swatch{width:34px;height:34px;border-radius:50%;border:3px solid rgba(0,0,0,.18);cursor:pointer;padding:0}
-#charCard .swatch.on{border-color:#3FB37A;box-shadow:0 0 0 2px #fff inset}
+#charCard .swatch,#droneCard .swatch{width:34px;height:34px;border-radius:50%;border:3px solid rgba(0,0,0,.18);cursor:pointer;padding:0}
+#charCard .swatch.on,#droneCard .swatch.on{border-color:#3FB37A;box-shadow:0 0 0 2px #fff inset}
 #intro .who{margin-top:10px;background:transparent;border:2px solid currentColor;color:inherit;font:800 15px var(--font);border-radius:999px;padding:8px 16px;cursor:pointer}
 #intro .keys{font-size:13px;opacity:.75;margin:10px 0 0}
 @media (hover:none){#intro .keys{display:none}}
@@ -493,6 +497,7 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 <button class="pill" id="iglooBtn" hidden>Build an igloo</button>
 <button class="pill" id="iceDrop" hidden>Drop the line</button>
 <button class="pill" id="iceLeave" hidden>Back to the boat</button>
+<button class="pill" id="droneLand" hidden>Land the drone</button>
 <button class="pill" id="leave" hidden>Leave the tower</button>
 <button id="potBtn" hidden aria-label="Drop a crab pot"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M12 14 L6 9 L2 19" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 17 L6 13 L2 23" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 20 L6 17 L2 27" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 14 L28 9 L32 19" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 17 L28 13 L32 23" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 20 L28 17 L32 27" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="17" cy="18" rx="6.5" ry="5.6" fill="#E8604C"/><circle cx="14.5" cy="17" r="1.3" fill="#7A4FC9"/><circle cx="19.5" cy="19.5" r="1.1" fill="#7A4FC9"/><circle cx="15" cy="12.6" r="1" fill="#14222A"/><circle cx="19" cy="12.6" r="1" fill="#14222A"/></svg><b id="potN">3</b></button>
 <button id="seineBtn" hidden aria-label="Drop the seine"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M8 25 C2 17 6 6 17 6 C28 6 32 17 26 25" fill="none" stroke="#F2C14E" stroke-width="2.4" stroke-dasharray="0.1 4.4" stroke-linecap="round"/><path d="M17 26 L17 13" stroke="#FFF6E5" stroke-width="1.8"/><path d="M17 13 L24 15.5 L17 18 Z" fill="#FFF6E5"/><circle cx="17" cy="26" r="5.5" fill="#E4572E"/><rect x="11.5" y="25" width="11" height="2.2" fill="#FFF6E5"/></svg></button>
@@ -645,6 +650,19 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
     <h2>The castle's plans <button class="pill icon" id="hqClose" aria-label="Close the plans">✕</button></h2>
     <p class="tnote">Gigantis is yours. Build onto it here.</p>
     <div class="shelf" id="hqShelf"></div>
+  </div>
+</section>
+
+<section id="droneCard" hidden aria-label="Caterman's workshop">
+  <div class="planks">
+    <h2>Caterman's workshop <button class="pill icon" id="droneClose" aria-label="Close the workshop">✕</button></h2>
+    <p class="joke" id="droneSay"></p>
+    <canvas id="dronePic" width="220" height="96" aria-hidden="true"></canvas>
+    <div class="shelf" id="droneShelf"></div>
+    <p class="lbl">Its colour</p>
+    <div class="row" id="droneColours" role="group" aria-label="The drone's colour"></div>
+    <p class="tnote" id="droneStats" hidden></p>
+    <button class="pill go" id="droneGo" hidden>Fly it!</button>
   </div>
 </section>
 

@@ -1102,3 +1102,17 @@ describe("the Shark King's last words, owed to a skipped game", () => {
     expect(parseSave(serializeSave(s), bounds).kingOwed).toBe(true);
   });
 });
+
+describe('the drone', () => {
+  it('an old save has none; bought, its colour, flights and best keep, the colour one of its own', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.drone).toEqual({ owned: false, colour: 0, flights: 0, bestRings: 0 });
+    s.drone = { owned: true, colour: 4, flights: 3, bestRings: 17 };
+    expect(parseSave(serializeSave(s), bounds).drone).toEqual(s.drone);
+    const odd = parseSave(
+      JSON.stringify({ ...s, drone: { owned: 1, colour: 99, flights: -4 } }),
+      bounds,
+    );
+    expect(odd.drone).toEqual({ owned: true, colour: 8, flights: 0, bestRings: 0 });
+  });
+});
