@@ -14,6 +14,8 @@
  *
  * A spear reaches him only down low: on his feet, or landed. Each blow is three hearts, and when one lands he laughs.
  * Beaten, he crashes down onto his own floor, and one of his horns snaps off. He stays beaten.
+ *
+ * On the Battle Barge he is made for the fight at his own spot on the deck, and wakes at once.
  */
 
 import type { Room } from '../world/tower';
@@ -26,6 +28,9 @@ export const SKRILL_HP = 20;
 export const SKRILL_DMG = 3;
 /** Coins he leaves. */
 export const SKRILL_PRIZE = 8000;
+/** His monkeys round him, and how many of them throw coconuts. */
+export const SKRILL_MONKEYS = 5;
+export const SKRILL_THROWERS = 2;
 /** He walks at this; the figure at 85. */
 export const SKRILL_SPEED = 46;
 /** He wakes for the figure this far into his floor from its front. */
@@ -127,11 +132,23 @@ export class Skrill implements Entity {
   onHit: ((n: number) => void) | null = null;
   onBeaten: (() => void) | null = null;
 
-  /** On the top of his tower: his room. */
-  constructor(readonly room: Room) {
-    this.home = { x: room.x - room.r * 0.45 * D, y: room.y - room.r * 0.45 * D };
+  /** On the top of his tower: his room, and where he waits in it (by his throne at its back, by default). */
+  constructor(
+    readonly room: Room,
+    at?: Pt,
+  ) {
+    this.home = at
+      ? { x: at.x, y: at.y }
+      : { x: room.x - room.r * 0.45 * D, y: room.y - room.r * 0.45 * D };
     this.x = this.home.x;
     this.y = this.home.y;
+  }
+
+  /** Awake at once, laughing, without waiting for the figure to come up: on the Battle Barge. */
+  wake(): void {
+    if (this.state !== 'wait') return;
+    this.set('laugh');
+    this.onWake?.();
   }
 
   /** Back by his throne, whole, each time the figure comes up; gone once beaten. */

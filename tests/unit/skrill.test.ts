@@ -206,6 +206,27 @@ describe('Skrill', () => {
     expect(s.state).toBe('gone');
   });
 
+  it('on the Battle Barge waits at a spot of its own, and wakes at once, laughing, without the figure coming up', () => {
+    const spot = { x: R.x + 60, y: R.y - 50 };
+    const s = new Skrill(R, spot);
+    expect(s.home).toEqual(spot);
+    expect([s.x, s.y]).toEqual([spot.x, spot.y]);
+    let woke = 0;
+    s.onWake = () => woke++;
+    s.wake();
+    expect(s.state).toBe('laugh');
+    expect(woke).toBe(1);
+    // Only once: awake already, a second wake does nothing.
+    s.wake();
+    expect(woke).toBe(1);
+    // And comes for a figure anywhere on the deck, even by the way in.
+    const at = entry(SKRILL_TOP);
+    tick(s, at, LAUGH_T + 0.05);
+    expect(s.state).toBe('chase');
+    tick(s, at, 1);
+    expect(Math.hypot(s.x - spot.x, s.y - spot.y)).toBeGreaterThan(20);
+  });
+
   it('a stun stops his sword being drawn back', () => {
     const at = { x: R.x, y: R.y };
     const s = awake(at);

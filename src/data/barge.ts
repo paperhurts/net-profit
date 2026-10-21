@@ -11,7 +11,8 @@
  * then island 10's spider, in a web strung between two posts on the deck, whom only bug spray beats. The fourth stage
  * brings the newest on foot: the tar island's tar humans and tar beasts (a tar beast has nowhere to run on the barge, so
  * it fights), and Skull Island's men in bone armour and its displacer beasts; and the fifth, two more bosses, the tar
- * island's: the tar leader, up out of his wait at his spot, and the tar dragon, circling over the deck.
+ * island's: the tar leader, up out of his wait at his spot, and the tar dragon, circling over the deck; then Skrill,
+ * off the top of his tower with his five monkeys, last of all.
  *
  * Here: the arena sizes, the enemies to pick from, a pick kept to ten, a saved setup read back, and where the picked
  * enemies stand when the fight starts.
@@ -60,7 +61,8 @@ export type BargeFoe =
   | 'anchorer'
   | 'spider'
   | 'tarleader'
-  | 'tardragon';
+  | 'tardragon'
+  | 'skrill';
 export const BARGE_FOES: readonly BargeFoe[] = [
   'monkey',
   'hired',
@@ -92,6 +94,7 @@ export const BARGE_FOES: readonly BargeFoe[] = [
   'spider',
   'tarleader',
   'tardragon',
+  'skrill',
 ];
 /** The ones that are the undead's (entities/undead.ts). */
 export const UNDEAD_FOES: readonly BargeFoe[] = [
@@ -117,6 +120,7 @@ export const BOSS_FOES: readonly BargeFoe[] = [
   'spider',
   'tarleader',
   'tardragon',
+  'skrill',
 ];
 /** What each is called on the card, and a word on how it fights. */
 export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = {
@@ -182,6 +186,10 @@ export const FOE_NAMES: Readonly<Record<BargeFoe, readonly [string, string]>> = 
   tardragon: [
     'The tar dragon',
     'Spits tar into three red rings and swoops down a red lane. Spear it when it lands. 18 hits.',
+  ],
+  skrill: [
+    'Skrill',
+    'With his five monkeys. Sweeps his sword through a red fan, drops orb bolts into red rings from up on his wings, and swoops down a red lane: 3 hearts each. Spear him down low. 20 hits.',
   ],
 };
 

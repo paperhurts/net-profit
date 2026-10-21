@@ -98,6 +98,16 @@ describe('the Battle Barge: picking a fight', () => {
     for (const k of ['tarhuman', 'tarbeast', 'boneman', 'displacer'] as const)
       expect(b.pick[k]).toBe(0);
   });
+
+  it('has Skrill last of all its bosses, and an old save from before him reads with him not picked', () => {
+    expect(BOSS_FOES.at(-1)).toBe('skrill');
+    expect(FOE_NAMES.skrill[0]).toBe('Skrill');
+    expect(FOE_NAMES.skrill[1]).toContain('20 hits');
+    const b = parseBarge({ size: 'medium', pick: { tarleader: 1, tardragon: 1 } });
+    expect(b.pick).toEqual({ ...noPick(), tarleader: 1, tardragon: 1 });
+    expect(b.pick.skrill).toBe(0);
+    expect(parseBarge({ size: 'medium', pick: { skrill: 2 } }).pick.skrill).toBe(2);
+  });
 });
 
 describe('the Battle Barge: its arenas', () => {

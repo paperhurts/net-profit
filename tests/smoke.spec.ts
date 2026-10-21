@@ -676,7 +676,8 @@ type Np = {
     | 'anchorer'
     | 'spider'
     | 'tarleader'
-    | 'tardragon',
+    | 'tardragon'
+    | 'skrill',
     {
       up: boolean;
       low?: boolean;
@@ -9712,6 +9713,67 @@ test("the Battle Barge: the tar island's bosses, the tar leader on the deck and 
     await page.waitForTimeout(250);
   }
   await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Battle Barge: Skrill, laughing at once, with his five monkeys; beaten first, he lies there while they are', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    barge: { size: 'large', pick: { skrill: 1 } },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#bargeBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#bargeBtn').click();
+  await expect(page.locator('#bargeList')).toContainText('With his five monkeys');
+  await page.locator('#bargeGo').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.large, null, {
+    timeout: 3000,
+  });
+  // There, laughing at once, and his five monkeys round him.
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      return (
+        n.bargeBoss.skrill.length === 1 &&
+        n.bargeBoss.skrill[0]?.up &&
+        (n.bargeCamps[n.floor]?.imps?.list.length ?? 0) === 5
+      );
+    },
+    null,
+    { timeout: 4000 },
+  );
+  // Speared down low until he crashes down, his monkeys still up: not won yet.
+  for (let i = 0; i < 60; i++) {
+    const done = await page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(9);
+      const sk = n.bargeBoss.skrill[0];
+      if (!sk?.up) return true;
+      if (sk.low) sk.hit(9);
+      return false;
+    });
+    if (done) break;
+    await page.waitForTimeout(250);
+  }
+  await page.waitForFunction(() => window.__np.bargeBoss.skrill[0]?.state === 'down', null, {
+    timeout: 4000,
+  });
+  expect(await page.evaluate(() => window.__np.bargeWins)).toBe(0);
+  // Then the monkeys, and the fight's coin: lying there beaten, he counts as beaten.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.setHearts(9);
+    const imps = n.bargeCamps[n.floor]?.imps;
+    for (const m of imps?.list ?? []) imps?.hit(m, 99, n.walker.x, n.walker.y);
+  });
+  await page.waitForFunction(() => window.__np.bargeWins === 1, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('beat them all');
   expect(errors).toEqual([]);
 });
 

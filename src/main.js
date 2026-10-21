@@ -58,7 +58,7 @@ import { DISPLACER_PRIZE, DisplacerBeasts } from './entities/displacers';
 import { drawDisplacer, drawDisplacerMark } from './render/displacers';
 import { drawTarFolk, drawTarMark } from './render/tarfolk';
 import { LEADER_PRIZE, TarLeader } from './entities/tarleader';
-import { Skrill, SKRILL_PRIZE } from './entities/skrill';
+import { Skrill, SKRILL_MONKEYS, SKRILL_PRIZE, SKRILL_THROWERS } from './entities/skrill';
 import { PrisonParty } from './entities/prisonparty';
 import { drawLeaderMark, drawTarLeader } from './render/tarleader';
 import { drawSkrill, drawSkrillHorn, drawSkrillMark, drawSkrillRail, drawSkrillTop } from './render/skrill';
@@ -1230,6 +1230,7 @@ function spearTarget(range = weaponRange()){ const sp = {range}; if (walker.stat
     for (const sd of bargeBoss.spider) if (sd.awake && Math.hypot(sd.x - walker.x, sd.y - walker.y) <= sp.range) consider(sd);
     for (const l of bargeBoss.tarleader) if (l.there && Math.hypot(l.x - walker.x, l.y - walker.y) <= sp.range) consider(l);
     for (const d of bargeBoss.tardragon) if (d.low && Math.hypot(d.x - walker.x, d.y - walker.y) <= sp.range) consider(d);
+    for (const sk of bargeBoss.skrill) if (sk.low && Math.hypot(sk.x - walker.x, sk.y - walker.y) <= sp.range) consider(sk);
     return best; }
   if (hordes[floor]){ const u = hordes[floor].target(walker.x, walker.y, sp.range);
     // In the throne room the Forgotten One too, if he is nearer than any but a necromancer; and in the crypt.
@@ -1382,7 +1383,7 @@ floors[9] = new Monkeys(ROOMS[9], 5, 1); floors[10] = new Monkeys(ROOMS[10], 6, 
 floors[17] = new Monkeys(ROOMS[17], 5, 2, true, 'hired', HIRED_MAN_HP); floors[18] = new Monkeys(ROOMS[18], 6, 2, true, 'hired', HIRED_MAN_HP); // island 8's: the Heron's hired men
 floors[20] = new Monkeys(ROOMS[20], 6, 2, true, 'hired', HIRED_MAN_HP); floors[21] = new Monkeys(ROOMS[21], 7, 3, true, 'hired', HIRED_MAN_HP); // and island 9's, more of them
 // Skrill's five monkeys, round him at the top of his tower: once beaten, gone.
-floors[SKRILL_TOP] = new Monkeys({x: ROOMS[SKRILL_TOP].x - 40, y: ROOMS[SKRILL_TOP].y - 40}, 5, 2, false);
+floors[SKRILL_TOP] = new Monkeys({x: ROOMS[SKRILL_TOP].x - 40, y: ROOMS[SKRILL_TOP].y - 40}, SKRILL_MONKEYS, SKRILL_THROWERS, false);
 // The Battle Barge's tower, the fight's own (below); and, off the boat onto the barge, a dock that is nowhere, so
 // nothing on it is a way back aboard.
 const BARGE = {dock: null, door: {x: 0, y: 0}, first: ARENAS.medium, roof: -1, boss: null};
@@ -1594,7 +1595,7 @@ warlock.findTarget = (x, y, range) => { let best = null, bd = range;
   if (nest.up) consider(fighterTarget(nest, 30), Math.hypot(nest.x - x, nest.y - y));
   for (const p of [pelican, ...bargeBoss.pelican]) if (p.low) consider(fighterTarget(p, 18), Math.hypot(p.x - x, p.y - y));
   for (const td of [tarDragon, ...bargeBoss.tardragon]) if (td.low) consider({get x(){ return td.x; }, get y(){ return td.y; }, hit: (p) => td.hit(p), stun: (s) => td.stun(s), head: 26}, Math.hypot(td.x - x, td.y - y));
-  if (skrill.low && floor === SKRILL_TOP) consider({get x(){ return skrill.x; }, get y(){ return skrill.y; }, hit: (p) => skrill.hit(p), stun: (s) => skrill.stun(s), head: 70}, Math.hypot(skrill.x - x, skrill.y - y));
+  for (const sk of [...(floor === SKRILL_TOP ? [skrill] : []), ...bargeBoss.skrill]) if (sk.low) consider({get x(){ return sk.x; }, get y(){ return sk.y; }, hit: (p) => sk.hit(p), stun: (s) => sk.stun(s), head: 70}, Math.hypot(sk.x - x, sk.y - y));
   for (const tl of [tarLeader, ...bargeBoss.tarleader]) if (tl.up) consider({get x(){ return tl.x; }, get y(){ return tl.y; }, hit: (p) => tl.hit(p), stun: (s) => tl.stun(s), head: 60}, Math.hypot(tl.x - x, tl.y - y));
   for (const tf of TARS) if (tf.here) for (const g of tf.list) if (TarFolks.up(g)) consider({get x(){ return g.x; }, get y(){ return g.y; }, hit: (p) => tf.hit(g, p), stun: (s) => tf.stun(g, s), head: g.kind === 'human' ? 40 : 18}, Math.hypot(g.x - x, g.y - y));
   for (const gs of MEN) if (gs.here) for (const g of gs.list) if (BoneMen.up(g)) consider({get x(){ return g.x; }, get y(){ return g.y; }, hit: (p) => gs.hit(g, p), stun: (s) => gs.stun(g, s), head: 40}, Math.hypot(g.x - x, g.y - y));
@@ -1648,7 +1649,7 @@ function hurtHelper(h, dt){ if (!h.shown) return;
   for (const gs of MEN) if (gs.here) for (const g of gs.list) if (g.state === 'sweep' && g.t <= dt * 1.01 && BoneMen.catches(g, h.x, h.y)) h.hurt();
   for (const gs of BEASTS) if (gs.here) for (const g of gs.list) if (g.state === 'lash' && g.t <= dt * 1.01 && DisplacerBeasts.catches(g, h.x, h.y)) h.hurt();
   for (const tl of [tarLeader, ...bargeBoss.tarleader]) if (tl.blow && tl.catches(h.x, h.y)) h.hurt();
-  if (floor === SKRILL_TOP && (skrill.blow === 'swoop' ? skrill.sweeps(h.x, h.y, h.key ?? h) : skrill.catches(h.x, h.y))) h.hurt();
+  for (const sk of [...(floor === SKRILL_TOP ? [skrill] : []), ...bargeBoss.skrill]) if (sk.blow === 'swoop' ? sk.sweeps(h.x, h.y, h.key ?? h) : sk.catches(h.x, h.y)) h.hurt();
   for (const td of [tarDragon, ...bargeBoss.tardragon]) if (td.blow === 'spit' ? td.catches(h.x, h.y) : td.sweeps(h.x, h.y, h.key ?? h)) h.hurt();
   for (const pl of [pelican, ...bargeBoss.pelican]){ if (pl.state === 'stuck' && pl.t <= dt * 1.01 && pl.catches(h.x, h.y)) h.hurt();
     for (let i = pl.fish.length - 1; i >= 0; i--){ const q = pl.fish[i]; if (Math.hypot(q.x - h.x, q.y - h.y) < 10){ pl.fish.splice(i, 1); h.hurt(); } } }
@@ -2291,11 +2292,13 @@ const bargeGorillas = new Gorillas([], Infinity), bargeGators = new Gators([], I
 let bargeFighters = [];
 // And its bosses, the third stage, each made for the fight at its own spot: the leviathan sorcerer, the Forgotten One,
 // the Heron and the giant pelican. Pick two and they fight together.
-const bargeBoss = {sorcerer: [], forgotten: [], heron: [], pelican: [], cthulhu: [], oldone: [], reaper: [], anchorer: [], spider: [], tarleader: [], tardragon: []};
+const bargeBoss = {sorcerer: [], forgotten: [], heron: [], pelican: [], cthulhu: [], oldone: [], reaper: [], anchorer: [], spider: [], tarleader: [], tardragon: [], skrill: []};
 const bargeBosses = () => BOSS_FOES.flatMap(k => bargeBoss[k]);
 /** Beaten, on the barge: fallen, flown off, sunk or on his knees. */
 // A Reaper run off by honey ('run', 'away') has left the barge too.
 const BOSS_DOWN = ['fall', 'gone', 'flee', 'sink', 'yield', 'melt', 'run', 'away'];
+// Skrill lies 'down' where he crashed, beaten: there is no portal on the barge to haul him off through.
+const bossOut = (b) => BOSS_DOWN.includes(b.state) || (b instanceof Skrill && b.state === 'down');
 const bargeBand = {update(dt, w){ for (const f of bargeFighters) f.update(dt, w); for (const b of bargeBosses()) b.update(dt, w);
     // The Old One, up out of the sea, roars and fights; and nobody walks through Cthulhu.
     for (const o of bargeBoss.oldone) if (o.state === 'rise' && o.t >= OLD_RISE){ o.roar(); o.fight(); sfx.cthuluWake(); shake = Math.max(shake, .6); }
@@ -2498,6 +2501,16 @@ function bargeBossAt(kind, room, at){ const R = ROOMS[room];
     for (const k of ['onSpit', 'onAim', 'onSplat']) b[k] = tarDragon[k];
     b.onRise = () => { sfx.shriek(); shake = Math.max(shake, .3); }; b.onLand = () => { sfx.whump(); shake = Math.max(shake, .45); };
     b.onHit = (n) => bonked(b.blow === 'swoop' ? 'claw' : 'tarball', n); b.onBeaten = () => bargeDown(b.x, b.y); b.wake(); return b; }
+  if (kind === 'skrill'){
+    // Laughing at once, and his five monkeys come with him, two of them throwers, as on the top of his tower.
+    const b = new Skrill(R, at), imps = bargeCamps[room].imps;
+    for (const k of ['onWindup', 'onRise', 'onSpell', 'onAim', 'onLand']) b[k] = skrill[k];
+    b.onWake = () => { sfx.cthuluWake(); shake = Math.max(shake, .4); addText(b.x, b.y, 95, SKRILL_LAUGH, '#D9B8FF', 15, 1.8);
+      for (let i = 0; i < SKRILL_MONKEYS; i++){ const a = Math.atan2(R.y - at.y, R.x - at.x) + (i - 2) * .55, x = at.x + Math.cos(a) * 46, y = at.y + Math.sin(a) * 46;
+        imps.summon(onFloor(x, y) ? x : at.x, onFloor(x, y) ? y : at.y, i < SKRILL_THROWERS); } };
+    b.onStrike = (blow, hit) => { sfx.whump(); shake = Math.max(shake, hit ? .5 : .25); };
+    b.onHit = (n) => bonked(b.blow === 'bolts' ? 'bolt' : b.blow === 'swoop' ? 'slash' : 'sword', n);
+    b.onBeaten = () => { burst(b); bargeDown(b.x, b.y); }; b.wake(); return b; }
   if (kind === 'anchorer'){ const b = new Anchorer(seaMoat(R, at));
     b.onWake = () => { sfx.cthuluWake(); shake = Math.max(shake, .5); }; b.onHit = (by) => bonked(by); b.onWindup = () => sfx.tentacle(); b.onThud = anchorer.onThud;
     b.onSwing = () => { sfx.whump(); if (warlock.shown && Math.hypot(warlock.x - b.x, warlock.y - b.y) < SWEEP_R + 6) warlock.hurt(); };
@@ -4084,7 +4097,7 @@ function bargeCheck(){ if (tower !== BARGE || bargeWon) return; const room = BAR
   if (h.list.some(u => u.state !== 'fall' && u.state !== 'gone') || Object.values(bargeCamps[room]).some(c => c.n > 0 && !c.cleared) || bargeCamps[room].imps.list.some(m => m.state === 'idle' || m.state === 'chase')) return;
   if ([...bargeGorillas.list, ...bargeGators.list, ...bargeLancers.list, ...bargeMen.list, ...bargeBeasts.list].some(u => standing(u.state)) || bargeFighters.some(f => f.state !== 'gone')) return;
   if (bargeTar.list.some(f => f.state !== 'melt' && f.state !== 'gone')) return;
-  if (bargeBosses().some(b => !BOSS_DOWN.includes(b.state))) return;
+  if (bargeBosses().some(b => !bossOut(b))) return;
   bargeWon = true; bargeWins++; coins += BARGE_PRIZE; earned += BARGE_PRIZE; hearts = maxHearts(); hudHearts(); sfx.tierUp(); shake = Math.max(shake, .6);
   addText(walker.x, walker.y, 50, '+' + BARGE_PRIZE, C.coin, 24, 2.2); toasts.clear();
   toast(`You beat them all! +${BARGE_PRIZE} coin. Leave the barge, or tap the crossed swords for another fight.`, 4200, 2); hud(); refreshShop(); save(); }
@@ -5989,7 +6002,11 @@ function drawRoom(){
     // while it is up, and its balls of tar.
     for (const l of bargeBoss.tarleader) if (l.state !== 'gone'){ actors.push({d: l.x + l.y, f: () => drawTarLeader(drawView, l)}); actors.push({d: -1e9, f: () => drawLeaderMark(drawView, l)}); }
     for (const d of bargeBoss.tardragon) if (d.state !== 'gone'){ actors.push({d: -1e9, f: () => { drawDragonShadow(drawView, d); drawDragonMark(drawView, d); }});
-      actors.push({d: d.z < 40 ? d.x + d.y : 1e9, f: () => drawTarDragon(drawView, d)}); actors.push({d: 1e9, f: () => drawDragonBalls(drawView, d)}); } }
+      actors.push({d: d.z < 40 ? d.x + d.y : 1e9, f: () => drawTarDragon(drawView, d)}); actors.push({d: 1e9, f: () => drawDragonBalls(drawView, d)}); }
+    // Skrill, his red fan, rings and lane on the deck under everyone, him over all while he is up on his wings, and the
+    // horn that snaps off as he crashes down.
+    for (const sk of bargeBoss.skrill){ actors.push({d: -1e9, f: () => drawSkrillMark(drawView, sk)}); actors.push({d: -1e8, f: () => drawSkrillHorn(drawView, sk)});
+      if (sk.state !== 'gone') actors.push({d: sk.x + sk.y + (sk.z > 12 ? 2e9 : 0), f: () => drawSkrill(drawView, sk)}); } }
   if (floor === HALL && swordsman.state !== 'gone') actors.push({d: swordsman.x + swordsman.y, f: () => swordsman.drawBody(drawView)});
   if (floor === TEMPLE6){ if (cth.state !== 'gone') actors.push({d: cth.x + cth.y, f: () => cth.drawBody(drawView)});
     for (const k of cth.tents) actors.push({d: k.x + k.y, f: () => cth.drawTent(drawView, k)}); }
