@@ -333,6 +333,9 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #carryAsk .tnote b{font-weight:800}
 #tester .tstep{display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;margin:0 0 6px;padding:9px 10px 8px;border-radius:11px;background:var(--card);color:var(--card-fg);font-size:14px;font-weight:800;text-align:left;box-shadow:0 3px 0 rgba(0,0,0,.22)}
 #tester .tstep.done{opacity:.6}
+#tester .towed{margin:0 4px 10px;padding-left:18px;font-size:13px;font-weight:700;line-height:1.35}
+#tester .towed li{margin:0 0 5px}
+#tester .towed b{font-weight:800}
 #tester .tstep.added{background:#3FB37A;color:#fff;opacity:1}
 #tester .tstep .tk{flex:none;font-size:13px}
 #testerBtn{border:2px dashed rgba(0,0,0,.35)}
@@ -566,7 +569,8 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 <section id="tester" hidden aria-label="Tester">
   <div class="planks">
     <h2>Tester <button class="pill icon" id="testerClose" aria-label="Close the tester">✕</button></h2>
-    <p class="tnote">Mark the story beaten up to a step: everything before it is marked too. The game saves and starts again from there.</p>
+    <p class="tnote">Mark the story beaten up to a step: everything before it is marked too. The game saves and starts again from there. A skip never skips a cutscene: they play later, where they belong.</p>
+    <div id="testerOwed"></div>
     <div id="testerSteps"></div>
     <p class="tnote">Extras</p>
     <div id="testerExtras"></div>

@@ -135,6 +135,8 @@ export type SaveData = {
   reaperRematch: boolean;
   /** The Old One's rising is still owed to a game the tester skipped past him: it plays the next time the figure goes into the ruins. */
   oldOwed: boolean;
+  /** The Skeleton Shark King's last words are still owed to a game the tester skipped past him: they play the next time the boat sails up to island 5. */
+  kingOwed: boolean;
   /** His egg: 0 he is not beaten; 1 beaten, the egg waiting in his nest; 2 the egg is yours, aboard; 3 hatched. */
   reaperEgg: number;
   /** The day the egg was taken aboard: it hatches at the next dawn. */
@@ -397,6 +399,7 @@ export function defaultSave(b: Bounds): SaveData {
     reaperLandSeen: false,
     reaperRematch: false,
     oldOwed: false,
+    kingOwed: false,
     reaperEgg: 0,
     eggDay: 0,
     crew: { ...DEFAULT_CREW },
@@ -589,6 +592,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.reaperLandSeen = !!o.reaperLandSeen;
   d.reaperRematch = !!o.reaperRematch;
   d.oldOwed = !!o.oldOwed;
+  d.kingOwed = !!o.kingOwed;
   d.reaperEgg = Math.max(0, Math.min(EGG_STAGES, int(o.reaperEgg)));
   // Missing in a save from before the egg could hatch, read as day 0: an egg already aboard hatches at once.
   d.eggDay = Math.max(0, int(o.eggDay));
@@ -778,6 +782,7 @@ export function serializeSave(d: SaveData): string {
     reaperLandSeen: d.reaperLandSeen,
     reaperRematch: d.reaperRematch,
     oldOwed: d.oldOwed,
+    kingOwed: d.kingOwed,
     reaperEgg: d.reaperEgg,
     eggDay: d.eggDay,
     crew: d.crew,

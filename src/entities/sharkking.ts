@@ -197,6 +197,22 @@ export class SharkKing implements Entity {
     this.next = 'charge';
   }
 
+  /**
+   * Beaten in a game that skipped his fight (the tester's): rolled over dying at (x, y) instead, so his last words
+   * still play, and then he dies as he would have.
+   */
+  dieAt(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+    this.up = 0.5;
+    this.state = 'dying';
+    this.t = 0;
+    this.to = null;
+    this.aim = null;
+    this.trident = null;
+    this.onBeaten?.();
+  }
+
   /** Dead for good, as a save remembers. */
   dead(): void {
     this.state = 'dead';

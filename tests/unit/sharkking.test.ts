@@ -320,4 +320,18 @@ describe('fighting the Skeleton Shark King', () => {
   it('warns longer than it takes to turn', () => {
     expect(CHARGE_UP).toBeGreaterThan(REACT + 0.4);
   });
+
+  it('dead in a game that skipped his fight, still says his last words: dying where he is put, then dead', () => {
+    const k = new SharkKing();
+    k.dead();
+    let beaten = 0;
+    let died = 0;
+    k.onBeaten = () => beaten++;
+    k.onDead = () => died++;
+    k.dieAt(ISLE5.x + 500, ISLE5.y);
+    expect([k.state, k.x, k.y, beaten]).toEqual(['dying', ISLE5.x + 500, ISLE5.y, 1]);
+    const w = near();
+    for (let t = 0; t < DIE_T + 0.1; t += DT) k.update(DT, w);
+    expect([k.state, died]).toEqual(['dead', 1]);
+  });
 });

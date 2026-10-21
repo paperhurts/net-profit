@@ -585,6 +585,8 @@ type Np = {
   reaperEgg: number;
   reaperRematch: boolean;
   oldOwed: boolean;
+  kingOwed: boolean;
+  ISLE5_REEF: { x: number; y: number; notice: number };
   OLDMAN10: { x: number; y: number };
   oldManAt: [number, number];
   storeOpen: boolean;
@@ -3628,8 +3630,12 @@ test('the cutscene: back aboard with the warlock free, island 4 turns to tar, an
     trip: { x: 2400 + 900, y: 2400 + 900, h: 0, clock: 0.3, hold: [] },
   });
   await page.waitForFunction(() => window.__np.cine !== null, null, { timeout: 5000 });
-  // A tap skips to the end.
-  await page.waitForTimeout(600);
+  // A tap at once does not skip it: it may be one still steering the boat as it began.
+  await tap(page, 200, 400);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__np.cine?.kind)).toBe('tar');
+  // A tap once it has been on a moment skips to the end.
+  await page.waitForTimeout(1100);
   await tap(page, 200, 400);
   await page.waitForFunction(() => window.__np.isle3Stage === 4, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('turned to tar');
@@ -3845,8 +3851,8 @@ test('the Skeleton Shark King: he rises at the reef, and harpooned down, dies wi
     null,
     { timeout: 30000, polling: 100 },
   );
-  // A tap skips his speech.
-  await page.waitForTimeout(800);
+  // A tap skips his speech, once it has been on a moment.
+  await page.waitForTimeout(1300);
   await tap(page, 200, 400);
   await page.waitForFunction(() => window.__np.isle5Stage === 1, null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText('portal', { timeout: 6000 });
@@ -4970,7 +4976,7 @@ test("the Heron's nest: up island 9's tower, the orb shields him until the necro
   await page.waitForFunction(() => window.__np.cine?.kind === 'heron', null, { timeout: 6000 });
   await expect(page.locator('body')).toHaveClass(/cine/);
   expect(await page.evaluate(() => window.__np.heronFled)).toBe(false);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1300);
   await tap(page, CX, CY);
   await page.waitForFunction(() => window.__np.cine === null, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.heronFled)).toBe(true);
@@ -5731,6 +5737,67 @@ test("tester: a skip never skips a cutscene: the tar monster rises the next time
   await tap(page, CX, CY);
   await page.waitForFunction(() => window.__np.isle3Stage === 4, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.cine)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('tester: skipping past the Shark King leaves his last words owed: the panel says where, and they play at island 5', async ({
+  context,
+  page,
+}) => {
+  // A game stuck at the King: the tar monster's scene long seen, the Anchorer beaten.
+  const errors = await boot(
+    context,
+    page,
+    {
+      muted: true,
+      coins: 300,
+      isle2Seen: true,
+      isle3Seen: true,
+      isle3Stage: 4,
+      isle4Stage: 1,
+      isle5Seen: true,
+      lv: { net: 5, hold: 5, engine: 5 },
+    },
+    './#tester',
+  );
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#tester')).toBeVisible();
+  await expect(page.locator('#testerOwed')).toBeEmpty();
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.locator('#testerSteps .tstep', { hasText: 'Skeleton Shark King' }).click(),
+  ]);
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  expect(await page.evaluate(() => [window.__np.isle5Stage, window.__np.kingOwed])).toEqual([
+    1,
+    true,
+  ]);
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#testerOwed')).toContainText("The Skeleton Shark King's last words");
+  await expect(page.locator('#testerOwed')).toContainText('island 5');
+  await page.locator('#testerClose').click();
+  // Up to his reef: he is up dying ahead of the boat, and a tap at once (still steering) does not lose it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.ISLE5_REEF.x + 600;
+    n.boat.y = n.ISLE5_REEF.y;
+    n.boat.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.king.state === 'dying', null, { timeout: 4000 });
+  await tap(page, CX, CY);
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.__np.king.state)).toBe('dying');
+  expect(await page.evaluate(() => window.__np.king.t)).toBeLessThan(2);
+  // On a moment, a tap skips to his end: dead, owed no more, and no prize again.
+  await page.waitForTimeout(1200);
+  await tap(page, CX, CY);
+  await page.waitForFunction(() => window.__np.king.state === 'dead', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('portal', { timeout: 4000 });
+  expect(await page.evaluate(() => [window.__np.kingOwed, window.__np.coins])).toEqual([
+    false,
+    300,
+  ]);
   expect(errors).toEqual([]);
 });
 

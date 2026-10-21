@@ -8,7 +8,8 @@
  * starts again from the save, so everything that hangs off the story fits.
  * A skip never skips a cutscene (the kid: "cutscenes are important"): island 3
  * is left with the tar monster's scene still to come, which plays the next
- * time the boat is out, and the game owes the Old One's rising (see main).
+ * time the boat is out, and the game owes the Shark King's last words and the
+ * Old One's rising (see main). The panel lists the ones still to see, and where.
  * Nothing in it is shown to a player who has not opened the link.
  */
 
@@ -205,6 +206,39 @@ export function stepsDone(s: Story): number {
     n++;
   }
   return n;
+}
+
+/** What the save says about the cutscenes the game still owes. */
+export type Owed = {
+  isle3Stage: number;
+  kingOwed: boolean;
+  heronStage: number;
+  heronFled: boolean;
+  oldOwed: boolean;
+  isle7Stage: number;
+  cryptWon: boolean;
+  castleHQ: boolean;
+};
+
+/** The cutscenes still to see, in the story's order, each with where it plays. */
+export function owedScenes(o: Owed): [string, string][] {
+  const out: [string, string][] = [];
+  if (o.isle3Stage === 3)
+    out.push(['The tar monster rising', 'the next time you are out on the boat']);
+  if (o.kingOwed) out.push(["The Skeleton Shark King's last words", 'sail up to island 5']);
+  if (o.heronStage >= 2 && !o.heronFled)
+    out.push(["The Heron's escape", 'the next time you are out on the boat']);
+  if (o.oldOwed && o.isle7Stage >= 4 && !o.castleHQ)
+    out.push([
+      'The Old One rising',
+      "in his ruins, behind Gigantis's throne room or through island 11's old portal",
+    ]);
+  if (o.cryptWon && !o.castleHQ)
+    out.push([
+      'The Forgotten One showing you his castle',
+      "go to him in the crypt behind island 11's skull door",
+    ]);
+  return out;
 }
 
 /** What the link's #… says to do with the panel: turn it on, put it away, or nothing. */

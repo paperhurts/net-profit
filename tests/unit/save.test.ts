@@ -1093,3 +1093,12 @@ describe('the treasure submarine', () => {
     expect([back.sub, back.subFound]).toEqual([true, { day: 9, patches: { '7,-2': 3 } }]);
   });
 });
+
+describe("the Shark King's last words, owed to a skipped game", () => {
+  it('an old save owes nothing; owed, it keeps until they are seen', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.kingOwed).toBe(false);
+    s.kingOwed = true;
+    expect(parseSave(serializeSave(s), bounds).kingOwed).toBe(true);
+  });
+});
