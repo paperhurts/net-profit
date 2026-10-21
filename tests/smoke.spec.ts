@@ -182,8 +182,10 @@ type Np = {
     z: number;
     hp: number;
     low: boolean;
+    hornAt: { x: number; y: number } | null;
     hit(n: number): boolean;
   };
+  prison: { open: number; men: { x: number; y: number; job: string }[] };
   skrillBeaten: boolean;
   openMap(): void;
   tarEel: {
@@ -7282,7 +7284,7 @@ test("Skrill's tower: in at its door, up four floors held by his men and his bea
   expect(errors).toEqual([]);
 });
 
-test('Skrill: up through his door to the top of his tower, he laughs and comes with his five monkeys, a spear reaches him only down low, and beaten his horn goes to the trophy hall', async ({
+test("Skrill: up through his door, his spell opens a portal and the Heron's men run out after him, a spear reaches him only down low, and beaten they drag him off to prison and his horn goes to the trophy hall", async ({
   context,
   page,
 }) => {
@@ -7302,8 +7304,17 @@ test('Skrill: up through his door to the top of his tower, he laughs and comes w
     n.walker.x = -23500 + 20;
     n.walker.y = -9700 + 20;
   });
-  await expect(page.locator('#toast')).toContainText('Skrill!', { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('The spell worked!', { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('hehe ha ha mwa ha ha');
+  await expect(page.locator('#toast')).toContainText('GET SKRILL AND PRIZON HIM');
+  // His portal opens, and the Heron's men come out of it.
+  await page.waitForFunction(
+    () => window.__np.prison.open === 1 && window.__np.prison.men.length > 0,
+    null,
+    {
+      timeout: 4000,
+    },
+  );
   await page.waitForFunction(
     () => (window.__np.floors[39]?.list ?? []).some((m) => m.state === 'chase'),
     null,
@@ -7343,7 +7354,10 @@ test('Skrill: up through his door to the top of his tower, he laughs and comes w
     null,
     { timeout: 3000 },
   );
-  await page.waitForFunction(() => window.__np.skrill.state === 'down', null, { timeout: 4000 });
+  // The Heron's men take him, and drag him off through the portal to prison. His horn stays.
+  await page.waitForFunction(() => window.__np.skrill.state === 'gone', null, { timeout: 15000 });
+  await expect(page.locator('#toast')).toContainText('to prison', { timeout: 3000 });
+  expect(await page.evaluate(() => !!window.__np.skrill.hornAt)).toBe(true);
   // Out, and up again: he stays beaten, his throne empty.
   await page.click('#leave');
   await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 3000 });

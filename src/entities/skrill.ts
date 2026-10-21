@@ -99,6 +99,8 @@ export class Skrill implements Entity {
   stunT = 0;
   /** Beaten for good: the game says so from the save. */
   beaten = false;
+  /** Where his snapped horn lies, once he has crashed down. */
+  hornAt: Pt | null = null;
   /** Where he waits, at the back of his floor. */
   readonly home: Pt;
   /** The sword's fan; where the orb's bolts will fall; the swoop's lane. */
@@ -146,6 +148,7 @@ export class Skrill implements Entity {
     this.fan = null;
     this.bolts = [];
     this.fell = [];
+    this.hornAt = null;
     this.blow = null;
     this.onFoot = 0;
     this.swings = 0;
@@ -177,6 +180,7 @@ export class Skrill implements Entity {
       this.beaten = true;
       this.fan = null;
       this.bolts = [];
+      this.hornAt = { x: this.x + 26, y: this.y + 8 };
       this.set('fall');
       this.onBeaten?.();
     }
@@ -353,6 +357,19 @@ export class Skrill implements Entity {
       return;
     }
     this.walk(fig.x, fig.y, dt);
+  }
+
+  /** Beaten and down on his floor, he is dragged along it to (x, y). */
+  haul(x: number, y: number): void {
+    if (this.state !== 'down') return;
+    this.h = Math.atan2(y - this.y, x - this.x);
+    this.x = x;
+    this.y = y;
+  }
+
+  /** Hauled away through the portal: gone, his horn left where he fell. */
+  taken(): void {
+    if (this.state === 'down') this.set('gone');
   }
 
   /** Whether the sword's fan catches whoever is at (x, y). */
