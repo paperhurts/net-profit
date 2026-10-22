@@ -1145,6 +1145,13 @@ describe('the drone', () => {
     ).drone;
     expect([odd.traps, odd.beetles]).toEqual([[1, 2, 3, 4, -1], 99]);
   });
+
+  it('is left out of the save until touched, keeping the copy-my-game link short', () => {
+    const s = parseSave(legacy, bounds);
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('drone');
+    s.drone = { ...s.drone, colour: 2 };
+    expect(JSON.parse(serializeSave(s)).drone.colour).toBe(2);
+  });
 });
 
 describe("the drone's upgrades", () => {

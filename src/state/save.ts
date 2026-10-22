@@ -548,6 +548,19 @@ const between = (v: number, lo: number, hi: number): number => Math.max(lo, Math
 /** No drone traps hung anywhere along the course. */
 export const noTraps = (): number[] => Array.from({ length: TRAP_SPOTS }, () => -1);
 
+/** A drone not bought, no colour picked: what a game starts with, and reads back when its save has none. */
+function untouchedDrone(dr: SaveData['drone']): boolean {
+  return (
+    !dr.owned &&
+    dr.colour === 0 &&
+    dr.flights === 0 &&
+    dr.bestRings === 0 &&
+    dr.beetles === 0 &&
+    dr.traps.every((t) => t < 0) &&
+    UPGRADE_KINDS.every((k) => dr.up[k] === 0)
+  );
+}
+
 /** No drone upgrades bought. */
 export const noUpgrades = (): Record<DroneUpgrade, number> => ({
   battery: 0,
@@ -953,7 +966,8 @@ export function serializeSave(d: SaveData): string {
     turtleSeen: d.turtleSeen,
     turtleSwims: d.turtleSwims,
     gear: d.gear,
-    drone: d.drone,
+    // Left out while untouched, as most games' is: the save travels in a link (state/share.ts), kept short.
+    drone: untouchedDrone(d.drone) ? undefined : d.drone,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
