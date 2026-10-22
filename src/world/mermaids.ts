@@ -4,7 +4,7 @@
  * Three of them are big and flat-topped, and from dusk until midnight a mermaid sits on each, singing; the rest are
  * small, wet and weedy. Boats go round them, never through.
  *
- * The sirens are to come on the same rocks after midnight, the kid's to design once he has found the mermaids.
+ * After midnight the sirens have the same rocks (entities/sirens.ts), Greek ones, as the kid asked.
  */
 
 import { DAY_END, DUSK_END } from './daycycle';
@@ -50,6 +50,12 @@ export const MIDNIGHT = DUSK_END + (1 - DUSK_END) / 2;
 /** The mermaids are out on their rocks from the start of dusk until midnight. */
 export function merHours(clock: number): boolean {
   return clock >= DAY_END && clock < MIDNIGHT;
+}
+
+/** The sirens fly in a little after midnight, once the mermaids have gone, and keep the rocks until dawn. */
+export const SIREN_FROM = MIDNIGHT + 0.01;
+export function sirenHours(clock: number): boolean {
+  return clock >= SIREN_FROM;
 }
 
 /** Near enough the rocks that nothing from elsewhere needs to know they are there. */

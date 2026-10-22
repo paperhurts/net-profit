@@ -86,11 +86,12 @@ export const CHIME_NOTES = [1396.9, 1568, 1760, 2093, 2349.3, 2793.8] as const;
  * The pad's notes per phase: F3, C4, F4, with an A4 at dawn and dusk and two notes at night. Near the mermaids
  * singing, their own chord takes over.
  */
-export function padNotes(phase: Phase, mermaids = 0): number[] {
+export function padNotes(phase: Phase, mermaids = 0, sirens = 0): number[] {
   const F3 = 174.61;
   const C4 = 261.63;
   const F4 = 349.23;
   const A4 = 440;
+  if (sirens > MER_TAKEOVER) return [...SIREN_CHORD];
   if (mermaids > MER_TAKEOVER) return [...MER_CHORD];
   if (phase === 'Night') return [F3, C4];
   if (phase === 'Dawn' || phase === 'Dusk') return [F3, C4, F4, A4];
@@ -201,6 +202,13 @@ export const MER_NOTES: readonly number[] = [349.23, 392, 440, 523.25];
 export const MER_CHORD: readonly number[] = [174.61, 220, 261.63, 329.63];
 /** Their song takes over the pad this near them (their presence, 0..1). */
 export const MER_TAKEOVER = 0.3;
+/**
+ * The sirens' four notes, after midnight on the same rocks: D4, F4, A4 and C sharp 5, a minor key with its sharp
+ * leading note, eerie where the mermaids' is sweet. Under the dolphin whistle's band with their octave too.
+ */
+export const SIREN_NOTES: readonly number[] = [293.66, 349.23, 440, 554.37];
+/** The pad while they sing: D3 F3 A3 C sharp 4, the same unsettled chord. */
+export const SIREN_CHORD: readonly number[] = [146.83, 174.61, 220, 277.18];
 /** Their voice: the sung note and a soft octave, both under the dolphin whistle's band, as the whales' are. */
 export const MER_VOICE: readonly Overtone[] = [
   [1, 1],
@@ -274,6 +282,8 @@ export type Snapshot = {
   sinceWhistle: number;
   /** How much the mermaids' song fills the sea here, 0..1: their chord takes over the pad. */
   mermaids?: number;
+  /** And the sirens', after midnight. */
+  sirens?: number;
 };
 
 function brownNoise(ctx: AudioContext, seconds: number): AudioBuffer {
@@ -425,8 +435,8 @@ export class Ambience {
     this.surfFilter.frequency.setTargetAtTime(SURF_BASE + SURF_SWEEP * crest, now, 0.2);
 
     // The pad: fade voices to the chord for the phase, with a slow chorus.
-    const mer = Math.max(0, Math.min(1, s.mermaids ?? 0));
-    const notes = padNotes(s.phase, mer);
+    const mer = Math.max(0, Math.min(1, Math.max(s.mermaids ?? 0, s.sirens ?? 0)));
+    const notes = padNotes(s.phase, s.mermaids ?? 0, s.sirens ?? 0);
     this.padGain.gain.setTargetAtTime(
       0.08 * (1 - s.dark * 0.3) * (1 - st) * (1 + 0.6 * mer),
       now,
@@ -635,18 +645,20 @@ export class Ambience {
    * A mermaid sings one of her four notes: a sine and a soft octave with a slow vibrato, swelling in and fading,
    * into the whales' echo, so it carries over the water the way theirs does.
    */
-  mermaidNote(note: number, seconds: number, pan: number, vol: number): void {
+  mermaidNote(note: number, seconds: number, pan: number, vol: number, siren = false): void {
     if (vol <= 0) return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
-    const f = MER_NOTES[note] ?? (MER_NOTES[0] as number);
+    const notes = siren ? SIREN_NOTES : MER_NOTES;
+    const f = notes[note] ?? (notes[0] as number);
     const g = ctx.createGain();
     g.gain.value = 0;
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     g.connect(p).connect(this.whaleBus);
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = MER_VIBRATO[0];
+    // A siren's vibrato is slower and wider, and her note sags as it ends.
+    lfo.frequency.value = siren ? 3.6 : MER_VIBRATO[0];
     const made: AudioNode[] = [g, p, lfo];
     const end = t + seconds + 0.35;
     for (const [mult, amp] of MER_VOICE) {
@@ -654,8 +666,9 @@ export class Ambience {
       o.type = 'sine';
       o.frequency.value = f * mult;
       const wob = ctx.createGain();
-      wob.gain.value = f * mult * MER_VIBRATO[1];
+      wob.gain.value = f * mult * MER_VIBRATO[1] * (siren ? 2.2 : 1);
       lfo.connect(wob).connect(o.frequency);
+      if (siren) o.frequency.setTargetAtTime(f * mult * 0.94, t + seconds * 0.6, 0.25);
       const og = ctx.createGain();
       og.gain.value = amp;
       o.connect(og).connect(g);

@@ -367,6 +367,8 @@ export type SaveData = {
     night: number;
     /** Five pearls strung into a charm against the sirens; missing in saves from before it, read as not yet. */
     charm: boolean;
+    /** The sirens heard, after midnight on the same rocks; missing in saves from before them, read as not yet. */
+    sirens: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -549,7 +551,7 @@ export function defaultSave(b: Bounds): SaveData {
       beetles: 0,
       up: noUpgrades(),
     },
-    mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false },
+    mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false, sirens: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -829,6 +831,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       given,
       night: k.night === undefined ? -1 : Math.max(-1, int(k.night)),
       charm: !!k.charm,
+      sirens: !!k.sirens,
     };
   }
   if (o.snook && typeof o.snook === 'object') {
@@ -995,7 +998,7 @@ export function serializeSave(d: SaveData): string {
     gear: d.gear,
     // Left out while untouched, as most games' is: the save travels in a link (state/share.ts), kept short.
     drone: untouchedDrone(d.drone) ? undefined : d.drone,
-    mer: d.mer.seen || d.mer.given ? d.mer : undefined,
+    mer: d.mer.seen || d.mer.given || d.mer.sirens ? d.mer : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,

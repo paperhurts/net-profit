@@ -119,6 +119,8 @@ type Np = {
   mermaids: { list: { state: string }[]; dist: number };
   mer: { seen: boolean; pearls: number; given: number; night: number; charm: boolean };
   merSong: { state: string; tune: number[]; wrongs: number } | null;
+  sirens: { list: { state: string }[]; perched: unknown[]; pull: number; dist: number };
+  hpNow: number;
   paint: number;
   MER_ROCKS: { x: number; y: number; r: number };
   ROCKS: { x: number; y: number; r: number }[];
@@ -11876,7 +11878,14 @@ test('the mermaids: heard at dusk off island 2, seen on their rocks, gone under 
   await expect(page.locator('#toast')).toContainText('Mermaids!');
   await expect(page.locator('#log')).toContainText('Mermaids found');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
-  expect(saved.mer).toEqual({ seen: true, pearls: 0, given: 0, night: -1, charm: false });
+  expect(saved.mer).toEqual({
+    seen: true,
+    pearls: 0,
+    given: 0,
+    night: -1,
+    charm: false,
+    sirens: false,
+  });
   expect(await page.evaluate(() => window.__np.mapMarks().map((m) => m.name))).toContain(
     'Mermaid rocks',
   );
@@ -11950,7 +11959,14 @@ test('singing with the mermaids: stopped by them at dusk, a tune sung back on th
   await expect(page.locator('#shells')).toBeHidden();
   const day = await page.evaluate(() => window.__np.day);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
-  expect(saved.mer).toEqual({ seen: true, pearls: 1, given: 1, night: day, charm: false });
+  expect(saved.mer).toEqual({
+    seen: true,
+    pearls: 1,
+    given: 1,
+    night: day,
+    charm: false,
+    sirens: false,
+  });
   // One a night: no more singing tonight.
   await page.waitForTimeout(300);
   await expect(page.locator('#merSing')).toBeHidden();
@@ -12000,5 +12016,69 @@ test('the siren charm: the fifth pearl, and the mermaids string all five into a 
   expect(saved.mer).toMatchObject({ pearls: 0, given: 5, charm: true });
   await expect(page.locator('#log')).toContainText('Siren charm');
   await expect(page.locator('#yours')).toContainText('Siren charm');
+  expect(errors).toEqual([]);
+});
+
+test("the sirens: after midnight on the mermaids' rocks, their song pulls a boat onto the rocks, which knock the hull, and a broken hull washes up", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    mer: { seen: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -230, y: 5720, h: Math.PI, clock: 0.844, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.sirens.perched.length === 3, null, {
+    timeout: 15000,
+  });
+  await expect(page.locator('#toast')).toContainText('sirens fly in');
+  expect(await page.evaluate(() => window.__np.sirens.pull)).toBeGreaterThan(0);
+  // Left to their song, the boat ends up on the rocks and the hull takes a knock.
+  await page.waitForFunction(() => window.__np.hpNow < 100, null, { timeout: 10000 });
+  await expect(page.locator('#log')).toContainText('Sirens heard');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.mer.sirens).toBe(true);
+  // A hull at its last: the next knock breaks it, and the boat washes up, without its catch.
+  await page.evaluate(() => {
+    window.__np.hpNow = 5;
+  });
+  await expect(page.locator('#toast')).toContainText('sang your boat onto the rocks', {
+    timeout: 6000,
+  });
+  await expect(page.locator('#toast')).toContainText('Washed up', { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test('the sirens and the charm: their song cannot pull a boat that wears it, and they shriek off into the dark', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    mer: { seen: true, pearls: 0, given: 5, night: -1, charm: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -60, y: 5640, h: Math.PI, clock: 0.844, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.sirens.perched.length === 3, null, {
+    timeout: 15000,
+  });
+  await expect(page.locator('#toast')).toContainText('charm glows');
+  expect(await page.evaluate(() => window.__np.sirens.pull)).toBe(0);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.MER_ROCKS.x + 200;
+    n.boat.y = n.MER_ROCKS.y - 80;
+    n.boat.v = 0;
+  });
+  await page.waitForFunction(
+    () => window.__np.sirens.list.every((s) => s.state !== 'perch'),
+    null,
+    { timeout: 4000 },
+  );
+  await expect(page.locator('#toast')).toContainText('shriek');
+  expect(await page.evaluate(() => window.__np.hpNow)).toBe(100);
   expect(errors).toEqual([]);
 });
