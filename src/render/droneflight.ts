@@ -6,6 +6,15 @@
  */
 
 import { clamp } from '../core/math';
+import { AROWANA } from '../data/tuning';
+import {
+  DROP_T,
+  type DroneFishing,
+  LAGOON_HALF,
+  REEL_T,
+  type Rise,
+  STRIKE_T,
+} from '../entities/dronefish';
 import {
   CANOPY,
   type DroneFlight,
@@ -609,4 +618,300 @@ function drawFlightBars(
   drawJar(ctx, W - pad - 52, top + 70, 28, false, 0);
   ctx.fillStyle = '#FFF7E6';
   ctx.fillText(`${fl.carry}`, W - pad - 36, top + 71);
+}
+
+/** The lagoon's own colours: black water, its sheen, the mud of its banks and its reeds. */
+const WATER_A = '#0C1B1C';
+const WATER_B = '#102326';
+const BANK = '#2C3D22';
+const REED = '#5E8A3A';
+
+/** A lagoon fish, side on, at (x, y), so long, its nose turned to angle a. */
+function drawLagoonFish(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  len: number,
+  sp: number,
+  a: number,
+): void {
+  const gold = sp === AROWANA;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(a);
+  ctx.fillStyle = gold ? '#C2502E' : '#9AA4A8';
+  ctx.beginPath();
+  ctx.moveTo(-len * 0.42, 0);
+  ctx.lineTo(-len * 0.62, -len * 0.16);
+  ctx.lineTo(-len * 0.62, len * 0.16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = gold ? '#E0A93A' : '#D8DFE0';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, len * 0.45, len * (gold ? 0.11 : 0.18), 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (gold) {
+    // Big scales catching the light, and its whiskers.
+    ctx.fillStyle = 'rgba(255,240,180,.55)';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.arc(i * len * 0.12, -len * 0.02, len * 0.035, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#8A5A1E';
+    ctx.lineWidth = Math.max(1, len * 0.02);
+    ctx.beginPath();
+    ctx.moveTo(len * 0.42, len * 0.03);
+    ctx.lineTo(len * 0.56, len * 0.1);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#23252E';
+    for (const u of [-0.2, 0, 0.2])
+      ctx.fillRect(u * len - len * 0.03, -len * 0.15, len * 0.06, len * 0.3);
+  }
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(len * 0.33, -len * 0.03, Math.max(1, len * 0.03), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** A rise: rings spreading on the black water where a fish is feeding, and its shape just under. */
+function drawRise(v: View, r: Rise, T: number): void {
+  const c = v.ctx;
+  const mid = at(v, r.x, 0, r.z);
+  if (!mid) return;
+  c.fillStyle = r.sp === AROWANA ? 'rgba(224,169,58,.28)' : 'rgba(200,210,214,.18)';
+  c.beginPath();
+  c.ellipse(mid.sx, mid.sy, 0.7 * mid.s, 0.12 * mid.s, 0, 0, Math.PI * 2);
+  c.fill();
+  for (let i = 0; i < 3; i++) {
+    const ph = (T * 0.7 + i / 3 + r.z * 0.13) % 1;
+    const rad = 0.3 + ph * 1.5;
+    const near = at(v, r.x, 0, r.z - rad);
+    const far = at(v, r.x, 0, r.z + rad);
+    if (!near || !far) continue;
+    c.strokeStyle = `rgba(200,235,230,${(1 - ph) * 0.75})`;
+    c.lineWidth = Math.max(1, 0.05 * mid.s);
+    c.beginPath();
+    c.ellipse(
+      mid.sx,
+      (near.sy + far.sy) / 2,
+      rad * mid.s,
+      Math.max(0.5, (near.sy - far.sy) / 2),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    c.stroke();
+  }
+}
+
+/** Reeds along a bank at x, at depth z. */
+function drawReeds(v: View, x: number, z: number, T: number): void {
+  const c = v.ctx;
+  const p = at(v, x, 0, z);
+  if (!p || p.sx < -p.s * 2 || p.sx > v.W + p.s * 2) return;
+  c.strokeStyle = REED;
+  c.lineWidth = Math.max(1, 0.06 * p.s);
+  c.lineCap = 'round';
+  for (let i = -2; i <= 2; i++) {
+    const h = (1 + ((i * 7 + Math.floor(z)) % 3) * 0.3) * p.s;
+    const sway = Math.sin(T * 1.5 + z + i) * 0.08 * p.s;
+    c.beginPath();
+    c.moveTo(p.sx + i * 0.18 * p.s, p.sy);
+    c.lineTo(p.sx + i * 0.22 * p.s + sway, p.sy - h);
+    c.stroke();
+  }
+}
+
+/** Fishing from the drone over island 11's black lagoon (entities/dronefish.ts), the whole screen: black water running
+ * toward you between reedy banks under the jungle, rises spreading rings on it, the drone over them with a jewel
+ * beetle on its line, and the fish that comes for it. Over it all: how far down the lagoon, the beetles and the catch. */
+export function drawDroneLagoon(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  fs: DroneFishing,
+  colour: string,
+  T: number,
+  top = 12,
+): void {
+  const v: View = {
+    ctx,
+    W,
+    H,
+    f: Math.min(W, H) * 0.9,
+    y0: H * 0.36,
+    cx: fs.x * 0.7,
+    cy: 2.6 + fs.y * 0.6,
+    cz: fs.z - CAM_BACK,
+  };
+  const sky = ctx.createLinearGradient(0, 0, 0, v.y0);
+  sky.addColorStop(0, '#0F2216');
+  sky.addColorStop(1, '#3B5A42');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, v.y0);
+  ctx.fillStyle = '#16261A';
+  ctx.fillRect(0, v.y0, W, H - v.y0);
+  // The banks, then the water between them, and the leaves high over it all, far to near.
+  const step = 3;
+  const z0 = Math.floor(v.cz / step) * step;
+  for (let z = z0 + SEE; z >= z0; z -= step) {
+    const k = Math.floor(z / step) % 2 === 0;
+    ctx.globalAlpha = 1 - fog(v, z) * 0.9;
+    band(v, 0, z, z + step, LAGOON_HALF + 30, BANK);
+    band(v, 0, z, z + step, LAGOON_HALF, k ? WATER_A : WATER_B);
+    // A glint of the sky on it, here and there.
+    const g = hash(Math.floor(z / step), 7);
+    const gp = g > 0.55 ? at(v, (g * 2 - 1.55) * LAGOON_HALF * 2, 0, z + step / 2) : null;
+    if (gp) {
+      ctx.fillStyle = 'rgba(150,200,190,.12)';
+      ctx.beginPath();
+      ctx.ellipse(gp.sx, gp.sy, 1.4 * gp.s, 0.06 * gp.s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    band(v, CANOPY + 3, z, z + step, LAGOON_HALF + 30, k ? LEAF_A : LEAF_B);
+  }
+  ctx.globalAlpha = 1;
+  const list: { z: number; f: () => void }[] = [];
+  for (const r of fs.rises)
+    if (!r.taken && r.z > v.cz + 0.4 && r.z < v.cz + SEE)
+      list.push({ z: r.z, f: () => drawRise(v, r, T) });
+  // Reeds along both banks, and the jungle's trees behind them.
+  const rz0 = Math.floor(v.cz / 2) * 2;
+  for (let z = rz0; z < v.cz + SEE; z += 2)
+    if (z > v.cz + 0.4)
+      for (const side of [-1, 1]) {
+        const x = side * (LAGOON_HALF + 0.3 + hash(z, side) * 0.6);
+        list.push({ z, f: () => drawReeds(v, x, z, T) });
+      }
+  const tz0 = Math.floor(v.cz / 6) * 6;
+  for (let z = tz0; z < v.cz + SEE; z += 6)
+    for (const side of [-1, 1]) {
+      const x = side * (LAGOON_HALF + 3 + hash(z, side + 3) * 2);
+      if (z > v.cz + 0.4) list.push({ z, f: () => drawTrunk(v, z, x, 1.1, T) });
+    }
+  // The drone, its line and the beetle on it, and the fish that comes for it.
+  const d = at(v, fs.x, fs.y, fs.z);
+  if (d)
+    list.push({
+      z: fs.z,
+      f: () => {
+        if (fs.state === 'drop' || fs.state === 'strike' || fs.state === 'reel') {
+          const down = fs.state === 'drop' ? fs.t / DROP_T : 1;
+          const water = at(v, fs.x, 0.25, fs.z);
+          const by = water ? d.sy + (water.sy - d.sy) * down : d.sy;
+          ctx.strokeStyle = 'rgba(235,235,220,.85)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(d.sx, d.sy + 0.1 * d.s);
+          ctx.lineTo(d.sx, by);
+          ctx.stroke();
+          const sp = fs.at?.sp ?? -1;
+          if (fs.state === 'strike' && fs.at && water) {
+            const u = fs.t / STRIKE_T;
+            if (sp === AROWANA) {
+              // Up out of the water in an arc, mouth first.
+              const fy = water.sy - Math.sin(u * Math.PI * 0.5) * (water.sy - by + 0.4 * d.s);
+              drawLagoonFish(
+                ctx,
+                d.sx - (1 - u) * 0.8 * d.s,
+                fy + 0.3 * d.s,
+                1.5 * d.s,
+                sp,
+                -1.2 + u * 0.5,
+              );
+            } else {
+              // Its head up at the surface, and a jet of water spat up at the beetle, drops flying off it.
+              const hx = d.sx + 0.5 * d.s;
+              const hy = water.sy + 0.15 * d.s;
+              drawLagoonFish(ctx, hx, hy, 0.8 * d.s, sp, -1.3);
+              const reach = Math.min(1, u * 1.6);
+              const jx = hx + (d.sx - hx) * reach;
+              const jy = hy - 0.3 * d.s + (by - hy + 0.3 * d.s) * reach;
+              ctx.strokeStyle = 'rgba(210,240,255,.9)';
+              ctx.lineWidth = Math.max(3, 0.1 * d.s);
+              ctx.beginPath();
+              ctx.moveTo(hx, hy - 0.3 * d.s);
+              ctx.lineTo(jx, jy);
+              ctx.stroke();
+              ctx.fillStyle = 'rgba(210,240,255,.85)';
+              for (let i = 0; i < 4; i++) {
+                const dx = Math.sin(i * 2.3 + u * 9) * 0.15 * d.s;
+                ctx.beginPath();
+                ctx.arc(jx + dx, jy + i * 0.08 * d.s, Math.max(1.5, 0.04 * d.s), 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          }
+          if (fs.state === 'reel' && fs.at) {
+            const wig = Math.sin(T * 18) * 0.25;
+            // Hanging off the line by its mouth, nose up, tail flapping.
+            const len = (sp === AROWANA ? 1.4 : 0.8) * d.s;
+            drawLagoonFish(ctx, d.sx, by + len * 0.45, len, sp, -Math.PI / 2 + wig);
+            // How long is left to reel it in: a ring closing round it.
+            ctx.strokeStyle = '#FFE066';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(
+              d.sx,
+              by + 0.45 * d.s,
+              0.9 * d.s,
+              -Math.PI / 2,
+              -Math.PI / 2 + (1 - fs.t / REEL_T) * Math.PI * 2,
+            );
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = '#3FE0C0';
+            ctx.beginPath();
+            ctx.ellipse(d.sx, by, 0.1 * d.s, 0.07 * d.s, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        drawDrone(ctx, d.sx, d.sy, d.s, colour, fs.vx / 6, 0, T, 0);
+      },
+    });
+  list.sort((p, q) => q.z - p.z);
+  for (const it of list) {
+    ctx.globalAlpha = 1 - fog(v, it.z) * 0.95;
+    it.f();
+  }
+  ctx.globalAlpha = 1;
+  drawLagoonBars(ctx, W, fs, top);
+}
+
+/** How far down the lagoon, and at the right the beetles aboard and the fish caught. */
+function drawLagoonBars(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  fs: DroneFishing,
+  top: number,
+): void {
+  const pad = 14;
+  const w = Math.min(220, W - pad * 2 - 90);
+  ctx.fillStyle = 'rgba(10,20,12,.55)';
+  box(ctx, pad, top, w + 16, 30);
+  ctx.fillStyle = 'rgba(232,242,224,.35)';
+  ctx.fillRect(pad + 8, top + 13, w - 2, 4);
+  ctx.fillStyle = '#FFE066';
+  ctx.fillRect(pad + 8, top + 13, (w - 2) * fs.progress, 4);
+  ctx.font = '800 16px Grandstander, ui-rounded, system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  // The beetles, a green bug.
+  ctx.fillStyle = 'rgba(10,20,12,.55)';
+  box(ctx, W - pad - 74, top, 74, 40);
+  ctx.fillStyle = '#3FE0C0';
+  ctx.beginPath();
+  ctx.ellipse(W - pad - 52, top + 20, 8, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFF7E6';
+  ctx.fillText(`${fs.beetles}`, W - pad - 36, top + 21);
+  // The catch.
+  ctx.fillStyle = 'rgba(10,20,12,.55)';
+  box(ctx, W - pad - 74, top + 46, 74, 40);
+  drawLagoonFish(ctx, W - pad - 52, top + 66, 24, AROWANA, 0);
+  ctx.fillStyle = '#FFF7E6';
+  ctx.fillText(`${fs.caught.length}`, W - pad - 36, top + 67);
 }

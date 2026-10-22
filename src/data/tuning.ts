@@ -430,6 +430,30 @@ export const SPECIES: readonly Species[] = [
     tail: 0.7,
     mark: '#B08A64',
   },
+  // In island 11's black lagoon, where no boat can go, fished from Caterman's drone with a jewel beetle on the line
+  // (the owner's drone, part three): a golden arowana, long and gold with red fins, that leaps out of the water for
+  // the beetle;
+  {
+    name: 'arowana',
+    pl: 'arowanas',
+    v: 120,
+    c: '#E0A93A',
+    s: 22,
+    fat: 0.22,
+    tail: 0.6,
+    mark: '#C2502E',
+  },
+  // and an archerfish, silver with black bands, that spits the beetle down off the line first.
+  {
+    name: 'archerfish',
+    pl: 'archerfish',
+    v: 30,
+    c: '#D8DFE0',
+    s: 9,
+    fat: 0.42,
+    tail: 0.7,
+    mark: '#23252E',
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -454,6 +478,10 @@ export const ABYSS_FISH: readonly number[] = [27, 28, 29, 30, 31, 32, 33, 34, 35
 export const REMORO = 37;
 /** The attack nibbler, the hunter of the abyss's floor: three spears, one a day. */
 export const ATTACK_NIBBLER = 38;
+
+/** Island 11's black lagoon's two, on the drone's line. */
+export const AROWANA = 39;
+export const ARCHERFISH = 40;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;

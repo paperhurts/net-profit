@@ -113,6 +113,14 @@ type Np = {
     beetles: number;
   };
   droneOpen: boolean;
+  droneFish: {
+    x: number;
+    z: number;
+    state: string;
+    beetles: number;
+    caught: number[];
+    rises: { x: number; z: number; sp: number; taken: boolean }[];
+  } | null;
   lagoonFolk: {
     list: { x: number; y: number; state: string; hp: number; out: boolean }[];
     left: number;
@@ -10432,6 +10440,97 @@ test("the drone's bug traps: one hung in a flower, a full one's jewel beetles br
       return [d.traps, d.beetles];
     }),
   ).toEqual([[day, -1, -1, -1, -1], 3]);
+  expect(errors).toEqual([]);
+});
+
+test('fishing from the drone: out over the black lagoon, a beetle dropped on a rise, the fish reeled in', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 2,
+    heronFled: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    catermanFree: true,
+    drone: {
+      owned: true,
+      colour: 3,
+      flights: 1,
+      bestRings: 5,
+      traps: [-1, -1, -1, -1, -1],
+      beetles: 2,
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SHOP_DOOR11;
+    w.x = d.x - 14;
+    w.y = d.y;
+  });
+  await expect(page.locator('#climb')).toHaveText("Caterman's workshop", { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#droneFish')).toHaveText('Fish the lagoon (2 beetles)');
+  await page.click('#droneFish');
+  await page.waitForFunction(() => window.__np.droneFish?.state === 'fly', null, { timeout: 3000 });
+  await expect(page.locator('#droneDrop')).toHaveText('Drop the beetle');
+  // Over the first rise, and down goes the beetle: the fish strikes, then it is the moment to reel it in.
+  const sp = await page.evaluate(() => {
+    const f = window.__np.droneFish;
+    const r = f?.rises[0];
+    if (!f || !r) return -1;
+    f.x = r.x;
+    f.z = r.z - 0.5;
+    return r.sp;
+  });
+  expect([39, 40]).toContain(sp);
+  await page.locator('#droneDrop').dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.droneFish?.state === 'reel', null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#droneDrop')).toHaveText('Reel it in!');
+  await page.locator('#droneDrop').dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.drone.beetles === 1, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.droneFish?.caught)).toEqual([sp]);
+  await expect(page.locator('#toast')).toContainText('field guide');
+  expect(
+    await page.evaluate(
+      (sp) => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').log[sp],
+      sp,
+    ),
+  ).toBe(1);
+  // Dropped on empty water, the beetle comes back up.
+  await page.evaluate(() => {
+    const f = window.__np.droneFish;
+    if (f) f.x = f.x > 0 ? f.x - 5 : f.x + 5;
+  });
+  await page.locator('#droneDrop').dispatchEvent('click');
+  await expect(page.locator('#toast')).toContainText('Nothing there', { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.droneFish?.beetles)).toBe(1);
+  // Home, and what it caught said.
+  await page.click('#droneLand');
+  await page.waitForFunction(() => window.__np.droneFish === null, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('Back from the black lagoon with');
+  await expect(page.locator('#droneDrop')).toBeHidden();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone.beetles,
+    ),
+  ).toBe(1);
   expect(errors).toEqual([]);
 });
 
