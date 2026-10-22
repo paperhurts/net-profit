@@ -25,6 +25,8 @@ export const SLOWEST = 1.6;
 export const YOUR_NOTE = 0.4;
 /** Sung right: their song together, before the pearl. */
 export const RIGHT_T = 2;
+/** Pearls the mermaids string into a charm against the sirens. */
+export const CHARM_PEARLS = 5;
 
 /** She sings; it is yours; a wrong note, before she sings it again; sung right; over. */
 export type SongState = 'listen' | 'yours' | 'again' | 'right' | 'done';
