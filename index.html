@@ -202,10 +202,23 @@ body.inside.tarsail #hull:not([hidden]){display:flex}
 #radioBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #radioBtn[hidden]{display:none}
 #mend[aria-disabled="true"]{opacity:.75}
-#rodcast,#pondcast,#tarcast,#droneDrop{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+#rodcast,#pondcast,#tarcast,#droneDrop,#merSing{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
-#rodcast:active,#pondcast:active,#tarcast:active,#droneDrop:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#rodcast:active,#pondcast:active,#tarcast:active,#droneDrop:active,#merSing:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #rodcast.bite,#pondcast.bite,#tarcast.bite,#droneDrop.bite{background:#F0C544;color:#2A1E08;animation:rodpulse .35s ease-in-out infinite alternate}
+#merSing{background:#8A68D8;color:#FFF6E5}
+/* Singing with the mermaids: four shells in their notes' colours, low to high, on a cream card above the bottom edge. */
+#shells{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4;width:min(360px,calc(100vw - 24px));
+  background:var(--card);border-radius:22px;padding:10px 12px 12px;box-shadow:0 6px 0 rgba(0,0,0,.18);text-align:center}
+#shells[hidden]{display:none}
+body.singing #radar,body.singing #merSing{display:none}
+#shellSay{margin:0 0 8px;font-weight:800;font-size:17px;color:var(--card-fg)}
+#shells .row{display:flex;justify-content:space-between;gap:8px}
+#shells .shell{flex:1;height:72px;border:none;border-radius:18px;background:rgba(18,48,58,.08);display:grid;place-items:center;transition:transform .12s,box-shadow .12s;touch-action:manipulation}
+#shells .shell.lit{transform:scale(1.14);background:color-mix(in srgb,var(--c) 30%,#fff);box-shadow:0 0 0 3px var(--c),0 0 18px var(--c)}
+#shells .shell.shake{animation:shellshake .35s}
+#shells.yours .shell{background:rgba(18,48,58,.14)}
+@keyframes shellshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @keyframes rodpulse{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.08)}}
 #aboard{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -502,6 +515,8 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 <button class="pill" id="iceLeave" hidden>Back to the boat</button>
 <button class="pill" id="droneLand" hidden>Land the drone</button>
 <button class="pill" id="droneDrop" hidden>Drop the beetle</button>
+<button class="pill" id="merSing" hidden>Sing with the mermaids</button>
+<div id="shells" hidden><p id="shellSay">Listen…</p><div class="row"><button class="shell" data-n="0" aria-label="Pink shell" style="--c:#FF8FB8"><svg width="46" height="42" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 33 L5 15 Q3 6 11 4 Q20 -1 29 4 Q37 6 35 15 Z" fill="var(--c)"/><path d="M20 33 L10 7 M20 33 L15 4 M20 33 L20 2.5 M20 33 L25 4 M20 33 L30 7" stroke="rgba(0,0,0,.2)" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M15 31h10l-2.5 4h-5z" fill="var(--c)"/></svg></button><button class="shell" data-n="1" aria-label="Gold shell" style="--c:#FFD25E"><svg width="46" height="42" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 33 L5 15 Q3 6 11 4 Q20 -1 29 4 Q37 6 35 15 Z" fill="var(--c)"/><path d="M20 33 L10 7 M20 33 L15 4 M20 33 L20 2.5 M20 33 L25 4 M20 33 L30 7" stroke="rgba(0,0,0,.2)" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M15 31h10l-2.5 4h-5z" fill="var(--c)"/></svg></button><button class="shell" data-n="2" aria-label="Blue shell" style="--c:#7FDBFF"><svg width="46" height="42" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 33 L5 15 Q3 6 11 4 Q20 -1 29 4 Q37 6 35 15 Z" fill="var(--c)"/><path d="M20 33 L10 7 M20 33 L15 4 M20 33 L20 2.5 M20 33 L25 4 M20 33 L30 7" stroke="rgba(0,0,0,.2)" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M15 31h10l-2.5 4h-5z" fill="var(--c)"/></svg></button><button class="shell" data-n="3" aria-label="Lilac shell" style="--c:#B7A2FF"><svg width="46" height="42" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 33 L5 15 Q3 6 11 4 Q20 -1 29 4 Q37 6 35 15 Z" fill="var(--c)"/><path d="M20 33 L10 7 M20 33 L15 4 M20 33 L20 2.5 M20 33 L25 4 M20 33 L30 7" stroke="rgba(0,0,0,.2)" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M15 31h10l-2.5 4h-5z" fill="var(--c)"/></svg></button></div></div>
 <button class="pill" id="leave" hidden>Leave the tower</button>
 <button id="potBtn" hidden aria-label="Drop a crab pot"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M12 14 L6 9 L2 19" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 17 L6 13 L2 23" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 20 L6 17 L2 27" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 14 L28 9 L32 19" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 17 L28 13 L32 23" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 20 L28 17 L32 27" fill="none" stroke="#F2B233" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="17" cy="18" rx="6.5" ry="5.6" fill="#E8604C"/><circle cx="14.5" cy="17" r="1.3" fill="#7A4FC9"/><circle cx="19.5" cy="19.5" r="1.1" fill="#7A4FC9"/><circle cx="15" cy="12.6" r="1" fill="#14222A"/><circle cx="19" cy="12.6" r="1" fill="#14222A"/></svg><b id="potN">3</b></button>
 <button id="seineBtn" hidden aria-label="Drop the seine"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M8 25 C2 17 6 6 17 6 C28 6 32 17 26 25" fill="none" stroke="#F2C14E" stroke-width="2.4" stroke-dasharray="0.1 4.4" stroke-linecap="round"/><path d="M17 26 L17 13" stroke="#FFF6E5" stroke-width="1.8"/><path d="M17 13 L24 15.5 L17 18 Z" fill="#FFF6E5"/><circle cx="17" cy="26" r="5.5" fill="#E4572E"/><rect x="11.5" y="25" width="11" height="2.2" fill="#FFF6E5"/></svg></button>

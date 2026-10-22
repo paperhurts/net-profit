@@ -201,6 +201,22 @@ describe('the mermaids', () => {
     expect(merLevel(MER_EARSHOT)).toBe(0);
   });
 
+  it('hush while one of them sings with you, and the one singing shows it', () => {
+    const m = upOnTheRocks();
+    let notes = 0;
+    m.onNote = () => notes++;
+    m.hush = true;
+    run(m, at(MER_SIGHT - 50), 15);
+    expect([notes, m.floaters.length]).toEqual([0, 0]);
+    const one = m.list[1];
+    if (!one) throw new Error('no mermaids');
+    m.sing(one, 2, 0.5);
+    expect([one.sing, one.note, m.floaters.length]).toEqual([0.5, 2, 1]);
+    m.hush = false;
+    run(m, at(MER_SIGHT - 50), 15);
+    expect(notes).toBeGreaterThan(3);
+  });
+
   it('take over the pad with their own chord, and sing under the dolphin whistle', () => {
     expect(padNotes('Night', MER_TAKEOVER + 0.1)).toEqual([...MER_CHORD]);
     expect(padNotes('Night', 0)).not.toEqual([...MER_CHORD]);

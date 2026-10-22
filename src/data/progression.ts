@@ -2,7 +2,7 @@
  * How upgrades become a boat and the base gates the boat, moved verbatim from
  * the prototype script. See project.md, "Progression".
  */
-import { MAXLV, PAINTS, RANGE, TIER_SCALE } from './tuning';
+import { MAXLV, RANGE, TIER_PAINTS, TIER_SCALE } from './tuning';
 
 export type Levels = { net: number; hold: number; engine: number };
 
@@ -23,7 +23,7 @@ export function rangeOf(tier: number): number {
 
 /** How many hull paints a tier has unlocked. */
 export function paintsUnlocked(tier: number): number {
-  return Math.min(PAINTS.length, 2 + Math.ceil(tier * 1.6));
+  return Math.min(TIER_PAINTS, 2 + Math.ceil(tier * 1.6));
 }
 
 /** Highest upgrade level index the palace allows at a build stage. */

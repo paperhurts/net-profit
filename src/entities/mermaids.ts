@@ -125,6 +125,8 @@ export class Mermaids implements Entity {
   dist = Infinity;
   /** Seconds they will stay under after a fright. */
   hiding = 0;
+  /** Quiet: no song of their own while one of them is singing with you. */
+  hush = false;
   readonly floaters: Floater[] = [];
   private phrase: MerNote[] = [];
   private phraseAt = 0;
@@ -255,7 +257,8 @@ export class Mermaids implements Entity {
         this.sighted = true;
         this.onSight?.();
       }
-      this.song(dt, w, sitting);
+      if (this.hush) this.phrase = [];
+      else this.song(dt, w, sitting);
     } else this.phrase = [];
     if (!hours && !this.emptied && d < MER_SIGHT) {
       this.emptied = true;
@@ -279,14 +282,19 @@ export class Mermaids implements Entity {
     let due = this.phrase.slice(0, this.phraseAt).reduce((s, n) => s + n[1], 0);
     while (this.phraseAt < this.phrase.length && this.phraseT >= due) {
       const [note, secs] = this.phrase[this.phraseAt] as MerNote;
-      m.sing = secs;
-      m.note = note;
-      this.floaters.push({ x: m.seat.x, y: m.seat.y, z: m.seat.h + 22, t: 0, note });
+      this.sing(m, note, secs);
       this.onNote?.(note, secs, m);
       due += secs;
       this.phraseAt++;
     }
     if (this.phraseAt >= this.phrase.length && this.phraseT >= due) this.phrase = [];
+  }
+
+  /** She sings a note: her mouth open and her arm out for so long, and the note drifting up off her. */
+  sing(m: Mermaid, note: number, secs: number): void {
+    m.sing = secs;
+    m.note = note;
+    this.floaters.push({ x: m.seat.x, y: m.seat.y, z: m.seat.h + 22, t: 0, note });
   }
 
   private go(m: Mermaid, s: MerState): void {

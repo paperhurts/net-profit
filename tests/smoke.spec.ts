@@ -117,7 +117,9 @@ type Np = {
   };
   droneOpen: boolean;
   mermaids: { list: { state: string }[]; dist: number };
-  mer: { seen: boolean };
+  mer: { seen: boolean; pearls: number; given: number; night: number };
+  merSong: { state: string; tune: number[]; wrongs: number } | null;
+  paint: number;
   MER_ROCKS: { x: number; y: number; r: number };
   ROCKS: { x: number; y: number; r: number }[];
   droneFish: {
@@ -11874,7 +11876,7 @@ test('the mermaids: heard at dusk off island 2, seen on their rocks, gone under 
   await expect(page.locator('#toast')).toContainText('Mermaids!');
   await expect(page.locator('#log')).toContainText('Mermaids found');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
-  expect(saved.mer).toEqual({ seen: true });
+  expect(saved.mer).toEqual({ seen: true, pearls: 0, given: 0, night: -1 });
   expect(await page.evaluate(() => window.__np.mapMarks().map((m) => m.name))).toContain(
     'Mermaid rocks',
   );
@@ -11902,5 +11904,63 @@ test('the mermaids: heard at dusk off island 2, seen on their rocks, gone under 
     return Math.hypot(n.boat.x - r.x, n.boat.y - r.y) - r.r;
   });
   expect(off).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test('singing with the mermaids: stopped by them at dusk, a tune sung back on the shells for a pearl, one a night, and their paint', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    mer: { seen: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -387, y: 5743, h: Math.PI, clock: 0.6, hold: [] },
+  });
+  await page.waitForFunction(
+    () => window.__np.mermaids.list.every((m) => m.state === 'sit'),
+    null,
+    {
+      timeout: 12000,
+    },
+  );
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await expect(page.locator('#merSing')).toBeVisible();
+  // The tiers' ten paints, and not yet the mermaids'.
+  expect(await page.locator('#paints .sw').count()).toBe(10);
+  await page.click('#merSing');
+  await expect(page.locator('#shells')).toBeVisible();
+  await expect(page.locator('#shellSay')).toContainText('sings');
+  await page.waitForFunction(() => window.__np.merSong?.state === 'yours', null, { timeout: 8000 });
+  await expect(page.locator('#shellSay')).toContainText('Your turn');
+  const tune = await page.evaluate(() => [...(window.__np.merSong?.tune ?? [])]);
+  expect(tune).toHaveLength(3);
+  // A wrong note: she sings it again, and it is yours again after.
+  await page.locator(`#shells [data-n="${((tune[0] ?? 0) + 1) % 4}"]`).click();
+  await expect(page.locator('#shellSay')).toContainText('Not quite');
+  await page.waitForFunction(() => window.__np.merSong?.state === 'yours', null, {
+    timeout: 10000,
+  });
+  for (const n of tune) await page.locator(`#shells [data-n="${n}"]`).click();
+  await page.waitForFunction(() => window.__np.mer.given === 1, null, { timeout: 5000 });
+  await expect(page.locator('#toast')).toContainText('gave you a pearl');
+  await expect(page.locator('#shells')).toBeHidden();
+  const day = await page.evaluate(() => window.__np.day);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.mer).toEqual({ seen: true, pearls: 1, given: 1, night: day });
+  // One a night: no more singing tonight.
+  await page.waitForTimeout(300);
+  await expect(page.locator('#merSing')).toBeHidden();
+  await expect(page.locator('#log')).toContainText('Mermaid pearls 1');
+  // Their paint, Mermaid scales, now with the rest.
+  expect(await page.locator('#paints .sw').count()).toBe(11);
+  await page.locator('#paints [data-i="10"]').dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.paint === 10, null, { timeout: 2000 });
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').paint),
+  ).toBe(10);
   expect(errors).toEqual([]);
 });
