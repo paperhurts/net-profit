@@ -1107,6 +1107,7 @@ describe('the drone', () => {
   it('an old save has none; bought, its colour, flights and best keep, the colour one of its own', () => {
     const s = parseSave(legacy, bounds);
     const none = [-1, -1, -1, -1, -1];
+    const up = { battery: 0, handling: 0, traps: 0, line: 0 };
     expect(s.drone).toEqual({
       owned: false,
       colour: 0,
@@ -1114,8 +1115,9 @@ describe('the drone', () => {
       bestRings: 0,
       traps: none,
       beetles: 0,
+      up,
     });
-    s.drone = { owned: true, colour: 4, flights: 3, bestRings: 17, traps: none, beetles: 0 };
+    s.drone = { owned: true, colour: 4, flights: 3, bestRings: 17, traps: none, beetles: 0, up };
     expect(parseSave(serializeSave(s), bounds).drone).toEqual(s.drone);
     const odd = parseSave(
       JSON.stringify({ ...s, drone: { owned: 1, colour: 99, flights: -4 } }),
@@ -1128,10 +1130,11 @@ describe('the drone', () => {
       bestRings: 0,
       traps: none,
       beetles: 0,
+      up,
     });
   });
 
-  it('keeps the day each trap was hung and the beetles, never more hung than it carries', () => {
+  it('keeps the day each trap was hung and the beetles, never more hung than there are flowers', () => {
     const s = parseSave(legacy, bounds);
     s.drone = { ...s.drone, owned: true, traps: [4, -1, 6, -1, -1], beetles: 9 };
     const back = parseSave(serializeSave(s), bounds).drone;
@@ -1140,6 +1143,24 @@ describe('the drone', () => {
       JSON.stringify({ ...s, drone: { owned: true, traps: [1, 2, 3, 4, 'x', 7], beetles: 1e6 } }),
       bounds,
     ).drone;
-    expect([odd.traps, odd.beetles]).toEqual([[1, 2, 3, -1, -1], 99]);
+    expect([odd.traps, odd.beetles]).toEqual([[1, 2, 3, 4, -1], 99]);
+  });
+});
+
+describe("the drone's upgrades", () => {
+  it('keeps each one at its level, 0 to 2; an older drone has none', () => {
+    const s = parseSave(legacy, bounds);
+    s.drone = { ...s.drone, owned: true, up: { battery: 2, handling: 1, traps: 0, line: 2 } };
+    expect(parseSave(serializeSave(s), bounds).drone.up).toEqual({
+      battery: 2,
+      handling: 1,
+      traps: 0,
+      line: 2,
+    });
+    const odd = parseSave(
+      JSON.stringify({ ...s, drone: { owned: true, up: { battery: 9, handling: -3, line: 'x' } } }),
+      bounds,
+    ).drone.up;
+    expect(odd).toEqual({ battery: 2, handling: 0, traps: 0, line: 0 });
   });
 });

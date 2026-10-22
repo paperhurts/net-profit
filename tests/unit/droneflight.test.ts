@@ -221,6 +221,20 @@ describe("the drone's flight through the jungle", () => {
     expect([f.spots[0], f.carry]).toEqual(['empty', 3]);
   });
 
+  it('flies further on a bigger battery, and answers the thumb quicker with faster rotors', () => {
+    const big = new DroneFlight(1101, COURSE, 160);
+    big.gates.length = 0;
+    fly(big, 2);
+    expect(big.full).toBe(160);
+    expect(big.battery).toBeGreaterThan(BATTERY);
+    const plain = new DroneFlight();
+    const quick = new DroneFlight();
+    quick.setHandling({ agility: 10, side: 10, climb: 7 });
+    fly(plain, 0.3, 1, 0);
+    fly(quick, 0.3, 1, 0);
+    expect(quick.x).toBeGreaterThan(plain.x * 1.4);
+  });
+
   it('is drawn: the jungle, the gates, the drone in each colour, and the bars', () => {
     const { v, calls } = fakeView();
     const f = new DroneFlight();

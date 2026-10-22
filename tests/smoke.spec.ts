@@ -102,6 +102,8 @@ type Np = {
     spots: string[];
     carry: number;
     beetles: number;
+    full: number;
+    side: number;
     gates: { kind: string; z: number; [k: string]: unknown }[];
   } | null;
   drone: {
@@ -111,6 +113,7 @@ type Np = {
     bestRings: number;
     traps: number[];
     beetles: number;
+    up: Record<string, number>;
   };
   droneOpen: boolean;
   droneFish: {
@@ -10297,7 +10300,15 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   await expect(page.locator('#droneGo')).toBeVisible();
   expect(await page.evaluate(() => [window.__np.coins, window.__np.drone])).toEqual([
     500,
-    { owned: true, colour: 5, flights: 0, bestRings: 0, traps: [-1, -1, -1, -1, -1], beetles: 0 },
+    {
+      owned: true,
+      colour: 5,
+      flights: 0,
+      bestRings: 0,
+      traps: [-1, -1, -1, -1, -1],
+      beetles: 0,
+      up: { battery: 0, handling: 0, traps: 0, line: 0 },
+    },
   ]);
   // Up it goes: the whole screen is the flight, steered with the keys as with a thumb.
   await page.click('#droneGo');
@@ -10531,6 +10542,79 @@ test('fishing from the drone: out over the black lagoon, a beetle dropped on a r
       () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone.beetles,
     ),
   ).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test("the drone's upgrades at Caterman's: a bigger battery twice, another trap, and they go up with it", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 6500,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 2,
+    heronFled: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    catermanFree: true,
+    drone: { owned: true, colour: 0, flights: 0, bestRings: 0 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SHOP_DOOR11;
+    w.x = d.x - 14;
+    w.y = d.y;
+  });
+  await expect(page.locator('#climb')).toHaveText("Caterman's workshop", { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#droneUps .item')).toHaveCount(4);
+  // The battery, twice: 1,500 then 3,000, and then it is as good as it gets.
+  const battery = page.locator('#droneUps [data-up="battery"]');
+  await expect(battery.locator('.buy')).toHaveText('1500');
+  await battery.click();
+  await expect(page.locator('#droneUps [data-up="battery"] .buy')).toHaveText('3000');
+  await page.locator('#droneUps [data-up="battery"]').click();
+  await expect(page.locator('#droneUps [data-up="battery"] .buy')).toHaveText('Best');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.drone.up.battery])).toEqual([
+    2000, 2,
+  ]);
+  // Another trap: four aboard.
+  await page.locator('#droneUps [data-up="traps"]').click();
+  await expect(page.locator('#droneStats')).toContainText('Traps: 4 aboard');
+  // Then not enough left for the rotors.
+  await page.locator('#droneUps [data-up="handling"]').dispatchEvent('click');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.drone.up.handling])).toEqual([
+    500, 0,
+  ]);
+  // Up it goes with them: its battery holds 160, and it carries four traps.
+  await page.click('#droneGo');
+  await page.waitForFunction(() => window.__np.droneFly?.state === 'fly', null, { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [window.__np.droneFly?.full, window.__np.droneFly?.carry]),
+  ).toEqual([160, 4]);
+  await page.click('#droneLand');
+  await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone.up),
+  ).toEqual({
+    battery: 2,
+    handling: 0,
+    traps: 1,
+    line: 0,
+  });
   expect(errors).toEqual([]);
 });
 

@@ -172,6 +172,12 @@ export class DroneFlight {
   /** Rings flown through. */
   rings = 0;
   bumps = 0;
+  /** How it handles (upgradable): how quickly it answers the thumb, and how fast across and up at most. */
+  agility = AGILITY;
+  side = SIDE_SPEED;
+  climb = CLIMB_SPEED;
+  /** Its battery's charge when full, for the bar. */
+  readonly full: number;
   /** Each trap spot's state, the traps aboard, and the beetles brought home this flight. */
   readonly spots: TrapState[] = Array.from({ length: TRAP_SPOTS }, () => 'empty' as TrapState);
   carry = 0;
@@ -189,6 +195,14 @@ export class DroneFlight {
   ) {
     this.gates = layCourse(seed, len);
     this.battery = battery;
+    this.full = battery;
+  }
+
+  /** How it handles, from its rotors' upgrade. */
+  setHandling(h: { agility: number; side: number; climb: number }): void {
+    this.agility = h.agility;
+    this.side = h.side;
+    this.climb = h.climb;
   }
 
   /** Where the traps are along the way, and how many it carries. */
@@ -212,9 +226,9 @@ export class DroneFlight {
     if (this.state !== 'fly') return;
     this.flash = Math.max(0, this.flash - dt);
     this.slowT = Math.max(0, this.slowT - dt);
-    const k = Math.min(1, AGILITY * dt);
-    this.vx += (clamp(sx, -1, 1) * SIDE_SPEED - this.vx) * k;
-    this.vy += (-clamp(sy, -1, 1) * CLIMB_SPEED - this.vy) * k;
+    const k = Math.min(1, this.agility * dt);
+    this.vx += (clamp(sx, -1, 1) * this.side - this.vx) * k;
+    this.vy += (-clamp(sy, -1, 1) * this.climb - this.vy) * k;
     this.x = clamp(this.x + this.vx * dt, -LANE_HALF + DRONE_R, LANE_HALF - DRONE_R);
     this.y = clamp(this.y + this.vy * dt, DRONE_R + 0.1, CANOPY - DRONE_R - 0.1);
     const was = this.z;
@@ -275,10 +289,10 @@ export class DroneFlight {
     this.bumps++;
     this.slowT = BUMP_T;
     this.flash = 0.35;
-    if (o.kind === 'trunk') this.vx = Math.sign(this.x - o.x || 1) * SIDE_SPEED;
-    else if (o.kind === 'log') this.vy = CLIMB_SPEED;
-    else if (o.kind === 'vines') this.vy = -CLIMB_SPEED;
-    else if (o.kind === 'branch') this.vy = Math.sign(this.y - o.y || 1) * CLIMB_SPEED;
+    if (o.kind === 'trunk') this.vx = Math.sign(this.x - o.x || 1) * this.side;
+    else if (o.kind === 'log') this.vy = this.climb;
+    else if (o.kind === 'vines') this.vy = -this.climb;
+    else if (o.kind === 'branch') this.vy = Math.sign(this.y - o.y || 1) * this.climb;
     this.onBump?.(o);
   }
 

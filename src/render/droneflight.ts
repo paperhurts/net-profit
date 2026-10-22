@@ -584,7 +584,7 @@ function drawFlightBars(
   ctx.fillStyle = 'rgba(10,20,12,.55)';
   box(ctx, pad, top, w + 16, 44);
   // The battery: green, then amber, then red.
-  const b = fl.battery / 100;
+  const b = fl.battery / fl.full;
   ctx.strokeStyle = '#E8F2E0';
   ctx.lineWidth = 2;
   ctx.beginPath();
