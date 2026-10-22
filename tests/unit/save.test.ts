@@ -1106,13 +1106,40 @@ describe("the Shark King's last words, owed to a skipped game", () => {
 describe('the drone', () => {
   it('an old save has none; bought, its colour, flights and best keep, the colour one of its own', () => {
     const s = parseSave(legacy, bounds);
-    expect(s.drone).toEqual({ owned: false, colour: 0, flights: 0, bestRings: 0 });
-    s.drone = { owned: true, colour: 4, flights: 3, bestRings: 17 };
+    const none = [-1, -1, -1, -1, -1];
+    expect(s.drone).toEqual({
+      owned: false,
+      colour: 0,
+      flights: 0,
+      bestRings: 0,
+      traps: none,
+      beetles: 0,
+    });
+    s.drone = { owned: true, colour: 4, flights: 3, bestRings: 17, traps: none, beetles: 0 };
     expect(parseSave(serializeSave(s), bounds).drone).toEqual(s.drone);
     const odd = parseSave(
       JSON.stringify({ ...s, drone: { owned: 1, colour: 99, flights: -4 } }),
       bounds,
     );
-    expect(odd.drone).toEqual({ owned: true, colour: 8, flights: 0, bestRings: 0 });
+    expect(odd.drone).toEqual({
+      owned: true,
+      colour: 8,
+      flights: 0,
+      bestRings: 0,
+      traps: none,
+      beetles: 0,
+    });
+  });
+
+  it('keeps the day each trap was hung and the beetles, never more hung than it carries', () => {
+    const s = parseSave(legacy, bounds);
+    s.drone = { ...s.drone, owned: true, traps: [4, -1, 6, -1, -1], beetles: 9 };
+    const back = parseSave(serializeSave(s), bounds).drone;
+    expect([back.traps, back.beetles]).toEqual([[4, -1, 6, -1, -1], 9]);
+    const odd = parseSave(
+      JSON.stringify({ ...s, drone: { owned: true, traps: [1, 2, 3, 4, 'x', 7], beetles: 1e6 } }),
+      bounds,
+    ).drone;
+    expect([odd.traps, odd.beetles]).toEqual([[1, 2, 3, -1, -1], 99]);
   });
 });

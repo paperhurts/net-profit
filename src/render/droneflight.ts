@@ -12,6 +12,7 @@ import {
   LANE_HALF,
   type Obstacle,
   RING_R,
+  type TrapState,
 } from '../entities/droneflight';
 
 /** Metres the camera sits behind the drone; how far ahead the haze closes in. */
@@ -163,6 +164,105 @@ function drawPlant(v: View, x: number, z: number, kind: number, T: number): void
     c.beginPath();
     c.arc(p.sx, p.sy - 0.45 * p.s, 0.08 * p.s, 0, Math.PI * 2);
     c.fill();
+  }
+}
+
+/** A bug trap: a little glass jar with a wooden lid, empty, or glowing with jewel beetles. */
+function drawJar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  s: number,
+  full: boolean,
+  T: number,
+): void {
+  const w = 0.56 * s;
+  const h = 0.68 * s;
+  if (full) {
+    ctx.fillStyle = `rgba(120,255,170,${0.35 + Math.sin(T * 4) * 0.1})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 0.8 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(205,232,240,.55)';
+  ctx.strokeStyle = 'rgba(240,250,255,.85)';
+  ctx.lineWidth = Math.max(1, 0.03 * s);
+  ctx.beginPath();
+  ctx.ellipse(x, y + h * 0.1, w / 2, h / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#7A5230';
+  ctx.fillRect(x - w * 0.35, y - h * 0.5, w * 0.7, h * 0.16);
+  if (full)
+    for (let i = 0; i < 3; i++) {
+      const a = T * 2 + i * 2.1;
+      ctx.fillStyle = i === 1 ? '#3FE0C0' : '#5BE36A';
+      ctx.beginPath();
+      ctx.ellipse(
+        x + Math.cos(a) * w * 0.22,
+        y + h * 0.12 + Math.sin(a * 1.3) * h * 0.18,
+        0.09 * s,
+        0.065 * s,
+        a,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+}
+
+/** A trap flower: big orange petals round a middle to fly through, and the trap hung in it, if one is. */
+function drawTrapFlower(
+  v: View,
+  o: Obstacle & { kind: 'trap' },
+  state: TrapState,
+  T: number,
+): void {
+  const c = v.ctx;
+  const p = at(v, o.x, o.y, o.z);
+  if (!p) return;
+  const r = RING_R * p.s;
+  // The vine it hangs from, down from the canopy.
+  const top = at(v, o.x, CANOPY + 0.5, o.z);
+  if (top) {
+    c.strokeStyle = '#2F6B33';
+    c.lineWidth = Math.max(1, 0.1 * p.s);
+    c.beginPath();
+    c.moveTo(top.sx, top.sy);
+    c.lineTo(p.sx, p.sy - r);
+    c.stroke();
+  }
+  // Its petals, round the middle.
+  const n = 8;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + Math.sin(T * 1.2 + o.z) * 0.05;
+    c.fillStyle = i % 2 ? '#F28C28' : '#F2A23C';
+    c.beginPath();
+    c.ellipse(
+      p.sx + Math.cos(a) * r * 1.12,
+      p.sy + Math.sin(a) * r * 1.12,
+      0.42 * p.s,
+      0.2 * p.s,
+      a,
+      0,
+      Math.PI * 2,
+    );
+    c.fill();
+  }
+  c.strokeStyle = state === 'empty' ? 'rgba(242,123,176,.9)' : 'rgba(242,123,176,.6)';
+  c.lineWidth = Math.max(2, 0.1 * p.s);
+  c.beginPath();
+  c.arc(p.sx, p.sy, r * 0.86, 0, Math.PI * 2);
+  c.stroke();
+  // The trap, hanging in the middle on a string.
+  if (state !== 'empty') {
+    c.strokeStyle = 'rgba(240,230,200,.8)';
+    c.lineWidth = Math.max(1, 0.02 * p.s);
+    c.beginPath();
+    c.moveTo(p.sx, p.sy - r * 0.86);
+    c.lineTo(p.sx, p.sy - 0.34 * p.s);
+    c.stroke();
+    drawJar(c, p.sx, p.sy, p.s, state === 'full', T);
   }
 }
 
@@ -362,7 +462,14 @@ export function drawDroneFlight(
   // Everything standing in it, far to near, the drone among it.
   const list: { z: number; f: () => void }[] = [];
   for (const o of fl.gates)
-    if (o.z > v.cz + 0.4 && o.z < v.cz + SEE) list.push({ z: o.z, f: () => drawGate(v, o, T) });
+    if (o.z > v.cz + 0.4 && o.z < v.cz + SEE)
+      list.push({
+        z: o.z,
+        f: () =>
+          o.kind === 'trap'
+            ? drawTrapFlower(v, o, fl.spots[o.spot] ?? 'empty', T)
+            : drawGate(v, o, T),
+      });
   // The island's trees in rows either side of the way.
   const tz0 = Math.floor(v.cz / 6) * 6;
   for (let z = tz0; z < v.cz + SEE; z += 6)
@@ -496,4 +603,10 @@ function drawFlightBars(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${fl.rings}`, W - pad - 36, top + 23);
+  // Under it, the traps aboard.
+  ctx.fillStyle = 'rgba(10,20,12,.55)';
+  box(ctx, W - pad - 74, top + 50, 74, 40);
+  drawJar(ctx, W - pad - 52, top + 70, 28, false, 0);
+  ctx.fillStyle = '#FFF7E6';
+  ctx.fillText(`${fl.carry}`, W - pad - 36, top + 71);
 }

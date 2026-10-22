@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DRONE_COLOURS } from '../../src/data/drone';
+import { BEETLES_PER_TRAP, DRONE_COLOURS, TRAP_SPOTS } from '../../src/data/drone';
 import {
   BATTERY,
   BUMP,
@@ -13,6 +13,8 @@ import {
   type Obstacle,
   RUN_IN,
   strikes,
+  type TrapEvent,
+  type TrapState,
 } from '../../src/entities/droneflight';
 import { drawDrone, drawDroneFlight } from '../../src/render/droneflight';
 import { fakeView } from './helpers/view';
@@ -154,6 +156,71 @@ describe("the drone's flight through the jungle", () => {
     expect(flying.z).toBe(0);
   });
 
+  it('has its trap flowers along the way, each with a way through to it', () => {
+    const course = layCourse(1101);
+    const traps = course.filter((o) => o.kind === 'trap');
+    expect(traps.map((o) => (o.kind === 'trap' ? o.spot : -1))).toEqual([0, 1, 2, 3, 4]);
+    expect(traps.length).toBe(TRAP_SPOTS);
+    for (const t of traps) {
+      if (t.kind !== 'trap') continue;
+      expect(Math.abs(t.x)).toBeLessThan(LANE_HALF - DRONE_R);
+      expect(t.y).toBeGreaterThan(DRONE_R);
+      expect(t.y).toBeLessThan(CANOPY - DRONE_R);
+      const gate = course.filter(
+        (o) => o.kind !== 'ring' && o.kind !== 'trap' && Math.abs(o.z - t.z) < 1,
+      );
+      expect(gate.every((o) => !strikes(o, t.x, t.y))).toBe(true);
+    }
+  });
+
+  /** A flight with only the given trap flower in it, the drone lined up just short of its middle. */
+  function atFlower(spot: number, states: TrapState[], carry: number) {
+    const f = new DroneFlight();
+    const t = f.gates.find((o) => o.kind === 'trap' && o.spot === spot);
+    if (t?.kind !== 'trap') throw new Error('no such flower');
+    f.gates.length = 0;
+    f.gates.push(t);
+    f.setTraps(states, carry);
+    f.x = t.x;
+    f.y = t.y;
+    f.z = t.z - 2;
+    const said: [number, TrapEvent][] = [];
+    f.onTrap = (s, what) => said.push([s, what]);
+    fly(f, 0.5);
+    return { f, said };
+  }
+
+  it('hangs a trap in a flower flown through, and brings a full one home with its beetles', () => {
+    const empty: TrapState[] = ['empty', 'empty', 'empty', 'empty', 'empty'];
+    const hang = atFlower(1, empty, 2);
+    expect(hang.said).toEqual([[1, 'hung']]);
+    expect([hang.f.spots[1], hang.f.carry, hang.f.beetles]).toEqual(['hung', 1, 0]);
+    const full: TrapState[] = ['empty', 'empty', 'full', 'empty', 'empty'];
+    const got = atFlower(2, full, 0);
+    expect(got.said).toEqual([[2, 'got']]);
+    expect([got.f.spots[2], got.f.carry, got.f.beetles]).toEqual(['empty', 1, BEETLES_PER_TRAP]);
+  });
+
+  it('leaves a filling trap be, and says so when it has none to hang; a flower flown past is nothing', () => {
+    const filling = atFlower(0, ['hung', 'empty', 'empty', 'empty', 'empty'], 2);
+    expect(filling.said).toEqual([[0, 'filling']]);
+    expect([filling.f.spots[0], filling.f.carry]).toEqual(['hung', 2]);
+    const none = atFlower(3, ['empty', 'empty', 'empty', 'empty', 'empty'], 0);
+    expect(none.said).toEqual([[3, 'none']]);
+    expect(none.f.spots[3]).toBe('empty');
+    const f = new DroneFlight();
+    const t = f.gates.find((o) => o.kind === 'trap');
+    if (t?.kind !== 'trap') throw new Error('no flower');
+    f.gates.length = 0;
+    f.gates.push(t);
+    f.setTraps(['empty', 'empty', 'empty', 'empty', 'empty'], 3);
+    f.x = t.x > 0 ? t.x - 3 : t.x + 3;
+    f.y = t.y;
+    f.z = t.z - 2;
+    fly(f, 0.5);
+    expect([f.spots[0], f.carry]).toEqual(['empty', 3]);
+  });
+
   it('is drawn: the jungle, the gates, the drone in each colour, and the bars', () => {
     const { v, calls } = fakeView();
     const f = new DroneFlight();
@@ -162,6 +229,15 @@ describe("the drone's flight through the jungle", () => {
     f.flash = 0.2;
     drawDroneFlight(v.ctx, 390, 780, f, DRONE_COLOURS[0][1], 2);
     drawDrone(v.ctx, 100, 100, 50, '#E4572E', 1, -1, 3, 0.1);
+    // The trap flowers, empty, filling and full, close up.
+    for (const st of ['empty', 'hung', 'full'] as const) {
+      const g = new DroneFlight();
+      const t = g.gates.find((o) => o.kind === 'trap');
+      if (!t) throw new Error('no flower');
+      g.setTraps([st, st, st, st, st], 1);
+      g.z = t.z - 8;
+      drawDroneFlight(v.ctx, 390, 780, g, DRONE_COLOURS[2][1], 4);
+    }
     expect(calls.fill ?? 0).toBeGreaterThan(100);
     expect(calls.fillText ?? 0).toBeGreaterThan(0);
   });
