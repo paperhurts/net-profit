@@ -672,6 +672,34 @@ export class Ambience {
     this.release(lfo, made);
   }
 
+  /** A shell sings back: a bell on one of their four notes, a sine and a soft octave ringing away. */
+  shellNote(note: number, vol: number): void {
+    if (vol <= 0) return;
+    const f = MER_NOTES[note] ?? (MER_NOTES[0] as number);
+    const { g, p, t } = this.voice(0);
+    const made: AudioNode[] = [g, p];
+    let last: OscillatorNode | null = null;
+    for (const [mult, amp, dur] of [
+      [1, 1, 1.2],
+      [2, 0.3, 0.6],
+    ] as const) {
+      const o = this.ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f * mult;
+      const og = this.ctx.createGain();
+      og.gain.value = amp;
+      o.connect(og).connect(g);
+      o.start(t);
+      o.stop(t + dur + 0.05);
+      made.push(o, og);
+      last ??= o; // the note itself rings longest
+    }
+    if (last) this.release(last, made);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+  }
+
   /** A whale: sines gliding through the phrase together, swelling and fading on each glide, into the echo. */
   private whaleSong(phrase: readonly Glide[], voice: WhaleVoice, pan: number, vol: number): void {
     const ctx = this.ctx;

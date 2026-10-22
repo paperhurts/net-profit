@@ -3,10 +3,12 @@
  * check the code against it, so the two cannot drift apart again.
  */
 import { describe, expect, it } from 'vitest';
+import { paintsUnlocked } from '../../src/data/progression';
 import {
   COST,
   HOLD,
   MAXLV,
+  MER_PAINT,
   NETW,
   PAINTS,
   RANGE,
@@ -17,6 +19,7 @@ import {
   SPEED,
   STAGES,
   TIER_NAME,
+  TIER_PAINTS,
   TIER_SCALE,
 } from '../../src/data/tuning';
 import { num, tableRows } from './doc';
@@ -100,8 +103,11 @@ describe('palace table', () => {
 });
 
 describe('paints', () => {
-  it('has the ten hulls the flagship unlocks', () => {
-    expect(PAINTS).toHaveLength(10);
+  it("has the ten hulls the flagship unlocks, and the mermaids' after them", () => {
+    expect(PAINTS).toHaveLength(TIER_PAINTS + 1);
+    expect(PAINTS[MER_PAINT]?.name).toBe('Mermaid scales');
+    expect(PAINTS.filter((p) => p.shimmer)).toHaveLength(1);
+    expect(paintsUnlocked(5)).toBe(TIER_PAINTS);
     for (const p of PAINTS) expect(p.hull).toMatch(/^#[0-9A-F]{6}$/i);
   });
 });

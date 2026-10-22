@@ -356,10 +356,16 @@ export type SaveData = {
     up: Record<DroneUpgrade, number>;
   };
   /**
-   * The mermaids on the rocks off island 2 (the owner's): whether they have been seen; missing in old saves, read as
-   * not yet.
+   * The mermaids on the rocks off island 2 (the owner's): whether they have been seen, and the pearls they have given
+   * for singing their tunes back; missing in old saves, read as not yet and none.
    */
-  mer: { seen: boolean };
+  mer: {
+    seen: boolean;
+    /** Pearls held, pearls given in all, and the day the last was given (-1 for never): one a night. */
+    pearls: number;
+    given: number;
+    night: number;
+  };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -541,7 +547,7 @@ export function defaultSave(b: Bounds): SaveData {
       beetles: 0,
       up: noUpgrades(),
     },
-    mer: { seen: false },
+    mer: { seen: false, pearls: 0, given: 0, night: -1 },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -549,6 +555,8 @@ export function defaultSave(b: Bounds): SaveData {
 }
 
 const int = (v: unknown): number => Number(v) | 0;
+/** More pearls than anyone will string. */
+const PEARLS_MAX = 999;
 const between = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 /** No drone traps hung anywhere along the course. */
@@ -810,8 +818,16 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       up: parseUpgrades(k.up),
     };
   }
-  if (o.mer && typeof o.mer === 'object')
-    d.mer = { seen: !!(o.mer as Record<string, unknown>).seen };
+  if (o.mer && typeof o.mer === 'object') {
+    const k = o.mer as Record<string, unknown>;
+    const given = between(int(k.given), 0, PEARLS_MAX);
+    d.mer = {
+      seen: !!k.seen || given > 0,
+      pearls: between(int(k.pearls), 0, given),
+      given,
+      night: k.night === undefined ? -1 : Math.max(-1, int(k.night)),
+    };
+  }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
     for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
@@ -976,7 +992,7 @@ export function serializeSave(d: SaveData): string {
     gear: d.gear,
     // Left out while untouched, as most games' is: the save travels in a link (state/share.ts), kept short.
     drone: untouchedDrone(d.drone) ? undefined : d.drone,
-    mer: d.mer.seen ? d.mer : undefined,
+    mer: d.mer.seen || d.mer.given ? d.mer : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,

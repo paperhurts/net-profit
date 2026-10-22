@@ -631,7 +631,15 @@ export const TIER_NAME = ['dinghy', 'skiff', 'cutter', 'trawler', 'seiner', 'fla
 /** Hull scale per tier. */
 export const TIER_SCALE = [1, 1.1, 1.2, 1.32, 1.45, 1.6] as const;
 
-export type Paint = { name: string; hull: string; trim: string; roof: string; flag: string };
+/** A hull paint; a shimmering one has a glint running along its hull. */
+export type Paint = {
+  name: string;
+  hull: string;
+  trim: string;
+  roof: string;
+  flag: string;
+  shimmer?: boolean;
+};
 
 export const PAINTS: readonly Paint[] = [
   { name: 'Buoy red', hull: '#E4572E', trim: '#FFF6E5', roof: '#1F6B7A', flag: '#FFC53D' },
@@ -644,7 +652,19 @@ export const PAINTS: readonly Paint[] = [
   { name: 'Whitewash', hull: '#F4EFE6', trim: '#1F8A8C', roof: '#E4572E', flag: '#1F8A8C' },
   { name: 'Pitch', hull: '#23252E', trim: '#C9A227', roof: '#C9A227', flag: '#E4572E' },
   { name: 'Gold leaf', hull: '#D4A82A', trim: '#FFF6E5', roof: '#23252E', flag: '#E4572E' },
+  // The mermaids' gift, the first time one of them gives you a pearl (entities/mersong.ts): never unlocked by a tier.
+  {
+    name: 'Mermaid scales',
+    hull: '#3FB8B0',
+    trim: '#E9DCFF',
+    roof: '#8A68D8',
+    flag: '#FF8FB8',
+    shimmer: true,
+  },
 ];
+/** Hull paints the boat's tiers unlock; past them, the mermaids'. */
+export const TIER_PAINTS = 10;
+export const MER_PAINT = 10;
 
 /** Lifetime coins that wake the pirate, and its speed. */
 export const PIRATE_UNLOCK = 60;
