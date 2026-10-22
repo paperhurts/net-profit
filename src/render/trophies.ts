@@ -537,19 +537,24 @@ const DRAW: Readonly<Record<TrophyKind, (c: Pen, T: number) => void>> = {
       [3, -14.5],
     ]);
   },
-  // A coil of the tar kraken's arm, deep purple, pale suckers along it.
+  // A coil of the tar kraken's arm, tar black with a pale rim, pale suckers along it.
   krakenarm: (c) => {
     oval(c, '#3A3236', 0, -1, 5, 1.8);
-    c.strokeStyle = '#3E2A55';
     c.lineCap = 'round';
-    c.lineWidth = 3.4;
-    c.beginPath();
-    c.moveTo(-4, -2);
-    c.quadraticCurveTo(-6, -14, 1, -16);
-    c.quadraticCurveTo(7, -18, 5, -24);
-    c.quadraticCurveTo(3, -28, 0, -26);
-    c.stroke();
-    c.fillStyle = '#C9B3E8';
+    for (const [colour, w] of [
+      ['rgba(200,180,230,.7)', 4.4],
+      ['#0B090E', 3.4],
+    ] as const) {
+      c.strokeStyle = colour;
+      c.lineWidth = w;
+      c.beginPath();
+      c.moveTo(-4, -2);
+      c.quadraticCurveTo(-6, -14, 1, -16);
+      c.quadraticCurveTo(7, -18, 5, -24);
+      c.quadraticCurveTo(3, -28, 0, -26);
+      c.stroke();
+    }
+    c.fillStyle = '#CFC4DA';
     for (const [x, y] of [
       [-4.6, -6],
       [-4.4, -11],

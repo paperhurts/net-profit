@@ -1,6 +1,7 @@
 /**
  * The tar kraken (entities/tarkraken.ts). Its arms are not the red tar tentacles (the kid: "not red"): bigger, thicker,
- * a deep tar purple with pale violet suckers (his colour for them asked in his doc), rising out of a bubbling ring and
+ * and tar, his colour for them (asked in his doc): black and glossy as the tar folk, a pale rim and sheen along them so
+ * they show against the tar, and pale suckers, rising out of a bubbling ring and
  * rearing back before they slam, a red ring on the tar where. Risen, the kraken is one giant eye in the tar: a great
  * glossy black dome heaving up out of it, its lid sliding open on a yellow eye with a slit pupil that follows the
  * boat. Beaten, the eye shuts and sinks, and one arm is left floating on the tar.
@@ -20,9 +21,11 @@ import {
   type TarKraken,
 } from '../entities/tarkraken';
 
-/** The colour of its arms, and of their suckers. */
-const ARM = '#3E2A55';
-const SUCKER = '#C9B3E8';
+/** The colour of its arms, tar, with the pale rim and sheen of the tar folk; and of their suckers. */
+const ARM = '#0B090E';
+const RIM = 'rgba(200,180,230,.7)';
+const SHEEN = 'rgba(220,205,245,.38)';
+const SUCKER = '#CFC4DA';
 /** How much bigger than a red tar tentacle an arm is drawn. */
 const BIG = 1.5;
 
@@ -69,15 +72,23 @@ export function drawKrakenArm(v: DrawView, a: Arm): void {
   });
   ctx.lineCap = 'round';
   const n = 16;
-  for (let i = 0; i < n; i++) {
-    const p = at(i / n);
-    const q = at((i + 1) / n);
-    ctx.strokeStyle = a.flash > 0 ? '#FFFFFF' : ARM;
-    ctx.lineWidth = (17 - (i / n) * 13) * BIG * Z;
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(q.x, q.y);
-    ctx.stroke();
+  const width = (i: number) => (17 - (i / n) * 13) * BIG * Z;
+  // The pale rim first, a little wider, then the tar over it, then a sheen down one side.
+  for (const pass of ['rim', 'tar', 'sheen'] as const) {
+    for (let i = 0; i < n; i++) {
+      if (pass === 'sheen' && (i < 2 || i > n - 3)) continue;
+      const p = at(i / n);
+      const q = at((i + 1) / n);
+      const w = width(i);
+      const off = pass === 'sheen' ? -w * 0.28 : 0;
+      ctx.strokeStyle =
+        pass === 'rim' ? RIM : pass === 'sheen' ? SHEEN : a.flash > 0 ? '#FFFFFF' : ARM;
+      ctx.lineWidth = pass === 'rim' ? w + 2.4 * Z : pass === 'sheen' ? w * 0.18 : w;
+      ctx.beginPath();
+      ctx.moveTo(p.x + off, p.y);
+      ctx.lineTo(q.x + off, q.y);
+      ctx.stroke();
+    }
   }
   ctx.fillStyle = SUCKER;
   for (let i = 2; i < n - 2; i += 2) {
@@ -239,18 +250,23 @@ export function drawKrakenPrize(v: DrawView, k: TarKraken): void {
   const x = k.prize.x;
   const y = k.prize.y;
   const bob = Math.sin(T * 2) * 1.5 * Z;
-  ctx.strokeStyle = ARM;
   ctx.lineCap = 'round';
-  ctx.lineWidth = 9 * Z;
-  ctx.beginPath();
-  ctx.moveTo(px(x - 30, y), py(x - 30, y) + bob);
-  ctx.quadraticCurveTo(
-    px(x, y - 20),
-    py(x, y - 20) + bob - 6 * Z,
-    px(x + 28, y + 6),
-    py(x + 28, y + 6) + bob,
-  );
-  ctx.stroke();
+  for (const [colour, w] of [
+    [RIM, 11.4],
+    [ARM, 9],
+  ] as const) {
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = w * Z;
+    ctx.beginPath();
+    ctx.moveTo(px(x - 30, y), py(x - 30, y) + bob);
+    ctx.quadraticCurveTo(
+      px(x, y - 20),
+      py(x, y - 20) + bob - 6 * Z,
+      px(x + 28, y + 6),
+      py(x + 28, y + 6) + bob,
+    );
+    ctx.stroke();
+  }
   ctx.fillStyle = SUCKER;
   for (let i = 0; i < 5; i++) {
     const t = i / 5;
