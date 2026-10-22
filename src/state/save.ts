@@ -355,6 +355,11 @@ export type SaveData = {
     beetles: number;
     up: Record<DroneUpgrade, number>;
   };
+  /**
+   * The mermaids on the rocks off island 2 (the owner's): whether they have been seen; missing in old saves, read as
+   * not yet.
+   */
+  mer: { seen: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -536,6 +541,7 @@ export function defaultSave(b: Bounds): SaveData {
       beetles: 0,
       up: noUpgrades(),
     },
+    mer: { seen: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -804,6 +810,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       up: parseUpgrades(k.up),
     };
   }
+  if (o.mer && typeof o.mer === 'object')
+    d.mer = { seen: !!(o.mer as Record<string, unknown>).seen };
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
     for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
@@ -968,6 +976,7 @@ export function serializeSave(d: SaveData): string {
     gear: d.gear,
     // Left out while untouched, as most games' is: the save travels in a link (state/share.ts), kept short.
     drone: untouchedDrone(d.drone) ? undefined : d.drone,
+    mer: d.mer.seen ? d.mer : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,

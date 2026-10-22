@@ -1171,3 +1171,14 @@ describe("the drone's upgrades", () => {
     expect(odd).toEqual({ battery: 2, handling: 0, traps: 0, line: 0 });
   });
 });
+
+describe('the mermaids', () => {
+  it('an old save has not seen them; seen, it keeps it, and an unseen one is left out of the save', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.mer).toEqual({ seen: false });
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('mer');
+    s.mer = { seen: true };
+    expect(parseSave(serializeSave(s), bounds).mer).toEqual({ seen: true });
+    expect(parseSave(JSON.stringify({ ...s, mer: 'yes' }), bounds).mer).toEqual({ seen: false });
+  });
+});

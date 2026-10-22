@@ -82,12 +82,16 @@ export function chimeLevel(distToShore: number): number {
 /** F pentatonic, three octaves up, for the chimes. */
 export const CHIME_NOTES = [1396.9, 1568, 1760, 2093, 2349.3, 2793.8] as const;
 
-/** The pad's notes per phase: F3, C4, F4, with an A4 at dawn and dusk and two notes at night. */
-export function padNotes(phase: Phase): number[] {
+/**
+ * The pad's notes per phase: F3, C4, F4, with an A4 at dawn and dusk and two notes at night. Near the mermaids
+ * singing, their own chord takes over.
+ */
+export function padNotes(phase: Phase, mermaids = 0): number[] {
   const F3 = 174.61;
   const C4 = 261.63;
   const F4 = 349.23;
   const A4 = 440;
+  if (mermaids > MER_TAKEOVER) return [...MER_CHORD];
   if (phase === 'Night') return [F3, C4];
   if (phase === 'Dawn' || phase === 'Dusk') return [F3, C4, F4, A4];
   return [F3, C4, F4];
@@ -186,6 +190,25 @@ export function phraseSeconds(phrase: readonly Glide[]): number {
   return phrase.reduce((s, g) => s + g[2] + GLIDE_GAP, 0);
 }
 
+/* ---------- the mermaids, off island 2 ---------- */
+
+/**
+ * Their song's four notes, low to high: F4, G4, A4 and C5, in the pad's key. Their shells, when they teach you the
+ * song, sing the same four.
+ */
+export const MER_NOTES: readonly number[] = [349.23, 392, 440, 523.25];
+/** The pad while they sing: an F major seventh, F3 A3 C4 E4, dreamier than the sea's own chord. */
+export const MER_CHORD: readonly number[] = [174.61, 220, 261.63, 329.63];
+/** Their song takes over the pad this near them (their presence, 0..1). */
+export const MER_TAKEOVER = 0.3;
+/** Their voice: the sung note and a soft octave, both under the dolphin whistle's band, as the whales' are. */
+export const MER_VOICE: readonly Overtone[] = [
+  [1, 1],
+  [2, 0.18],
+];
+/** A slow vibrato on every note: this fast, and this wide as a share of the pitch. */
+export const MER_VIBRATO: readonly [hz: number, depth: number] = [5.2, 0.012];
+
 /* ---------- songbirds, by island 10's pond ---------- */
 
 /** One note of a song: from this pitch to that, over so long, then a gap. */
@@ -249,6 +272,8 @@ export type Snapshot = {
   whales: { dx: number; dy: number; dist: number }[];
   /** Seconds since the escort whistle last played. */
   sinceWhistle: number;
+  /** How much the mermaids' song fills the sea here, 0..1: their chord takes over the pad. */
+  mermaids?: number;
 };
 
 function brownNoise(ctx: AudioContext, seconds: number): AudioBuffer {
@@ -400,8 +425,13 @@ export class Ambience {
     this.surfFilter.frequency.setTargetAtTime(SURF_BASE + SURF_SWEEP * crest, now, 0.2);
 
     // The pad: fade voices to the chord for the phase, with a slow chorus.
-    const notes = padNotes(s.phase);
-    this.padGain.gain.setTargetAtTime(0.08 * (1 - s.dark * 0.3) * (1 - st), now, 0.5);
+    const mer = Math.max(0, Math.min(1, s.mermaids ?? 0));
+    const notes = padNotes(s.phase, mer);
+    this.padGain.gain.setTargetAtTime(
+      0.08 * (1 - s.dark * 0.3) * (1 - st) * (1 + 0.6 * mer),
+      now,
+      0.5,
+    );
     this.padOscs.forEach((o, i) => {
       const f = notes[i];
       const g = this.padVoiceGains[i];
@@ -599,6 +629,47 @@ export class Ambience {
       at += d + gap;
     }
     if (last) this.release(last, made);
+  }
+
+  /**
+   * A mermaid sings one of her four notes: a sine and a soft octave with a slow vibrato, swelling in and fading,
+   * into the whales' echo, so it carries over the water the way theirs does.
+   */
+  mermaidNote(note: number, seconds: number, pan: number, vol: number): void {
+    if (vol <= 0) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const f = MER_NOTES[note] ?? (MER_NOTES[0] as number);
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    const p = ctx.createStereoPanner();
+    p.pan.value = pan;
+    g.connect(p).connect(this.whaleBus);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = MER_VIBRATO[0];
+    const made: AudioNode[] = [g, p, lfo];
+    const end = t + seconds + 0.35;
+    for (const [mult, amp] of MER_VOICE) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f * mult;
+      const wob = ctx.createGain();
+      wob.gain.value = f * mult * MER_VIBRATO[1];
+      lfo.connect(wob).connect(o.frequency);
+      const og = ctx.createGain();
+      og.gain.value = amp;
+      o.connect(og).connect(g);
+      o.start(t);
+      o.stop(end);
+      made.push(o, wob, og);
+    }
+    lfo.start(t);
+    lfo.stop(end);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.08);
+    g.gain.setValueAtTime(vol, t + seconds * 0.7);
+    g.gain.linearRampToValueAtTime(0, end);
+    this.release(lfo, made);
   }
 
   /** A whale: sines gliding through the phrase together, swelling and fading on each glide, into the echo. */
