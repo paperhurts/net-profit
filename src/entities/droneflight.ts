@@ -11,9 +11,14 @@
  * The course is a corridor along z (metres flown), x across it (0 down its middle) and y up from the jungle floor to the
  * canopy. Each gate across it is laid out from the course's seed, so a course is the same every time it is flown, and
  * each leaves a way through.
+ *
+ * Bug traps (the owner's, the same day: "set traps to catch a certain kind of bug"): a few of the rings along the way
+ * are big orange flowers instead, where jewel beetles come. Fly through one's middle with a trap aboard and a trap is
+ * hung there; by the next day it is full, and flying through again brings the beetles home and the trap back.
  */
 
 import { clamp, rng } from '../core/math';
+import { BEETLES_PER_TRAP, TRAP_SPOTS } from '../data/drone';
 
 /** Half the corridor's width, and the canopy's height over the floor, in metres. */
 export const LANE_HALF = 6;
@@ -52,7 +57,18 @@ export type Obstacle =
   /** A fallen log right across, up to `top`. */
   | { kind: 'log'; z: number; top: number }
   /** A glowing ring to fly through, round (x, y). */
-  | { kind: 'ring'; z: number; x: number; y: number; got: boolean };
+  | { kind: 'ring'; z: number; x: number; y: number; got: boolean }
+  /** A flower where a bug trap hangs, round (x, y): the spot'th along the course. */
+  | { kind: 'trap'; z: number; x: number; y: number; spot: number };
+
+/** A trap spot: nothing hung there, a trap filling, or a trap full of beetles. */
+export type TrapState = 'empty' | 'hung' | 'full';
+/** What happened at a trap spot: a trap hung, beetles brought home, one still filling, or no trap aboard to hang. */
+export type TrapEvent = 'hung' | 'got' | 'filling' | 'none';
+
+/** Which of the course's rings are trap flowers instead, counting from the first: spread along it, one in seven. */
+const TRAP_EVERY = 7;
+const TRAP_FIRST = 3;
 
 export type FlightState = 'fly' | 'home' | 'done';
 
@@ -63,6 +79,15 @@ const BRANCH_T = 0.35;
 export function layCourse(seed: number, len = COURSE): Obstacle[] {
   const R = rng(seed);
   const out: Obstacle[] = [];
+  // Rings, a few of them trap flowers.
+  let rings = 0;
+  const ring = (z: number, x: number, y: number): Obstacle => {
+    const i = rings++;
+    const spot = (i - TRAP_FIRST) / TRAP_EVERY;
+    return Number.isInteger(spot) && spot >= 0 && spot < TRAP_SPOTS
+      ? { kind: 'trap', z, x, y, spot }
+      : { kind: 'ring', z, x, y, got: false };
+  };
   const lo = -LANE_HALF + 1;
   const hi = LANE_HALF - 1;
   for (let z = RUN_IN; z < len - 20; z += GATE_GAP_MIN + R() * (GATE_GAP_MAX - GATE_GAP_MIN)) {
@@ -73,13 +98,7 @@ export function layCourse(seed: number, len = COURSE): Obstacle[] {
       const r = 0.8 + R() * 0.6;
       out.push({ kind: 'trunk', z, x, r });
       const side = x > 0 ? -1 : 1;
-      out.push({
-        kind: 'ring',
-        z,
-        x: clamp(x + side * (r + 2), lo, hi),
-        y: 1.5 + R() * 2,
-        got: false,
-      });
+      out.push(ring(z, clamp(x + side * (r + 2), lo, hi), 1.5 + R() * 2));
     } else if (pick < 0.42) {
       // Two trunks with a gap between them to thread.
       const gap = 2.6 + R() * 1.2;
@@ -87,7 +106,7 @@ export function layCourse(seed: number, len = COURSE): Obstacle[] {
       const r = 0.9 + R() * 0.5;
       out.push({ kind: 'trunk', z, x: mid - gap / 2 - r, r });
       out.push({ kind: 'trunk', z, x: mid + gap / 2 + r, r });
-      out.push({ kind: 'ring', z: z + 0.5, x: mid, y: 1.4 + R() * 2.2, got: false });
+      out.push(ring(z + 0.5, mid, 1.4 + R() * 2.2));
     } else if (pick < 0.6) {
       // A branch out from one side, low or high: over it or under it.
       const fromLeft = R() < 0.5;
@@ -111,12 +130,12 @@ export function layCourse(seed: number, len = COURSE): Obstacle[] {
         x0: fromLeft ? -LANE_HALF : 0,
         x1: fromLeft ? 0 : LANE_HALF,
       });
-      out.push({ kind: 'ring', z: z + 0.5, x: fromLeft ? 3 : -3, y: 2.6 + R() * 1.4, got: false });
+      out.push(ring(z + 0.5, fromLeft ? 3 : -3, 2.6 + R() * 1.4));
     } else {
       // A fallen log right across: hop it, a ring over it.
       const top = 1.2 + R() * 0.8;
       out.push({ kind: 'log', z, top });
-      out.push({ kind: 'ring', z: z + 0.5, x: (R() * 2 - 1) * 3, y: top + 1.4, got: false });
+      out.push(ring(z + 0.5, (R() * 2 - 1) * 3, top + 1.4));
     }
   }
   return out;
@@ -153,9 +172,14 @@ export class DroneFlight {
   /** Rings flown through. */
   rings = 0;
   bumps = 0;
+  /** Each trap spot's state, the traps aboard, and the beetles brought home this flight. */
+  readonly spots: TrapState[] = Array.from({ length: TRAP_SPOTS }, () => 'empty' as TrapState);
+  carry = 0;
+  beetles = 0;
   readonly gates: Obstacle[];
   onBump: ((o: Obstacle) => void) | null = null;
   onRing: ((o: Obstacle) => void) | null = null;
+  onTrap: ((spot: number, what: TrapEvent) => void) | null = null;
   onEnd: ((state: FlightState) => void) | null = null;
 
   constructor(
@@ -165,6 +189,12 @@ export class DroneFlight {
   ) {
     this.gates = layCourse(seed, len);
     this.battery = battery;
+  }
+
+  /** Where the traps are along the way, and how many it carries. */
+  setTraps(spots: readonly TrapState[], carry: number): void {
+    for (let i = 0; i < TRAP_SPOTS; i++) this.spots[i] = spots[i] ?? 'empty';
+    this.carry = Math.max(0, carry);
   }
 
   /** How many rings the course has. */
@@ -198,6 +228,8 @@ export class DroneFlight {
           this.rings++;
           this.onRing?.(o);
         }
+      } else if (o.kind === 'trap') {
+        if (Math.hypot(this.x - o.x, this.y - o.y) < RING_R) this.atTrap(o.spot);
       } else if (strikes(o, this.x, this.y)) this.bump(o);
     }
     this.battery = Math.max(0, this.battery - DRAIN * dt);
@@ -219,6 +251,22 @@ export class DroneFlight {
       this.z += CRUISE * 0.6 * dt;
       this.y = Math.min(CANOPY - DRONE_R - 0.1, this.y + 0.8 * dt);
     } else this.z += CRUISE * 0.15 * dt;
+  }
+
+  /** Through a trap flower's middle: hang a trap there, or bring its beetles home. */
+  private atTrap(spot: number): void {
+    const s = this.spots[spot];
+    if (s === 'full') {
+      this.spots[spot] = 'empty';
+      this.carry++;
+      this.beetles += BEETLES_PER_TRAP;
+      this.onTrap?.(spot, 'got');
+    } else if (s === 'hung') this.onTrap?.(spot, 'filling');
+    else if (this.carry > 0) {
+      this.spots[spot] = 'hung';
+      this.carry--;
+      this.onTrap?.(spot, 'hung');
+    } else this.onTrap?.(spot, 'none');
   }
 
   /** A bump: battery and a moment's speed, and knocked a little clear of what it hit. */

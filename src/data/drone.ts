@@ -21,3 +21,10 @@ export const DRONE_COLOURS = [
   ['White', '#F2F4F5'],
   ['Black', '#2A2D33'],
 ] as const;
+
+/** Bug traps, part two: the spots along the course where they hang, how many the drone carries, and what one fills
+ * with by the next day. Jewel beetles are what the big jungle fish love. */
+export const TRAP_SPOTS = 5;
+export const DRONE_TRAPS = 3;
+export const BEETLES_PER_TRAP = 3;
+export const BEETLES_MAX = 99;

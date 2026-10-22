@@ -93,13 +93,25 @@ type Np = {
     x: number;
     y: number;
     z: number;
+    vx: number;
+    vy: number;
     battery: number;
     rings: number;
     ringsOut: number;
     state: string;
+    spots: string[];
+    carry: number;
+    beetles: number;
     gates: { kind: string; z: number; [k: string]: unknown }[];
   } | null;
-  drone: { owned: boolean; colour: number; flights: number; bestRings: number };
+  drone: {
+    owned: boolean;
+    colour: number;
+    flights: number;
+    bestRings: number;
+    traps: number[];
+    beetles: number;
+  };
   droneOpen: boolean;
   lagoonFolk: {
     list: { x: number; y: number; state: string; hp: number; out: boolean }[];
@@ -10277,7 +10289,7 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   await expect(page.locator('#droneGo')).toBeVisible();
   expect(await page.evaluate(() => [window.__np.coins, window.__np.drone])).toEqual([
     500,
-    { owned: true, colour: 5, flights: 0, bestRings: 0 },
+    { owned: true, colour: 5, flights: 0, bestRings: 0, traps: [-1, -1, -1, -1, -1], beetles: 0 },
   ]);
   // Up it goes: the whole screen is the flight, steered with the keys as with a thumb.
   await page.click('#droneGo');
@@ -10318,7 +10330,7 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   expect(after[2]).toBeGreaterThanOrEqual(rings);
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone),
-  ).toEqual({ owned: true, colour: 5, flights: 1, bestRings: after[2] });
+  ).toMatchObject({ owned: true, colour: 5, flights: 1, bestRings: after[2] });
   // Again, and landed early with the button.
   await page.click('#climb');
   await page.click('#droneGo');
@@ -10326,6 +10338,100 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   await page.click('#droneLand');
   await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.drone.flights)).toBe(2);
+  expect(errors).toEqual([]);
+});
+
+test("the drone's bug traps: one hung in a flower, a full one's jewel beetles brought home, a filling one left be", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle3Stage: 4,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    heronStage: 2,
+    heronFled: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    catermanFree: true,
+    // A trap hung in the second flower on an earlier day: full of beetles by now.
+    drone: {
+      owned: true,
+      colour: 2,
+      flights: 1,
+      bestRings: 5,
+      traps: [-1, 0, -1, -1, -1],
+      beetles: 0,
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 9120, y: -3250, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 200;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const d = window.__np.SHOP_DOOR11;
+    w.x = d.x - 14;
+    w.y = d.y;
+  });
+  await expect(page.locator('#climb')).toHaveText("Caterman's workshop", { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#droneSay')).toContainText('full of jewel beetles');
+  await expect(page.locator('#droneStats')).toContainText(
+    '2 aboard, 1 hung in the jungle (1 full)',
+  );
+  await page.click('#droneGo');
+  await page.waitForFunction(() => window.__np.droneFly?.state === 'fly', null, { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [window.__np.droneFly?.spots, window.__np.droneFly?.carry]),
+  ).toEqual([['empty', 'full', 'empty', 'empty', 'empty'], 2]);
+  /** Line the drone up just short of a flower's middle, straight and level. */
+  const lineUp = (spot: number) =>
+    page.evaluate((spot) => {
+      const f = window.__np.droneFly;
+      const t = f?.gates.find((o) => o.kind === 'trap' && o.spot === spot);
+      if (!f || !t) return;
+      f.x = t.x as number;
+      f.y = t.y as number;
+      f.vx = 0;
+      f.vy = 0;
+      f.z = t.z - 6;
+    }, spot);
+  // Through the first flower: a trap hung there, today.
+  await lineUp(0);
+  await page.waitForFunction(() => window.__np.drone.traps[0] === window.__np.day, null, {
+    timeout: 3000,
+  });
+  await expect(page.locator('#toast')).toContainText('Trap hung');
+  // Through the second: its beetles brought home, and the trap back aboard.
+  await lineUp(1);
+  await page.waitForFunction(() => window.__np.drone.beetles === 3, null, { timeout: 3000 });
+  expect(
+    await page.evaluate(() => [window.__np.drone.traps[1], window.__np.droneFly?.carry]),
+  ).toEqual([-1, 2]);
+  await expect(page.locator('#toast')).toContainText('Jewel beetles');
+  // The first again, its trap still filling: left be.
+  await lineUp(0);
+  await expect(page.locator('#toast')).toContainText('still filling', { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.droneFly?.spots[0])).toBe('hung');
+  // Down at the door, and all of it kept.
+  await page.click('#droneLand');
+  await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('3 jewel beetles brought home');
+  const day = await page.evaluate(() => window.__np.day);
+  expect(
+    await page.evaluate(() => {
+      const d = JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone;
+      return [d.traps, d.beetles];
+    }),
+  ).toEqual([[day, -1, -1, -1, -1], 3]);
   expect(errors).toEqual([]);
 });
 
