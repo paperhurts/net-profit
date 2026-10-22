@@ -365,6 +365,8 @@ export type SaveData = {
     pearls: number;
     given: number;
     night: number;
+    /** Five pearls strung into a charm against the sirens; missing in saves from before it, read as not yet. */
+    charm: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -547,7 +549,7 @@ export function defaultSave(b: Bounds): SaveData {
       beetles: 0,
       up: noUpgrades(),
     },
-    mer: { seen: false, pearls: 0, given: 0, night: -1 },
+    mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -826,6 +828,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       pearls: between(int(k.pearls), 0, given),
       given,
       night: k.night === undefined ? -1 : Math.max(-1, int(k.night)),
+      charm: !!k.charm,
     };
   }
   if (o.snook && typeof o.snook === 'object') {

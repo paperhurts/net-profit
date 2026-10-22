@@ -1175,7 +1175,7 @@ describe("the drone's upgrades", () => {
 describe('the mermaids', () => {
   it('an old save has not seen them; seen, it keeps it, and an unseen one is left out of the save', () => {
     const s = parseSave(legacy, bounds);
-    const none = { seen: false, pearls: 0, given: 0, night: -1 };
+    const none = { seen: false, pearls: 0, given: 0, night: -1, charm: false };
     expect(s.mer).toEqual(none);
     expect(JSON.parse(serializeSave(s))).not.toHaveProperty('mer');
     s.mer = { ...none, seen: true };
@@ -1185,18 +1185,25 @@ describe('the mermaids', () => {
 
   it('keeps their pearls, never more held than given, and the night of the last; seen only, it had none', () => {
     const s = parseSave(legacy, bounds);
-    s.mer = { seen: true, pearls: 2, given: 3, night: 14 };
+    s.mer = { seen: true, pearls: 2, given: 3, night: 14, charm: false };
     expect(parseSave(serializeSave(s), bounds).mer).toEqual(s.mer);
     const odd = parseSave(
       JSON.stringify({ ...s, mer: { pearls: 9, given: 4, night: -7 } }),
       bounds,
     ).mer;
-    expect(odd).toEqual({ seen: true, pearls: 4, given: 4, night: -1 });
+    expect(odd).toEqual({ seen: true, pearls: 4, given: 4, night: -1, charm: false });
     expect(parseSave(JSON.stringify({ ...s, mer: { seen: true } }), bounds).mer).toEqual({
       seen: true,
       pearls: 0,
       given: 0,
       night: -1,
+      charm: false,
     });
+  });
+
+  it('keeps the charm strung from five of their pearls', () => {
+    const s = parseSave(legacy, bounds);
+    s.mer = { seen: true, pearls: 1, given: 6, night: 20, charm: true };
+    expect(parseSave(serializeSave(s), bounds).mer).toEqual(s.mer);
   });
 });
