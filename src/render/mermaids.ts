@@ -11,9 +11,11 @@ import { rgba } from '../core/color';
 import { clamp } from '../core/math';
 import type { DrawView, Layer } from '../entities/entity';
 import type { Floater, Mermaid, Mermaids } from '../entities/mermaids';
+import type { Siren } from '../entities/sirens';
 import type { Point } from '../world/island';
 import { ISLE2 } from '../world/isle2';
 import type { Rock } from '../world/mermaids';
+import { drawSirenPerched } from './sirens';
 
 /** The four notes' colours, low to high. */
 export const NOTE_COLOURS: readonly string[] = ['#FF8FB8', '#FFD25E', '#7FDBFF', '#B7A2FF'];
@@ -41,8 +43,14 @@ function outline(rock: Rock, i: number, k: number): Point[] {
   return out;
 }
 
-/** One rock, in the sorted solids, and whoever is sitting on it. */
-export function drawMerRock(v: DrawView, rock: Rock, i: number, m: Mermaid | null): void {
+/** One rock, in the sorted solids, and whoever is on it: a mermaid by day's end, a siren after midnight. */
+export function drawMerRock(
+  v: DrawView,
+  rock: Rock,
+  i: number,
+  m: Mermaid | null,
+  siren: Siren | null = null,
+): void {
   const { ctx, T } = v;
   const Z = v.zoom;
   v.isoEllipse(rock.x, rock.y, rock.r + 4 + Math.sin(T * 1.3 + i * 1.7) * 1.6);
@@ -92,6 +100,7 @@ export function drawMerRock(v: DrawView, rock: Rock, i: number, m: Mermaid | nul
     }
   }
   if (m) drawSitting(v, m, rock);
+  if (siren) drawSirenPerched(v, siren, rock);
 }
 
 /** A mermaid on her rock, at its top, facing the boat. */
