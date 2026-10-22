@@ -116,6 +116,10 @@ type Np = {
     up: Record<string, number>;
   };
   droneOpen: boolean;
+  mermaids: { list: { state: string }[]; dist: number };
+  mer: { seen: boolean };
+  MER_ROCKS: { x: number; y: number; r: number };
+  ROCKS: { x: number; y: number; r: number }[];
   droneFish: {
     x: number;
     z: number;
@@ -11836,5 +11840,67 @@ test('stealth mission 1: from the missions room, spotted, a backstab, invisible,
   ).toEqual([null, true, await page.evaluate(() => window.__np.BRIDGE_TARDOCK)]);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect([saved.stealth1, saved.invis]).toEqual([true, true]);
+  expect(errors).toEqual([]);
+});
+
+test('the mermaids: heard at dusk off island 2, seen on their rocks, gone under from a fast boat, and boats go round the rocks', async ({
+  context,
+  page,
+}) => {
+  // Out along the shore from their rocks, in earshot but not yet in sight, at the start of dusk.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle2Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 154, y: 5647, h: Math.PI, clock: 0.552, hold: [] },
+  });
+  await page.waitForFunction(
+    () => window.__np.mermaids.list.every((m) => m.state === 'sit'),
+    null,
+    {
+      timeout: 12000,
+    },
+  );
+  await expect(page.locator('#toast')).toContainText('Singing, out on the water');
+  expect(await page.evaluate(() => window.__np.mer.seen)).toBe(false);
+  // Up close, gently: there they are.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.MER_ROCKS.x + 180;
+    n.boat.y = n.MER_ROCKS.y - 60;
+    n.boat.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.mer.seen, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Mermaids!');
+  await expect(page.locator('#log')).toContainText('Mermaids found');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.mer).toEqual({ seen: true });
+  expect(await page.evaluate(() => window.__np.mapMarks().map((m) => m.name))).toContain(
+    'Mermaid rocks',
+  );
+  // Coming on fast, they are gone under the water.
+  await page.evaluate(() => {
+    window.__np.boat.v = 320;
+  });
+  await page.waitForFunction(
+    () => window.__np.mermaids.list.every((m) => m.state !== 'sit'),
+    null,
+    {
+      timeout: 3000,
+    },
+  );
+  await expect(page.locator('#toast')).toContainText('too fast');
+  // A boat put on a rock is pushed off it.
+  const off = await page.evaluate(async () => {
+    const n = window.__np;
+    const r = n.ROCKS[3];
+    if (!r) throw new Error('no rocks');
+    n.boat.x = r.x + 2;
+    n.boat.y = r.y + 1;
+    n.boat.v = 0;
+    await new Promise((res) => setTimeout(res, 200));
+    return Math.hypot(n.boat.x - r.x, n.boat.y - r.y) - r.r;
+  });
+  expect(off).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
