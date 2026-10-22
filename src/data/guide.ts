@@ -60,6 +60,8 @@ export const ICEFISH_SP = 21;
 export const SNOWCRAB_SP = 22;
 /** Island 10's pond's four, on a line cast from its edge. */
 export const POND_SPS: readonly number[] = [23, 24, 25, 26];
+/** Island 11's black lagoon's two, on the drone's line. */
+export const LAGOON_SPS: readonly number[] = [39, 40];
 
 /** One line per species, in the game's voice. */
 export const BLURBS: readonly string[] = [
@@ -102,6 +104,8 @@ export const BLURBS: readonly string[] = [
   'A shark as long and thin as an eel, with frilly gills and a mouth full of little three-pointed teeth. It has hardly changed in eighty million years.',
   'Silver from nose to tail and as long as Star, with a striped sucker plate on top of its head, as the real remoras have, that ride about stuck to sharks and whales. Sailors long ago told of a fish like this that could hold a ship still. Named by the kid who found it.',
   "The nibbler's big, bad cousin: shark-shaped, with a fin on its back, two clawed fins underneath and a mouth full of teeth. It hunts the gloomers and the nibblers, and snaps them up. Keep out of its way when it charges. Drawn by the kid who found it.",
+  'Long and gold, with big shining scales, red fins and two whiskers on its chin. Arowanas leap right out of the water to snatch beetles off the branches hanging over it, which is why some people call them water monkeys.',
+  'Silver with black bands. It spits a jet of water up at bugs on the leaves above, knocks them down into the water and gobbles them up. It hardly ever misses.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -136,6 +140,8 @@ export function whereText(sp: number): string {
     return 'On the floor under the ice floe, on the ice fishing line. Steer the hook down onto one.';
   if (ABYSS_FISH.includes(sp))
     return 'On the floor of the abyss, the blue hole past the white buoys, 1,000 metres down. Go down in the dive cage with scuba gear and a spear.';
+  if (LAGOON_SPS.includes(sp))
+    return "In island 11's black lagoon, where no boat can go. Fish it with Caterman's drone and a jewel beetle on the line.";
   if (sp === ATTACK_NIBBLER)
     return 'Prowling the floor of the abyss, 1,000 metres down past the white buoys, hunting the gloomers and the nibblers. It takes three spears: each one sends it darting off.';
   if (sp === REMORO)
@@ -160,6 +166,7 @@ export function whenText(sp: number): string {
     return SPECIES[sp]?.glow
       ? 'Day and night: 1,000 metres down it is always dark. Glows.'
       : 'Day and night: 1,000 metres down it is always dark. Only your lamp shows it.';
+  if (LAGOON_SPS.includes(sp)) return 'Day and night: one jewel beetle each.';
   if (sp === ATTACK_NIBBLER)
     return 'One a day: land it, and the next is out hunting tomorrow. Its eye glints amber in the dark.';
   if (sp === REMORO)
