@@ -63,6 +63,8 @@ export class DroneFishing {
   t = 0;
   /** The rise the beetle went down on, if any. */
   at: Rise | null = null;
+  /** How far across a rise the beetle reaches: longer with the longer line. */
+  reach = RISE_REACH;
   /** Beetles aboard, and the fish caught this pass by species. */
   beetles: number;
   readonly caught: number[] = [];
@@ -89,7 +91,7 @@ export class DroneFishing {
       this.rises.find(
         (r) =>
           !r.taken &&
-          Math.abs(r.x - this.x) < RISE_REACH &&
+          Math.abs(r.x - this.x) < this.reach &&
           r.z - this.z > RISE_ALONG[0] &&
           r.z - this.z < RISE_ALONG[1],
       ) ?? null

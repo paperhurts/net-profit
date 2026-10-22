@@ -9,7 +9,14 @@ import { ARMOUR_MAX } from '../data/armour';
 import { type Badges, noBadges, parseBadges } from '../data/badges';
 import { type BargeSetup, defaultBarge, parseBarge } from '../data/barge';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
-import { BEETLES_MAX, DRONE_COLOURS, DRONE_TRAPS, TRAP_SPOTS } from '../data/drone';
+import {
+  BEETLES_MAX,
+  DRONE_COLOURS,
+  type DroneUpgrade,
+  TRAP_SPOTS,
+  UPGRADE_KINDS,
+  UPGRADE_MAX,
+} from '../data/drone';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { type HqBuilt, noHq, parseHq } from '../data/hq';
@@ -336,7 +343,8 @@ export type SaveData = {
    * The drone (island 11's, the owner's): whether it is yours, its colour (an index into data/drone.ts
    * DRONE_COLOURS), flights flown, and the most rings in one; missing in old saves, read as none. Its bug traps: for
    * each spot along the course, the day a trap was hung there (-1 for none; full the next day), and the jewel beetles
-   * brought home; missing in saves from before the traps, read as none hung and no beetles.
+   * brought home; missing in saves from before the traps, read as none hung and no beetles. Its upgrades' levels, 0
+   * to 2 each; missing in saves from before them, read as none.
    */
   drone: {
     owned: boolean;
@@ -345,6 +353,7 @@ export type SaveData = {
     bestRings: number;
     traps: number[];
     beetles: number;
+    up: Record<DroneUpgrade, number>;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -518,7 +527,15 @@ export function defaultSave(b: Bounds): SaveData {
       radar: false,
       radio: false,
     },
-    drone: { owned: false, colour: 0, flights: 0, bestRings: 0, traps: noTraps(), beetles: 0 },
+    drone: {
+      owned: false,
+      colour: 0,
+      flights: 0,
+      bestRings: 0,
+      traps: noTraps(),
+      beetles: 0,
+      up: noUpgrades(),
+    },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -531,14 +548,43 @@ const between = (v: number, lo: number, hi: number): number => Math.max(lo, Math
 /** No drone traps hung anywhere along the course. */
 export const noTraps = (): number[] => Array.from({ length: TRAP_SPOTS }, () => -1);
 
-/** The days the drone's traps were hung, by spot: a day, or -1 for none, and never more hung than it carries. */
+/** A drone not bought, no colour picked: what a game starts with, and reads back when its save has none. */
+function untouchedDrone(dr: SaveData['drone']): boolean {
+  return (
+    !dr.owned &&
+    dr.colour === 0 &&
+    dr.flights === 0 &&
+    dr.bestRings === 0 &&
+    dr.beetles === 0 &&
+    dr.traps.every((t) => t < 0) &&
+    UPGRADE_KINDS.every((k) => dr.up[k] === 0)
+  );
+}
+
+/** No drone upgrades bought. */
+export const noUpgrades = (): Record<DroneUpgrade, number> => ({
+  battery: 0,
+  handling: 0,
+  traps: 0,
+  line: 0,
+});
+
+function parseUpgrades(v: unknown): Record<DroneUpgrade, number> {
+  const out = noUpgrades();
+  if (!v || typeof v !== 'object') return out;
+  const o = v as Record<string, unknown>;
+  for (const k of UPGRADE_KINDS) out[k] = between(int(o[k]), 0, UPGRADE_MAX);
+  return out;
+}
+
+/** The days the drone's traps were hung, by spot: a day, or -1 for none, never more than there are spots for. */
 function parseTraps(v: unknown): number[] {
   const out = noTraps();
   if (!Array.isArray(v)) return out;
   let hung = 0;
   for (let i = 0; i < TRAP_SPOTS; i++) {
     const d = v[i];
-    if (typeof d === 'number' && Number.isFinite(d) && d >= 0 && hung < DRONE_TRAPS) {
+    if (typeof d === 'number' && Number.isFinite(d) && d >= 0 && hung < TRAP_SPOTS) {
       out[i] = d | 0;
       hung++;
     }
@@ -755,6 +801,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       bestRings: Math.max(0, int(k.bestRings)),
       traps: parseTraps(k.traps),
       beetles: between(int(k.beetles), 0, BEETLES_MAX),
+      up: parseUpgrades(k.up),
     };
   }
   if (o.snook && typeof o.snook === 'object') {
@@ -919,7 +966,8 @@ export function serializeSave(d: SaveData): string {
     turtleSeen: d.turtleSeen,
     turtleSwims: d.turtleSwims,
     gear: d.gear,
-    drone: d.drone,
+    // Left out while untouched, as most games' is: the save travels in a link (state/share.ts), kept short.
+    drone: untouchedDrone(d.drone) ? undefined : d.drone,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,

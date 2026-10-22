@@ -92,6 +92,14 @@ describe('fishing from the drone over the black lagoon', () => {
     expect(none.f.state).toBe('fly');
   });
 
+  it('reaches a rise further off on a longer line', () => {
+    const near = overARise();
+    near.f.x = near.r.x + 2.5;
+    expect(near.f.riseUnder()).toBe(null);
+    near.f.reach = 3.2;
+    expect(near.f.riseUnder()).toBe(near.r);
+  });
+
   it('is over at the far end of the lagoon', () => {
     const f = new DroneFishing(0);
     let ended = 0;
