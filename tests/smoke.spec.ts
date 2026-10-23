@@ -41,6 +41,10 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
+  doom: { seen: boolean };
+  DOCK13: Record<'pirate' | 'ninja', { x: number; y: number; r: number }>;
+  fromDoom(u: number, v: number): [number, number];
+  toDoom(x: number, y: number): [number, number];
   boneMen: {
     list: { x: number; y: number; hp: number; state: string; t: number }[];
     hit: (m: unknown, power: number) => boolean;
@@ -7205,6 +7209,84 @@ test('Skull Island: sighted, the camera takes in the whole skull, tie up off its
   });
   await expect(page.locator('#toast')).toContainText('mwa ha ha', { timeout: 9000 });
   await expect(page.locator('#log')).toContainText('Skull Island found');
+  expect(errors).toEqual([]);
+});
+
+test("Doom Island: sighted, the camera takes in both halves; tie up at the pirates' pier, cross a bridge to the ninjas' half, and wade the shallows at half pace", async ({
+  context,
+  page,
+}) => {
+  // A flagship at the far deep's corner, sailing out into the far far sea's left corner.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    window.__np.boat.v = 150;
+  });
+  await expect(page.locator('#toast')).toContainText('Doom Island', { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('stimulate the economy');
+  expect(await page.evaluate(() => window.__np.doom.seen)).toBe(true);
+  // The camera pulls right back to show both halves, then comes back in to the boat.
+  await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.revealView < 0.1, null, { timeout: 9000 });
+  // Stopped in the dock ring off the end of the pirates' pier.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText("the pirates' half");
+  const at = () =>
+    page.evaluate(() => window.__np.toDoom(window.__np.walker.x, window.__np.walker.y));
+  // At the pirates' end of a rope bridge, walked straight up the screen: over the channel to the ninjas' half.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromDoom(330, 190);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX, CY - 60, { steps: 3 });
+  await page.waitForTimeout(6000);
+  await page.mouse.up();
+  const [bu, bv] = await at();
+  expect(bv).toBeLessThan(-200);
+  expect(Math.abs(bu - 330)).toBeLessThan(30);
+  // From the ninjas' shore beside the sandbar, walked down the screen into the shallows: slower, and in to the knees.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromDoom(200, -175);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  const [, w0] = await at();
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX, CY + 60, { steps: 3 });
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => window.__np.walker.sink)).toBeGreaterThan(2);
+  await page.waitForTimeout(1500);
+  await page.mouse.up();
+  const [, w1] = await at();
+  // Down the screen through the shallows at about half pace: well short of a full walk's distance.
+  expect(w1 - w0).toBeGreaterThan(40);
+  expect(w1 - w0).toBeLessThan(85 * 2.7 * 0.7);
+  await expect(page.locator('#log')).toContainText('Doom Island found');
   expect(errors).toEqual([]);
 });
 
