@@ -1215,3 +1215,17 @@ describe('the mermaids', () => {
     expect(parseSave(serializeSave(s), bounds).mer).toEqual(s.mer);
   });
 });
+
+describe('Doom Island', () => {
+  it('an old save has not sighted it; sighted, it keeps it, and an unsighted one is left out of the save', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.doom).toEqual({ seen: false });
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('doom');
+    s.doom = { seen: true };
+    expect(parseSave(serializeSave(s), bounds).doom).toEqual({ seen: true });
+    expect(parseSave(JSON.stringify({ ...s, doom: 'yes' }), bounds).doom).toEqual({ seen: false });
+    expect(parseSave(JSON.stringify({ ...s, doom: { seen: 1 } }), bounds).doom).toEqual({
+      seen: true,
+    });
+  });
+});
