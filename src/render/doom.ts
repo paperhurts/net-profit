@@ -483,7 +483,7 @@ function logTops(v: DrawView, pts: readonly [number, number][], H: number): void
   }
 }
 
-/** A flag on a pole: the Jolly Roger, or the ninjas' banner, a white wave on indigo. */
+/** A flag on a pole: the Jolly Roger, or the ninjas' banner, a throwing star on an indigo field (both the kid's). */
 function drawFlag13(v: DrawView, side: Side, x: number, y: number): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
@@ -536,17 +536,21 @@ function drawFlag13(v: DrawView, side: Side, x: number, y: number): void {
       ctx.fill();
     }
   } else {
-    // A white wave under a red sun.
-    ctx.fillStyle = '#D8433A';
+    // The kid's: a throwing star on the field, four blades round a hole, a little turned.
+    const r = 9 * Z;
     ctx.beginPath();
-    ctx.arc(cx + 5 * Z, cy - 3 * Z, 4.5 * Z, 0, Math.PI * 2);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + 0.3;
+      const d = k % 2 ? r * 0.32 : r;
+      ctx.lineTo(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#E4E8F0';
     ctx.fill();
-    ctx.lineWidth = 2.2 * Z;
+    ctx.fillStyle = '#2C3B8F';
     ctx.beginPath();
-    ctx.moveTo(cx - 11 * Z, cy + 5 * Z);
-    ctx.quadraticCurveTo(cx - 5 * Z, cy - 3 * Z, cx, cy + 4 * Z);
-    ctx.quadraticCurveTo(cx + 5 * Z, cy + 9 * Z, cx + 11 * Z, cy + 3 * Z);
-    ctx.stroke();
+    ctx.arc(cx, cy, 1.8 * Z, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
