@@ -1219,13 +1219,30 @@ describe('the mermaids', () => {
 describe('Doom Island', () => {
   it('an old save has not sighted it; sighted, it keeps it, and an unsighted one is left out of the save', () => {
     const s = parseSave(legacy, bounds);
-    expect(s.doom).toEqual({ seen: false });
+    const none = { seen: false, pirate: false, ninja: false };
+    expect(s.doom).toEqual(none);
     expect(JSON.parse(serializeSave(s))).not.toHaveProperty('doom');
-    s.doom = { seen: true };
-    expect(parseSave(serializeSave(s), bounds).doom).toEqual({ seen: true });
-    expect(parseSave(JSON.stringify({ ...s, doom: 'yes' }), bounds).doom).toEqual({ seen: false });
+    s.doom = { ...none, seen: true };
+    expect(parseSave(serializeSave(s), bounds).doom).toEqual({ ...none, seen: true });
+    expect(parseSave(JSON.stringify({ ...s, doom: 'yes' }), bounds).doom).toEqual(none);
+    // A save from part one has only whether it was seen.
     expect(parseSave(JSON.stringify({ ...s, doom: { seen: 1 } }), bounds).doom).toEqual({
+      ...none,
       seen: true,
+    });
+  });
+
+  it('keeps the sides joined, either or both, and nothing that is not a yes', () => {
+    const s = parseSave(legacy, bounds);
+    s.doom = { seen: true, pirate: true, ninja: false };
+    expect(parseSave(serializeSave(s), bounds).doom).toEqual(s.doom);
+    s.doom = { seen: true, pirate: true, ninja: true };
+    expect(parseSave(serializeSave(s), bounds).doom).toEqual(s.doom);
+    const odd = { ...s, doom: { seen: true, pirate: 'yes', ninja: 1 } };
+    expect(parseSave(JSON.stringify(odd), bounds).doom).toEqual({
+      seen: true,
+      pirate: false,
+      ninja: false,
     });
   });
 });

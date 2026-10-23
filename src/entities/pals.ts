@@ -34,16 +34,32 @@
  * round eye. Ashore he trots at the figure's heel and nips whatever it fights, for 1. At sea he swims as the naga
  * does, but off the bow on the side away from the viewer (the otter has the near side), his little striped fin up,
  * and every few seconds he leaps clear of the water and dives back in. Tap him and he leaps for you.
+ *
+ * And Doom Island's two minions, the kid's, one for joining each side. Jacks Parrow, the pirates' parrot, rides the
+ * figure's shoulder and flies off to peck whatever it fights, for 1, then back; nothing can hurt him, for he is up out
+ * of the way, and at sea he perches on the boat's mast. Bun-San, the ninjas' ninja-bun, hops at the figure's heel and
+ * spins in with his sword, for 1; hit, he goes up in a puff of smoke and pops out behind the figure, so he is never
+ * worn out; at sea he sits on the bow.
  */
 
 import { Worn } from '../data/badges';
 import { drawCaterman } from '../render/caterman';
+import { drawBun, drawParrot } from '../render/minions';
 import { drawReaperBody, sideOn } from '../render/reaper';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { drawNecromancer } from './nest';
-import { walkable, walkStep } from './walker';
+import { groundZ, walkable, walkStep } from './walker';
 
-export type PalKind = 'cat' | 'warrior' | 'bones' | 'naga' | 'necro' | 'baby' | 'caterman';
+export type PalKind =
+  | 'cat'
+  | 'warrior'
+  | 'bones'
+  | 'naga'
+  | 'necro'
+  | 'baby'
+  | 'caterman'
+  | 'parrot'
+  | 'bun';
 
 export const PAL_HP = 5;
 export const BONES_HP = 4;
@@ -60,6 +76,8 @@ export const PAL_HEEL: Readonly<Record<PalKind, number>> = {
   necro: 42,
   baby: 28,
   caterman: 32,
+  parrot: 0,
+  bun: 22,
 };
 export const PAL_BLINK = 200;
 /** A companion that cannot make any way along the figure's steps for this long pops over beside it. */
@@ -75,6 +93,8 @@ export const REACH: Readonly<Record<PalKind, number>> = {
   baby: 24,
   // His blaster reaches further than a blade.
   caterman: 60,
+  parrot: 16,
+  bun: 22,
 };
 export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   cat: 1.1,
@@ -84,6 +104,8 @@ export const SWING_EVERY: Readonly<Record<PalKind, number>> = {
   necro: 0,
   baby: 1,
   caterman: 1.3,
+  parrot: 2,
+  bun: 1.5,
 };
 export const POWER: Readonly<Record<PalKind, number>> = {
   cat: 1,
@@ -93,6 +115,8 @@ export const POWER: Readonly<Record<PalKind, number>> = {
   necro: 0,
   baby: 1,
   caterman: 2,
+  parrot: 1,
+  bun: 1,
 };
 /**
  * Where the naga swims at sea, in the hull's units: this far off the boat's right side, this far ahead of
@@ -119,6 +143,12 @@ export const HAMSTER_EVERY = 10;
 /** Blinking this long after a hit; worn out, resting this long. */
 export const PAL_INVULN = 1;
 export const PAL_REST = 40;
+/** Jacks Parrow flies this fast, and rides this high on the figure's shoulder, this far to its side. */
+export const PARROT_FLY = 230;
+export const PARROT_Z = 21;
+export const SHOULDER = 3.6;
+/** Bun-San hit: up in smoke for this long, then out again behind the figure. */
+export const POOF_T = 0.45;
 /** The cat's heals: this many each fight, up to this many with fish, given this long after a heart is lost. */
 export const HEALS = 2;
 export const MAX_HEALS = 5;
@@ -163,6 +193,13 @@ export class Pal implements Entity {
   leapCd = LEAP_EVERY;
   /** The baby Reaper splashed back into the sea, here. */
   onSplash: ((x: number, y: number) => void) | null = null;
+  /** Jacks Parrow's height over the ground, and whether he is on the wing. */
+  z = 0;
+  flying = false;
+  /** Bun-San gone up in smoke: seconds since (-1 when he is not), and where it was. */
+  poofT = -1;
+  /** Bun-San went up in smoke here, or came back out of it (back). */
+  onPoof: ((x: number, y: number, back: boolean) => void) | null = null;
   private readonly trail: { x: number; y: number }[] = [];
   /** What it can fight, nearest, within reach of a point; the game knows. */
   findTarget: ((x: number, y: number, range: number) => PalTarget | null) | null = null;
@@ -242,9 +279,17 @@ export class Pal implements Entity {
     return this.leapT < 0 ? 0 : Math.sin((Math.PI * this.leapT) / LEAP_T) * LEAP_H;
   }
 
-  /** A hit on it. Returns whether it hurt. */
+  /** A hit on it. Returns whether it hurt. Jacks Parrow is never hit; Bun-San goes up in smoke instead. */
   hurt(): boolean {
     if (this.state !== 'with' || this.invuln > 0) return false;
+    if (this.kind === 'parrot') return false;
+    if (this.kind === 'bun') {
+      if (this.poofT >= 0) return false;
+      this.poofT = 0;
+      this.invuln = PAL_INVULN;
+      this.onPoof?.(this.x, this.y, false);
+      return true;
+    }
     if (this.worn.absorb()) {
       this.invuln = PAL_INVULN;
       return true;
@@ -259,9 +304,9 @@ export class Pal implements Entity {
     return true;
   }
 
-  /** Knocked flying, as by the Old One: back to the boat to rest, without a word. */
+  /** Knocked flying, as by the Old One: back to the boat to rest, without a word. Not the minions. */
   knockOut(): void {
-    if (this.state !== 'with') return;
+    if (this.state !== 'with' || this.kind === 'parrot' || this.kind === 'bun') return;
     this.state = 'resting';
     this.rest = PAL_REST;
     this.hp = 0;
@@ -328,7 +373,9 @@ export class Pal implements Entity {
                 ? [12, 18]
                 : this.kind === 'caterman'
                   ? [-10, 20]
-                  : [14, -16];
+                  : this.kind === 'bun'
+                    ? [-12, -14]
+                    : [14, -16];
     for (const [dx, dy] of [
       off,
       [-(off[0] as number), off[1] as number],
@@ -361,7 +408,28 @@ export class Pal implements Entity {
       }
     }
     if (!this.free) return;
+    if (this.kind === 'parrot') {
+      this.parrot(dt, w);
+      return;
+    }
     const f = w.figure;
+    if (this.poofT >= 0) {
+      this.poofT += dt;
+      if (this.poofT < POOF_T) return;
+      this.poofT = -1;
+      if (f) {
+        // Out again behind the figure, the way it came.
+        const sp = Math.hypot(f.vx, f.vy);
+        const bx = sp > 5 ? (-f.vx / sp) * 20 : 14;
+        const by = sp > 5 ? (-f.vy / sp) * 20 : 14;
+        if (walkable(f.x + bx, f.y + by, 99)) {
+          this.x = f.x + bx;
+          this.y = f.y + by;
+          this.trail.length = 0;
+        } else this.arrive(f);
+        this.onPoof?.(this.x, this.y, true);
+      }
+    }
     const landed = !!f && !this.hadFigure;
     this.hadFigure = !!f;
     if (landed) this.worn.refill();
@@ -442,6 +510,59 @@ export class Pal implements Entity {
         }
       }
     } else this.h = Math.atan2(f.y - this.y, f.x - this.x);
+  }
+
+  /**
+   * Jacks Parrow: on the figure's shoulder, or flying to peck what it fights within reach of it and back. He flies
+   * over everything, so he never needs a way along the ground.
+   */
+  private parrot(dt: number, w: World): void {
+    const f = w.figure;
+    if (!f) {
+      if (this.state === 'with') this.state = 'away';
+      this.flying = false;
+      return;
+    }
+    if (this.state !== 'with') {
+      this.state = 'with';
+      this.x = f.x;
+      this.y = f.y;
+      this.z = PARROT_Z;
+    }
+    this.swingCd -= dt;
+    this.ph += dt * 16;
+    // Which way the figure faces, from how it walks, for which shoulder is which.
+    if (Math.hypot(f.vx, f.vy) > 8) this.h = Math.atan2(f.vy, f.vx);
+    const foe = this.findTarget?.(f.x, f.y, FIGHT_FROM) ?? null;
+    let tx = f.x - Math.sin(this.h) * SHOULDER;
+    let ty = f.y + Math.cos(this.h) * SHOULDER;
+    let tz = PARROT_Z;
+    if (foe) {
+      tx = foe.x;
+      ty = foe.y;
+      tz = 12;
+      if (Math.hypot(foe.x - this.x, foe.y - this.y) <= REACH.parrot && this.swingCd <= 0) {
+        this.swingCd = SWING_EVERY.parrot;
+        this.swingT = 0;
+        foe.hit(POWER.parrot);
+        this.onSwing?.();
+      }
+    }
+    const dx = tx - this.x;
+    const dy = ty - this.y;
+    const d = Math.hypot(dx, dy);
+    // Left far behind (through a door, down the stairs), he is simply there again.
+    if (d > PAL_BLINK) {
+      this.x = tx;
+      this.y = ty;
+    } else if (d > 0.5) {
+      const step = Math.min(d, PARROT_FLY * dt);
+      this.x += (dx / d) * step;
+      this.y += (dy / d) * step;
+      if (foe || d > 6) this.h = Math.atan2(dy, dx);
+    }
+    this.z += (tz - this.z) * Math.min(1, dt * 6);
+    this.flying = !!foe || d > 4;
   }
 
   /**
@@ -529,7 +650,23 @@ export class Pal implements Entity {
       drawNaga(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.3, 1, false);
     else if (this.kind === 'caterman')
       drawCaterman(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.22, 1);
-    else if (this.kind === 'baby') {
+    else if (this.kind === 'parrot') {
+      const pz = groundZ(this.x, this.y) + this.z;
+      drawParrot(
+        v,
+        sx,
+        v.py(this.x, this.y, pz),
+        this.h,
+        this.ph,
+        this.flying,
+        this.swingT < 0.3 ? 1 - this.swingT / 0.3 : 0,
+        1,
+      );
+      return;
+    } else if (this.kind === 'bun') {
+      if (this.poofT >= 0) return;
+      drawBun(v, sx, sy, this.h, this.ph, this.gait, this.swingT < 0.4 ? this.swingT / 0.4 : 0, 1);
+    } else if (this.kind === 'baby') {
       // His middle stands this high on his legs; he trots, bobbing, and his jaw snaps open as he nips.
       const z = (50 * BABY_LEN) / 240 + Math.abs(Math.sin(this.ph * 0.5)) * 1.5 * this.gait;
       drawReaperBody(v, this.x, this.y, z, sideOn(this.h), 0, {
@@ -561,7 +698,9 @@ export class Pal implements Entity {
                 ? 26
                 : this.kind === 'caterman'
                   ? 36
-                  : 40) *
+                  : this.kind === 'bun'
+                    ? 26
+                    : 40) *
         Z;
     const max = this.maxHp;
     if (this.hp < max) {
@@ -598,6 +737,10 @@ export class Pal implements Entity {
     // Caterman up at the bow, on the warrior's side, ready with his blaster.
     if (this.kind === 'caterman')
       return { x: b.x + c * 13 * k - s * 7 * k, y: b.y + s * 13 * k + c * 7 * k, z: 9 * k + 1 };
+    // Jacks Parrow up the mast; Bun-San on the bow, on the side away from Caterman, very still.
+    if (this.kind === 'parrot') return { x: b.x + c * 3 * k, y: b.y + s * 3 * k, z: 39 * k };
+    if (this.kind === 'bun')
+      return { x: b.x + c * 15 * k + s * 6 * k, y: b.y + s * 15 * k - c * 6 * k, z: 9 * k + 1 };
     // The necromancer amidships, on the side away from the warrior.
     if (this.kind === 'necro')
       return { x: b.x + c * 6 * k + s * 7 * k, y: b.y + s * 6 * k - c * 7 * k, z: 9 * k + 1 };
@@ -620,6 +763,12 @@ export class Pal implements Entity {
     } else if (this.kind === 'caterman') {
       const p = this.seat(b, k);
       drawCaterman(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, 0, false, 0.8);
+    } else if (this.kind === 'parrot') {
+      const p = this.seat(b, k);
+      drawParrot(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, false, 0, 0.85);
+    } else if (this.kind === 'bun') {
+      const p = this.seat(b, k);
+      drawBun(v, v.px(p.x, p.y), v.py(p.x, p.y, p.z), b.h, 0, 0, 0, 0.8);
     } else {
       const p = this.seat(b, k);
       const draw = this.kind === 'warrior' ? drawWarrior : drawBones;

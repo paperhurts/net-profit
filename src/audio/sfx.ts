@@ -390,6 +390,15 @@ export const cues = {
     tone(900, 0.09, 'sawtooth', 0.025, 0.7);
     tone(1150, 0.08, 'sawtooth', 0.02, 0.75, 0.12);
   },
+  /** A rude word bleeped out of Jacks Parrow's mouth: the censor's flat tone, this long after now. */
+  bleep(delay = 0): void {
+    tone(1000, 0.24, 'sine', 0.045, 1, delay);
+  },
+  /** Bun-San vanishes in a puff of smoke: a soft hiss, falling, and a little pop. */
+  poof(): void {
+    tone(1800, 0.22, 'sawtooth', 0.01, 0.35);
+    tone(260, 0.12, 'triangle', 0.05, 0.5, 0.02);
+  },
   /** A crow at island 10's birdfeeder: a harsh caw, twice, sliding down. */
   caw(): void {
     tone(620, 0.16, 'sawtooth', 0.03, 0.72);

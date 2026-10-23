@@ -37,7 +37,7 @@ const depth = (p: { dx: number; dy: number }) => p.dx + p.dy;
 
 describe('who comes with you', () => {
   it('names each friend and says what it does', () => {
-    expect(COMPANIONS).toHaveLength(9);
+    expect(COMPANIONS).toHaveLength(11);
     for (const k of COMPANIONS) {
       expect(COMPANION_NAMES[k].length).toBeGreaterThan(2);
       expect(COMPANION_BLURBS[k]).toMatch(/\.$/);

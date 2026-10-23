@@ -18,10 +18,14 @@ import {
   PAL_BLINK,
   PAL_HEEL,
   PAL_HP,
+  PAL_INVULN,
+  PARROT_Z,
   Pal,
+  POOF_T,
   POWER,
   RAISE_EVERY,
   REACH,
+  SHOULDER,
   STUCK_T,
   SWIM_SIDE,
   SWING_EVERY,
@@ -502,5 +506,72 @@ describe('the baby Reaper, out of the egg', () => {
     p.update(DT, baseWorld({ figure: figureAt(LANDING.x, LANDING.y) }));
     p.drawBody(f.v);
     expect(f.calls.fill ?? 0).toBeGreaterThan(before + 10);
+  });
+});
+
+describe("Doom Island's minions", () => {
+  it('Jacks Parrow rides the shoulder, flies off to peck what the figure fights and back, and nothing hurts him', () => {
+    const p = new Pal('parrot');
+    p.free = true;
+    const f = figureAt(LANDING.x - 60, LANDING.y);
+    const w: World = baseWorld({ figure: f });
+    for (let i = 0; i < 1 / DT; i++) p.update(DT, w);
+    expect(p.shown).toBe(true);
+    expect(Math.hypot(p.x - f.x, p.y - f.y)).toBeLessThan(SHOULDER + 0.5);
+    expect(p.z).toBeCloseTo(PARROT_Z, 0);
+    expect(p.flying).toBe(false);
+    let dealt = 0;
+    const foe = { x: f.x - 40, y: f.y - 20, hit: (n: number) => (dealt += n) };
+    p.findTarget = (x, y, r) => (Math.hypot(foe.x - x, foe.y - y) <= r ? foe : null);
+    for (let i = 0; i < (SWING_EVERY.parrot * 3 + 1) / DT; i++) p.update(DT, w);
+    expect(dealt).toBeGreaterThanOrEqual(POWER.parrot * 3);
+    expect(p.hurt()).toBe(false);
+    p.knockOut();
+    expect(p.shown).toBe(true);
+    p.findTarget = () => null;
+    for (let i = 0; i < 2 / DT; i++) p.update(DT, w);
+    expect(Math.hypot(p.x - f.x, p.y - f.y)).toBeLessThan(SHOULDER + 0.5);
+    expect(p.flying).toBe(false);
+    w.figure = null;
+    p.update(DT, w);
+    expect(p.shown).toBe(false);
+  });
+
+  it('Bun-San, hit, goes up in smoke and pops out behind the figure, so he is never worn out', () => {
+    const p = new Pal('bun');
+    p.free = true;
+    const f = { ...figureAt(LANDING.x - 60, LANDING.y), vx: 40 };
+    const w: World = baseWorld({ figure: f });
+    for (let i = 0; i < 1 / DT; i++) p.update(DT, w);
+    expect(p.shown).toBe(true);
+    const puffs: boolean[] = [];
+    p.onPoof = (_x, _y, back) => puffs.push(back);
+    for (let n = 0; n < PAL_HP * 2; n++) {
+      expect(p.hurt()).toBe(true);
+      expect(p.hurt()).toBe(false);
+      expect(p.poofT).toBeGreaterThanOrEqual(0);
+      for (let i = 0; i < (Math.max(POOF_T, PAL_INVULN) + 0.1) / DT; i++) p.update(DT, w);
+      expect(p.poofT).toBe(-1);
+      expect(p.shown).toBe(true);
+    }
+    expect(p.hp).toBe(p.maxHp);
+    expect(puffs).toEqual(Array.from({ length: PAL_HP * 4 }, (_, i) => i % 2 === 1));
+    // The figure walking right: he came back out on its left, behind it.
+    p.hurt();
+    for (let i = 0; i < (POOF_T + 0.02) / DT; i++) p.update(DT, w);
+    expect(p.x).toBeLessThan(f.x);
+    p.knockOut();
+    expect(p.shown).toBe(true);
+  });
+
+  it('ride the boat: the parrot up the mast, the bun on the bow', () => {
+    for (const kind of ['parrot', 'bun'] as const) {
+      const p = new Pal(kind);
+      p.free = true;
+      p.update(DT, baseWorld({ figure: null }));
+      const f = fakeView();
+      p.drawAboard(f.v, { x: 0, y: 0, h: 0 }, 1);
+      expect(f.calls.fill ?? 0).toBeGreaterThan(4);
+    }
   });
 });
