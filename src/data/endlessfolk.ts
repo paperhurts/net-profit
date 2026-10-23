@@ -97,6 +97,13 @@ export const LEADER_SAYS: Readonly<
   },
 };
 
+/** What each leader says as you pick your place in his crew for a battle. */
+export const LEADER_PICK: Readonly<Record<Side, string>> = {
+  pirate:
+    'Pick yer post, matey. A crew needs a quartermaster to take the knocks, a cook to patch us up, and swashbucklers to grab that flag.',
+  ninja: 'Choose your path. A stone guard stands firm, a monk mends, and a shadow strikes.',
+};
+
 /** What each leader says after a battle fought for his side: won, drawn or lost. */
 export const LEADER_AFTER: Readonly<Record<Side, { win: string; draw: string; loss: string }>> = {
   pirate: {

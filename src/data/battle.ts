@@ -45,6 +45,37 @@ export const BOT_NAMES: Readonly<Record<Side, readonly string[]>> = {
   ninja: ['Whisper', 'Pebble', 'Shade', 'Willow', 'Ember'],
 };
 
+/**
+ * Each role's first badge, Badge I, and the ability it gives, the plan's: yours the first time you fight in that role
+ * for that side, the bots' always. The same numbers on both sides; only the names and the looks differ. Each aims
+ * itself.
+ */
+export type Ability = 'taunt' | 'shot' | 'heal';
+export const ABILITY_I: Readonly<Record<Role, Ability>> = {
+  tank: 'taunt',
+  damage: 'shot',
+  healer: 'heal',
+};
+export const ABILITY = {
+  /** Every foe this near must come at you for this long. */
+  taunt: { reach: 140, lasts: 4, every: 12 },
+  /** A hit from afar at the nearest foe (a carrier first), after an aim line shown this long. */
+  shot: { hit: 4, reach: 300, aim: 0.4, every: 6 },
+  /** Hearts back for the most hurt teammate this near, or yourself. */
+  heal: { hearts: 4, reach: 220, every: 7 },
+} as const;
+/** What each is called on each side: the pirates' and the ninjas' look for the same thing. */
+export const ABILITY_NAME: Readonly<Record<Side, Readonly<Record<Ability, string>>>> = {
+  pirate: { taunt: 'Oi! Over here!', shot: 'Flintlock', heal: 'Sea Biscuit' },
+  ninja: { taunt: 'Mountain Shout', shot: 'Shuriken', heal: 'Green Tea' },
+};
+/** What each does, in a line. */
+export const ABILITY_SAYS: Readonly<Record<Ability, string>> = {
+  taunt: 'Every enemy close by has to come at you for 4 seconds.',
+  shot: 'A hit for 4 on the nearest enemy up to 300 away.',
+  heal: '4 hearts back for the most hurt teammate near you, or for you.',
+};
+
 /** Capture the Flag's rules. */
 export const CTF = {
   /** Captures to win. */

@@ -9,7 +9,17 @@
  */
 
 import { rng } from '../core/math';
-import { BOT_NAMES, CTF, KITS, type Kit, type Role, TEAM } from '../data/battle';
+import {
+  ABILITY,
+  ABILITY_I,
+  type Ability,
+  BOT_NAMES,
+  CTF,
+  KITS,
+  type Kit,
+  type Role,
+  TEAM,
+} from '../data/battle';
 import { FORT, GRAVE, onHalf, rival, SIDES, type Side } from '../world/endless';
 import { clearLine, flowTo, steer, wading, walkable } from '../world/endlessnav';
 
@@ -55,7 +65,16 @@ export type Fighter = {
   gv: number;
   dir: [number, number] | null;
   /** Its battle: flags taken, captured and sent home, and foes beaten. */
-  stats: { carries: number; caps: number; returns: number; beaten: number };
+  /** Its Badge I ability, and how long until it is ready again. */
+  readonly ab: Ability;
+  abCd: number;
+  /** Taunted: made to come at this foe, for so long. */
+  tauntBy: Fighter | null;
+  tauntT: number;
+  /** Aiming a shot at a foe, so long still to go; below 0 when it is not. */
+  aimT: number;
+  aimAt: Fighter | null;
+  stats: { carries: number; caps: number; returns: number; beaten: number; healed: number };
 };
 
 export type FlagAt = 'home' | 'carried' | 'dropped';
@@ -74,6 +93,10 @@ export type CtfEvent =
   | { k: 'hit'; f: Fighter; by: Fighter | null; n: number }
   | { k: 'swing'; f: Fighter; to: Fighter }
   | { k: 'down' | 'up'; f: Fighter; by?: Fighter | null }
+  | { k: 'taunt'; f: Fighter; n: number }
+  | { k: 'aim'; f: Fighter; to: Fighter }
+  | { k: 'shot'; f: Fighter; to: Fighter | null }
+  | { k: 'heal'; f: Fighter; to: Fighter; n: number }
   | { k: 'over'; winner: Side | 'draw' };
 
 /** A fighter's size, for keeping out of each other's way. */
@@ -82,6 +105,8 @@ const BODY = 8;
 const THINK = 0.25;
 /** How near a foe has to be before a bot turns to fight it, by job; the healer stands off at its reach. */
 const AGGRO: Readonly<Record<Job, number>> = { attack: 60, defend: 170, mid: 150, escort: 160 };
+/** With this long left on the clock, a side not ahead sends its middle in too. */
+const LATE = 150;
 /** How far out from its fort a defender will go after someone. */
 const GUARD = 320;
 
@@ -132,7 +157,8 @@ export class Ctf {
   /** The side you fight against attacks a little slower, so a kid wins a bit more than half the time. */
   private readonly foeSlow: number;
 
-  constructor(yours: Side | null, seed = 1, foeSlow = 1.12) {
+  /** You fight for yours, in the role given; null for a battle of bots alone. */
+  constructor(yours: Side | null, seed = 1, foeSlow = 1.12, yourRole: Role = 'damage') {
     this.yours = yours;
     this.rand = rng(seed);
     this.foeSlow = yours ? foeSlow : 1;
@@ -147,7 +173,7 @@ export class Ctf {
       // Mixed so neither side always has the lower ids, which think first.
       for (let i = 0; i < TEAM.length; i++) {
         const role = TEAM[i] as Role;
-        const isYou = side === yours && i === 2;
+        const isYou = side === yours && i === TEAM.indexOf(yourRole);
         const [u, v] = gateSpot(side, i);
         const f: Fighter = {
           id: id++,
@@ -176,18 +202,29 @@ export class Ctf {
           gu: u,
           gv: v,
           dir: null,
-          stats: { carries: 0, caps: 0, returns: 0, beaten: 0 },
+          ab: ABILITY_I[role],
+          abCd: 0,
+          tauntBy: null,
+          tauntT: 0,
+          aimT: -1,
+          aimAt: null,
+          stats: { carries: 0, caps: 0, returns: 0, beaten: 0, healed: 0 },
         };
         if (isYou) (this as { you: Fighter | null }).you = f;
         this.fighters.push(f);
       }
     }
     // Jobs: the tank guards the flag, the healer goes with the attack, the damage go for their flag, one of them (or
-    // with you on the team, the one left) holding the middle.
+    // with you on the team, the one left) holding the middle. You the tank, one of them guards the flag instead.
     for (const side of SIDES) {
       const team = this.fighters.filter((f) => f.side === side && f.bot);
       let dmg = 0;
-      const dmgJobs: Job[] = side === yours ? ['attack', 'mid'] : ['attack', 'attack', 'mid'];
+      const dmgJobs: Job[] =
+        side !== yours || yourRole === 'healer'
+          ? ['attack', 'attack', 'mid']
+          : yourRole === 'tank'
+            ? ['attack', 'mid', 'defend']
+            : ['attack', 'mid'];
       for (const f of team)
         f.job =
           f.role === 'tank'
@@ -224,6 +261,8 @@ export class Ctf {
     }
     for (const f of this.fighters) {
       f.cd = Math.max(0, f.cd - dt);
+      f.abCd = Math.max(0, f.abCd - dt);
+      f.tauntT = Math.max(0, f.tauntT - dt);
       f.swingT += dt;
       f.hurtT += dt;
     }
@@ -244,6 +283,12 @@ export class Ctf {
         f.downT -= dt;
         if (f.downT <= 0) this.getUp(f);
         continue;
+      }
+      // A shot aimed goes off when its aim is done, yours too.
+      if (f.aimT >= 0) {
+        f.aimT -= dt;
+        if (f.aimT < 0) this.fire(f);
+        if (this.phase !== 'fight') return;
       }
       if (!f.bot) continue;
       f.thinkT -= dt;
@@ -337,6 +382,7 @@ export class Ctf {
     f.v = v;
     f.target = null;
     f.thinkT = 0;
+    f.tauntT = 0;
     this.events.push({ k: 'up', f });
   }
 
@@ -353,6 +399,9 @@ export class Ctf {
     f.state = 'down';
     f.downT = CTF.respawn;
     f.target = null;
+    f.aimT = -1;
+    f.aimAt = null;
+    f.tauntT = 0;
     if (by) by.stats.beaten++;
     this.events.push({ k: 'down', f, by });
     if (f.carrying) {
@@ -391,8 +440,134 @@ export class Ctf {
     return to;
   }
 
+  /** The side you fight against goes a little slower, its attacks and its abilities alike. */
+  private slowOf(f: Fighter): number {
+    return f.bot && this.yours && f.side !== this.yours ? this.foeSlow : 1;
+  }
+
+  /**
+   * A fighter's ability, if it is ready and there is something for it: the tank's shout makes every foe close by come
+   * at it; the damage's shot aims at the nearest foe in reach, a carrier first, and goes off when the aim is done; the
+   * healer's heal goes to the most hurt teammate near, or itself. What it did, or null if nothing.
+   */
+  ability(f: Fighter | null = this.you, at: Fighter | null = null): Ability | null {
+    if (f?.state !== 'live' || this.phase !== 'fight' || f.abCd > 0 || f.aimT >= 0) return null;
+    const every = ABILITY[f.ab].every * this.slowOf(f);
+    if (f.ab === 'taunt') {
+      const near = this.fighters.filter(
+        (e) =>
+          e.side !== f.side &&
+          e.state === 'live' &&
+          Math.hypot(e.u - f.u, e.v - f.v) <= ABILITY.taunt.reach,
+      );
+      if (!near.length) return null;
+      for (const e of near) {
+        e.tauntBy = f;
+        e.tauntT = ABILITY.taunt.lasts;
+        if (e.bot) e.target = f;
+      }
+      f.abCd = every;
+      f.swingT = 0;
+      this.events.push({ k: 'taunt', f, n: near.length });
+      return 'taunt';
+    }
+    if (f.ab === 'shot') {
+      const to = at ?? this.shotAt(f);
+      if (!to) return null;
+      f.aimT = ABILITY.shot.aim;
+      f.aimAt = to;
+      f.face = Math.atan2(to.v - f.v, to.u - f.u);
+      f.abCd = every;
+      this.events.push({ k: 'aim', f, to });
+      return 'shot';
+    }
+    const to = this.mostHurt(f, 1);
+    if (!to) return null;
+    const n = Math.min(ABILITY.heal.hearts, to.kit.hearts - to.hp);
+    to.hp += n;
+    f.stats.healed += n;
+    f.abCd = every;
+    f.swingT = 0;
+    this.events.push({ k: 'heal', f, to, n });
+    return 'heal';
+  }
+
+  /** A shot's aim done: it hits, if what it aimed at is still up and not too far gone. */
+  private fire(f: Fighter): void {
+    const to = f.aimAt;
+    f.aimAt = null;
+    f.aimT = -1;
+    f.swingT = 0;
+    if (to?.state === 'live' && Math.hypot(to.u - f.u, to.v - f.v) <= ABILITY.shot.reach * 1.25) {
+      this.events.push({ k: 'shot', f, to });
+      this.hurt(to, ABILITY.shot.hit, f);
+    } else this.events.push({ k: 'shot', f, to: null });
+  }
+
+  /** The foe a shot goes at: the nearest in reach, one carrying a flag first. */
+  private shotAt(f: Fighter): Fighter | null {
+    let best: Fighter | null = null;
+    let bs = Infinity;
+    for (const e of this.fighters) {
+      if (e.side === f.side || e.state !== 'live') continue;
+      const d = Math.hypot(e.u - f.u, e.v - f.v);
+      if (d > ABILITY.shot.reach) continue;
+      const s = d - (e.carrying ? 1000 : 0);
+      if (s < bs) {
+        bs = s;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /** The teammate in a heal's reach (itself included) missing the most of its hearts, at least so many. */
+  private mostHurt(f: Fighter, least: number): Fighter | null {
+    let best: Fighter | null = null;
+    let bm = least - 0.5;
+    for (const t of this.fighters) {
+      if (t.side !== f.side || t.state !== 'live') continue;
+      if (Math.hypot(t.u - f.u, t.v - f.v) > ABILITY.heal.reach) continue;
+      const m = t.kit.hearts - t.hp + (t.carrying ? 0.5 : 0);
+      if (m > bm) {
+        bm = m;
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * When a bot uses its ability: a healer once a teammate near is three hearts down; a shot whenever a foe is in its
+   * reach; the tank's shout once two foes are close, or one close is after a teammate or carries our flag.
+   */
+  private botAbility(f: Fighter): void {
+    if (f.abCd > 0 || f.aimT >= 0) return;
+    if (f.ab === 'heal') {
+      if (this.mostHurt(f, 3)) this.ability(f);
+      return;
+    }
+    if (f.ab === 'shot') {
+      // Only at the foe it is after, to reach it before it gets close.
+      const t = f.target;
+      if (t?.state !== 'live') return;
+      const d = Math.hypot(t.u - f.u, t.v - f.v);
+      if (d > f.kit.reach + 30 && d <= ABILITY.shot.reach) this.ability(f, t);
+      return;
+    }
+    let n = 0;
+    let want = false;
+    for (const e of this.fighters) {
+      if (e.side === f.side || e.state !== 'live') continue;
+      if (Math.hypot(e.u - f.u, e.v - f.v) > ABILITY.taunt.reach) continue;
+      n++;
+      if (e.carrying || (e.target && e.target !== f)) want = true;
+    }
+    if (n >= 2 || (n && want)) this.ability(f);
+  }
+
   private blow(f: Fighter, to: Fighter): void {
-    const slow = f.bot && f.side !== this.yours && this.yours ? this.foeSlow : 1;
+    const slow = this.slowOf(f);
     f.cd = f.kit.every * slow;
     f.swingT = 0;
     f.face = Math.atan2(to.v - f.v, to.u - f.u);
@@ -458,7 +633,12 @@ export class Ctf {
     let aim: [number, number];
     let route: [number, number];
     f.target = null;
-    if (f.carrying) {
+    const taunter = f.tauntT > 0 && f.tauntBy?.state === 'live' ? f.tauntBy : null;
+    if (taunter) {
+      // Taunted, it has to come at whoever shouted, even carrying a flag.
+      f.target = taunter;
+      aim = route = [taunter.u, taunter.v];
+    } else if (f.carrying) {
       f.target = this.inReach(f, 0);
       aim = route = flagHome(f.side);
     } else if (mine.at === 'dropped' && this.nearestTo(f.side, mine.u, mine.v, 2).includes(f)) {
@@ -491,13 +671,17 @@ export class Ctf {
       f.gu = aim[0];
       f.gv = aim[1];
     }
+    this.botAbility(f);
   }
 
   /** Where a bot is heading when it has nothing more pressing, by its job: where it aims, and the way it follows there. */
   private goal(f: Fighter): [[number, number], [number, number]] {
     const theirs = this.flags[rival(f.side)];
     const flag: [number, number] = [theirs.u, theirs.v];
-    if (f.job === 'attack' || (f.job === 'mid' && theirs.at === 'dropped')) return [flag, flag];
+    // Late on, not ahead, the middle goes for their flag too.
+    const push = this.clock < LATE && this.score[f.side] <= this.score[rival(f.side)];
+    if (f.job === 'attack' || (f.job === 'mid' && (theirs.at === 'dropped' || push)))
+      return [flag, flag];
     if (f.job === 'escort') {
       // With the nearest teammate going for their flag (you count), the way they are going.
       const lead = this.fighters
@@ -519,6 +703,10 @@ export class Ctf {
    * or walks the way it worked out. Close to its foe it goes straight at it.
    */
   private act(f: Fighter, dt: number): void {
+    if (f.aimT >= 0) {
+      f.moving = false;
+      return;
+    }
     const t = f.target && f.target.state === 'live' ? f.target : null;
     let stopAt = 6;
     let gu = f.gu;

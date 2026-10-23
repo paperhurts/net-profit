@@ -190,11 +190,11 @@ import { drawIsle11Flat, drawIsle11Sea, isle11Solids } from './render/isle11';
 import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, insideIsle12, ISLE12, isle12Outline, nearIsle12, PITS12, pushOffIsle12, REVEAL12, REVEAL12_T, revealZoom12, SIGHT12 } from './world/isle12';
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { atHalf, CRATES13, DOCK13, ENDLESS13, FORT, fromEndless, HALF_C, halfOutline, insideEndless, LANDING13, LEADER13, leaderNear, nearEndless, PEAK, pushOffEndless, REVEAL13, REVEAL13_T, revealZoom13, rival, SIDES, SIGHT13, toEndless } from './world/endless';
-import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_NAME, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T } from './data/endlessfolk';
+import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_NAME, LEADER_PICK, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
-import { CTF, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
+import { ABILITY, ABILITY_I, ABILITY_NAME, ABILITY_SAYS, CTF, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
 import { Ctf, flagHome, graveSpot } from './entities/ctf';
 import { answers, SCIENCE } from './data/science';
 import { drawIsle10Flat, drawIsle10Sea, isle10Solids } from './render/isle10';
@@ -2470,7 +2470,7 @@ function openEndlessTalk(side){ endlessTalk = side; endlessJoined = null; sfx.cl
 function renderEndlessTalk(says){ const side = endlessTalk; if (!side) return; $('endlessCard').dataset.side = side;
   $('endlessWho').textContent = LEADER_NAME[side]; $('endlessSay').textContent = says;
   $('endlessJoin').hidden = endless[side]; $('endlessJoin').textContent = side === 'pirate' ? 'Sign the articles: join the pirates' : 'Bow: join the ninjas';
-  $('endlessFight').hidden = !endless[side] || !!ctf;
+  $('endlessFight').hidden = !endless[side] || !!ctf; $('endlessRoles').hidden = true; $('endlessAnswers').hidden = false;
   $('endlessGot').hidden = endlessJoined !== side; $('endlessGot').textContent = `${MINION_NAME[side]} is yours!`; }
 // Out of the talk, and a minion just given is there with you.
 function closeEndlessTalk(){ const got = endlessJoined; endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; sfx.click(); if (got) minionComes(got); }
@@ -2493,7 +2493,7 @@ function minionComes(side){ if (walker.state !== 'ashore' || stay.has(side === '
 // side's minion. Beaten, you get up again at your graveyard. It pays its coin and its marks at the end; leaving one
 // early gets neither. (The roles' abilities and the badges are the next piece.)
 const CTF_SIDES = {pirate: 'pirates', ninja: 'ninjas'};
-let ctfShots = [], ctfHud = '';
+let ctfShots = [], ctfRings = [], ctfHud = '';
 // Where a fighter stands in the world.
 function ctfAt(f){ const [x, y] = fromEndless(f.u, f.v); return {x, y}; }
 // A fighter as your minion's foe: where it is, and what a hit from him does.
@@ -2505,13 +2505,13 @@ function ctfAim(f){ let a = ctfAims.get(f);
 function ctfTarget(){ const t = ctf && ctf.phase === 'fight' ? ctf.inReach(ctf.you) : null; return t ? ctfAim(t) : null; }
 // Where you get up, and where you wait for it.
 function ctfGrave(f){ const [u, v] = graveSpot(f.side); return fromEndless(u + ((f.slot % 3) - 1)*14, v); }
-function startCtf(side){ if (ctf || walker.state !== 'ashore' || !endless[side]) return;
+function startCtf(side, role = ctfRole){ if (ctf || walker.state !== 'ashore' || !endless[side]) return; ctfRole = role;
   endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; $('ctfCard').hidden = true;
-  ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9)); ctfShots = []; ctfHud = '';
+  ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role); ctfShots = []; ctfRings = []; ctfHud = '';
   const [x, y] = fromEndless(ctf.you.u, ctf.you.v); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0;
   hearts = ctf.you.hp; invulnT = 0; benchStaying(); hudHearts();
   document.body.classList.add('ctf'); $('ctfBar').hidden = false; hudCtf(); sfx.phaseChange(); toasts.clear();
-  toast(`Capture the Flag! Bring the ${CTF_SIDES[rival(side)]}' flag to yours, while yours is at home. First to three wins.`, 5000, 2); }
+  toast(`Capture the Flag, as a ${ROLE_NAME[side][role]}! Bring the ${CTF_SIDES[rival(side)]}' flag to yours, while yours is at home. First to three wins.`, 5000, 2); }
 function updateCtf(dt){ if (!ctf) return;
   if (walker.state !== 'ashore'){ toasts.clear(); toast('You left the battle. A battle left early pays nothing.', 3200, 1); endCtf(); return; }
   const me = ctf.you;
@@ -2520,11 +2520,12 @@ function updateCtf(dt){ if (!ctf) return;
     if (d > r){ const [x, y] = fromEndless(fu + (u - fu)/d*r, fv + (v - fv)/d*r); walker.x = x; walker.y = y; } }
   ctf.update(dt, toEndless(walker.x, walker.y));
   for (const e of ctf.events.splice(0)){ ctfEvent(e); if (!ctf) return; }
-  for (const s of ctfShots) s.t += dt/.35; ctfShots = ctfShots.filter(s => s.t < 1);
+  for (const s of ctfShots) s.t += dt/(s.dur ?? .35); ctfShots = ctfShots.filter(s => s.t < 1);
+  for (const r of ctfRings) r.t += dt/.5; ctfRings = ctfRings.filter(r => r.t < 1);
   // Your hearts are the battle's; down, you wait at your graveyard, flickering.
   hearts = Math.max(0, me.hp); if (me.state === 'down'){ invulnT = Math.max(invulnT, .3); const [x, y] = ctfGrave(me); walker.x = x; walker.y = y; walker.vx = walker.vy = 0; }
   walker.speedK = me.carrying ? CTF.carry : 1;
-  hudCtf(); }
+  hudCtf(); hudAbility(); }
 function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
   if (e.k === 'go'){ sfx.tierUp(); toasts.clear(); toast('The gates are down! Go and get their flag!', 2200, 2); return; }
   if (e.k === 'pickup'){ const p = ctfAt(e.f); toasts.clear();
@@ -2543,6 +2544,16 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
     else if (e.by === me){ sfx.spearHit(); const p = ctfAt(e.f); addText(p.x, p.y, 34, `-${e.n}`, '#FFF3C4', 16, .9); }
     return; }
   if (e.k === 'swing'){ if (e.f.kit.thrown) ctfShots.push({f: e.f, to: e.to, t: 0}); return; }
+  // The abilities: a shout's ring and its words, a shot's flash or its two stars, a heal's biscuit or tea flying over.
+  if (e.k === 'taunt'){ ctfRings.push({f: e.f, t: 0}); const p = ctfAt(e.f);
+    if (e.f === me || onScreen(p.x, p.y, 40*Z)){ sfx.clang(); addText(p.x, p.y, 50, e.f.side === 'pirate' ? 'Oi! Over here!' : 'HAAA!', '#FFF3C4', 15, 1.3); } return; }
+  if (e.k === 'shot'){ if (!e.to){ if (e.f === me) addText(walker.x, walker.y, 40, 'Missed!', '#E8E0C8', 14, 1); return; }
+    const p = ctfAt(e.f), near = e.f === me || e.to === me || onScreen(p.x, p.y, 40*Z);
+    if (e.f.side === 'pirate'){ ctfShots.push({f: e.f, to: e.to, t: 0, dur: .14, kind: 'ball'}); if (near){ sfx.whump(); addText(p.x, p.y, 44, 'Bang!', '#FFE08A', 14, .8); } }
+    else { ctfShots.push({f: e.f, to: e.to, t: 0, dur: .26, kind: 'star'}, {f: e.f, to: e.to, t: -.45, dur: .26, kind: 'star'}); if (near) sfx.spearThrow(); }
+    return; }
+  if (e.k === 'heal'){ ctfShots.push({f: e.f, to: e.to, t: 0, dur: .4, kind: e.f.side === 'pirate' ? 'biscuit' : 'tea'}); const p = ctfAt(e.to);
+    if (e.f === me || e.to === me || onScreen(p.x, p.y, 40*Z)){ sfx.nom(); addText(p.x, p.y, 40, `+${e.n}`, '#7CE38B', 17, 1.2); } return; }
   if (e.k === 'down'){ if (e.f === me){ sfx.whump(); toasts.clear(); toast(`Beaten! You'll be back up at your graveyard in ${CTF.respawn}.`, 2800, 2); const [x, y] = ctfGrave(me); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0; }
     else if (e.by === me){ const p = ctfAt(e.f); addText(p.x, p.y, 40, 'Beaten!', '#FFF3C4', 18, 1.3); }
     return; }
@@ -2557,22 +2568,49 @@ function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner 
   $('ctfP').textContent = ctf.score.pirate; $('ctfN').textContent = ctf.score.ninja;
   $('ctfSay').textContent = `${LEADER_NAME[side]}: ${LEADER_AFTER[side][result]}`;
   const b = endless.battles, st = me.stats;
-  $('ctfStats').innerHTML = [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns], ['Foes you beat', st.beaten], [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
+  $('ctfStats').innerHTML = [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns], ['Foes you beat', st.beaten], ...(me.role === 'healer' ? [['Hearts you healed', st.healed]] : []), [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
   $('ctfGot').textContent = `+${pay} coins`;
-  card.hidden = false; hud(); refreshShop(); save(); }
+  card.hidden = false; hudAbility(); hud(); refreshShop(); save(); }
 // Out of the battle, back to how you were: by your side's leader, if it was played to the end.
 function endCtf(home = false){ if (!ctf) return; const side = ctf.yours; ctf = null; ctfShots = [];
-  document.body.classList.remove('ctf'); $('ctfBar').hidden = true; $('ctfCard').hidden = true;
+  document.body.classList.remove('ctf'); $('ctfBar').hidden = true; $('ctfCard').hidden = true; $('ability').hidden = true;
   walker.speedK = 1; invulnT = 0; hearts = maxHearts(); hudHearts();
   if (home && walker.state === 'ashore'){ const L = LEADER13[side], h = side === 'pirate' ? 1 : -1, x = L.x - 26*h, y = L.y + 26*h, ok = walkable(x, y, build);
     walker.x = cam.x = ok ? x : LANDING13[side].x; walker.y = cam.y = ok ? y : LANDING13[side].y; walker.vx = walker.vy = 0; } }
 function leaveCtf(){ toasts.clear(); toast('You left the battle. A battle left early pays nothing.', 3200, 1); endCtf(true); }
-$('ctfAgain').addEventListener('click', () => { const side = ctf?.yours; sfx.click(); endCtf(); if (side) startCtf(side); });
+$('ctfAgain').addEventListener('click', () => { const side = ctf?.yours; sfx.click(); endCtf(); if (side) startCtf(side, ctfRole); });
 $('ctfDone').addEventListener('click', () => { sfx.click(); endCtf(true); });
-$('endlessFight').addEventListener('click', () => { if (endlessTalk) startCtf(endlessTalk); });
+// The badge card: which place to fight in, each with its hearts and its Badge I ability for this side.
+const ROLES = ['tank', 'damage', 'healer'];
+let ctfRole = 'damage';
+function openRoles(){ const side = endlessTalk; if (!side) return; sfx.click();
+  $('endlessRoles').innerHTML = ROLES.map(r => { const ab = ABILITY_I[r];
+    return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts</span><small>Badge I: <b>${ABILITY_NAME[side][ab]}</b>. ${ABILITY_SAYS[ab]}</small></button>`; }).join('')
+    + '<button class="answer" data-role="">Back</button>';
+  $('endlessSay').textContent = LEADER_PICK[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
+$('endlessFight').addEventListener('click', openRoles);
+$('endlessRoles').addEventListener('click', (e) => { const b = e.target.closest('[data-role]'); if (!b || !endlessTalk) return;
+  if (b.dataset.role) startCtf(endlessTalk, b.dataset.role); else { sfx.click(); renderEndlessTalk(LEADER_SAYS[endlessTalk].joined); } });
+// Your ability: what it did, or why not.
+function ctfAbility(){ audio(); if (!ctf) return; const me = ctf.you;
+  if (ctf.phase !== 'fight' || me.state !== 'live') return;
+  if (me.abCd > 0 || me.aimT >= 0){ sfx.denied(); return; }
+  if (!ctf.ability()){ sfx.denied(); addText(walker.x, walker.y, 40, me.ab === 'heal' ? 'Nobody hurt' : 'Nobody in reach', '#F4F1E6', 14, 1); } }
+$('ability').addEventListener('pointerdown', (e) => { if (e.button > 0) return; ctfAbility(); });
+$('ability').addEventListener('click', (e) => { if (e.detail === 0) ctfAbility(); });
+window.addEventListener('keydown', (e) => { if (ctf && !e.repeat && (e.key === 'e' || e.key === 'E')){ e.preventDefault(); ctfAbility(); } });
+// Its button: the side's colour, the ability's mark, and how long until it is ready, as a sweep.
+const ABILITY_ICON = {
+  taunt: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3l10 4v7c0 7-5 11-10 13C10 25 5 21 5 14V7z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M15 9v8" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="15" cy="21.5" r="1.8" fill="#fff"/></svg>',
+  shot: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="9" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M15 2v7M15 21v7M2 15h7M21 15h7" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="15" cy="15" r="2.2" fill="#fff"/></svg>',
+  heal: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 26S4 19 4 11.5A5.5 5.5 0 0 1 15 9a5.5 5.5 0 0 1 11 2.5C26 19 15 26 15 26z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M15 12v8M11 16h8" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>'};
+function hudAbility(){ const el = $('ability'), me = ctf?.you, show = !!me && ctf.phase !== 'over' && walker.state === 'ashore';
+  if (el.hidden === show) el.hidden = !show; if (!show) return;
+  const key = `${me.side}|${me.ab}`; if (el.dataset.k !== key){ el.dataset.k = key; $('abilityIcon').innerHTML = ABILITY_ICON[me.ab]; el.style.setProperty('--ab', SIDE_COLOUR[me.side]); el.setAttribute('aria-label', ABILITY_NAME[me.side][me.ab]); }
+  el.style.setProperty('--cd', (me.state !== 'live' || ctf.phase !== 'fight' ? 1 : me.abCd/ABILITY[me.ab].every).toFixed(3)); }
 // Your strike, at the nearest foe in reach.
 function ctfStrike(){ if (!ctf || T < reloadAt) return; const to = ctf.strike(); if (!to) return;
-  reloadAt = T + ctf.you.kit.every; const p = ctfAt(to); walker.stabAt(p.x, p.y); stabFlash(p, 18); sfx.spearThrow(); }
+  reloadAt = T + ctf.you.kit.every; const p = ctfAt(to); sfx.spearThrow(); if (ctf.you.kit.thrown) walker.throwAt(p.x, p.y); else { walker.stabAt(p.x, p.y); stabFlash(p, 18); } }
 // The score along the top: the clock, and what is going on with the flags.
 function hudCtf(){ if (!ctf) return; const me = ctf.you, f = ctf.flags, mine = ctf.yours, theirs = rival(mine);
   const left = Math.ceil(ctf.phase === 'gates' ? CTF.clock : ctf.clock), clock = `${Math.floor(left/60)}:${String(left % 60).padStart(2, '0')}`;
@@ -2592,8 +2630,21 @@ function ctfSolids(){ const out = [];
   // Your ring, in your side's colour, and their flag on your back.
   const me = ctf.you; if (me.state === 'live') out.push({d: -1e9, f: () => { const sx = px(walker.x, walker.y), sy = py(walker.x, walker.y, walker.z);
     ctx.strokeStyle = SIDE_COLOUR[me.side]; ctx.lineWidth = 2.2*Z; ctx.beginPath(); ctx.ellipse(sx, sy, 12*Z, 4.8*Z, 0, 0, Math.PI*2); ctx.stroke(); }});
-  out.push({d: 1e9, f: () => { for (const s of ctfShots){ const a = ctfAt(s.f), b = ctfAt(s.to), k = s.t, x = a.x + (b.x - a.x)*k, y = a.y + (b.y - a.y)*k, sx = px(x, y), sy = py(x, y, 18 + Math.sin(k*Math.PI)*30);
-    ctx.fillStyle = s.f.side === 'pirate' ? '#9AB8C8' : '#F2A6C0'; ctx.beginPath(); ctx.ellipse(sx, sy, 4*Z, 2.2*Z, k*6, 0, Math.PI*2); ctx.fill(); } }});
+  // A shout's ring, spreading on the ground.
+  for (const r of ctfRings){ const p = ctfAt(r.f); out.push({d: -1e9, f: () => { ctx.globalAlpha = 1 - r.t; ctx.strokeStyle = SIDE_COLOUR[r.f.side]; ctx.lineWidth = 3*Z; isoEllipse(p.x, p.y, 20 + r.t*(ABILITY.taunt.reach - 20)); ctx.stroke(); ctx.globalAlpha = 1; }}); }
+  out.push({d: 1e9, f: () => {
+    // Shots being aimed: a dashed line to what they will hit, filling in as the aim is done.
+    for (const f of ctf.fighters){ if (f.aimT < 0 || !f.aimAt || f.state !== 'live') continue; const a = f === me ? walker : ctfAt(f), b = ctfAt(f.aimAt);
+      ctx.strokeStyle = `rgba(228,60,46,${.45 + .5*(1 - f.aimT/ABILITY.shot.aim)})`; ctx.lineWidth = 2*Z; ctx.setLineDash([6*Z, 5*Z]);
+      ctx.beginPath(); ctx.moveTo(px(a.x, a.y), py(a.x, a.y, 18)); ctx.lineTo(px(b.x, b.y), py(b.x, b.y, 16)); ctx.stroke(); ctx.setLineDash([]); }
+    for (const s of ctfShots){ if (s.t < 0) continue; const a = s.f === me ? walker : ctfAt(s.f), b = s.to === me ? walker : ctfAt(s.to), k = s.t, x = a.x + (b.x - a.x)*k, y = a.y + (b.y - a.y)*k;
+      const lob = s.kind === 'ball' || s.kind === 'star' ? 4 : 30, sx = px(x, y), sy = py(x, y, 18 + Math.sin(k*Math.PI)*lob);
+      if (s.kind === 'ball'){ ctx.fillStyle = '#1E1A18'; ctx.beginPath(); ctx.arc(sx, sy, 2.4*Z, 0, Math.PI*2); ctx.fill(); }
+      else if (s.kind === 'star'){ ctx.save(); ctx.translate(sx, sy); ctx.rotate(k*14); ctx.fillStyle = '#C9D2DA'; ctx.beginPath();
+        for (let i = 0; i < 8; i++){ const r = (i % 2 ? 1.6 : 5)*Z, a2 = i*Math.PI/4; ctx.lineTo(Math.cos(a2)*r, Math.sin(a2)*r); } ctx.closePath(); ctx.fill(); ctx.restore(); }
+      else if (s.kind === 'biscuit'){ ctx.fillStyle = '#D9B26A'; ctx.strokeStyle = '#8A6A3A'; ctx.lineWidth = 1*Z; ctx.beginPath(); ctx.roundRect(sx - 4.5*Z, sy - 3.5*Z, 9*Z, 7*Z, 2*Z); ctx.fill(); ctx.stroke(); }
+      else if (s.kind === 'tea'){ ctx.fillStyle = '#E8F0E0'; ctx.fillRect(sx - 3.5*Z, sy - 3*Z, 7*Z, 6*Z); ctx.fillStyle = '#7FB85A'; ctx.fillRect(sx - 3*Z, sy - 2.5*Z, 6*Z, 2*Z); }
+      else { ctx.fillStyle = s.f.side === 'pirate' ? '#9AB8C8' : '#F2A6C0'; ctx.beginPath(); ctx.ellipse(sx, sy, 4*Z, 2.2*Z, k*6, 0, Math.PI*2); ctx.fill(); } } }});
   return out; }
 function drawMyFlag(){ const me = ctf?.you; if (!me?.carrying) return; const sx = px(walker.x, walker.y), sy = py(walker.x, walker.y, walker.z), dir = Math.cos(walker.h) - Math.sin(walker.h) < 0 ? -1 : 1;
   drawBattleFlag(drawView, rival(me.side), sx - dir*6*Z, sy - 12*Z); }
@@ -3871,7 +3922,9 @@ function climbAction(){
   if (tower && floor < tower.roof && floorClear(floor)){ const st = stairs(floor); if (Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6) return 'stairs'; }
   return null; }
 function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (tower === BARGE || tarAshore || walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || walker.dock === ISLE7_DOCK || walker.dock === ISLE8_DOCK || walker.dock === ISLE10_DOCK || walker.dock === ISLE11_DOCK || walker.dock === ISLE12_DOCK || (walker.dock === ISLE6_DOCK && reaperEgg < 1) || walker.dock.tar || walker.dock.isle || warlock.shown || cat.shown || bonesPal.shown || naga.shown || necroPal.shown || baby.shown || !!ctf) || hearts < maxHearts(); el.hidden = !show;
-  if (show) el.innerHTML = Array.from({length: maxHearts()}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
+  // A tank's fourteen do not fit on a phone: in a battle, past nine, a bar.
+  if (show && ctf && maxHearts() > 9){ const k = Math.round(100*hearts/maxHearts()); el.innerHTML = HEART_SVG + `<span class="hbar"><i style="width:${k}%;background:${k <= 34 ? '#E4572E' : '#5BBF6A'}"></i></span><span>${hearts}</span>`; }
+  else if (show) el.innerHTML = Array.from({length: maxHearts()}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
     // The warlock's, in green, after a gap.
     + (warlock.shown ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: WARLOCK_HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < warlock.hearts ? '#3FB37A' : 'rgba(128,128,128,.35)')).join('') : '')
     // The cat's heals left, as little pink crosses.
