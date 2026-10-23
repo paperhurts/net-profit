@@ -322,8 +322,15 @@ export function insideEndless(x: number, y: number, pad: number): boolean {
 
 /** The Endless Isle underfoot: either half's ground, a pier, a bridge, the sandbar or the shallows. */
 export function onEndless(x: number, y: number): boolean {
-  if (!insideEndless(x, y, 400)) return false;
   const [u, v] = toEndless(x, y);
+  return onEndlessAt(u, v);
+}
+/**
+ * The same, for a point in the island's own frame: what the battles' ways are worked out from, without going through
+ * the world and back, whose rounding put a point exactly on a bridge's edge on it on one side and off it on the other.
+ */
+export function onEndlessAt(u: number, v: number): boolean {
+  if (Math.hypot(u, v) >= endlessEdge(Math.atan2(v, u)) + 400) return false;
   if (pierAt(u, v) || bridgeAt(u, v) || sandbarAt(u, v) || wadeAt(u, v)) return true;
   return halfGround(u, v) && !blockedHalf(u, Math.abs(v));
 }
@@ -332,6 +339,10 @@ export function onEndless(x: number, y: number): boolean {
 export function inEndlessShallows(x: number, y: number): boolean {
   if (!insideEndless(x, y, 0)) return false;
   const [u, v] = toEndless(x, y);
+  return wadeAt(u, v) && !bridgeAt(u, v) && !halfGround(u, v);
+}
+/** The same, in the island's own frame. */
+export function inShallowsAt(u: number, v: number): boolean {
   return wadeAt(u, v) && !bridgeAt(u, v) && !halfGround(u, v);
 }
 

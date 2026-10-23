@@ -398,7 +398,7 @@ function drawBridge13(v: DrawView, u: number): void {
 /* ---------- what stands up ---------- */
 
 /** A fort's wall, in segments round it, each sorted on its own so a figure can walk in front of or behind it. */
-function fortWall(v: DrawView, side: Side, out: Solid[]): void {
+function fortWall(v: DrawView, side: Side, out: Solid[], shut = false): void {
   const L = LOOK[side];
   const segs = 20;
   const gate0 = -Math.PI / 2 - FORT.gate;
@@ -458,6 +458,28 @@ function fortWall(v: DrawView, side: Side, out: Solid[]): void {
       },
     });
   }
+  // Before a battle, its gate shut: a row of bars between the gateposts, dropped when the battle starts.
+  if (shut) {
+    const n = 7;
+    for (let i = 1; i < n; i++) {
+      const g = gate0 + ((gate1 - gate0) * i) / n;
+      const [bx, by] = hw(side, FORT.u + Math.cos(g) * FORT.r, FORT.w + Math.sin(g) * FORT.r);
+      out.push({
+        d: bx + by,
+        f: () =>
+          v.box(
+            bx - 2,
+            by - 2,
+            4,
+            4,
+            0,
+            H - 4,
+            side === 'pirate' ? '#5A3E24' : '#4A4E58',
+            side === 'pirate' ? '#7A5A38' : '#6A6E78',
+          ),
+      });
+    }
+  }
 }
 
 /** The pointed tops of a log wall's logs. */
@@ -483,16 +505,50 @@ function logTops(v: DrawView, pts: readonly [number, number][], H: number): void
   }
 }
 
-/** A flag on a pole: the Jolly Roger, or the ninjas' banner, a throwing star on an indigo field (both the kid's). */
-function drawFlag13(v: DrawView, side: Side, x: number, y: number): void {
-  const { ctx, px, py, T } = v;
-  const Z = v.zoom;
-  const sx = px(x, y);
-  const sy = py(x, y);
-  const top = sy - 92 * Z;
+/**
+ * A flag on a pole: the Jolly Roger, or the ninjas' banner, a throwing star on an indigo field (both the kid's). In a
+ * battle, while it is out of its fort, the pole stands bare.
+ */
+function drawFlag13(v: DrawView, side: Side, x: number, y: number, flying = true): void {
+  const { ctx, px, py } = v;
   ctx.fillStyle = 'rgba(0,0,0,.25)';
   v.isoEllipse(x, y, 7);
   ctx.fill();
+  flagOnPole(v, side, px(x, y), py(x, y), 1, flying);
+}
+
+/** A side's flag on a little pole at screen x, y, as a carrier has it on its back, or lying where it was dropped. */
+export function drawBattleFlag(
+  v: DrawView,
+  side: Side,
+  sx: number,
+  sy: number,
+  lying = false,
+): void {
+  const { ctx } = v;
+  if (!lying) {
+    flagOnPole(v, side, sx, sy, 0.42, true);
+    return;
+  }
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(-1.2);
+  flagOnPole(v, side, 0, 0, 0.42, true);
+  ctx.restore();
+}
+
+/** The pole and the flag on it, at screen x, y, scaled. */
+function flagOnPole(
+  v: DrawView,
+  side: Side,
+  sx: number,
+  sy: number,
+  k: number,
+  flying: boolean,
+): void {
+  const { ctx, T } = v;
+  const Z = v.zoom * k;
+  const top = sy - 92 * Z;
   ctx.strokeStyle = side === 'pirate' ? '#4A3220' : '#2A2A30';
   ctx.lineWidth = 3 * Z;
   ctx.beginPath();
@@ -503,6 +559,7 @@ function drawFlag13(v: DrawView, side: Side, x: number, y: number): void {
   ctx.beginPath();
   ctx.arc(sx, top, 3 * Z, 0, Math.PI * 2);
   ctx.fill();
+  if (!flying) return;
   const W = 34 * Z;
   const Hh = 22 * Z;
   const wave = (k: number) => Math.sin(T * 5 + k * 3) * 3 * Z * k;
@@ -1059,7 +1116,14 @@ function behind(
  * All that stands up on both halves and in the channel, each a solid for the scene to sort. Focus is what the camera
  * follows, the figure or the boat, for fading the tall landmarks it goes behind.
  */
-export function endlessSolids(v: DrawView, focus: { x: number; y: number } | null = null): Solid[] {
+/** A battle on, what the island shows of it: whether each side's flag is home on its pole, and the gates shut. */
+export type BattleShow = { readonly home: Readonly<Record<Side, boolean>>; readonly shut: boolean };
+
+export function endlessSolids(
+  v: DrawView,
+  focus: { x: number; y: number } | null = null,
+  battle: BattleShow | null = null,
+): Solid[] {
   if (!near(v, 2300)) return [];
   const out: Solid[] = [];
   const dt = Math.min(0.1, Math.max(0, v.T - fade.t));
@@ -1068,8 +1132,8 @@ export function endlessSolids(v: DrawView, focus: { x: number; y: number } | nul
   for (const side of SIDES) {
     const [fx, fy] = hw(side, FORT.u, FORT.w);
     if (on(fx, fy, 260)) {
-      fortWall(v, side, out);
-      out.push({ d: fx + fy, f: () => drawFlag13(v, side, fx, fy) });
+      fortWall(v, side, out, !!battle?.shut);
+      out.push({ d: fx + fy, f: () => drawFlag13(v, side, fx, fy, battle?.home[side] ?? true) });
     }
     const [gx, gy] = hw(side, GRAVE.u, GRAVE.w);
     if (on(gx, gy))

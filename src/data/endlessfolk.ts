@@ -83,7 +83,7 @@ export const LEADER_SAYS: Readonly<
     rival:
       "A ninja, are ye? Arr, no matter: plenty fight for both sides. Gold is gold! Sign the articles and ye can be a pirate as well. I'll even throw in me parrot.",
     joined:
-      "Ye're one of us now, matey. The battles start soon: we'll steal their flag, and hold the forts, and teach those ninjas a lesson. Keep Jacks Parrow fed. And don't listen to his language.",
+      "Ye're one of us now, matey. Ready for a battle? We steal their flag from their fort and carry it home to ours, and they try to do the same to us. First to three! Keep Jacks Parrow fed. And don't listen to his language.",
     why: 'Why are we fighting? To stimulate the economy, of course! War is expensive. Somebody has to buy all these cannonballs.',
   },
   ninja: {
@@ -92,7 +92,21 @@ export const LEADER_SAYS: Readonly<
     rival:
       'You are a pirate. It does not matter: many fight for both sides. Bow, and you will be a ninja as well. Bun-San will go with you.',
     joined:
-      'You are a ninja now. The battles begin soon: we will take their flag, and hold the forts, silently. Bun-San is with you. He does not talk. He does not need to.',
+      'You are a ninja now. Ready for battle? We take their flag from their fort and bring it home to ours, silently, while they try the same. First to three. Bun-San is with you. He does not talk. He does not need to.',
     why: 'Why do we fight? To stimulate the economy. Throwing stars do not buy themselves.',
+  },
+};
+
+/** What each leader says after a battle fought for his side: won, drawn or lost. */
+export const LEADER_AFTER: Readonly<Record<Side, { win: string; draw: string; loss: string }>> = {
+  pirate: {
+    win: "Ha! Did ye see them run? That's how pirates do it. Here's yer share of the gold.",
+    draw: "A draw! Nobody wins, nobody loses, and everybody buys more cannonballs. Here's yer share.",
+    loss: "Blast those ninjas! We'll get 'em next time. Here's a bit for yer trouble.",
+  },
+  ninja: {
+    win: 'A fine battle. The pirates will talk about it for a week, loudly. Your share.',
+    draw: 'A draw. Balance. I am pleased, a little. Your share.',
+    loss: 'We lost. A ninja learns more from losing than from winning. Here is something for your trouble.',
   },
 };

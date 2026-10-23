@@ -8,6 +8,7 @@
 import { ARMOUR_MAX } from '../data/armour';
 import { type Badges, noBadges, parseBadges } from '../data/badges';
 import { type BargeSetup, defaultBarge, parseBarge } from '../data/barge';
+import { type Battles, parseBattles } from '../data/battle';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
 import {
   BEETLES_MAX,
@@ -376,12 +377,14 @@ export type SaveData = {
    * The Endless Isle, island 13, the kid's: whether it has been sighted, out in the far far sea's left corner, and which
    * sides you have joined, the pirates (Jacks Parrow with you) and the ninjas (Bun-San); you can join both. More of it
    * comes in later pieces (battle badges, the mini-games' best runs). Missing in old saves and read as not seen and
-   * nobody joined; left out of the save until it is seen, so the copy-my-game link stays short.
+   * nobody joined; left out of the save until it is seen, so the copy-my-game link stays short. Its battles fought,
+   * won and marked (data/battle.ts) are there once you have fought one.
    */
   endless: {
     seen: boolean;
     pirate: boolean;
     ninja: boolean;
+    battles?: Battles;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -855,6 +858,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   if (endless && typeof endless === 'object') {
     const k = endless as Record<string, unknown>;
     d.endless = { seen: !!k.seen, pirate: k.pirate === true, ninja: k.ninja === true };
+    const battles = parseBattles(k.battles);
+    if (battles) d.endless.battles = battles;
   }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;

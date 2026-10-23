@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ARMOUR_MAX } from '../../src/data/armour';
+import { marked, noBattles } from '../../src/data/battle';
 import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { JUNK_MAX } from '../../src/data/junk';
@@ -1258,6 +1259,41 @@ describe('the Endless Isle', () => {
       pirate: false,
       ninja: false,
     });
+  });
+
+  it('keeps the battles fought, won and marked, a save from before them reading as none, and nothing but counts', () => {
+    const s = parseSave(legacy, bounds);
+    s.endless = { seen: true, pirate: true, ninja: false };
+    expect(parseSave(serializeSave(s), bounds).endless.battles).toBeUndefined();
+    const won = marked(noBattles(), 'pirate', 'damage', 'win');
+    s.endless = { ...s.endless, battles: marked(won, 'pirate', 'damage', 'loss') };
+    const back = parseSave(serializeSave(s), bounds).endless.battles;
+    expect(back).toEqual({
+      fought: 2,
+      won: 1,
+      marks: {
+        pirate: { tank: 0, damage: 3, healer: 0 },
+        ninja: { tank: 0, damage: 0, healer: 0 },
+      },
+    });
+    const odd = {
+      ...JSON.parse(serializeSave(s)),
+      endless: {
+        seen: true,
+        pirate: true,
+        battles: { fought: 3, won: 9, marks: { ninja: { tank: 'lots', healer: -4, damage: 2.7 } } },
+      },
+    };
+    expect(parseSave(JSON.stringify(odd), bounds).endless.battles).toEqual({
+      fought: 3,
+      won: 3,
+      marks: {
+        pirate: { tank: 0, damage: 0, healer: 0 },
+        ninja: { tank: 0, damage: 2, healer: 0 },
+      },
+    });
+    const junk = { ...JSON.parse(serializeSave(s)), endless: { seen: true, battles: 'many' } };
+    expect(parseSave(JSON.stringify(junk), bounds).endless.battles).toBeUndefined();
   });
 });
 
