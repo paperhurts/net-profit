@@ -7296,7 +7296,7 @@ test("the Endless Isle: sighted, the camera takes in both halves; tie up at the 
   expect(errors).toEqual([]);
 });
 
-test("the Endless Isle's leaders: the Captain gives you Jacks Parrow, who swears in bleeps; the Master, though you are a pirate, gives you Bun-San, who vanishes in smoke when hit", async ({
+test("the Endless Isle's leaders: Captain Cappy gives you Jacks Parrow, who swears in bleeps; Master Sensei, though you are a pirate, gives you Bun-San, who vanishes in smoke when hit", async ({
   context,
   page,
 }) => {
@@ -7323,8 +7323,8 @@ test("the Endless Isle's leaders: the Captain gives you Jacks Parrow, who swears
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
-  await expect(page.locator('#toast')).toContainText('The Captain is at the foot of the pier');
-  // Up to the Captain.
+  await expect(page.locator('#toast')).toContainText('Captain Cappy is at the foot of the pier');
+  // Up to Captain Cappy.
   const toLeader = (side: 'pirate' | 'ninja') =>
     page.evaluate((side) => {
       const n = window.__np;
@@ -7333,12 +7333,13 @@ test("the Endless Isle's leaders: the Captain gives you Jacks Parrow, who swears
       n.walker.y = L.y + 16;
     }, side);
   await toLeader('pirate');
-  await expect(page.locator('#climb')).toHaveText('Talk to the Captain', { timeout: 4000 });
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
   await page.click('#climb');
   await expect(page.locator('#endlessCard')).toBeVisible();
   await expect(page.locator('#endlessSay')).toContainText('Sign the articles');
   await page.click('#endlessWhy');
   await expect(page.locator('#endlessSay')).toContainText('stimulate the economy');
+  await expect(page.locator('#endlessWho')).toHaveText('Captain Cappy');
   await page.click('#endlessJoin');
   await expect(page.locator('#endlessGot')).toHaveText('Jacks Parrow is yours!');
   await expect(page.locator('#endlessJoin')).toBeHidden();
@@ -7358,9 +7359,9 @@ test("the Endless Isle's leaders: the Captain gives you Jacks Parrow, who swears
     null,
     { timeout: 4000 },
   );
-  // Over the channel to the Master, a pirate now.
+  // Over the channel to Master Sensei, a pirate now.
   await toLeader('ninja');
-  await expect(page.locator('#climb')).toHaveText('Bow to the Master', { timeout: 4000 });
+  await expect(page.locator('#climb')).toHaveText('Bow to Master Sensei', { timeout: 4000 });
   await page.click('#climb');
   await expect(page.locator('#endlessSay')).toContainText('You are a pirate');
   await page.click('#endlessJoin');

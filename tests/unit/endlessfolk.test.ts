@@ -84,8 +84,7 @@ describe("Jacks Parrow's lines", () => {
 describe("the Endless Isle's leaders", () => {
   it('say who they are, why they fight, and give their minion to anyone, of either side or both', () => {
     expect(MINION_NAME).toEqual({ pirate: 'Jacks Parrow', ninja: 'Bun-San' });
-    expect(LEADER_NAME.pirate).toMatch(/Captain/);
-    expect(LEADER_NAME.ninja).toMatch(/Master/);
+    expect(LEADER_NAME).toEqual({ pirate: 'Captain Cappy', ninja: 'Master Sensei' });
     for (const side of SIDES) {
       const says = LEADER_SAYS[side];
       expect(says.why).toMatch(/stimulate the economy/);
@@ -94,6 +93,7 @@ describe("the Endless Isle's leaders", () => {
     }
     expect(LEADER_SAYS.pirate.hello).toMatch(/parrot/);
     expect(LEADER_SAYS.ninja.hello).toMatch(/Bun-San/);
+    for (const side of SIDES) expect(LEADER_SAYS[side].hello).toMatch(LEADER_NAME[side]);
   });
 
   it('stand ashore at the foot of each pier, mirrored, in your way, and are talked to from close by', () => {
