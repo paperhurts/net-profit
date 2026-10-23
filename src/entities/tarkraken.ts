@@ -19,15 +19,24 @@
  * Sail off out of its reach and it sinks back down whole, to start over. It is beaten once and for all.
  *
  * On the Battle Barge on the tar it is given a home of its own: awake at once, wherever the boat is, never giving up.
+ *
+ * Round two, on foot (the owner's call, 2026-10-23, the kid having asked for it fought "both" ways): once beaten at
+ * sea it comes back for the tar island. Go ashore and its arms come up out of the tar just off the shore nearest you
+ * and slam the beach, three hearts a blow (the owner's); chop six with the spear or the knife, and its eye rises off
+ * that shore with its arms up along it. Nine in the eye, and it is beaten for good: 900 coins and its eye for the
+ * trophy hall. The same kraken, on other ground (ISLE_GROUND): where its arms and eye come up, how far they reach.
  */
 
 import { rng } from '../core/math';
+import { shoreR, TAR_ISLE } from '../world/tarisle';
 import { TAR_SEA } from '../world/tarsea';
 import type { DrawView, Entity, Layer, World } from './entity';
 
 export const KRAKEN_HP = 9;
 /** What an arm's slam takes off the chemistry boat's 100. */
 export const KRAKEN_DMG = 10;
+/** What a slam takes off the figure on foot, in round two: the owner's (2026-10-21, as Skrill's blows). */
+export const KRAKEN_HEARTS = 3;
 /** Coins for beating it. */
 export const KRAKEN_PRIZE = 900;
 /** Where it lies: under the middle of the tar ocean. It wakes for a boat this near, and gives up on one this far. */
@@ -87,6 +96,84 @@ export type Arm = {
 
 type Boat = { x: number; y: number; h: number; v: number };
 
+/**
+ * Where it fights: how many arms to chop before it comes up, how near its arms reach and how wide their slams land,
+ * where a new arm comes up for a target (r a random number in 0..1), where its eye rises, and its arms round about.
+ */
+export type KrakenGround = {
+  chop: number;
+  reach: number;
+  slam: number;
+  arm(t: Boat, r: number): { x: number; y: number };
+  eye(t: Boat): { x: number; y: number };
+  ringArms: number;
+  ring(t: Boat, i: number, n: number): { x: number; y: number };
+};
+
+/** At sea, round the chemistry boat. */
+export const SEA_GROUND: KrakenGround = {
+  chop: ARMS_TO_CHOP,
+  reach: ARM_REACH,
+  slam: SLAM_R,
+  arm: (b, r) => ({
+    x: b.x + Math.cos(r * Math.PI * 2) * ARM_OFF,
+    y: b.y + Math.sin(r * Math.PI * 2) * ARM_OFF,
+  }),
+  eye: (b) => ({ x: b.x + Math.cos(b.h) * EYE_OFF, y: b.y + Math.sin(b.h) * EYE_OFF }),
+  ringArms: RING_ARMS,
+  ring: (b, i, n) => {
+    const a = (i / n) * Math.PI * 2 + 0.2;
+    return { x: b.x + Math.cos(a) * RING_R, y: b.y + Math.sin(a) * RING_R };
+  },
+};
+
+/**
+ * Round two, ashore on the tar island: arms to chop, how far they reach from the tar onto the beach and how wide a
+ * slam lands (a figure's width, not a boat's); how far off the shore its arms and its eye come up, within a spear's
+ * throw of the beach; how far either side of you along the shore the arms come up, and the five along it with the eye.
+ */
+export const ASHORE = {
+  chop: 6,
+  reach: 150,
+  slam: 32,
+  armOff: 26,
+  eyeOff: 64,
+  spread: 0.9,
+  ringArms: 5,
+  ringSpread: 1.4,
+} as const;
+/** Its lair round the tar island: it wakes for you anywhere on it, and gives up only once you are back aboard. */
+export const ISLE_LAIR: KrakenHome = {
+  x: TAR_ISLE.x,
+  y: TAR_ISLE.y,
+  wake: TAR_ISLE.r * 1.4,
+  leash: TAR_ISLE.r * 1.6,
+};
+/** The jetty runs off the island's south shore, toward +y: nothing comes up over it or the boat tied up beside it. */
+const JETTY_A = Math.PI / 2;
+const JETTY_CLEAR = 0.3;
+function clearOfJetty(a: number): number {
+  const d = Math.atan2(Math.sin(a - JETTY_A), Math.cos(a - JETTY_A));
+  return Math.abs(d) >= JETTY_CLEAR ? a : JETTY_A + (d < 0 ? -JETTY_CLEAR : JETTY_CLEAR);
+}
+/** A point out on the tar off the island's shore, round at angle a. */
+export function offShore(a: number, off: number): { x: number; y: number } {
+  const b = clearOfJetty(a);
+  const r = shoreR(b) + off;
+  return { x: TAR_ISLE.x + Math.cos(b) * r, y: TAR_ISLE.y + Math.sin(b) * r };
+}
+const toward = (t: Boat) => Math.atan2(t.y - TAR_ISLE.y, t.x - TAR_ISLE.x);
+export const ISLE_GROUND: KrakenGround = {
+  chop: ASHORE.chop,
+  reach: ASHORE.reach,
+  slam: ASHORE.slam,
+  arm: (t, r) => offShore(toward(t) + (r - 0.5) * ASHORE.spread, ASHORE.armOff),
+  eye: (t) => offShore(toward(t), ASHORE.eyeOff),
+  ringArms: ASHORE.ringArms,
+  ring: (t, i, n) =>
+    offShore(toward(t) + (i / (n - 1) - 0.5) * ASHORE.ringSpread, ASHORE.armOff + 10),
+};
+
 export class TarKraken implements Entity {
   /** Awake: the eel beaten and the monkey caged, and the kraken not yet beaten. */
   on = false;
@@ -118,6 +205,7 @@ export class TarKraken implements Entity {
   constructor(
     seed = 7319,
     readonly home: KrakenHome = TAR_LAIR,
+    readonly ground: KrakenGround = SEA_GROUND,
   ) {
     this.R = rng(seed);
   }
@@ -180,7 +268,7 @@ export class TarKraken implements Entity {
     a.flash = 0.2;
     this.set(a, 'sink');
     this.chopped++;
-    this.onChop?.(a, Math.max(0, ARMS_TO_CHOP - this.chopped));
+    this.onChop?.(a, Math.max(0, this.ground.chop - this.chopped));
     return true;
   }
 
@@ -205,6 +293,11 @@ export class TarKraken implements Entity {
   /** Whether a slam landing now catches a boat at (x, y). */
   static catches(a: Arm, x: number, y: number): boolean {
     return Math.hypot(x - a.at.x, y - a.at.y) < SLAM_R;
+  }
+
+  /** Whether a slam landing now catches what it fights at (x, y), on its own ground. */
+  catches(a: Arm, x: number, y: number): boolean {
+    return Math.hypot(x - a.at.x, y - a.at.y) < this.ground.slam;
   }
 
   /** A step: the boat on the tar, or none (ashore, docked, or off the tar). */
@@ -242,14 +335,15 @@ export class TarKraken implements Entity {
       return;
     }
     if (this.state === 'arms') {
-      if (this.chopped >= ARMS_TO_CHOP) {
+      if (this.chopped >= this.ground.chop) {
         this.state = 'rise';
         this.t = 0;
         for (const a of this.arms)
           if (a.state !== 'gone' && a.state !== 'sink') this.set(a, 'sink');
+        const at = this.ground.eye(boat);
         this.eye = {
-          x: boat.x + Math.cos(boat.h) * EYE_OFF,
-          y: boat.y + Math.sin(boat.h) * EYE_OFF,
+          x: at.x,
+          y: at.y,
           state: 'shut',
           t: 0,
           flash: 0,
@@ -261,8 +355,8 @@ export class TarKraken implements Entity {
       const up = this.arms.filter((a) => a.state !== 'sink' && a.state !== 'gone').length;
       if (this.wait <= 0 && up < ARMS_UP) {
         this.wait = ARM_EVERY * (0.8 + this.R() * 0.4);
-        const a = this.R() * Math.PI * 2;
-        this.raise(boat.x + Math.cos(a) * ARM_OFF, boat.y + Math.sin(a) * ARM_OFF, false);
+        const at = this.ground.arm(boat, this.R());
+        this.raise(at.x, at.y, false);
       }
       return;
     }
@@ -273,10 +367,11 @@ export class TarKraken implements Entity {
         this.eye.state = 'shut';
         this.eye.t = 0;
         this.turn = RING_EVERY;
-        // Eight arms all round the boat.
-        for (let i = 0; i < RING_ARMS; i++) {
-          const a = (i / RING_ARMS) * Math.PI * 2 + 0.2;
-          this.raise(boat.x + Math.cos(a) * RING_R, boat.y + Math.sin(a) * RING_R, true);
+        // Its arms all round the boat, or along the shore by its eye.
+        const n = this.ground.ringArms;
+        for (let i = 0; i < n; i++) {
+          const at = this.ground.ring(boat, i, n);
+          this.raise(at.x, at.y, true);
         }
       }
       return;
@@ -312,7 +407,7 @@ export class TarKraken implements Entity {
           best = a;
         }
       }
-      if (best && bd < ARM_REACH * 1.6) this.windup(best, boat);
+      if (best && bd < this.ground.reach * 1.6) this.windup(best, boat);
     }
   }
 
@@ -354,7 +449,7 @@ export class TarKraken implements Entity {
     if (a.state === 'windup') {
       if (a.t >= ARM_WINDUP) {
         this.set(a, 'slam');
-        const hit = !!boat && TarKraken.catches(a, boat.x, boat.y);
+        const hit = !!boat && this.catches(a, boat.x, boat.y);
         this.onSlam?.(a, hit);
       }
       return;
@@ -371,7 +466,7 @@ export class TarKraken implements Entity {
       this.set(a, 'sink');
       return;
     }
-    if (boat && Math.hypot(boat.x - a.x, boat.y - a.y) < ARM_REACH) this.windup(a, boat);
+    if (boat && Math.hypot(boat.x - a.x, boat.y - a.y) < this.ground.reach) this.windup(a, boat);
   }
 
   private set(a: Arm, s: ArmState): void {

@@ -566,6 +566,27 @@ const DRAW: Readonly<Record<TrophyKind, (c: Pen, T: number) => void>> = {
       c.fill();
     }
   },
+  // The tar kraken's eye: a glossy black dome on a puddle of tar, its lid nearly shut on a sliver of yellow.
+  krakeneye: (c) => {
+    oval(c, '#3A3236', 0, -1, 5, 1.8);
+    oval(c, '#0B090E', 0, -2, 6, 2.2);
+    c.fillStyle = '#16121A';
+    c.beginPath();
+    c.ellipse(0, -9, 7, 8, 0, Math.PI, 0);
+    c.lineTo(7, -2);
+    c.lineTo(-7, -2);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(200,180,230,.7)';
+    c.lineWidth = 0.8;
+    c.stroke();
+    // The sliver of eye under its lid, and its slit.
+    oval(c, '#E8C23A', 0, -9, 4.6, 1.1);
+    c.fillStyle = '#0B090E';
+    c.fillRect(-0.4, -10.1, 0.8, 2.2);
+    // Its shine.
+    oval(c, 'rgba(255,255,255,.5)', -3, -13, 1.6, 0.9, -0.4);
+  },
   // A long white tooth.
   tooth: (c) => {
     oval(c, '#3A3236', 0, -1, 4, 1.6);

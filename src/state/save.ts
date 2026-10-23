@@ -251,6 +251,8 @@ export type SaveData = {
   skrillBeaten: boolean;
   /** The tar kraken beaten, under the middle of the tar ocean. Missing in old saves and read as not. */
   krakenBeaten: boolean;
+  /** Round two: the tar kraken beaten again, on foot on the tar island. Missing in old saves and read as not. */
+  krakenFoot: boolean;
   /** The Forgotten One has shown you round his castle and given it you: Gigantis is your headquarters, and he is gone,
    *  saving you from the Old One. Missing in old saves and read as not. */
   castleHQ: boolean;
@@ -507,6 +509,7 @@ export function defaultSave(b: Bounds): SaveData {
     cryptWon: false,
     skrillBeaten: false,
     krakenBeaten: false,
+    krakenFoot: false,
     castleHQ: false,
     scanner: 0,
     scanned: [],
@@ -769,6 +772,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   d.cryptWon = !!o.cryptWon;
   d.skrillBeaten = !!o.skrillBeaten;
   d.krakenBeaten = !!o.krakenBeaten;
+  d.krakenFoot = !!o.krakenFoot;
   d.castleHQ = !!o.castleHQ;
   d.scanner = typeof o.scanner === 'number' && o.scanner > 0 ? Math.floor(o.scanner) : 0;
   d.scanned = Array.isArray(o.scanned) ? [...new Set(o.scanned.filter(isScanKind))] : [];
@@ -980,6 +984,7 @@ export function serializeSave(d: SaveData): string {
     cryptWon: d.cryptWon,
     skrillBeaten: d.skrillBeaten,
     krakenBeaten: d.krakenBeaten,
+    krakenFoot: d.krakenFoot,
     castleHQ: d.castleHQ,
     scanner: d.scanner,
     scanned: d.scanned,
