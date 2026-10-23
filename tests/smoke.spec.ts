@@ -7163,7 +7163,7 @@ test('Skull Island: sighted, the camera takes in the whole skull, tie up off its
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
-  await expect(page.locator('#toast')).toContainText('Skull Island');
+  await expect(page.locator('#toast')).toContainText('Ashore on Skull Island');
   // Skrill's men have a test of their own: here only the walk.
   await page.evaluate(() => {
     for (const m of window.__np.boneMen.list) m.state = 'gone';
@@ -7193,7 +7193,10 @@ test('Skull Island: sighted, the camera takes in the whole skull, tie up off its
     n.walker.x = x;
     n.walker.y = y;
   });
-  await expect(page.locator('#toast')).toContainText('eye socket', { timeout: 8000 });
+  // A message's words stay in the element after it goes, and the landing one's say "Mind its eye sockets": matched on
+  // those, both checks pass before the game has had a frame, the figure is at the tower as the eye's message goes up,
+  // and the tower's waits behind it longer than a message waits. So the eye's own words.
+  await expect(page.locator('#toast')).toContainText('An eye socket', { timeout: 8000 });
   await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
   await page.evaluate(() => {
     const n = window.__np;
