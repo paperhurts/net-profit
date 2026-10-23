@@ -43,6 +43,7 @@ type Np = {
   isle12Seen: boolean;
   endless: { seen: boolean; pirate: boolean; ninja: boolean };
   DOCK13: Record<'pirate' | 'ninja', { x: number; y: number; r: number }>;
+  camAt: { x: number; y: number };
   LEADER13: Record<'pirate' | 'ninja', { x: number; y: number }>;
   jacks: { shown: boolean; free: boolean; x: number; y: number; z: number };
   bunSan: { shown: boolean; free: boolean; poofT: number; hurt(): boolean };
@@ -7253,6 +7254,13 @@ test("the Endless Isle: sighted, the camera takes in both halves; tie up at the 
     n.boat.h = (3 * Math.PI) / 4;
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  // Tied up, the camera leans a little toward the pier's crates, as at every island, not off across the sea toward home.
+  await page.waitForTimeout(2500);
+  const lean = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.camAt.x - n.boat.x, n.camAt.y - n.boat.y);
+  });
+  expect(lean).toBeLessThan(250);
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText("the pirates' half");
