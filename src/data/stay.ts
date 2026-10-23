@@ -16,6 +16,8 @@ export const COMPANIONS = [
   'necro',
   'baby',
   'caterman',
+  'parrot',
+  'bun',
 ] as const;
 export type Companion = (typeof COMPANIONS)[number];
 
@@ -29,6 +31,8 @@ export const COMPANION_NAMES: Readonly<Record<Companion, string>> = {
   necro: 'Necromancer',
   baby: 'Baby Reaper',
   caterman: 'Caterman',
+  parrot: 'Jacks Parrow',
+  bun: 'Bun-San',
 };
 
 /** What each does for you, on the roll-call board. */
@@ -42,6 +46,8 @@ export const COMPANION_BLURBS: Readonly<Record<Companion, string>> = {
   necro: 'Raises his skeleton hamster to fight for you.',
   baby: 'Nips whatever you fight, and swims off the bow at sea.',
   caterman: 'Zaps from further off, with the blaster he built.',
+  parrot: 'Rides your shoulder and flies off to peck whatever you fight. Mind his language.',
+  bun: 'Hops at your heel and spins in with his sword. Hit, he vanishes in smoke and pops up behind you.',
 };
 
 const isCompanion = (v: unknown): v is Companion => COMPANIONS.includes(v as Companion);
@@ -69,4 +75,6 @@ export const WAIT_AT: Readonly<Record<Companion, { dx: number; dy: number }>> = 
   naga: { dx: 16, dy: 44 },
   baby: { dx: 40, dy: 20 },
   tarling: { dx: 100, dy: 32 },
+  parrot: { dx: 116, dy: -40 },
+  bun: { dx: 40, dy: 116 },
 };

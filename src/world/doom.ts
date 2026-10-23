@@ -198,6 +198,27 @@ function cratesOf(side: Side) {
 /** The crates at a pier's root, where the catch goes. */
 export const CRATES13 = { pirate: cratesOf('pirate'), ninja: cratesOf('ninja') } as const;
 
+/**
+ * Each side's leader, the pirates' Captain and the ninjas' Master: ashore at the root of the pier, to its channel
+ * side, so you walk past him stepping off it; how near to talk to him, and how wide he stands.
+ */
+export const LEADER13_AT = { u: 560, w: 395 } as const;
+export const LEADER13_REACH = 46;
+export const LEADER13_R = 8;
+function leaderOf(side: Side) {
+  const [x, y] = atHalf(side, LEADER13_AT.u, LEADER13_AT.w);
+  return { x, y } as const;
+}
+export const LEADER13 = { pirate: leaderOf('pirate'), ninja: leaderOf('ninja') } as const;
+/** The leader within talking reach of a point, if either is. */
+export function leaderNear(x: number, y: number): Side | null {
+  for (const side of SIDES) {
+    const p = LEADER13[side];
+    if (Math.hypot(x - p.x, y - p.y) < LEADER13_REACH) return side;
+  }
+  return null;
+}
+
 /** Each side's fort at the far end of its half: a ring of wall with its gate toward the channel, the flag inside. */
 export const FORT = { u: 0, w: 860, r: 95, wall: 7, gate: 0.4 } as const;
 /** Each side's graveyard, where the beaten will get up again: the pirates' beached ship, the ninjas' shrine. */
@@ -275,6 +296,7 @@ export function blockedHalf(u: number, w: number): boolean {
   if (Math.hypot(u - GRAVE.u, w - GRAVE.w) <= GRAVE.r) return true;
   if (Math.hypot(u - BASE.u, w - BASE.w) <= BASE.core) return true;
   if (Math.hypot(u - PEAK.u, w - PEAK.w) <= PEAK.r) return true;
+  if (Math.hypot(u - LEADER13_AT.u, w - LEADER13_AT.w) <= LEADER13_R) return true;
   return TREES13.some(([tu, tw]) => Math.hypot(u - tu, w - tw) <= TRUNK);
 }
 
