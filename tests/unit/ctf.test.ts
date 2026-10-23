@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CTF, KITS, TEAM } from '../../src/data/battle';
+import { ABILITY, CTF, KITS, TEAM } from '../../src/data/battle';
 import { Ctf, type Fighter, flagHome, gateSpot, graveSpot, inFort } from '../../src/entities/ctf';
 import { SIDES } from '../../src/world/endless';
 import { distOf, flowTo, walkable } from '../../src/world/endlessnav';
@@ -249,6 +249,112 @@ describe('a Capture the Flag battle', () => {
     });
     run(g, 0.6, 0.1, () => [you.u, you.v]);
     expect(foes.filter((f) => f.target === you).length).toBeLessThanOrEqual(2);
+  });
+
+  it('lets you take any role, its hearts and its Badge I ability yours, a bot filling the place you leave', () => {
+    for (const role of ['tank', 'damage', 'healer'] as const) {
+      const g = new Ctf('ninja', 2, 1.12, role);
+      const you = g.you as Fighter;
+      expect(you.role).toBe(role);
+      expect(you.hp).toBe(KITS[role].hearts);
+      expect(you.ab).toBe({ tank: 'taunt', damage: 'shot', healer: 'heal' }[role]);
+      expect(g.fighters.filter((f) => !f.bot)).toEqual([you]);
+      expect(
+        g
+          .team('ninja')
+          .map((f) => f.role)
+          .sort(),
+      ).toEqual(['damage', 'damage', 'damage', 'healer', 'tank']);
+    }
+  });
+
+  it("the tank's shout makes every foe close by come at it, then waits its cooldown", () => {
+    const g = new Ctf('pirate', 12, 1.12, 'tank');
+    open(g);
+    const you = g.you as Fighter;
+    const near = g.team('ninja').filter((f) => f.role === 'damage');
+    only(g, [you, ...near]);
+    expect(g.ability()).toBeNull();
+    near.forEach((f, i) => {
+      f.u = you.u + (i === 2 ? ABILITY.taunt.reach + 40 : 60 + i * 30);
+      f.v = you.v;
+      f.target = null;
+    });
+    expect(g.ability()).toBe('taunt');
+    expect(near.map((f) => f.tauntBy === you)).toEqual([true, true, false]);
+    expect(g.events.some((e) => e.k === 'taunt' && e.n === 2)).toBe(true);
+    // Made to come at you, even with something else to do.
+    const first = near[0] as Fighter;
+    first.carrying = true;
+    run(g, 0.3, 0.1, () => [you.u, you.v]);
+    expect(first.target).toBe(you);
+    expect(g.ability()).toBeNull();
+    you.abCd = 0;
+    expect(g.ability()).toBe('taunt');
+  });
+
+  it("the damage's shot aims at the nearest foe in reach, a carrier first, and hits for four when the aim is done", () => {
+    const g = new Ctf('pirate', 13);
+    open(g);
+    const you = g.you as Fighter;
+    const [a, b] = g.team('ninja').filter((f) => f.role === 'damage') as [Fighter, Fighter];
+    only(g, [you, a, b]);
+    a.cd = b.cd = 99;
+    a.abCd = b.abCd = 99;
+    a.u = you.u + ABILITY.shot.reach + 20;
+    a.v = b.v = you.v;
+    b.u = you.u - ABILITY.shot.reach - 20;
+    expect(g.ability()).toBeNull();
+    a.u = you.u + 150;
+    b.u = you.u - 250;
+    b.carrying = true;
+    expect(g.ability()).toBe('shot');
+    expect(you.aimAt).toBe(b);
+    expect(b.hp).toBe(KITS.damage.hearts);
+    run(g, ABILITY.shot.aim + 0.1, 0.05, () => [you.u, you.v]);
+    expect(b.hp).toBe(KITS.damage.hearts - ABILITY.shot.hit);
+    expect(g.events.some((e) => e.k === 'shot' && e.to === b)).toBe(true);
+    expect(g.ability()).toBeNull();
+  });
+
+  it("the healer's heal goes to the most hurt teammate near, or itself, and never past full", () => {
+    const g = new Ctf('pirate', 14, 1.12, 'healer');
+    open(g);
+    const you = g.you as Fighter;
+    const [tank, dmg] = [
+      g.team('pirate').find((f) => f.role === 'tank'),
+      g.team('pirate').find((f) => f.role === 'damage'),
+    ] as [Fighter, Fighter];
+    only(g, [you, tank, dmg]);
+    expect(g.ability()).toBeNull();
+    tank.u = dmg.u = you.u + 100;
+    tank.v = dmg.v = you.v;
+    tank.hp = KITS.tank.hearts - 2;
+    dmg.hp = KITS.damage.hearts - 5;
+    expect(g.ability()).toBe('heal');
+    expect(dmg.hp).toBe(KITS.damage.hearts - 1);
+    expect(you.stats.healed).toBe(ABILITY.heal.hearts);
+    you.abCd = 0;
+    dmg.hp = KITS.damage.hearts;
+    expect(g.ability()).toBe('heal');
+    expect(tank.hp).toBe(KITS.tank.hearts);
+    you.abCd = 0;
+    you.hp = 3;
+    tank.u = you.u + ABILITY.heal.reach + 30;
+    expect(g.ability()).toBe('heal');
+    expect(you.hp).toBe(3 + ABILITY.heal.hearts);
+  });
+
+  it('has the bots use their abilities, on both sides', () => {
+    const g = new Ctf(null, 15);
+    const used = { pirate: new Set<string>(), ninja: new Set<string>() };
+    for (let t = 0; t < CTF.gates + 180 && g.phase !== 'over'; t += 0.1) {
+      g.update(0.1);
+      for (const e of g.events.splice(0))
+        if (e.k === 'taunt' || e.k === 'aim' || e.k === 'heal') used[e.f.side].add(e.k);
+    }
+    expect([...used.pirate].sort()).toEqual(['aim', 'heal', 'taunt']);
+    expect([...used.ninja].sort()).toEqual(['aim', 'heal', 'taunt']);
   });
 
   it('balances out: bots alone, each side wins about as often, and every battle ends by its clock', () => {

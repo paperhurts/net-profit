@@ -7490,7 +7490,7 @@ test("the Endless Isle's leaders: Captain Cappy gives you Jacks Parrow, who swea
   expect(errors).toEqual([]);
 });
 
-test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates, your strike, their flag brought home three times for the win, its pay and marks, and leaving one early pays nothing', async ({
+test('Capture the Flag on the Endless Isle: the badge card, behind the gates, your strike and your Flintlock, their flag brought home three times for the win, its pay and marks; then the Quartermaster, his hearts as a bar and his shout, left early for nothing', async ({
   context,
   page,
 }) => {
@@ -7532,6 +7532,13 @@ test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates
   }));
   await page.click('#climb');
   await page.click('#endlessFight');
+  // The badge card: the three places in the crew, each with its Badge I ability.
+  await expect(page.locator('#endlessRoles')).toBeVisible();
+  await expect(page.locator('#endlessRoles [data-role="tank"]')).toContainText('Quartermaster');
+  await expect(page.locator('#endlessRoles [data-role="tank"]')).toContainText('Oi! Over here!');
+  await expect(page.locator('#endlessRoles [data-role="healer"]')).toContainText('Sea Biscuit');
+  await expect(page.locator('#endlessRoles [data-role="damage"]')).toContainText('Flintlock');
+  await page.click('#endlessRoles [data-role="damage"]');
   // In the pirates' fort, behind the gates: a Swashbuckler's eight hearts, and only Jacks Parrow fights with you.
   await expect(page.locator('#ctfBar')).toBeVisible();
   await expect(page.locator('#ctfWhat')).toContainText('Gates drop in');
@@ -7598,6 +7605,27 @@ test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates
     null,
     { timeout: 3000 },
   );
+  // The Flintlock: the foe stepped back out of the sword's reach, still in the shot's, takes four.
+  await expect(page.locator('#ability')).toBeVisible();
+  const shotAt = await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf;
+    const foe = c.fighters.find((f) => f.side === 'ninja' && f.role === 'damage') as CtfFighter;
+    foe.u = c.you.u + 200;
+    foe.v = c.you.v;
+    return foe.hp;
+  });
+  await page.dispatchEvent('#ability', 'pointerdown', { button: 0 });
+  await page.waitForFunction(
+    (hp) =>
+      (
+        (window.__np.ctf as Ctf).fighters.find(
+          (f) => f.side === 'ninja' && f.role === 'damage',
+        ) as CtfFighter
+      ).hp <=
+      hp - 4,
+    shotAt,
+    { timeout: 3000 },
+  );
   await page.evaluate(() => {
     const foe = (window.__np.ctf as Ctf).fighters.find(
       (f) => f.side === 'ninja' && f.role === 'damage',
@@ -7655,11 +7683,34 @@ test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates
       timeout: 3000,
     },
   );
-  // Another, left early: nothing paid.
+  // Another, as the Quartermaster: fourteen hearts as a bar, and the shout that makes a foe come at you; left early,
+  // nothing paid.
   await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
   await page.click('#climb');
   await page.click('#endlessFight');
+  await page.click('#endlessRoles [data-role="tank"]');
   await expect(page.locator('#leave')).toHaveText('Leave the battle');
+  await expect(page.locator('#hearts .hbar')).toBeVisible();
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(14);
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf;
+    const foe = c.fighters.find((f) => f.side === 'ninja' && f.role === 'damage') as CtfFighter;
+    foe.u = c.you.u + 60;
+    foe.v = c.you.v;
+  });
+  await page.dispatchEvent('#ability', 'pointerdown', { button: 0 });
+  await page.waitForFunction(
+    () => {
+      const c = window.__np.ctf as Ctf & { you: { abCd: number } };
+      return c.you.abCd > 0;
+    },
+    null,
+    { timeout: 3000 },
+  );
   await page.click('#leave');
   await expect(page.locator('#toast')).toContainText('A battle left early pays nothing');
   expect(await page.evaluate(() => [window.__np.ctf, window.__np.coins])).toEqual([
