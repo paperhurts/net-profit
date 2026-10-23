@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Net Profit player's guide</title>
+<meta name="description" content="How to play Net Profit, where everything is and how to beat it, the answers folded away.">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* The game's own colours (index.html), so the guide reads as part of it. */
+:root{
+  --font:"Grandstander",ui-rounded,"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;
+  --abyss:#1B6676;
+  --plank:#D39C5C; --plank-edge:#8F5F2C; --plank-fg:#2A1A08;
+  --card:#FFF6E5; --card-fg:#12303A; --muted:#5C7077;
+  --buoy:#E4572E; --buoy-fg:#FFF6E5; --coin:#FFC53D; --coin-edge:#C98A12;
+  --track:rgba(18,48,58,.14); --fill:#2B8A99; --rule:rgba(18,48,58,.16);
+  --hint:#E7F3F1; --answer:#FFF0C9; --secret:#2A2347; --secret-fg:#F1EBDA;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --abyss:#0A1E30;
+    --plank:#6E4A2A; --plank-edge:#3F2912; --plank-fg:#F6E6C8;
+    --card:#17364A; --card-fg:#F1EBDA; --muted:#9DB4BC;
+    --track:rgba(255,255,255,.12); --fill:#5BBFB5; --rule:rgba(255,255,255,.14);
+    --hint:#1D4458; --answer:#3A3420; --secret:#221C3C; --secret-fg:#F1EBDA;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --abyss:#0A1E30;
+  --plank:#6E4A2A; --plank-edge:#3F2912; --plank-fg:#F6E6C8;
+  --card:#17364A; --card-fg:#F1EBDA; --muted:#9DB4BC;
+  --track:rgba(255,255,255,.12); --fill:#5BBFB5; --rule:rgba(255,255,255,.14);
+  --hint:#1D4458; --answer:#3A3420; --secret:#221C3C; --secret-fg:#F1EBDA;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:12px}
+body{margin:0;background:var(--abyss);color:var(--card-fg);font:500 17px/1.5 var(--font);
+  padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(28px + env(safe-area-inset-bottom,0px))}
+main{max-width:40rem;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+a{color:inherit;text-decoration-color:var(--fill);text-decoration-thickness:2px;text-underline-offset:3px}
+h1,h2,h3{font-weight:800;line-height:1.15;text-wrap:balance;margin:0}
+p,ul,ol{margin:0}
+ul,ol{padding-left:1.25em}
+li+li{margin-top:4px}
+b{font-weight:800}
+kbd{font:700 .82em/1 var(--font);background:var(--track);border:1px solid var(--rule);border-bottom-width:2px;
+  border-radius:6px;padding:2px 6px;white-space:nowrap}
+
+/* The sign over the dock: the guide's title. */
+.sign{background:var(--plank);color:var(--plank-fg);border:2px solid var(--plank-edge);border-radius:14px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:6px;
+  background-image:repeating-linear-gradient(0deg,transparent 0 21px,rgba(0,0,0,.08) 21px 23px)}
+.sign h1{font-size:32px}
+.sign .kicker{font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.sign p{font-size:16px}
+.back{align-self:flex-start;background:var(--card);color:var(--card-fg);border-radius:999px;padding:6px 14px;
+  font-weight:800;text-decoration:none;font-size:15px}
+.framed .back{display:none}
+
+/* Contents: one row of tags that wraps. */
+nav{display:flex;flex-wrap:wrap;gap:8px}
+nav a{background:var(--card);border-radius:999px;padding:5px 12px;font-size:15px;font-weight:700;text-decoration:none}
+
+/* A section is a card. */
+section{background:var(--card);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+section>h2{font-size:23px;display:flex;align-items:center;gap:10px}
+section>h2 .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--coin);color:#2A1A08;border:2px solid var(--coin-edge);
+  font-size:15px;display:grid;place-items:center}
+h3{font-size:18px;margin-top:4px}
+.muted{color:var(--muted)}
+.lead{font-size:18px}
+
+/* Tables of controls and prices. */
+.wide{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{text-align:left;vertical-align:top;padding:6px 4px;border-bottom:1px solid var(--rule)}
+th{font-weight:800;font-size:14px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.num{text-align:right}
+
+/* Folds. A place or a boss opens to its hint; inside it, the answer is folded again. */
+details{border-radius:12px;min-width:0}
+details>summary{cursor:pointer;list-style:none;font-weight:800;padding:10px 12px;display:flex;align-items:center;gap:10px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"";flex:none;width:0;height:0;border-style:solid;border-width:6px 0 6px 9px;
+  border-color:transparent transparent transparent currentColor;transition:transform .15s}
+details[open]>summary::before{transform:rotate(90deg)}
+details>.in{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+.place,.list{background:var(--hint)}
+.place>summary small{font-weight:600;color:var(--muted);margin-left:auto;text-align:right}
+.answer{background:var(--answer);border:2px dashed var(--coin-edge)}
+.answer>summary{font-size:15px;padding:8px 12px}
+.secrets{background:var(--secret);color:var(--secret-fg);border-radius:16px}
+.secrets>summary{font-size:21px;padding:16px}
+.secrets .place{background:rgba(255,255,255,.07)}
+.secrets .answer{background:rgba(255,197,61,.12)}
+.secrets .muted{color:#B9B2D6}
+.tip{border-left:4px solid var(--fill);padding:2px 0 2px 12px}
+footer{text-align:center;color:var(--card);font-size:14px;opacity:.85}
+@media (prefers-reduced-motion: reduce){details>summary::before{transition:none}}
+</style>
+<script>
+  // Opened over the game in a frame, the game has its own close button: the way back here would load a second game.
+  if (window.self !== window.top) document.documentElement.classList.add('framed');
+</script>
+</head>
+<body>
+<main>
+<header class="sign">
+  <p class="kicker">Net Profit</p>
+  <h1>Player's guide</h1>
+  <p>How to play, where everything is, and how to beat it all. Every answer is folded away, so nothing is spoiled until you open it.</p>
+  <a class="back" href="./">← Back to the game</a>
+</header>
+
+<nav aria-label="Contents">
+  <a href="#start">Start</a><a href="#controls">Controls</a><a href="#fishing">Fishing and coins</a><a href="#gear">Gear</a><a href="#places">Places</a><a href="#bosses">Bosses</a><a href="#friends">Friends</a><a href="#fun">Side quests</a><a href="#hq">Headquarters</a><a href="#saving">Saving</a><a href="#secrets">Secrets</a><a href="#soon">Coming soon</a>
+</nav>
+
+<section id="start">
+  <h2><span class="n">1</span>Getting started</h2>
+  <p class="lead">You skipper a little fishing boat with a net on a line behind it. Steer through the fish, fill your hold, sail home to sell, and spend the coins on a wider net, a bigger hold and a faster engine. A bigger boat sails further, and further out there are islands, sea monsters, a castle and a whole ocean of tar.</p>
+  <h3>Your first few minutes</h3>
+  <ol>
+    <li>Tap <b>Cast off</b>. You start next to the home dock in a dinghy that holds 12 fish.</li>
+    <li>Drag anywhere on the screen to steer. Sail through a school of fish and the net scoops them up.</li>
+    <li>When the hold bar goes red, a gold arrow points home. Sail into the ring by the dock and your fish sell by themselves.</li>
+    <li>Spend your coins in the shop: <b>Wider net</b>, <b>Bigger hold</b> and <b>Faster engine</b>.</li>
+    <li>Sail into floating driftwood on the way. It builds your treehouse, which grows into a palace.</li>
+  </ol>
+  <p class="tip"><b>You can't lose your stuff.</b> Coins, upgrades and your boat are always kept. Sinking or losing a fight only ever costs the fish in your hold.</p>
+  <p class="tip"><b>Stuck?</b> Every place and boss below has a hint. If the hint isn't enough, open <b>Show the answer</b>.</p>
+  <details class="answer"><summary>Show the usual order of the story</summary><div class="in">
+    <ol>
+      <li>Grow the boat at home until all three upgrades are at level 6. That's the flagship, the only boat that can cross the buoys.</li>
+      <li>Island 2: the spear, the monkey camp and the tower.</li>
+      <li>Island 3: the tower, the scuba gear and the dive underneath it. Then something happens to island 4.</li>
+      <li>Island 4: the chemistry suit and the Tar Anchorer. The far deep opens.</li>
+      <li>Buy the harpoon. Island 5: the Skeleton Shark King.</li>
+      <li>Island 6: the Deep One and what's under it, Star, and the Reaper's egg. The Reaper at sea gives you an ice fishing kit for the ice floe.</li>
+      <li>Island 7: the sorcerer and the portal to Gigantis, the castle on the sea.</li>
+      <li>Islands 8 and 9: the Heron.</li>
+      <li>Island 10: the old man's store, the swamp, the pelican and the crows.</li>
+      <li>A crow shows you the way past the white buoys to island 11.</li>
+      <li>Back in Gigantis: the crypt behind the skull door.</li>
+      <li>The abyss, the metal bridge, the tar ocean and the tar island.</li>
+      <li>Skull Island and Skrill.</li>
+      <li>The Endless Isle.</li>
+    </ol>
+    <p>Later on, the orb on the roof of the metal bridge always tells you what to do next.</p>
+  </div></details>
+</section>
+
+<section id="controls">
+  <h2><span class="n">2</span>Controls</h2>
+  <div class="wide"><table>
+    <thead><tr><th>To</th><th>On a phone</th><th>On a keyboard</th></tr></thead>
+    <tbody>
+      <tr><td>Steer the boat</td><td>Put a thumb down anywhere and drag the way you want to go</td><td>Arrow keys or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td></tr>
+      <tr><td>Walk ashore</td><td>The same. Half a push is already full speed</td><td>Arrow keys or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td></tr>
+      <tr><td>Throw a spear, fire the harpoon</td><td>The round button on the right</td><td><kbd>Space</kbd></td></tr>
+      <tr><td>Send a message away</td><td>Tap it, or flick it</td><td></td></tr>
+      <tr><td>Close the map or a card</td><td>Its ✕ button</td><td><kbd>Esc</kbd></td></tr>
+    </tbody>
+  </table></div>
+  <p>The boat carves round rather than turning on the spot, so start your turns early. You can steer while the shop is open: drag on its wood and it fades out of the way.</p>
+  <p>On a keyboard, the <b>⌨ drive</b> pill at the top changes how the keys feel. In <b>drive</b>, left and right turn the boat, up is the throttle and down is the brake. In <b>point</b>, the keys point the boat the way a thumb does.</p>
+  <h3>What's on the screen</h3>
+  <ul>
+    <li><b>Top left:</b> your coins, the hold (how many fish out of how many), and the order card.</li>
+    <li><b>Top right:</b> sound on or off (♪), and <b>Start over</b> (↻). Start over takes two taps and wipes your game, so write your save code down first.</li>
+    <li><b>Down the right:</b> chips for your hearts (ashore), the boat's hull (past the buoys), the time of day, driftwood, junk and snacks.</li>
+    <li><b>Bottom left:</b> the round <b>Sea map</b> button. Once you own a spear, the crossed swords of the <b>Battle Barge</b> sit beside it.</li>
+    <li><b>Bottom right:</b> the radar, once you've bought one.</li>
+    <li><b>Right edge:</b> the round <b>Throw</b> button. It turns blue when the harpoon has something to hit. Other buttons pop up around it when you can use them.</li>
+    <li><b>Arrows at the edges</b> point at things off the screen. Gold points to the dock when you're full, or to the fish your order wants. A coloured, pulsing marker is an island you haven't found yet: follow it.</li>
+  </ul>
+</section>
+
+<section id="fishing">
+  <h2><span class="n">3</span>Fishing and coins</h2>
+  <h3>The net</h3>
+  <p>Your net is towed on a line behind the boat, like a trailer. Turning swings it out wide, so sweep big curves through the schools. It only catches while it's moving along, and only while the hold has room. Schools thin out as you fish them and fill back up after a while.</p>
+  <p>About one catch in twenty is junk: an old boot, a tin can, a soggy sock. The dock won't buy it, but the muffin man will take it (see <a href="#fun">Side quests</a>).</p>
+  <h3>Selling and orders</h3>
+  <p>Sail into the ring at a dock and the shop opens and sells your fish, cheapest first. Docking also mends a torn net and shakes out jellyfish. The islands you find later have docks that buy fish too.</p>
+  <p>The order card asks for a number of one kind of fish, like "12 mackerel pays 40". Catch them for the bonus and a new order. The gold arrow points to the nearest school it wants.</p>
+  <h3>Upgrades</h3>
+  <div class="wide"><table>
+    <thead><tr><th>Level</th><th class="num">Net width</th><th class="num">Hold</th><th class="num">Top speed</th><th class="num">Net costs</th><th class="num">Hold costs</th><th class="num">Engine costs</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td class="num">52</td><td class="num">12</td><td class="num">175</td><td class="num">–</td><td class="num">–</td><td class="num">–</td></tr>
+      <tr><td>2</td><td class="num">68</td><td class="num">20</td><td class="num">205</td><td class="num">8</td><td class="num">6</td><td class="num">10</td></tr>
+      <tr><td>3</td><td class="num">88</td><td class="num">32</td><td class="num">240</td><td class="num">20</td><td class="num">16</td><td class="num">25</td></tr>
+      <tr><td>4</td><td class="num">112</td><td class="num">50</td><td class="num">275</td><td class="num">45</td><td class="num">40</td><td class="num">60</td></tr>
+      <tr><td>5</td><td class="num">140</td><td class="num">80</td><td class="num">315</td><td class="num">100</td><td class="num">90</td><td class="num">130</td></tr>
+      <tr><td>6</td><td class="num">170</td><td class="num">120</td><td class="num">350</td><td class="num">220</td><td class="num">200</td><td class="num">280</td></tr>
+    </tbody>
+  </table></div>
+  <p>Your home palace sets how far you can upgrade: level 3 to start with, then 4, 5 and 6 as you build it (below). A net at level 4 or more catches sharks instead of being torn by them.</p>
+  <h3>Boats</h3>
+  <p>Add up your three upgrade levels and that's your boat. Each boat is bigger, sails further from home (the dashed ring) and unlocks more paints for its hull.</p>
+  <div class="wide"><table>
+    <thead><tr><th>Boat</th><th class="num">Levels added up</th><th class="num">How far from home</th></tr></thead>
+    <tbody>
+      <tr><td>Dinghy</td><td class="num">3</td><td class="num">1,150</td></tr>
+      <tr><td>Skiff</td><td class="num">6</td><td class="num">1,600</td></tr>
+      <tr><td>Cutter</td><td class="num">9</td><td class="num">2,000</td></tr>
+      <tr><td>Trawler</td><td class="num">12</td><td class="num">2,400</td></tr>
+      <tr><td>Seiner</td><td class="num">15</td><td class="num">2,900</td></tr>
+      <tr><td>Flagship</td><td class="num">18</td><td class="num">anywhere</td></tr>
+    </tbody>
+  </table></div>
+  <p>Only the flagship can cross the buoys into the deep. The shipwright opens once you have the cutter. There are ten paints, and an eleventh that nobody sells.</p>
+  <h3>The palace and driftwood</h3>
+  <div class="wide"><table>
+    <thead><tr><th>Build</th><th class="num">Driftwood</th><th class="num">Coins</th><th>What you get</th></tr></thead>
+    <tbody>
+      <tr><td>Tree platform</td><td class="num">8</td><td class="num">–</td><td>Fish sell for 15% more, upgrades to level 4, a dog, and a plot for an aquarium</td></tr>
+      <tr><td>Treehouse</td><td class="num">20</td><td class="num">–</td><td>30% more, upgrades to level 5</td></tr>
+      <tr><td>Second storey</td><td class="num">40</td><td class="num">100</td><td>45% more, upgrades to level 6</td></tr>
+      <tr><td>Watchtower</td><td class="num">70</td><td class="num">2,000</td><td>60% more, and the fishmonger opens</td></tr>
+      <tr><td>Palace dome</td><td class="num">120</td><td class="num">5,000</td><td>75% more, and the smokehouse opens</td></tr>
+    </tbody>
+  </table></div>
+  <p>Driftwood floats all over the sea: sail into a log to pick it up. Salvage crates pay coins straight away. The fishmonger pays double for one kind of fish each day (his sign and a chip say which), and the smokehouse pays half as much again for tuna, goldfin and shark.</p>
+  <h3>Day and night</h3>
+  <p>A day lasts five minutes. At night the sea goes dark except around your boat and the lights. Moonfish and starfin only come out at night, and they glow. Every dawn brings one sunrise koi (60 coins) and every dusk one dusk ray (90): they sparkle, and they don't stay long. Lots of things come back each dawn, like treasure, honey and the day's special fish. Later you'll find places to sleep till morning.</p>
+  <h3>Trouble near home</h3>
+  <ul>
+    <li><b>Jellyfish:</b> a net full of jelly stops catching until you dock. The shipwright's fine mesh lets them slip through.</li>
+    <li><b>Sharks</b> charge a moving net near the tuna, goldfin and lanternfish. Below net level 4 they tear it for a few seconds and fish spill out. From level 4 you catch them instead (40 coins each).</li>
+    <li><b>The pirate</b> turns up once you've earned 60 coins. He chases a boat carrying 4 or more fish and steals half the hold. He never comes close to the dock and never goes past the buoys. The strongbox, the coast guard radio and your dog's bark all help.</li>
+    <li><b>Lionfish</b> live further out and cut your net. The shipwright sells a mending kit, a rod that catches them for a bounty, and a net they can't cut.</li>
+  </ul>
+  <p>Friendly things help too. Pass a dolphin at speed and it escorts you, and sharks leave you alone while it does. Ease up slowly beside a sea turtle and it swims with you (the net never takes turtles). Gulls circle over schools that still have fish.</p>
+  <h3>Storms</h3>
+  <p>Past the buoys, a storm comes along every so often, with a warning first. During it the boat is slower and the fish go deep. Afterwards they boil back up, and for a minute every fish counts double. Storms never reach home water.</p>
+  <h3>Your hull and your hearts</h3>
+  <p>Past the buoys a hull bar shows. Monsters bash it; home water and any dock mend it. If it reaches zero the boat is swallowed, and you come back up near home (or at your nearest base) with an empty hold and nothing else lost.</p>
+  <p>Ashore you have hearts: 3, or more with armour. A bonk takes one. Hearts come back slowly once a fight is over, and all at once aboard. Run out and you're <b>bonked out</b>: you wake on your boat, and anything you'd beaten stays beaten.</p>
+  <details class="list"><summary>Every fish and where it lives</summary><div class="in">
+    <div class="wide"><table>
+      <thead><tr><th>Fish</th><th class="num">Coins</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>Sardine</td><td class="num">1</td><td>Closest to home</td></tr>
+        <tr><td>Mackerel</td><td class="num">2</td><td>A little further out</td></tr>
+        <tr><td>Snapper</td><td class="num">4</td><td>Further again</td></tr>
+        <tr><td>Pufferfish</td><td class="num">6</td><td>Further again</td></tr>
+        <tr><td>Tuna</td><td class="num">9</td><td>Where the sharks start</td></tr>
+        <tr><td>Goldfin</td><td class="num">14</td><td>Near the buoys</td></tr>
+        <tr><td>Lanternfish</td><td class="num">22</td><td>The far corners of home water, and the trench</td></tr>
+        <tr><td>Shark</td><td class="num">40</td><td>Around the tuna, goldfin and lanternfish (net level 4 or more)</td></tr>
+        <tr><td>Moonfish</td><td class="num">10</td><td>Middle of home water, at night</td></tr>
+        <tr><td>Starfin</td><td class="num">18</td><td>Outer home water, at night</td></tr>
+        <tr><td>Sunrise koi</td><td class="num">60</td><td>One each dawn, somewhere in your range</td></tr>
+        <tr><td>Dusk ray</td><td class="num">90</td><td>One each dusk, somewhere in your range</td></tr>
+        <tr><td>Mahi-mahi</td><td class="num">30</td><td>The deep, under floating weed</td></tr>
+        <tr><td>Parrotfish</td><td class="num">36</td><td>Around island 2, and in its shallows to spear</td></tr>
+        <tr><td>Grouper</td><td class="num">44</td><td>Island 3's far side, and the wreck at island 5</td></tr>
+        <tr><td>Marlin</td><td class="num">60</td><td>The far deep's four corners</td></tr>
+        <tr><td>Spider crab</td><td class="num">25</td><td>Crab pots</td></tr>
+        <tr><td>Glow squid</td><td class="num">45</td><td>The trench, speared</td></tr>
+        <tr><td>Neon dragonfish</td><td class="num">65</td><td>The trench floor, speared</td></tr>
+        <tr><td>Arctic char, polar cod, icefish, snow crab</td><td class="num">18–60</td><td>The ice floe's fishing hole</td></tr>
+        <tr><td>Bluegill, yellow perch, largemouth bass, channel catfish</td><td class="num">12–34</td><td>Island 10's pond</td></tr>
+        <tr><td>Ten deep fish, from the giant glow squid to the frilled shark</td><td class="num">91</td><td>The abyss floor, speared</td></tr>
+        <tr><td>Remoro</td><td class="num">190</td><td>The abyss floor, one a day</td></tr>
+        <tr><td>Attack nibbler</td><td class="num">150</td><td>The abyss floor, one a day</td></tr>
+        <tr><td>Tar fish</td><td class="num">250</td><td>The tar ocean (only the scientist buys them)</td></tr>
+      </tbody>
+    </table></div>
+    <p>A couple more are somewhere secret. The field guide in the shop has a page for every fish you've met, and says where to look for the ones you haven't caught yet.</p>
+  </div></details>
+</section>
+
+<section id="gear">
+  <h2><span class="n">4</span>Gear, weapons and armour</h2>
+  <h3>The shipwright</h3>
+  <p>The shipwright's shelf opens once you have the cutter. Some things only appear once you need them.</p>
+  <div class="wide"><table>
+    <thead><tr><th>Gear</th><th class="num">Coins</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Fishing rod</td><td class="num">800</td><td>Catches lionfish for a 40-coin bounty</td></tr>
+      <tr><td>Mending kit</td><td class="num">1,500</td><td>Mends a cut net at sea</td></tr>
+      <tr><td>Coast guard radio</td><td class="num">2,500</td><td>Once a day, call the coast guard and the pirate runs</td></tr>
+      <tr><td>Ballast</td><td class="num">2,500</td><td>Steadier in storms</td></tr>
+      <tr><td>Radar</td><td class="num">3,000</td><td>Fish show blue, danger red, everything else grey</td></tr>
+      <tr><td>Big air tank</td><td class="num">3,500</td><td>120 seconds of air when you dive, not 75</td></tr>
+      <tr><td>Fine mesh</td><td class="num">4,000</td><td>Jellyfish slip through the net</td></tr>
+      <tr><td>Lionfish net</td><td class="num">4,500</td><td>Lionfish can't cut it, and it scoops them up for the bounty</td></tr>
+      <tr><td>Chemistry suit</td><td class="num">5,000</td><td>Walk and swim in tar</td></tr>
+      <tr><td>Strongbox</td><td class="num">6,000</td><td>The pirate takes a quarter of your fish, not half</td></tr>
+      <tr><td>White scuba suit</td><td class="num">6,000</td><td>Stay warm diving under the ice</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Spears and the harpoon</h3>
+  <p>Spears come onto the shelf once you've found island 2, one at a time. The Throw button shows when something is in reach, and a throw always lands.</p>
+  <div class="wide"><table>
+    <thead><tr><th>Weapon</th><th class="num">Coins</th><th class="num">Reach</th><th class="num">Seconds between throws</th><th class="num">Hits for</th></tr></thead>
+    <tbody>
+      <tr><td>Fishing spear</td><td class="num">500</td><td class="num">95</td><td class="num">0.9</td><td class="num">1</td></tr>
+      <tr><td>Long spear</td><td class="num">1,500</td><td class="num">125</td><td class="num">0.7</td><td class="num">1</td></tr>
+      <tr><td>Barbed spear</td><td class="num">3,500</td><td class="num">150</td><td class="num">0.55</td><td class="num">2</td></tr>
+      <tr><td>Harpoon</td><td class="num">6,000</td><td class="num">160</td><td class="num">0.5</td><td class="num">2</td></tr>
+    </tbody>
+  </table></div>
+  <p>At sea, the harpoon is how you fight monsters. When one is up and close, the Throw button turns blue. Red pips show how many hits it has left, and a ring shows which one you'll hit. It reloads in just over a second. The big sea monsters are never killed, only driven off for a couple of minutes, leaving a trophy and 1,000 coins the first time.</p>
+  <h3>Armour</h3>
+  <div class="wide"><table>
+    <thead><tr><th>Armour</th><th class="num">Coins</th><th class="num">Hearts</th></tr></thead>
+    <tbody>
+      <tr><td>None</td><td class="num">–</td><td class="num">3</td></tr>
+      <tr><td>Leather</td><td class="num">1,200</td><td class="num">4</td></tr>
+      <tr><td>Diamond</td><td class="num">3,500</td><td class="num">5</td></tr>
+      <tr><td>Gold</td><td class="num">7,000</td><td class="num">6</td></tr>
+      <tr><td>Space</td><td class="num">12,000</td><td class="num">7</td></tr>
+      <tr><td>Honor Guard</td><td class="num">15,000</td><td class="num">9</td></tr>
+    </tbody>
+  </table></div>
+  <p>Armour comes onto the shelf once you own a spear. Space and Honor Guard turn up later in the story, and Honor Guard comes with a survival knife: it stabs up close, throws further off, and hits for 4. You can hide your armour on the character card and keep its hearts.</p>
+  <h3>Snacks and helpers</h3>
+  <p>The old man's store on island 10 sells these. Tap a snack's chip by your hearts to eat it (ashore only).</p>
+  <div class="wide"><table>
+    <thead><tr><th>Thing</th><th class="num">Coins</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Apple</td><td class="num">25</td><td>Walk half as fast again for 30 seconds</td></tr>
+      <tr><td>Banana</td><td class="num">30</td><td>Two hearts back, right away</td></tr>
+      <tr><td>Carrot</td><td class="num">40</td><td>Your spear hits twice as hard for 30 seconds</td></tr>
+      <tr><td>Bug spray</td><td class="num">50</td><td>Six sprays. A certain big bug hates it</td></tr>
+      <tr><td>Treasure finder</td><td class="num">2,000</td><td>Your radar shows sunken treasure (needs the radar)</td></tr>
+      <tr><td>Honey</td><td class="num">3,000</td><td>A jar that sends a certain big fish running</td></tr>
+      <tr><td>Treasure submarine</td><td class="num">6,000</td><td>Dive anywhere in the far deep</td></tr>
+    </tbody>
+  </table></div>
+  <p>The muffin man at home bakes fish muffins out of junk. Eat one ashore for a heart back.</p>
+  <h3>Badges for your friends</h3>
+  <p>Also from the old man. Each friend can wear one; pin them on the shop's <b>Badges</b> card.</p>
+  <div class="wide"><table>
+    <thead><tr><th>Badge</th><th class="num">Coins</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Shield</td><td class="num">1,500</td><td>A bubble that takes the wearer's next 3 hits, fresh each landing</td></tr>
+      <tr><td>Shield upgrade</td><td class="num">2,500</td><td>6 hits instead of 3</td></tr>
+      <tr><td>Damage</td><td class="num">2,000</td><td>The wearer's hits count double</td></tr>
+      <tr><td>Healing</td><td class="num">2,000</td><td>Heals the wearer slowly, even in a fight</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="places">
+  <h2><span class="n">5</span>The sea and its places</h2>
+  <p>The sea comes in rings. Home water sits inside the first buoys, where nothing can hurt your boat. Past them is <b>the deep</b>, then <b>the far deep</b> behind a second line of buoys, then <b>the far far sea</b> past the tall white buoys. Beyond the far far sea, behind a metal bridge, lies an ocean of tar.</p>
+  <p>The <b>sea map</b> (bottom left) shows everywhere you've sailed. The rest is fog until you go there, and islands get their names once you find them. The places below are in the order you'll usually meet them.</p>
+
+  <details class="place"><summary>Home island <small>where you start</small></summary><div class="in">
+    <p>The pier and the dock, your palace tree, the muffin man's bakery and a street sign that says Drury Lane. A bridge on stilts runs off the west shore to a little beach: the Ten Cent Bridge. An otter lives in the water just north of the dock. While you're docked, tap <b>Step ashore</b> to walk around.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Build the palace one stage at a time with driftwood (see <a href="#fishing">Fishing and coins</a>). The first stage brings a dog. Tap him to pet him; he barks when the pirate's coming.</li>
+        <li>The otter: with fish in your hold, sail close and tap him. After three fish he's yours.</li>
+        <li>Something big lives under the far end of the Ten Cent Bridge, at dusk, night and dawn. See <b>The snook</b> in <a href="#fun">Side quests</a>.</li>
+        <li>After the tree platform, an aquarium plot appears south of the palace tree.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 2 <small>the deep, to the left</small></summary><div class="in">
+    <p>Only the flagship can cross the buoys. Once you're over, a green marker points the way. Island 2 has a trading post, a tower, parrotfish in its shallows, and a monkey camp on the far side. Finding it puts the spear on the shipwright's shelf.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Buy a spear and spear the parrotfish from the sand. They come back.</li>
+        <li>The monkey camp has five monkeys in skull masks. Three run at you and two throw coconuts: a shadow shows where each will land. Two hits each, or one with the barbed spear. Beat all five and the chest opens for 400 coins. The first time, you also free someone from a bamboo cage.</li>
+        <li><b>Climb the tower</b>: two floors of monkeys, then the boss on the roof (see <a href="#bosses">Bosses</a>).</li>
+        <li>Build a base here: a hut (30 driftwood, 1,500 coins) makes it a home port, and a gear shed (50 driftwood, 3,000 coins) gives you the seine.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 3 <small>the deep, at the top</small></summary><div class="in">
+    <p>After island 2, a pale blue marker leads up to the top of the map. A town lies drowned on the sea floor, and beside a tower that stands out of the water there's a floating town of rafts. Its dock buys fish, and ashore you can walk the planks right round the tower.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Climb the tower: two floors of monkeys, then a familiar face on the roof. The prize is the <b>scuba gear</b>, and a warning that something is down below.</li>
+        <li>With the scuba gear, walk round the tower's foot to a gap in the seaweed and tap <b>Dive</b>. The swordsman is waiting, and then something stranger (see <a href="#bosses">Bosses</a>).</li>
+        <li>Build a base: a hut (30 driftwood, 1,500 coins), and a crab shed (50 driftwood, 3,000 coins) for crab pots.</li>
+        <li>Groupers swim on the far side from the town.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 4, the tar island <small>the deep, at the bottom</small></summary><div class="in">
+    <p>At first it's a plain little island nobody lands on. Something has to happen there first, and when it does you'll know. After that you'll need special gear to get in.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Once you free the prisoner under island 3, a scene plays the next time you're aboard, and island 4 turns to tar.</li>
+        <li>No boat can sail into its black water. Buy the chemistry suit (5,000) from the shipwright, sail up to the tar, almost stop, and tap <b>Into the tar</b>. You swim slowly through it and walk on its sand.</li>
+        <li>The Tar Anchorer rises the moment you step ashore (see <a href="#bosses">Bosses</a>). Beat him and the far deep opens.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The trench <small>the deep, up and right of home</small></summary><div class="in">
+    <p>A patch of black-blue water with bubbles coming up, between home and island 3. You need scuba gear: stop over it and dive. It's very deep, and only glowing things show at the bottom. Watch your air bubbles. Running out just floats you back up, with nothing lost.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Treasure, once each, glinting in the dark: an old spyglass (200) and a ship's bell (250) on the right wall, a gold crown (500) and a glowing gem (400) on the left, and a treasure chest (600) on the floor.</li>
+        <li>A giant clam on the floor opens on a pearl worth 150 that grows back every dawn.</li>
+        <li>With a spear: glow squid (45), neon dragonfish (65) and lanternfish (22).</li>
+        <li>Something hunts the midnight water at the bottom. See <b>The lurker</b> in <a href="#bosses">Bosses</a>.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The far deep <small>past the dark red buoys</small></summary><div class="in">
+    <p>Past the end of the deep stands a second line of dark red buoys. An anchor chain sags between them and nothing gets past it. Something on island 4 is holding it.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Beat the Tar Anchorer on island 4 and the chain sinks for good. The far deep has marlin at its four corners, islands 5 to 10, the ice floe, and some very big creatures.</p>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 5, the island of bones <small>far deep, upper left</small></summary><div class="in">
+    <p>A bone-white marker points the way. A sand bar of bleached bone, a giant shark's jaw, an empty throne, a wrecked boat on the rocks, and fins circling. There's nowhere to land. Buy the harpoon before you go close.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Come near the reef and the Skeleton Shark King comes for you (see <a href="#bosses">Bosses</a>). Sail far enough away and he gives up.</li>
+        <li>With scuba gear, stop near the wreck and tap <b>Dive to the wreck</b>. The chest in its hold holds 1,200 coins, the most of any treasure. Bone sharks cruise outside: when a jaw opens, get out of the way, or sting one off with your spear. Inside the hold they can't reach you.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 6, the big island <small>far deep, upper right</small></summary><div class="in">
+    <p>A green marker appears once the Shark King is beaten. It's huge: several screens of walking, a long pier, a rocky hill, a green temple half in the sea, birds everywhere, and treasure hidden around it. Something sleeps off the temple. Something else sleeps in a cove.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Six treasure chests are hidden around the island, 300 coins each.</li>
+        <li>The Deep One sleeps at sea off the temple. Beat it and you'll find out what's under the temple. If you're bonked out down there, tap <b>Into the temple</b> at the temple door to go back.</li>
+        <li>Star, a flying meteor serpent, hunts flagships near the island.</li>
+        <li>The Reaper on land sleeps with his egg in a cove on the north-west side, behind the hill from the pier.</li>
+        <li>Build a base: a hut, and a charter office for taking passengers sightseeing (see <a href="#fun">Side quests</a>).</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The ice floe <small>far deep, at the top</small></summary><div class="in">
+    <p>Old sea ice with a hole, a red flag and two seals. You can't land a boat on it, but stop alongside and see what you can do. To fish there you need an ice fishing kit, and someone big is carrying one.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>The Reaper at sea spits out the ice fishing kit the first time you drive him off. Then stop alongside the floe and tap <b>Ice fish</b> (see <a href="#fun">Side quests</a>).</li>
+        <li><b>Build an igloo</b> (30 driftwood, 1,500 coins): a home port, and a bed to sleep till morning.</li>
+        <li>A seal lies at the edge. See <a href="#friends">Friends</a>.</li>
+        <li>With scuba gear, tap <b>Dive under the ice</b>. Buy the white scuba suit (6,000), or the cold pulls you up after 15 seconds. Five frozen treasures to chip out: a spyglass by the hole (200), a chest at the back of the cave (800), a blue gem on the left ridge (400), a gold crown in the tunnel roof (500), and a ship's bell on the right ridge (250).</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 7 <small>far deep, lower left</small></summary><div class="in">
+    <p>A lavender marker appears after a big fight under island 6. It's like island 2, only bigger: a beach dock, a tower, a monkey camp, and a dark metal ring standing on burnt grass.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>The monkey camp has six monkeys and a chest of 800 coins.</li>
+        <li>Climb the tower: two floors, then the sorcerer for the third time (see <a href="#bosses">Bosses</a>).</li>
+        <li>Beat it and the ring lights up green: it's a portal. Walk into it and tap <b>Into the portal</b>.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Gigantis, the castle on the sea <small>through island 7's portal</small></summary><div class="in">
+    <p>A castle under a green sky, full of the undead. Every hit is one heart. Clear a room and its door opens, with your hearts filled. Leave, and the rooms fill up again next time, so try to do it in one go.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li><b>Skeletons:</b> 4 hits. The sword goes up just before they slash, and the shield blocks your first spear.</li>
+        <li><b>Archers</b> stay back and shoot where you're going. Change direction when an arrow flies.</li>
+        <li><b>Zombies:</b> 8 hits, and slow. Their arms go up before they swing.</li>
+        <li><b>Ghosts:</b> 3 hits. Their slow wisps drift after you: just walk away from them.</li>
+        <li><b>Necromancers:</b> 6 hits. They raise skeletons from cracks in the floor, and the skeletons fall when they do. Spear them first.</li>
+        <li>The rooms go: the courtyard, the first hall, the second hall, then the throne room and the Forgotten One (see <a href="#bosses">Bosses</a>).</li>
+        <li>After him, try the chained door behind the throne with his bones beside you. Behind it are the ruins. In the ruins, a skull door needs a key from somewhere far away.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Islands 8 and 9 <small>far deep, lower right</small></summary><div class="in">
+    <p>A blue marker appears once island 7's sorcerer is beaten. Twin islands with a sandbar between them, one dock (on island 8) and two towers. Midnight-blue boats patrol the water, and they'll ram you.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>The hired boats: outrun them (the flagship is faster), or harpoon one 3 times for 60 coins. They go home for good once the Heron is beaten.</li>
+        <li>Camps of hired men on both islands: 3 hits each, 25 coins each, and 300 for clearing a camp.</li>
+        <li>Island 8's tower: two floors, then the Heron on the roof. He flees to island 9, and its tower opens.</li>
+        <li>Island 9's tower: two more floors, then his nest (see <a href="#bosses">Bosses</a>).</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 10 <small>far deep, far right</small></summary><div class="in">
+    <p>A pale green marker appears once islands 8 and 9 are found. A prairie with bunnies and bison, a pond, a forest, a swamp, and an old man in a rocking chair telling dad jokes. Most of the animals are friendly. Some aren't.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Tap the old man for his store: snacks, bug spray, honey, the treasure finder, badges and the treasure submarine.</li>
+        <li>The pond: <b>Cast into the pond</b> for peaceful fishing.</li>
+        <li>The swamp: gators in the bigger pools, a giant spider's web between two cypress trees, and a friendly swamp monster. The spider can't be speared, so bring bug spray.</li>
+        <li>The forest: gorillas, and a beehive with one free jar of honey a day.</li>
+        <li>The tower in the middle goes straight up to the giant pelican. Beat it for a loaf of bread.</li>
+        <li>Put the bread in the birdfeeder past the old man's porch, and three crows come, each with a question (see <a href="#fun">Side quests</a>).</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The white buoys <small>past the far deep</small></summary><div class="in">
+    <p>A third line of buoys, tall and white with blinking lamps. The flagship is held there. "Sailors used to take a bird along and let it go, because a bird flies for land."</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Win a crow at island 10's birdfeeder by answering its science question. Sail out to the white buoys with it aboard, tap <b>Let a crow go</b>, and follow it. It flies to island 11. After that the far far sea is always open.</p>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Island 11 <small>far far sea, past island 10</small></summary><div class="in">
+    <p>A big island, all jungle, with black water inland and old grey stones among the trees. Someone in a clearing wants a word.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>In the clearing on the left waits the Heron's brother (see <a href="#bosses">Bosses</a>). Afterwards Caterman comes out of his workshop and joins you.</li>
+        <li>With scuba gear, tap <b>Dive into the lagoon</b>: murky water, ten lagoon creatures, and a skull key in the deepest part.</li>
+        <li>The stone portal on the far side stays dark until something in Gigantis's ruins is beaten. Then it takes you straight there.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The abyss <small>far far sea, next to island 11</small></summary><div class="in">
+    <p>A round patch of the brightest blue with a dark middle. You need scuba gear: stop over the middle and dive. It's 1,000 metres down, and you go in a cage.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>On the way down, giants swim past and slam the bars. Nothing is lost in the cage.</li>
+        <li>At the floor the door opens. Your air only runs outside the cage. Tap <b>Ride the cage up</b> whenever you like.</li>
+        <li>Spear the ten deep fish (91 coins each), the silver Remoro (190 coins, three spears, one a day) and the attack nibbler (150 coins, three spears, one a day).</li>
+        <li>A gulper hunts over the floor: swim aside when it gapes, or get back in the cage.</li>
+        <li>A full hold of abyss fish sells for about 10,000 coins.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The metal bridge <small>far far sea, top right</small></summary><div class="in">
+    <p>A huge metal building on legs stands across the sea. Beyond it, the water is tar. Stop at the door in the middle.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Inside: a bunk and a mirror, the scientist (he buys tar fish and hands out missions), the tar dock, the missions room and the tar news.</li>
+        <li><b>Start mission 1</b>, the stealth mission (see <a href="#fun">Side quests</a>). Win it for the chemistry boat, which sails on tar.</li>
+        <li>Go up the ladder to the roof and put your hand in the orb. It shows your boats, every boss you've beaten, and what to do next.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The tar ocean and the tar island <small>past the metal bridge</small></summary><div class="in">
+    <p>Only the chemistry boat sails the tar, and the tar ocean is as big as the whole sea. Out there the map button shows a tar map. The tar island has a tower on a hill, and things made of tar.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Tar fish: stop by a school and tap <b>Cast for tar fish</b>. Only the scientist buys them: 250 coins each, 12 a day.</li>
+        <li>Red tentacles rise in your way while you sail (see <a href="#bosses">Bosses</a>).</li>
+        <li>Step ashore at the end of the tar island's jetty. Tar humans walk the shore, tar beasts the hill, the tar leader stands by the tower, and a tar dragon circles the south-east slope. The tower door stays barred, for now.</li>
+        <li>Mission 2 at the bridge is the tar eel. Beat it, and something under the middle of the tar wakes up.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>Skull Island <small>far far sea, at the bottom</small></summary><div class="in">
+    <p>Its little skull marker shows once island 11 is found. It's the biggest island yet, shaped like a skull lying face up, and the pits in its eyes and nose have no bottom. A tower stands on its crown, and someone up there is yelling.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Skrill's men in bone armour, and displacer beasts, are everywhere (see <a href="#bosses">Bosses</a>).</li>
+        <li><b>Climb the tower</b>: four floors, with your hearts filled after each. Then <b>Through Skrill's door</b>.</li>
+      </ul>
+    </div></details>
+  </div></details>
+
+  <details class="place"><summary>The Endless Isle <small>far far sea, on the left</small></summary><div class="in">
+    <p>Its marker, a crossed cutlass and katana, shows once island 11 is found. Two halves that mirror each other, pirates on one and ninjas on the other, who have been fighting forever. Each half has its own pier.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>Captain Cappy waits at the pirates' pier (<b>Talk to Captain Cappy</b>), and Master Sensei at the ninjas' (<b>Bow to Master Sensei</b>). Ask them why they're fighting.</li>
+        <li>Join either side, or both. The pirates give you Jacks Parrow, and the ninjas give you Bun-San (see <a href="#friends">Friends</a>).</li>
+        <li>The battles themselves are coming soon.</li>
+      </ul>
+    </div></details>
+  </div></details>
+</section>
+
+<section id="bosses">
+  <h2><span class="n">6</span>Bosses and big creatures</h2>
+  <p>Almost everything that fights you shows its move first: a raised arm, a glint, a red ring or line on the ground. Watch for that, step out of it, and hit back while it's open. The hint tells you the warning sign; the answer tells you how to win.</p>
+
+  <h3>At sea, with the harpoon</h3>
+  <details class="place"><summary>The guard leviathan <small>at the buoys</small></summary><div class="in">
+    <p>A huge serpent circles just inside the buoys. When a flagship tries to cross, it rises in the way, spines first, and stays up for as long as you keep coming.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Turn away or stop. It sinks after a couple of seconds and won't rise again for 20 seconds: cross then. Or harpoon it 3 times while it stands. If you touch it, a third of your hold goes overboard. Prize: its spine.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Cthuluviathan <small>the deep, to the right</small></summary><div class="in">
+    <p>Cthulhu's pet, asleep and snoring in a sunken city of broken columns. Fast boats wake it. Awake, it sends tentacles up where you're going, and the water boils just before.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Sail past slowly and it dreams on. Awake, steer off the boiling water. Harpoon 3 tentacles and it goes back to sleep. Prize: a piece of its dome.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The anglerfish <small>the deep, at night</small></summary><div class="in">
+    <p>Out in the deep at night, a ring of glowing lights. But no glowing fish live in the deep…</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>It's a lure. Sail at it and the jaws open: the bulb flickers red and something creaks. Turn away right then. Or harpoon the light 3 times. If it gets you, it swallows the boat and spits you out at home without your fish. Prize: its lure.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The gulper <small>the deep, lower right</small></summary><div class="in">
+    <p>Something far down groans and chases any flagship that comes close. It's nearly as fast as you, and three bites eat the boat.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep moving and never sit still. Harpoon its head 4 times; each hit makes it flinch and slow down. It gives up after a while, or once you're far enough away. Prize: its blinking tail light.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Skeleton Shark King <small>island 5</small></summary><div class="in">
+    <p>A bone shark with a gold crown and a trident, faster than any boat. Before he charges, the water churns and a dashed red line shows where he's going. Before the trident comes down, a gold ring shows where it will land.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Steer off the red line. Circling won't save you, because the line already knows you're turning. He leaps out at the end of every charge: harpoon him then. Harpoon him too while the trident is raised, and steer out of the gold rings. 6 hits. Prize: 3,000 coins, his jaws, and a secret he tells you as he dies.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Deep One <small>off island 6's temple</small></summary><div class="in">
+    <p>It wakes when you come close and wades slowly after you. Its tentacles grab, and two of them throw driftwood at where you're going. Now and then a gold eye opens.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Circle outside its reach. Turn hard just after a log's ring shows. Harpoon the eye only while it's open: 10 hits. If a tentacle grabs you, harpoon the tentacle to get free. Beaten, it doesn't die. It drags you under…</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Star, the meteor serpent <small>around island 6</small></summary><div class="in">
+    <p>A meteor with a snake's body, wings and legs, flying loops round island 6. Its head glows red-hot, a ring shows where you'll be, and then it dives. It hits harder than anything else at sea.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Swerve hard out of the ring. After a dive it thrashes in the water for a moment: harpoon it then. 4 hits. It's scared of anything bigger than itself, so when the Deep One rises, Star flies off to space. Prize: a piece of Star.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Reaper <small>roams the deep and the far deep</small></summary><div class="in">
+    <p>A great blue fish with zigzags and four clawed legs. Only his fin shows as he roams. He circles you, then a red fan shows on the water, and his tail sweeps through it.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Turn hard out of the fan; don't keep going through it. Then he rears up on his legs and roars: harpoon him then. 5 hits. Honey makes him flee, but then there's no prize. The first time, he spits out an ice fishing kit. Prize: his tooth.</p>
+    </div></details>
+  </div></details>
+
+  <h3>On foot</h3>
+  <details class="place"><summary>The leviathan sorcerer <small>island 2's tower</small></summary><div class="in">
+    <p>A winged serpent-bird flying round the roof, throwing slow purple bolts at where you're standing. Every so often it swoops in to peck.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep moving round the roof (the bolts go where you were) and throw when it swoops in. 8 hits. A longer spear makes it much easier. Prize: 2,000 coins and its staff.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The sorcerer returns <small>island 3's tower</small></summary><div class="in">
+    <p>The same sorcerer, with a new trick once it's angry: a ring of bolts all around it.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step into a gap in the ring. Otherwise, the same as before: 8 hits. Prize: 1,000 coins and the scuba gear.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The swordsman <small>under island 3</small></summary><div class="in">
+    <p>A man in a long red cape, nearly as quick as you. His sword glints up before he slashes, and he blocks your first spear.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step aside when the sword glints, then hit him while he's open. 12 hits. Prize: 1,500 coins and a key. Then he pulls you somewhere else…</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The three demons <small>after the swordsman</small></summary><div class="in">
+    <p>Red slashes like the swordsman. Blue keeps away and calls up monkeys. Green does both.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>4 hits each. The barbed spear is close to a must here. Prize: 1,500 coins, and the key opens a cage. The prisoner inside becomes your friend.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Tar Anchorer <small>island 4</small></summary><div class="in">
+    <p>A tar monster swinging a ship's anchor on a chain. It never leaves the black water, but wades round to stay near you. A red ring shows where the anchor will land.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Stand and throw. Step out of each red ring as it shows (you have about a second), and don't get close or it swings the anchor round itself. A bar shows how much is left. Prize: 2,000 coins, a friend made of tar, the anchor, and the far deep opens.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>What waits under island 6 <small>after the Deep One</small></summary><div class="in">
+    <p>Something huge with an octopus head, in a drowned temple. It never moves, but the floor ripples where you're going, and a tentacle bursts up and chases you.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>It's Cthulhu. Spear each tentacle as it comes (one hit each) and keep moving. Then spear him: 10 hits. Prize: a rare fish worth 1,000 coins, and a healer cat and a little Cthulhu warrior who join you.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The sorcerer, third time <small>island 7's tower</small></summary><div class="in">
+    <p>16 hits this time, with the ring of bolts, and once it's angry it calls monkeys onto the roof.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>As before, and spear the monkeys. A healer cat makes it easy. Prize: 2,000 coins, its spellbook, and the portal wakes up.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Forgotten One <small>Gigantis's throne room</small></summary><div class="in">
+    <p>Long black hair, a pale screaming face and a big sword. Up close he sweeps the sword round. Further off he throws a fan of blue skulls, or his eyes burn orange and a thin line points at you before a beam.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Spear the three necromancers first. Find a gap in the skull fan, step off the orange line, and step back when the sword goes up. 36 hits. Prize: 5,000 coins, his crown, and his bones get up and join you.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The lancers <small>Gigantis's ruins</small></summary><div class="in">
+    <p>Three knights in green-black armour, standing still. They leave you alone unless you start it.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>If you wake one, it draws its lance back before it thrusts (2 hearts). Hit it right after. 10 hits.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Old One <small>Gigantis's ruins, the black pool</small></summary><div class="in">
+    <p>Something rises from the black pool, and lagoon creatures climb out with it. Its hand comes down on a ring where you stood.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep moving off the rings, and clear the creatures (2 hits each). 50 hits. As it rises you're given soul armour, which gives you a heart back every third hit: that carries the fight. Prize: 8,000 coins, its black pearl, and island 11's portal wakes.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Heron, round one <small>island 8's tower</small></summary><div class="in">
+    <p>A great grey heron with an alien gun. A flickering pink line shows where the zap will go. Then there are three of him.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step off the pink line. The one that shoots is the real one: spear that one. The copies just pop. 14 hits. Then he flies off to island 9.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Heron, round two <small>island 9's nest</small></summary><div class="in">
+    <p>He sits inside a pink shield. Someone is chained to the orb that powers it. Zaps hurt twice as much here.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Spear the chained necromancer first (8 hits). His chain snaps and the shield drops. Then fight the Heron as before: 14 hits, but each zap costs 2 hearts. Prize: 4,000 coins, his feather, and the necromancer joins you.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Reaper on land <small>island 6, the north-west cove</small></summary><div class="in">
+    <p>The Reaper's shape on four legs, asleep beside an egg. He charges along a red line, or sweeps his tail through a red fan. Then he rears up.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step off the line or out of the fan. Throw only while he's reared up: that's the only time a spear hurts him. 30 hits. Walk far enough away and he goes back to sleep. Honey makes him run, but then there's no egg. Prize: 1,000 coins, his claw, and the egg (walk up to it).</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Gators <small>island 10's swamp</small></summary><div class="in">
+    <p>They surge out of the bigger pools. Up close, the jaws open wide, pink inside.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Back off when the jaws open, then hit. 10 hits, 30 coins. Walk away and it slides back into its pool.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Gorillas <small>island 10's forest</small></summary><div class="in">
+    <p>A troop of three. One rears up with both fists high, and a red ring shows in front of it.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step out of the ring, because the slam costs 3 hearts. Hit it right after. 7 hits, 40 coins each.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The giant spider <small>island 10's swamp</small></summary><div class="in">
+    <p>He drops from his web and wraps you up. Spears bounce off him: tink!</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Only bug spray works (the old man sells it). With spray in your bag, a green spray button shows when he's close: 3 sprays. Don't walk into the web. Prize: 100 coins.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The giant pelican <small>island 10's tower</small></summary><div class="in">
+    <p>It spits fish at you, then flies up and circles with a ring following you. It can't be hit while it's up there.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step out of the ring when it turns solid red. The pelican dives bill first and gets stuck in the floor: spear it then. 15 hits. Prize: 1,500 coins, its golden egg, and a loaf of bread for the birdfeeder.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Heron's brother <small>island 11's clearing</small></summary><div class="in">
+    <p>"Have you seen my brother?" He zaps and makes copies just like the Heron, and his zaps cost 2 hearts.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>The same as the Heron: step off the pink line and hit the real one. 14 hits stops him. He can never really be beaten; he just flies off. Then Caterman comes out to thank you.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Behind the skull door <small>Gigantis's ruins</small></summary><div class="in">
+    <p>It needs the skull key, and the Old One beaten. Inside is a crypt full of the undead, and an old enemy who fooled you. Every hit in here costs 4 hearts.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>It's the Forgotten One again, with skeletons, zombies and ghosts. He has the same moves as in the throne room, but every hit is 4 hearts, so dodge everything and wear your best armour. After 9 hits he gives up. Prize: 6,000 coins and his sword. Then walk up to him and tap <b>Go with him</b>.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Tar humans and tar beasts <small>the tar island</small></summary><div class="in">
+    <p>Tar humans raise their arms into a glob with a red ring in front of them. Tar beasts crouch with a red lane ahead, then lunge, and run away when they're hurt.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep a little way off, dodge each ring or lane, and throw. Tar humans: 15 hits, 3 hearts a slam, 60 coins. Tar beasts: 18 hits, 4 hearts a lunge, 90 coins. Corner a beast against the tar and it stops running.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The tar leader <small>the tar island, by the tower</small></summary><div class="in">
+    <p>Taller than the rest, with a crown of tar spikes and a black sword. A wide red fan shows before the sword, and a red ring where he'll leap.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep moving round him, because he's slow to turn. Dodge, then throw while he's open after a sweep or a landing. At half he calls up two tar humans. 25 hits, and 4 hearts a blow. Prize: 3,000 coins and his sword.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The tar dragon <small>the tar island, south-east slope</small></summary><div class="in">
+    <p>Bat wings and six legs, circling high. Walk under it to wake it. It's too high to hit while it flies.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Dodge the three tar balls (red rings) and the swoop (a red lane). After it lands it pants on the ground: spear it then. 18 hits. Prize: 500 coins.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The kraken, again <small>the tar island</small></summary><div class="in">
+    <p>Beat the kraken out on the tar and it isn't finished with you. Go ashore on the tar island and the tar starts to boil.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Its arms rise out of the tar by the shore, two at a time, each over a red ring where you stood: step out (3 hearts a slam). A spear chops an arm in one. Chop 6 and its eye rises off the shore. Throw only while the eye is open: 9 hits. Prize: 900 coins and its eye.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Skrill's men <small>Skull Island</small></summary><div class="in">
+    <p>Men in bone armour with jawblades, in pairs. A red fan shows before they sweep.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Step straight back out of the fan, then hit. They're slow. 18 hits, 2 hearts a sweep, 70 coins.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Displacer beasts <small>Skull Island</small></summary><div class="in">
+    <p>Six-legged cats with spiked tentacles. Your spear goes straight through them. "Not there!"</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>What you see is a picture, off to one side of where it really is. Watch its shadow and the shimmer: that's the real one. Right after it lashes, the picture snaps onto it for a moment: hit it then. 4 hits (the survival knife kills one in a single hit). Prize: 60 coins.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Skrill <small>the top of Skull Island's tower</small></summary><div class="in">
+    <p>Horned and winged, with a bone sword, an orb and five monkeys. Every hit he lands costs 3 hearts. Someone unexpected turns up.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Hit him only when he's low: on foot, or just landed from a swoop. When one of the hired men grabs him, that's a free hit. Beat the monkeys. 20 hits. Prize: 8,000 coins and his horn.</p>
+    </div></details>
+  </div></details>
+
+  <h3>On the tar, in the chemistry boat</h3>
+  <details class="place"><summary>The tar eel <small>mission 2</small></summary><div class="in">
+    <p>Twice as long as the guard leviathan. It bites over a red ring, or coils a closing red ring round your boat.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep moving. Get out of the bite ring, and sail out through the coil ring before it shuts, or you're pulled under. Harpoon its head while it's up: 6 hits. Prize: 4,000 coins, and a cage comes up with someone in it. Do NOT let it out.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Red tar tentacles <small>all over the tar</small></summary><div class="in">
+    <p>The tar bubbles in a red ring in front of you, then a tentacle rises.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Sail round it, or harpoon it twice for 50 coins. None rise for a boat that's sitting still.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The tar kraken <small>the middle of the tar ocean</small></summary><div class="in">
+    <p>Once the eel is beaten, something under the very middle of the tar is awake. Its arms rise around your boat over big red rings.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Keep sailing out of the rings. One harpoon chops an arm. Chop 10 and the giant eye rises. Harpoon the eye only while it's open: 9 hits. Prize: 900 coins and an arm. And then…</p>
+    </div></details>
+  </div></details>
+
+  <h3>Underwater (they take air, not hearts)</h3>
+  <details class="place"><summary>The lurker <small>the trench's midnight water</small></summary><div class="in">
+    <p>Pale green eyes in the dark, circling you.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>When its eyes flare orange and its jaw drops, swim across its path and it shoots past. A spear past its head stings it, and it flees.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Lagoon creatures <small>island 11's lagoon</small></summary><div class="in">
+    <p>Ten of them, slower than you swim. Their claws take air.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Swim away, or spear them: 2 hits each, or 1 with the barbed spear. Your swimming friends help.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The abyss hunters <small>the abyss floor</small></summary><div class="in">
+    <p>A gulper over the floor, and the attack nibbler chasing the deep fish.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>When the gulper gapes, swim aside or get back in the cage. A spear stings it off for a while. The attack nibbler only bites you if you're in front of its charge: three spears land it, for 150 coins.</p>
+    </div></details>
+  </div></details>
+</section>
+
+<section id="friends">
+  <h2><span class="n">7</span>Friends and pets</h2>
+  <p>Friends follow you ashore everywhere, into every tower and room, and fight whatever is near you. If one gets worn out, it goes back to the boat to rest until you land again. Some of them sail their own little boats beside yours; the shop's <b>Boats</b> card says who rides what. The hint says what a friend does; the answer says how to get it.</p>
+  <details class="place"><summary>The warlock</summary><div class="in">
+    <p>Part man, part bird, with a green flame staff. He zaps the nearest enemy and never misses. At sea he sails his own boat behind you and zaps fish into your hold.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Freed from a cage under island 3, after the swordsman and the demons.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The tarling</summary><div class="in">
+    <p>A drop of tar with yellow eyes that can't be hurt. It spits tar that stops enemies in the middle of a swing.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Your prize for beating the Tar Anchorer on island 4.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The healer cat</summary><div class="in">
+    <p>White, with a red cross on its collar. It heals you after you lose a heart, twice a fight. Aboard, tap it with fish in the hold to feed it for more heals. Feed it a tuna and it heals your other friends too.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Under island 6, along with the Cthulhu warrior.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The Cthulhu warrior</summary><div class="in">
+    <p>A little octopus-head with a sword and a shield.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Under island 6, along with the healer cat.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The naga</summary><div class="in">
+    <p>A fish head, a blue snake's body, and a fin-blade on a pole with the longest reach of anyone. He swims beside the boat and dives with you.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Beat island 2's monkey camp for the first time: he's in the bamboo cage.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The skeleton</summary><div class="in">
+    <p>Long black hair on a skull, green eyes, and a sword. In a fight he raises a ghost and a skeleton of his own.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>The Forgotten One's bones, after the throne room in Gigantis.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The necromancer</summary><div class="in">
+    <p>A pink robe and a pointed hat. He doesn't fight up close; he raises a skeleton hamster instead.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>The Heron's prisoner in the nest on island 9.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The baby Reaper</summary><div class="in">
+    <p>He has his dad's zigzags and his dad's fin. He paddles off the bow and leaps; tap him and he leaps again.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Take the Reaper on land's egg aboard. It hatches at the next dawn, while you're out at sea with nothing dangerous around.</p></div></details>
+  </div></details>
+  <details class="place"><summary>Caterman</summary><div class="in">
+    <p>A ginger cat standing like a person, with goggles and a blaster. He brings a swan paddle boat with a spare seat.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Stop the Heron's brother in island 11's clearing.</p></div></details>
+  </div></details>
+  <details class="place"><summary>Jacks Parrow</summary><div class="in">
+    <p>A pirate parrot with an eyepatch. He rides your shoulder, pecks enemies and can't be hurt. Mind his language. Tap him for a line.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Join the pirates on the Endless Isle.</p></div></details>
+  </div></details>
+  <details class="place"><summary>Bun-San</summary><div class="in">
+    <p>A little blue ninja bunny with a red headband and a tiny katana. Hit him and he vanishes in a puff of smoke and pops up behind you.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Join the ninjas on the Endless Isle.</p></div></details>
+  </div></details>
+
+  <h3>Pets</h3>
+  <details class="place"><summary>The dog <small>home</small></summary><div class="in">
+    <p>Potters on the pier. Tap him to pet him. He barks when the pirate sails in.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>He arrives when you build the tree platform.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The otter <small>home</small></summary><div class="in">
+    <p>Floats on his back with a pink shell, just north of the home dock. Once he's yours he swims with the boat. If he climbs aboard with a "!", something dangerous is in the water nearby.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>With fish in your hold, sail close and tap him. He's tossed a fish each time; on the third he's yours.</p></div></details>
+  </div></details>
+  <details class="place"><summary>Neil the seal <small>the ice floe</small></summary><div class="in">
+    <p>Lies at the edge of the floe. Once he's yours he swims alongside, flops on deck, and catches fish for you when you're ice fishing.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>From the boat, tap him to toss him an ice fish (arctic char, polar cod or icefish). On the third he's yours.</p></div></details>
+  </div></details>
+  <details class="place"><summary>The crows <small>island 10</small></summary><div class="in">
+    <p>Three crows that ride your boat's rail. One of them knows the way somewhere.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in"><p>Answer their science questions at island 10's birdfeeder (see <a href="#fun">Side quests</a>).</p></div></details>
+  </div></details>
+</section>
+
+<section id="fun">
+  <h2><span class="n">8</span>Side quests and mini-games</h2>
+  <details class="place"><summary>The snook <small>under the Ten Cent Bridge</small></summary><div class="in">
+    <p>At dusk, night or dawn, stop by the far end of the bridge, south side, and tap <b>Cast · 10</b> (ten coins a cast). It's a fight: the bar says <b>Hold</b> or <b>Let go</b>. Most casts end with "The snook is still under the bridge."</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Hold to pull while it sulks. Just before it runs, it shakes its head and the word turns to <b>Let go</b>: let go right then. Pull through a run and the line breaks; pull too little and it reaches the piling. Most you land are too short and go back. A keeper (28 to 32 inches) gets mounted on the hut.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Lionfish <small>outer home water</small></summary><div class="in">
+    <p>Pretty, but they cut your net. Real lionfish have invaded Florida's waters, so catching them helps.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>With the fishing rod, stop close and tap <b>Cast for lionfish</b>. Wait. When the float goes under, the button pulses gold: tap <b>Reel in!</b> (not too soon, not too late). 40 coins each. The lionfish net sweeps them up as you tow.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Crab pots <small>island 3's crab shed</small></summary><div class="in">
+    <p>Three pots to drop in home water. Spider crabs climb in while you're off fishing.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Tap the crab button to drop a pot behind you (not near the island or another pot). Crabs climb in faster the further out it is. A full pot has a crab on its float. Sail past it to collect the crabs; stop beside it to lift it back aboard.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Seining <small>island 2's gear shed</small></summary><div class="in">
+    <p>A long net you lay in a loop round a whole school.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Tap the seine button to drop its buoy, then circle a school. Once the buoy pulses, bring your stern back to it to close the loop, and every fish inside comes aboard. A tight loop keeps them all; circle tight at full speed.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Charters <small>island 6's charter office</small></summary><div class="in">
+    <p>Passengers pay you to show them the sights.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Each passenger wants to see something: whales at the surface, a manta leap, a turtle swimming with you, a dolphin escort, or the Cthuluviathan asleep. Tie up at any dock to get paid, with a bonus if every wish came true. A fright halves the pay.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Ice fishing <small>the ice floe</small></summary><div class="in">
+    <p>A line down a hole in the ice. Fish hang at different depths, and snow crabs sit on the floor. A new lot every dawn.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Tap <b>Drop the line</b>. It sinks by itself; on the way up, steer it through the fish (up to 5 at once) and keep away from the pale jellies, which knock a fish off. Steer down onto a snow crab just as the line turns.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Pond fishing <small>island 10</small></summary><div class="in">
+    <p>Peaceful fishing with birdsong. Nothing can go wrong here.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Tap <b>Cast into the pond</b>. When the float nibbles and goes under, tap <b>Reel in!</b>. Bluegill bite most, then yellow perch, largemouth bass, and the rare channel catfish.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The crows' questions <small>island 10's birdfeeder</small></summary><div class="in">
+    <p>Three crows, each with a science question: magnets, life cycles, animals and plants, weather, water, fossils and the sun.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Get one right and tap <b>Pet the crow</b>: it flies to your boat. A wrong answer just shows the right one, and you can try another question. Win all three. You need a crow to get past the white buoys.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The stealth mission <small>the metal bridge</small></summary><div class="in">
+    <p>Tunnels under the tar, with guards carrying lanterns. If one sees you, you start over.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Wait for heads to turn. Use the invisibility potion to cross lit floor (it lasts 5 seconds, then needs 12 to recharge). Get close behind a guard who can't see you: <b>Backstab!</b> At the top, sneak up behind the sorcerer while he's looking out, and <b>Kick him off!</b> Prize: the chemistry boat, and the sorcerer's hat.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Sunken treasure <small>the treasure finder</small></summary><div class="in">
+    <p>Treasure sinks somewhere new every day.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>With the treasure finder fitted to your radar, eight treasures show as gold diamonds: three in home water, three in the deep and two in the far deep. Tow your net over one. Clunk!</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The treasure submarine <small>the far deep</small></summary><div class="in">
+    <p>A round yellow sub with a claw and lamps. It needs no air.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Stop anywhere in the far deep and tap <b>Dive in the submarine</b>. Every patch of seabed has its own three treasures a day, and deep fish to spear.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The Battle Barge <small>the crossed swords, once you own a spear</small></summary><div class="in">
+    <p>Practice fights, just for fun. Losing costs nothing.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>On foot: pick a size of barge and up to ten enemies or bosses, then <b>Fight!</b>. At sea (with the harpoon): pick a sea boss, and make your own map with islands to hide behind, tar to slow you, and bridges. On the tar, once you have the chemistry boat. A win pays 1 coin.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>At home <small>the aquarium, the muffin man and more</small></summary><div class="in">
+    <p>The aquarium, the muffin man, the field guide, your flag and your character.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li><b>Aquarium</b> (25 driftwood and 1,000 coins, after the tree platform): every kind of fish you've caught swims inside. Tap the water to feed them, hold a finger in the tank and they follow it, and tap the pufferfish.</li>
+        <li><b>The muffin man</b> on the home pier loops his song forever. With junk aboard, he bakes you fish muffins (up to 6). Leave one uneaten for a whole day and it grows legs and follows you about, under a cloud of stink.</li>
+        <li><b>The field guide</b> (in the shop) has a page for every fish and creature you've met.</li>
+        <li><b>Your flag</b>: pick colours, a pattern and an emblem. It flies on your boat, your palace and every tower you take.</li>
+        <li><b>Your character</b>: Skipper, Finn, Coral or Hank, or make your own.</li>
+      </ul>
+    </div></details>
+  </div></details>
+</section>
+
+<section id="hq">
+  <h2><span class="n">9</span>Your headquarters</h2>
+  <p>Late in the story, somewhere becomes yours.</p>
+  <details class="place"><summary>Where it is, and what's in it <small>spoils the castle story</small></summary><div class="in">
+    <p>Beat the crypt behind the skull door, then go with the one who yields. The castle you fought through becomes yours.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Gigantis is your headquarters: no enemies, every door open, your flag over the courtyard. You also get the portable scanner. Get there through island 7's portal, island 11's portal, or your own dock once you've built it.</p>
+      <div class="wide"><table>
+        <thead><tr><th>Castle plans</th><th class="num">Coins</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>Garden</td><td class="num">2,000</td><td>A free apple, carrot or banana every day</td></tr>
+          <tr><td>Dock</td><td class="num">4,000</td><td>A castle landing on the sea off island 7, straight to the courtyard</td></tr>
+          <tr><td>Forge</td><td class="num">6,000</td><td>Your spear and knife hit 1 harder, and the harpoon reloads faster</td></tr>
+          <tr><td>Bigger tower</td><td class="num">10,000</td><td>The sea map shows every school of fish</td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><b>The telescope</b> shows where every big sea creature is right now, and from then on the sea map does too.</li>
+        <li><b>The bed</b>: sleep till morning, with every heart back.</li>
+        <li><b>The roll-call board</b>: choose which friends come with you and which stay at the castle.</li>
+        <li><b>The trophy hall</b>: a stand for every boss you beat (25 in all), and a mound of your treasure.</li>
+        <li><b>The fish board</b>: a frame for every kind of fish, dark until you catch it.</li>
+        <li><b>The armoury</b>: every armour and weapon you own, on show.</li>
+        <li><b>The scanner</b>: a blue button under Throw. Scan a creature to see how to beat it and what it's afraid of. The more kinds you scan, the further it reaches, and later it shows hit points too.</li>
+      </ul>
+    </div></details>
+  </div></details>
+</section>
+
+<section id="saving">
+  <h2><span class="n">10</span>Saving and other devices</h2>
+  <ul>
+    <li><b>It saves by itself</b>, in this browser, every few seconds while you sail. Being ashore isn't saved, so a reload puts you back aboard.</li>
+    <li><b>Your save code</b> is four words. The game backs itself up online under it, and once a week it shows you the code when you start. Write it down somewhere safe.</li>
+    <li><b>Play on another device</b> (a card in the shop) shows your code with a Copy button, and a link with your whole game in it. On the other device, put the code or the link in the box and tap <b>Load</b>. It shows you both games before anything changes.</li>
+    <li><b>Install it</b> with Add to Home Screen. It opens full screen and works with no signal. On an iPhone, the home-screen app keeps its own save, separate from Safari: move your game across with the save code.</li>
+    <li><b>Updates</b> arrive by themselves. If one comes in the middle of a trip, the shop says "A new version is ready" at the next dock, and your game is saved before it updates.</li>
+    <li><b>Start over</b> (↻, two taps) wipes your game. Write your code down first.</li>
+  </ul>
+  <p class="tip"><b>For grown-ups:</b> add <code>#tester</code> to the end of the game's link for a tester panel that skips story steps and adds coins or friends. It changes the real save, so a skipped game stays skipped. <code>#tester-off</code> puts it away.</p>
+</section>
+
+<details class="secrets" id="secrets"><summary>Secrets: only open if you want to know</summary><div class="in">
+  <p>Some things in the game are surprises, and nothing tells you about them. Each one is folded again.</p>
+  <details class="place"><summary>Something sings near island 2</summary><div class="in">
+    <p>From dusk until midnight, go to island 2's far shore and listen. Come in gently.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Three mermaid sisters, Marina, Ondine and Pearl, sing on the rocks. A fast boat sends them under, so slow down. Stop close by and tap <b>Sing with the mermaids</b>. One sings a tune: listen to all of it, then tap it back on the four shells (or keys 1 to 4). A wrong note just means she sings it again, slower. Sing it right and they give you a pearl, one a night. The tunes get longer as you go.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>What the pearls are for</summary><div class="in">
+    <p>Keep collecting them.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Your first pearl brings the eleventh paint, Mermaid scales. At five pearls the mermaids string them into the siren charm, which hangs in your cabin. You'll want it for what comes after midnight.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>After midnight</summary><div class="in">
+    <p>When the mermaids leave, something else comes to their rocks. If your wheel starts turning on its own, sail away fast.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>The sirens: great dark birds with women's heads and gold eyes. Their song steers your boat onto the rocks, and the rocks break the hull. Turn hard away at full speed to break free. Or wear the siren charm: their song can't pull you, and if you come close they shriek and fly off for the night.</p>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>Caterman's workshop</summary><div class="in">
+    <p>Once Caterman is your friend, try his workshop door on island 11.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <ul>
+        <li>He builds a drone (3,000 coins, in nine colours). <b>Fly it!</b> through the jungle: steer through the gaps, collect gold rings (10 coins each), and don't bump things, because bumps and time both use up the battery.</li>
+        <li>Fly through an orange flower's pink middle to hang a bug trap. The next day it glows green: fly through again for jewel beetles.</li>
+        <li><b>Fish the black lagoon</b> with a beetle: drop it over a rise and reel in an arowana (120 coins) or an archerfish (30).</li>
+        <li>Caterman can upgrade the battery, the rotors, the traps and the line.</li>
+      </ul>
+    </div></details>
+  </div></details>
+  <details class="place"><summary>The biggest snook</summary><div class="in">
+    <p>Keep fishing under the Ten Cent Bridge.</p>
+    <details class="answer"><summary>Show the answer</summary><div class="in">
+      <p>Once in a long while, a keeper is a giant: Grampy's Snook, 40 to 46 inches. It goes back after a photo, and hangs on the wall in a gilt frame.</p>
+    </div></details>
+  </div></details>
+</div></details>
+
+<section id="soon">
+  <h2><span class="n">11</span>Coming soon</h2>
+  <p>These are being made or planned. None of them is in the game yet.</p>
+  <ul>
+    <li>Battles on the Endless Isle, pirates against ninjas: capture the flag, Hold the Forts, and the shipwreck.</li>
+    <li>A ski run down the ninjas' snow peak, with a yeti after you, and a barrel puzzle in the pirates' treehouse.</li>
+    <li>Doom Island, a whole new island, still being designed.</li>
+    <li>More missions at the metal bridge, more tar islands, and what's behind the barred tower door.</li>
+  </ul>
+</section>
+
+<footer>Net Profit. This guide comes with the game and works with no signal too.</footer>
+</main>
+</body>
+</html>

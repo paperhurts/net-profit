@@ -6,6 +6,8 @@ There is a lot further out. The sea runs from the home island past three lines o
 
 **Play it:** https://net-profit.paperhurts.dev. It works best on a phone held upright. Add it to the home screen and it installs as an app and plays offline.
 
+**Stuck?** The game has a player's guide, on the title card and in the shop, and on its own at https://net-profit.paperhurts.dev/guide.html. It covers how to play, where everything is and how to beat it, with every answer folded away until you open it.
+
 ## Saving
 
 - The game saves itself in the browser as you play.
@@ -62,10 +64,10 @@ No game framework: a custom canvas renderer draws everything, in an isometric pr
 - `src/state/` holds the save format (with its migrations) and the online save code.
 - `legacy/net-profit.html` is the original single-file prototype. It stays as the reference for how the boat and net feel. Do not edit it.
 - `tests/unit/` has the Vitest tests and `tests/smoke.spec.ts` the Playwright ones.
-- `public/` has the icons, the app manifest and the service worker that keeps it playable offline.
+- `public/` has the icons, the app manifest, the service worker that keeps it playable offline, and `guide.html`, the player's guide. Every change a player will meet updates the guide in the same PR.
 
 Everything about the design lives in [project.md](project.md): the pillars, the tuning tables, every shipped feature in order with the kid's answers behind it, the persistence format, and the roadmap. [CLAUDE.md](CLAUDE.md) has the rules for working on the code.
 
 ## Deploying
 
-CI runs on every pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): typecheck, lint, unit tests, then the smoke tests. Merging to `main` builds the game and deploys `dist/` to GitHub Pages ([`deploy.yml`](.github/workflows/deploy.yml)). The repository's Pages source is GitHub Actions, so nothing deploys from the branch itself, and only the game is served, not the docs. An open game notices the new version when it comes back to the front and offers to update.
+CI runs on every pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): typecheck, lint, unit tests, then the smoke tests. Merging to `main` builds the game and deploys `dist/` to GitHub Pages ([`deploy.yml`](.github/workflows/deploy.yml)). The repository's Pages source is GitHub Actions, so nothing deploys from the branch itself, and only the game and its player's guide are served, not the docs. An open game notices the new version when it comes back to the front and offers to update.

@@ -12,6 +12,8 @@ const CACHE = 'netprofit';
 // fetch must still answer the page's request for it as a module, so lookups ignore that.
 const ANY = { ignoreVary: true };
 const PAGE = new URL('./', self.registration.scope).href;
+/** The player's guide, a page of its own beside the game, kept for when there is no signal too. */
+const GUIDE = new URL('guide.html', self.registration.scope).href;
 const isAsset = (url) => url.origin === self.location.origin && url.pathname.includes('/assets/');
 const isFont = (url) =>
   url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
@@ -38,8 +40,11 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
   e.waitUntil(
     (async () => {
+      const cache = await caches.open(CACHE);
       const res = await fetch(PAGE, { cache: 'no-cache' });
-      if (res.ok) await keepPage(await caches.open(CACHE), res);
+      if (res.ok) await keepPage(cache, res);
+      const guide = await fetch(GUIDE, { cache: 'no-cache' });
+      if (guide.ok) await cache.put(GUIDE, guide);
     })().catch(() => {}),
   );
 });
@@ -74,10 +79,24 @@ self.addEventListener('fetch', (e) => {
                 .then((c) => keepPage(c, copy))
                 .catch(() => {}),
             );
+          } else if (res.ok && url.href.split('#')[0] === GUIDE) {
+            const copy = res.clone();
+            e.waitUntil(
+              caches
+                .open(CACHE)
+                .then((c) => c.put(GUIDE, copy))
+                .catch(() => {}),
+            );
           }
           return res;
         })
-        .catch(async () => (await caches.match(PAGE, ANY)) ?? Response.error()),
+        // No signal: the guide from what was kept, and anything else the game.
+        .catch(
+          async () =>
+            (url.href.split('#')[0] === GUIDE && (await caches.match(GUIDE, ANY))) ||
+            (await caches.match(PAGE, ANY)) ||
+            Response.error(),
+        ),
     );
     return;
   }

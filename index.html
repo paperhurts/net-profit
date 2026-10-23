@@ -332,6 +332,11 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #shop:not(.open) #ashore{visibility:hidden}
 #guide{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.45);touch-action:pan-y}
 #guide[hidden]{display:none}
+#help{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;background:var(--abyss);padding:env(safe-area-inset-top) 0 0}
+#help[hidden]{display:none}
+#help .helpbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:var(--plank);color:var(--plank-fg);font-size:16px;font-weight:800}
+#help .helpbar .pill{height:32px;padding:0 10px}
+#help iframe{flex:1;width:100%;border:0;background:var(--card)}
 #tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
 #updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneLand[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
 #tester .planks,#boats .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
@@ -561,6 +566,7 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
       <button class="build" id="guideBtn"><span><b>Field guide</b><small>Every fish you have met.</small></span><span class="buy">Open</span></button>
       <button class="build" id="flagBtn"><span><b>Your flag</b><small>Design the flag you fly.</small></span><span class="fmini" id="flagMini"></span></button>
     </div>
+    <button class="build" id="helpBtn"><span><b>Player's guide</b><small>How to play, where to go, and how to beat everything.</small></span><span class="buy">Open</span></button>
     <button class="build" id="bargeOpen" hidden><span><b>Battle Barge</b><small>Pick who to fight, and fight them.</small></span><span class="buy">Open</span></button>
     <button class="build" id="boatsBtn" hidden><span><b>Boats</b><small>Who rides which boat.</small></span><span class="buy">Open</span></button>
     <button class="build" id="charBtn"><span><b>Your character</b><small>Who you are, and how you look.</small></span><span class="buy">Open</span></button>
@@ -743,6 +749,11 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
   </div>
 </section>
 
+<section id="help" hidden aria-label="Player's guide">
+  <div class="helpbar"><b>Player's guide</b><button class="pill icon" id="helpClose" aria-label="Close the player's guide">✕</button></div>
+  <iframe id="helpFrame" title="Player's guide"></iframe>
+</section>
+
 <section id="guide" hidden aria-label="Field guide">
   <div class="planks">
     <h2>Field guide <button class="pill icon" id="guideClose" aria-label="Close the field guide">✕</button></h2>
@@ -758,6 +769,7 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
     <p>Sail back to the dock to sell and upgrade.</p>
     <button class="go" id="go">Cast off</button>
     <button class="who" id="charIntro">Choose your character</button>
+    <button class="who" id="helpIntro">Player's guide</button>
     <p class="keys">Arrow keys and WASD work too.</p>
   </div>
 </div>
