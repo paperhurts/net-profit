@@ -10984,7 +10984,8 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   await page.click('#droneGo');
   await page.waitForFunction(() => window.__np.droneFly?.state === 'fly', null, { timeout: 3000 });
   await expect(page.locator('#droneCard')).toBeHidden();
-  await expect(page.locator('#droneLand')).toBeVisible();
+  // The way out is up top, out of the steering thumb's way.
+  await expect(page.locator('#leave')).toHaveText('Land the drone');
   await expect(page.locator('#climb')).toBeHidden();
   await expect(page.locator('#hearts')).toBeHidden();
   await page.keyboard.down('ArrowRight');
@@ -11007,7 +11008,7 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   await page.waitForFunction(() => window.__np.droneFly?.state === 'home', null, { timeout: 3000 });
   await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 5000 });
   await expect(page.locator('#toast')).toContainText('battery ran flat');
-  await expect(page.locator('#droneLand')).toBeHidden();
+  await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#climb')).toHaveText("Caterman's workshop");
   const after = await page.evaluate(() => [
     window.__np.coins,
@@ -11024,7 +11025,7 @@ test("Caterman's drone: bought at his workshop door in a colour of your own, flo
   await page.click('#climb');
   await page.click('#droneGo');
   await page.waitForFunction(() => window.__np.droneFly?.state === 'fly', null, { timeout: 3000 });
-  await page.click('#droneLand');
+  await page.click('#leave');
   await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.drone.flights)).toBe(2);
   expect(errors).toEqual([]);
@@ -11111,7 +11112,7 @@ test("the drone's bug traps: one hung in a flower, a full one's jewel beetles br
   await expect(page.locator('#toast')).toContainText('still filling', { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.droneFly?.spots[0])).toBe('hung');
   // Down at the door, and all of it kept.
-  await page.click('#droneLand');
+  await page.click('#leave');
   await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('3 jewel beetles brought home');
   const day = await page.evaluate(() => window.__np.day);
@@ -11203,7 +11204,7 @@ test('fishing from the drone: out over the black lagoon, a beetle dropped on a r
   await expect(page.locator('#toast')).toContainText('Nothing there', { timeout: 3000 });
   expect(await page.evaluate(() => window.__np.droneFish?.beetles)).toBe(1);
   // Home, and what it caught said.
-  await page.click('#droneLand');
+  await page.click('#leave');
   await page.waitForFunction(() => window.__np.droneFish === null, null, { timeout: 3000 });
   await expect(page.locator('#toast')).toContainText('Back from the black lagoon with');
   await expect(page.locator('#droneDrop')).toBeHidden();
@@ -11275,7 +11276,7 @@ test("the drone's upgrades at Caterman's: a bigger battery twice, another trap, 
   expect(
     await page.evaluate(() => [window.__np.droneFly?.full, window.__np.droneFly?.carry]),
   ).toEqual([160, 4]);
-  await page.click('#droneLand');
+  await page.click('#leave');
   await page.waitForFunction(() => window.__np.droneFly === null, null, { timeout: 3000 });
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').drone.up),

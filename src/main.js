@@ -1092,6 +1092,10 @@ function sleepTillDawn(){ if (phase === 'Dawn') return; irisT = SPIT; clock = 0;
 $('iglooBtn').addEventListener('click', () => { audio(); if (bases.floe >= 1) sleepTillDawn(); else buildIgloo(); });
 $('iceDrop').addEventListener('click', iceDrop);
 $('iceLeave').addEventListener('click', () => { audio(); endIce(); toast('Back aboard from the ice.', 1800); });
+// A whole-screen mini-game's way out, in the pill up top like every other, out of the steering thumb's way (the owner,
+// 2026-10-23); where its bars go, under the coins and the pill.
+function wayOutUp(label, key){ elLeave.hidden = false; elLeave.textContent = label; leaveShown = key;
+  return Math.max(document.querySelector('.hud').getBoundingClientRect().bottom, elLeave.getBoundingClientRect().bottom) + 10; }
 // The drone, the owner's (2026-10-21): Caterman builds it at his workshop on island 11, in a colour of your own, and
 // it is flown on into the jungle from just behind it (entities/droneflight.ts). The figure waits at the door meanwhile.
 let droneFly = null, droneFish = null, droneT = 0, droneEndT = 0, droneOpen = false, droneTold = false, droneMoney = 0, droneTop = 64, trapTold = false;
@@ -1155,8 +1159,7 @@ function startDrone(){ audio(); if (!drone.owned || droneFly || droneFish) retur
     else if (what === 'got'){ setTrap(spot, -1); drone = {...drone, beetles: Math.min(BEETLES_MAX, drone.beetles + BEETLES_PER_TRAP)}; sfx.rightAnswer(); save(); toast(`Jewel beetles! You have ${drone.beetles}.`, 1800, 1); }
     else if (what !== trapSaid){ trapSaid = what; toast(what === 'filling' ? 'That trap is still filling. Come back tomorrow!' : 'No traps left on the drone: they are all hung.', 2000); } };
   droneFly.onEnd = (s) => { droneEndT = 2.4; if (s === 'done') sfx.orderFilled(); else sfx.droneHome(); };
-  document.body.classList.add('droning'); $('droneLand').hidden = false;
-  droneTop = document.querySelector('.hud').getBoundingClientRect().bottom + 10; // under the coins, clear of the notch
+  document.body.classList.add('droning'); droneTop = wayOutUp('Land the drone', 'drone');
   toast(droneTold ? 'Up it goes!' : 'Up it goes! Steer with your thumb, and fly it through the gold rings.', droneTold ? 1400 : 3600, 1);
   droneTold = true; }
 function updateDrone(dt){ droneT += dt; const f = droneFly;
@@ -1164,14 +1167,13 @@ function updateDrone(dt){ droneT += dt; const f = droneFly;
   else { f.drift(dt); droneEndT -= dt; if (droneEndT <= 0) endDrone(); } }
 // Down again at the workshop door: coins for its rings, and the flight in the save.
 function endDrone(quiet = false){ const f = droneFly; if (!f) return; droneFly = null;
-  document.body.classList.remove('droning'); $('droneLand').hidden = true; climbShown = undefined;
+  document.body.classList.remove('droning'); climbShown = undefined; leaveShown = undefined;
   if (quiet) return;
   const pay = droneMoney, best = f.rings > drone.bestRings;
   coins += pay; earned += pay; drone = {...drone, flights: drone.flights + 1, bestRings: Math.max(drone.bestRings, f.rings)};
   toasts.clear();
   toast(`${f.state === 'done' ? 'Right through the jungle!' : f.state === 'home' ? 'Its battery ran flat, so it flew home.' : 'Back down at the workshop.'} ${f.rings} of ${f.ringsOut} rings${pay ? `: ${pay} coins` : ''}.${best ? ' Your most yet!' : ''}${f.beetles ? ` And ${f.beetles} jewel beetles brought home!` : ''}`, 4200, 1);
   hud(); save(); refreshShop(); }
-$('droneLand').addEventListener('click', () => { audio(); if (droneFly) endDrone(); else if (droneFish) endDroneFish(); });
 // Fishing from the drone (entities/dronefish.ts), part three of the owner's drone: out over island 11's black lagoon,
 // where no boat can go, a jewel beetle on its line. Drop it on a rise; when the fish takes it, reel it in.
 let fishTold = false, fishEmptyTold = false, dropShown = '';
@@ -1186,8 +1188,7 @@ function startDroneFish(){ audio(); if (!drone.owned || droneFly || droneFish) r
     else if (what === 'letgo'){ sfx.splash(); toast('It let go! The beetle is still on the line.', 2000); }
     else if (!fishEmptyTold){ fishEmptyTold = true; toast('Nothing there. Drop the beetle on the rings where a fish is rising.', 2600); } };
   droneFish.onEnd = () => { droneEndT = 1.6; sfx.droneHome(); };
-  document.body.classList.add('droning'); $('droneLand').hidden = false; $('droneDrop').hidden = false;
-  droneTop = document.querySelector('.hud').getBoundingClientRect().bottom + 10;
+  document.body.classList.add('droning'); $('droneDrop').hidden = false; droneTop = wayOutUp('Land the drone', 'drone');
   toast(fishTold ? 'Out over the black lagoon!' : 'Out over the black lagoon! Steer over the rings where a fish is rising, and drop the beetle. When the fish takes it, reel it in!', fishTold ? 1400 : 4600, 1);
   fishTold = true; }
 function lagoonCatch(sp){ const S = SPECIES[sp];
@@ -1204,7 +1205,7 @@ function updateDroneFish(dt){ droneT += dt; const f = droneFish;
   if (label !== dropShown){ dropShown = label; const el = $('droneDrop'); el.textContent = label; el.hidden = !label; el.classList.toggle('bite', f.state === 'reel'); } }
 // Back from the lagoon: the catch is already in the hold; a word on what it was.
 function endDroneFish(quiet = false){ const f = droneFish; if (!f) return; droneFish = null;
-  document.body.classList.remove('droning'); $('droneLand').hidden = true; $('droneDrop').hidden = true; climbShown = undefined;
+  document.body.classList.remove('droning'); $('droneDrop').hidden = true; climbShown = undefined; leaveShown = undefined;
   if (quiet) return;
   drone = {...drone, flights: drone.flights + 1};
   const n = new Map(); for (const sp of f.caught) n.set(sp, (n.get(sp) || 0) + 1);
@@ -1231,8 +1232,7 @@ function startSlalom(){ audio(); if (ski || droneFly || droneFish || ctf) return
     else if (what === 'landed' && ski.trick){ sfx.rightAnswer(); skiPop(`${ski.trick === 'spin' ? 'Spin' : 'Flip'}! -${TRICK_BONUS}s`, '#9BE7A0'); }
     else if (what === 'finish'){ skiEndT = 3.4; sfx.orderFilled(); } };
   document.body.classList.add('droning'); $('skiTrick').hidden = false;
-  elLeave.hidden = false; elLeave.textContent = 'Stop the run'; leaveShown = 'ski';
-  skiTop = Math.max(document.querySelector('.hud').getBoundingClientRect().bottom, elLeave.getBoundingClientRect().bottom) + 10; // under the coins and the stop, clear of the notch
+  skiTop = wayOutUp('Stop the run', 'ski');
   skiTold = true; }
 function updateSlalom(dt){ skiT += dt; const s = ski;
   for (const p of skiPops) p.t += dt;
@@ -5334,7 +5334,7 @@ elClimb.addEventListener('click', () => { audio(); const a = climbAction(); if (
   if (a === 'door') enterTower(towerAtDoor());
   else if (a === 'dive') dive(); else if (a === 'portal') intoDemons();
   else if (a === 'stairs' || a === 'onward'){ toRoom(floor + 1); if (hearts < maxHearts()){ hearts = maxHearts(); hudHearts(); toast('You catch your breath on the stairs. Hearts full.', 2000); } } });
-elLeave.addEventListener('click', () => { audio(); if (ski){ endSlalom(); return; } if (tarSail){ if (tarRing) endTarRing(false); else if (tarAshore) tarBoard(); else endTarSail(); return; } if (seaFight){ if (swallowT <= 0) endSea(false); return; } if (tunnels){ leaveTunnels('Out of the tunnels. Come back and try again any time.'); return; } if (floor < 0) return;
+elLeave.addEventListener('click', () => { audio(); if (ski){ endSlalom(); return; } if (droneFly){ endDrone(); return; } if (droneFish){ endDroneFish(); return; } if (tarSail){ if (tarRing) endTarRing(false); else if (tarAshore) tarBoard(); else endTarSail(); return; } if (seaFight){ if (swallowT <= 0) endSea(false); return; } if (tunnels){ leaveTunnels('Out of the tunnels. Come back and try again any time.'); return; } if (floor < 0) return;
   if (tower === BARGE){ endBarge(false); return; }
   if (tower === BRIDGE_TOWER){ outOfBridge(); return; }
   // Island 7's tower beaten: down the stairs and out at its door, to see the portal wake.
