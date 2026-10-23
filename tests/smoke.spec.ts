@@ -589,6 +589,7 @@ type Np = {
   maxHearts: number;
   sailedShare: number;
   mapOpen: boolean;
+  helpOpen: boolean;
   mapMarks(): { x: number; y: number; name: string }[];
   lionSeen: boolean;
   netCut: boolean;
@@ -1636,6 +1637,68 @@ test("choose your character: the shipwright's armour can be hidden, so the look 
   await page.click('#charClose');
   expect(errors).toEqual([]);
 });
+
+test("the player's guide: opens over the game from the start and from the shop, every answer folded away", async ({
+  context,
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await context.addInitScript(
+    (s: string) => {
+      if (!localStorage.getItem('netprofit.v1')) localStorage.setItem('netprofit.v1', s);
+    },
+    JSON.stringify({ muted: true, coins: 100 }),
+  );
+  await page.goto('./');
+  await page.waitForTimeout(400);
+  await page.click('#helpIntro');
+  await expect(page.locator('#help')).toBeVisible();
+  const guide = page.frameLocator('#helpFrame');
+  await expect(guide.locator('h1')).toContainText("Player's guide");
+  // Over the game it has the game's close button, not a link that would load a second game.
+  await expect(guide.locator('.back')).toBeHidden();
+  // What a kid reads without opening anything gives nothing away: no answers, and the secrets stay secret.
+  const shown = await guide.locator('main').innerText();
+  expect(shown).not.toMatch(/mermaid|siren|drone|beetle|pearl|grampy/i);
+  const places = guide.locator('main > section details.place');
+  expect(await places.count()).toBeGreaterThan(10);
+  const place = places.first();
+  const answer = place.locator('details.answer').first();
+  await expect(answer).toBeHidden();
+  // A place opens to its hint, and the answer under it is a second tap.
+  await place.locator('> summary').click();
+  await expect(answer.locator('> summary')).toBeVisible();
+  await expect(answer.locator('.in')).toBeHidden();
+  await answer.locator('> summary').click();
+  await expect(answer.locator('.in')).toBeVisible();
+  await expect(guide.locator('details.secrets .in').first()).toBeHidden();
+  await page.click('#helpClose');
+  await expect(page.locator('#help')).toBeHidden();
+  // And from the shop, once playing (its row sits down the shop's planks, past what a click can scroll to).
+  await page.click('#go');
+  await page.locator('#helpBtn').dispatchEvent('click');
+  await expect(page.locator('#help')).toBeVisible();
+  await expect(guide.locator('h1')).toBeVisible();
+  // The game waits while it is read, as for the sea map: the day stands still.
+  expect(await page.evaluate(() => window.__np.helpOpen)).toBe(true);
+  const clock = await page.evaluate(() => window.__np.clock);
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__np.clock)).toBe(clock);
+  await page.click('#helpClose');
+  await expect(page.locator('#help')).toBeHidden();
+  await page.waitForFunction((c) => window.__np.clock !== c, clock, { timeout: 2000 });
+  // Escape closes it too.
+  await page.locator('#helpBtn').dispatchEvent('click');
+  await expect(page.locator('#help')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#help')).toBeHidden();
+  // On its own, it has its way back to the game.
+  await page.goto('./guide.html');
+  await expect(page.locator('.back')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('Honor Guard: the shipwright has it once the Heron is beaten on island 9, and it is nine hearts', async ({
   context,
   page,
@@ -6178,7 +6241,11 @@ test('installable: a manifest with its icons, a service worker, and with no sign
   await page.waitForFunction(
     async () => {
       const keys = await (await caches.open('netprofit')).keys();
-      return keys.some((r) => r.url.includes('/assets/')) && keys.some((r) => r.url.endsWith('/'));
+      return (
+        keys.some((r) => r.url.includes('/assets/')) &&
+        keys.some((r) => r.url.endsWith('/')) &&
+        keys.some((r) => r.url.endsWith('/guide.html'))
+      );
     },
     null,
     { timeout: 5000, polling: 200 },
@@ -6202,6 +6269,10 @@ test('installable: a manifest with its icons, a service worker, and with no sign
   await page.waitForTimeout(400);
   await page.click('#go');
   await page.waitForFunction(() => window.__np?.coins === 777, null, { timeout: 3000 });
+  // The player's guide was kept with it.
+  await page.locator('#helpBtn').dispatchEvent('click');
+  await expect(page.frameLocator('#helpFrame').locator('h1')).toContainText("Player's guide");
+  await page.click('#helpClose');
   await context.setOffline(false);
   expect(errors).toEqual([]);
 });
