@@ -1,5 +1,5 @@
 /**
- * Drawing Doom Island (world/doom.ts): the shallows round it, the channel between its halves (the shallows a lighter
+ * Drawing the Endless Isle (world/endless.ts): the shallows round it, the channel between its halves (the shallows a lighter
  * turquoise round the sandbar, the rest deeper), and the two halves, the same ground dressed two ways. The pirates'
  * is warm: gold sand and jungle green, sandy trails, palms, a log stockade with the Jolly Roger flying in it, a ship
  * beached by the fort, a cannon on its battery, and the great tree hung with treehouses. The ninjas' is cool: pale
@@ -15,10 +15,10 @@ import {
   BRIDGES13,
   CHANNEL,
   CRATES13,
-  DOOM,
-  doomEdge,
+  ENDLESS,
+  endlessEdge,
   FORT,
-  fromDoom,
+  fromEndless,
   GRAVE,
   HALF_C,
   halfShore,
@@ -31,7 +31,7 @@ import {
   SIDES,
   type Side,
   TREES13,
-} from '../world/doom';
+} from '../world/endless';
 import { drawPalm7 } from './isle7';
 import type { Solid } from './layers';
 
@@ -60,13 +60,13 @@ const LOOK = {
 /** A point on a half, on the screen. */
 function hp(v: DrawView, side: Side, u: number, w: number, z = 0): [number, number] {
   const [hu, hv] = onHalf(side, u, w);
-  const [x, y] = fromDoom(hu, hv);
+  const [x, y] = fromEndless(hu, hv);
   return [v.px(x, y), v.py(x, y, z)];
 }
 /** A point on a half, in the world. */
 function hw(side: Side, u: number, w: number): [number, number] {
   const [hu, hv] = onHalf(side, u, w);
-  const [x, y] = fromDoom(hu, hv);
+  const [x, y] = fromEndless(hu, hv);
   return [x, y];
 }
 
@@ -76,8 +76,8 @@ function edgePath(v: DrawView, off: number): void {
   ctx.beginPath();
   for (let i = 0; i <= N; i++) {
     const a = (i / N) * Math.PI * 2;
-    const r = Math.max(10, doomEdge(a) + off);
-    const [x, y] = fromDoom(Math.cos(a) * r, Math.sin(a) * r);
+    const r = Math.max(10, endlessEdge(a) + off);
+    const [x, y] = fromEndless(Math.cos(a) * r, Math.sin(a) * r);
     if (i === 0) ctx.moveTo(px(x, y), py(x, y));
     else ctx.lineTo(px(x, y), py(x, y));
   }
@@ -104,17 +104,17 @@ function frameEllipse(v: DrawView, u: number, w: number, ru: number, rv: number,
   ctx.beginPath();
   for (let i = 0; i <= 36; i++) {
     const a = (i / 36) * Math.PI * 2;
-    const [x, y] = fromDoom(u + Math.cos(a) * ru, w + Math.sin(a) * rv);
+    const [x, y] = fromEndless(u + Math.cos(a) * ru, w + Math.sin(a) * rv);
     if (i === 0) ctx.moveTo(px(x, y), py(x, y, z));
     else ctx.lineTo(px(x, y), py(x, y, z));
   }
   ctx.closePath();
 }
 
-const near = (v: DrawView, m: number) => v.onScreen(DOOM.x, DOOM.y, m * v.zoom);
+const near = (v: DrawView, m: number) => v.onScreen(ENDLESS.x, ENDLESS.y, m * v.zoom);
 
 /** The shallows round it, in rings following its edge, and the channel between the halves. */
-export function drawDoomSea(v: DrawView): void {
+export function drawEndlessSea(v: DrawView): void {
   const { ctx } = v;
   if (!near(v, 2600)) return;
   edgePath(v, 300);
@@ -135,7 +135,7 @@ export function drawDoomSea(v: DrawView): void {
     [700, CHANNEL + 30],
     [-700, CHANNEL + 30],
   ] as const) {
-    const [x, y] = fromDoom(u, w);
+    const [x, y] = fromEndless(u, w);
     ctx.lineTo(px(x, y), py(x, y));
   }
   ctx.closePath();
@@ -147,7 +147,7 @@ export function drawDoomSea(v: DrawView): void {
 }
 
 /** Both halves' ground, their trails and base rings, the sandbar, the bridges and the piers. */
-export function drawDoomFlat(v: DrawView): void {
+export function drawEndlessFlat(v: DrawView): void {
   const { ctx, T } = v;
   const Z = v.zoom;
   if (!near(v, 2300)) return;
@@ -330,7 +330,7 @@ function drawBridge13(v: DrawView, u: number): void {
   const L = BRIDGE13.w;
   const at = (du: number, t: number, lift = 0): [number, number] => {
     const vv = -L + 2 * L * t;
-    const [x, y] = fromDoom(u + du, vv);
+    const [x, y] = fromEndless(u + du, vv);
     const z = Math.min(1, (L - Math.abs(vv)) / BRIDGE13.ramp) * BRIDGE13.z + lift;
     return [px(x, y), py(x, y, z)];
   };
@@ -344,7 +344,7 @@ function drawBridge13(v: DrawView, u: number): void {
     [h, 0],
   ] as const) {
     const vv = -L + 2 * L * t;
-    const [x, y] = fromDoom(u + du + 6, vv + 6);
+    const [x, y] = fromEndless(u + du + 6, vv + 6);
     ctx.lineTo(px(x, y), py(x, y));
   }
   ctx.closePath();
@@ -752,10 +752,10 @@ function drawBellTower(v: DrawView, x: number, y: number): void {
 function drawWreck(v: DrawView): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
-  const sx = px(DOOM.x, DOOM.y);
-  const sy = py(DOOM.x, DOOM.y);
+  const sx = px(ENDLESS.x, ENDLESS.y);
+  const sy = py(ENDLESS.x, ENDLESS.y);
   ctx.fillStyle = 'rgba(0,0,0,.2)';
-  v.isoEllipse(DOOM.x, DOOM.y, 44);
+  v.isoEllipse(ENDLESS.x, ENDLESS.y, 44);
   ctx.fill();
   ctx.fillStyle = '#5E4430';
   ctx.beginPath();
@@ -1059,7 +1059,7 @@ function behind(
  * All that stands up on both halves and in the channel, each a solid for the scene to sort. Focus is what the camera
  * follows, the figure or the boat, for fading the tall landmarks it goes behind.
  */
-export function doomSolids(v: DrawView, focus: { x: number; y: number } | null = null): Solid[] {
+export function endlessSolids(v: DrawView, focus: { x: number; y: number } | null = null): Solid[] {
   if (!near(v, 2300)) return [];
   const out: Solid[] = [];
   const dt = Math.min(0.1, Math.max(0, v.T - fade.t));
@@ -1120,6 +1120,6 @@ export function doomSolids(v: DrawView, focus: { x: number; y: number } | null =
     const c = CRATES13[side];
     if (on(c.x, c.y, 40)) out.push({ d: c.x + c.y + 10, f: () => drawCrates13(v, side) });
   }
-  if (on(DOOM.x, DOOM.y, 120)) out.push({ d: DOOM.x + DOOM.y, f: () => drawWreck(v) });
+  if (on(ENDLESS.x, ENDLESS.y, 120)) out.push({ d: ENDLESS.x + ENDLESS.y, f: () => drawWreck(v) });
   return out;
 }

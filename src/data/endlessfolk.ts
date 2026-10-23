@@ -1,5 +1,5 @@
 /**
- * Doom Island's folk, the kid's: the pirates' Captain and the ninjas' Master on their piers, and the minion each side
+ * The Endless Isle's folk, the kid's: the pirates' Captain and the ninjas' Master on their piers, and the minion each side
  * gives you for joining it. The kid named the minions (2026-10-23, his tab "doom island for rowan"): the parrot is
  * Jacks Parrow, the ninja-bun Bun-San. The leaders' names are asked; until he answers they are the Captain and the
  * Master. Why do the two sides fight? The kid: "to stimulate the economy".
@@ -10,7 +10,7 @@
  * (a black bar with BLEEP on it, and the bleep's tone) and {#} a word sworn (a red bar of symbols).
  */
 
-import type { Side } from '../world/doom';
+import type { Side } from '../world/endless';
 
 export const MINION_NAME: Readonly<Record<Side, string>> = {
   pirate: 'Jacks Parrow',
@@ -79,7 +79,7 @@ export const LEADER_SAYS: Readonly<
 > = {
   pirate: {
     hello:
-      "Arr! Ye've come to Doom Island. Those sneaky ninjas over the water have been at war with us for a hundred years. Sign the articles and ye're a pirate! I'll even throw in me parrot.",
+      "Arr! Ye've come to the Endless Isle. Those sneaky ninjas over the water have been at war with us for a hundred years. Sign the articles and ye're a pirate! I'll even throw in me parrot.",
     rival:
       "A ninja, are ye? Arr, no matter: plenty fight for both sides. Gold is gold! Sign the articles and ye can be a pirate as well. I'll even throw in me parrot.",
     joined:

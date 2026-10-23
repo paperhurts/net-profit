@@ -1216,17 +1216,17 @@ describe('the mermaids', () => {
   });
 });
 
-describe('Doom Island', () => {
+describe('the Endless Isle', () => {
   it('an old save has not sighted it; sighted, it keeps it, and an unsighted one is left out of the save', () => {
     const s = parseSave(legacy, bounds);
     const none = { seen: false, pirate: false, ninja: false };
-    expect(s.doom).toEqual(none);
-    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('doom');
-    s.doom = { ...none, seen: true };
-    expect(parseSave(serializeSave(s), bounds).doom).toEqual({ ...none, seen: true });
-    expect(parseSave(JSON.stringify({ ...s, doom: 'yes' }), bounds).doom).toEqual(none);
+    expect(s.endless).toEqual(none);
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('endless');
+    s.endless = { ...none, seen: true };
+    expect(parseSave(serializeSave(s), bounds).endless).toEqual({ ...none, seen: true });
+    expect(parseSave(JSON.stringify({ ...s, endless: 'yes' }), bounds).endless).toEqual(none);
     // A save from part one has only whether it was seen.
-    expect(parseSave(JSON.stringify({ ...s, doom: { seen: 1 } }), bounds).doom).toEqual({
+    expect(parseSave(JSON.stringify({ ...s, endless: { seen: 1 } }), bounds).endless).toEqual({
       ...none,
       seen: true,
     });
@@ -1234,12 +1234,26 @@ describe('Doom Island', () => {
 
   it('keeps the sides joined, either or both, and nothing that is not a yes', () => {
     const s = parseSave(legacy, bounds);
-    s.doom = { seen: true, pirate: true, ninja: false };
-    expect(parseSave(serializeSave(s), bounds).doom).toEqual(s.doom);
-    s.doom = { seen: true, pirate: true, ninja: true };
-    expect(parseSave(serializeSave(s), bounds).doom).toEqual(s.doom);
-    const odd = { ...s, doom: { seen: true, pirate: 'yes', ninja: 1 } };
-    expect(parseSave(JSON.stringify(odd), bounds).doom).toEqual({
+    s.endless = { seen: true, pirate: true, ninja: false };
+    expect(parseSave(serializeSave(s), bounds).endless).toEqual(s.endless);
+    s.endless = { seen: true, pirate: true, ninja: true };
+    expect(parseSave(serializeSave(s), bounds).endless).toEqual(s.endless);
+    // A save from the day it was still Doom Island, under the old key.
+    const old = {
+      ...JSON.parse(serializeSave(s)),
+      endless: undefined,
+      doom: { seen: true, pirate: true },
+    };
+    expect(parseSave(JSON.stringify(old), bounds).endless).toEqual({
+      seen: true,
+      pirate: true,
+      ninja: false,
+    });
+    expect(JSON.parse(serializeSave(parseSave(JSON.stringify(old), bounds)))).not.toHaveProperty(
+      'doom',
+    );
+    const odd = { ...s, endless: { seen: true, pirate: 'yes', ninja: 1 } };
+    expect(parseSave(JSON.stringify(odd), bounds).endless).toEqual({
       seen: true,
       pirate: false,
       ninja: false,

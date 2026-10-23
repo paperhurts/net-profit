@@ -509,7 +509,7 @@ describe('the baby Reaper, out of the egg', () => {
   });
 });
 
-describe("Doom Island's minions", () => {
+describe("the Endless Isle's minions", () => {
   it('Jacks Parrow rides the shoulder, flies off to peck what the figure fights and back, and nothing hurts him', () => {
     const p = new Pal('parrot');
     p.free = true;
