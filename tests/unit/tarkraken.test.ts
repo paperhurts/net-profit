@@ -5,9 +5,13 @@ import {
   ARM_WINDUP,
   ARMS_TO_CHOP,
   ARMS_UP,
+  ASHORE,
   EYE_BLINK,
   EYE_SHUT,
+  ISLE_GROUND,
+  ISLE_LAIR,
   KRAKEN_DMG,
+  KRAKEN_HEARTS,
   KRAKEN_HP,
   KRAKEN_PRIZE,
   LAIR,
@@ -26,7 +30,14 @@ import {
   drawKrakenPips,
   drawKrakenPrize,
 } from '../../src/render/tarkraken';
-import { ISLE_BERTH, TAR_ISLE } from '../../src/world/tarisle';
+import {
+  ISLE_BERTH,
+  JETTY,
+  onIsleRock,
+  onTarIsle,
+  shoreR,
+  TAR_ISLE,
+} from '../../src/world/tarisle';
 import { onTar, TAR_BERTH } from '../../src/world/tarsea';
 import { fakeView } from './helpers/view';
 
@@ -233,5 +244,129 @@ describe('the tar kraken', () => {
     const h = fakeView();
     drawKrakenPrize(h.v, k);
     expect(h.calls.stroke ?? 0).toBeGreaterThan(0);
+  });
+});
+
+describe('round two: the tar kraken on foot, on the tar island', () => {
+  // The figure on the beach, at this angle round the island, just inside the shore.
+  const onBeach = (a: number): Boat => {
+    const r = shoreR(a) - 20;
+    return { x: TAR_ISLE.x + Math.cos(a) * r, y: TAR_ISLE.y + Math.sin(a) * r, h: a, v: 0 };
+  };
+  const ashore = () => {
+    const k = new TarKraken(7333, ISLE_LAIR, ISLE_GROUND);
+    k.on = true;
+    return k;
+  };
+
+  it('stands on the island: you are on its rock, and it is round it', () => {
+    for (const a of [0, 1, 2, 3, 4, 5]) {
+      const f = onBeach(a);
+      expect(onTarIsle(f.x, f.y)).toBe(true);
+      expect(Math.hypot(f.x - ISLE_LAIR.x, f.y - ISLE_LAIR.y)).toBeLessThan(ISLE_LAIR.wake);
+    }
+    expect(KRAKEN_HEARTS).toBe(3);
+  });
+
+  it('brings its arms up on the tar off the shore nearest you, in reach of you and clear of the jetty', () => {
+    for (const a of [0, 0.8, 1.57, 2.4, 3.3, 4.2, 5.2]) {
+      const f = onBeach(a);
+      for (const r of [0, 0.25, 0.5, 0.75, 1]) {
+        const p = ISLE_GROUND.arm(f, r);
+        expect(onIsleRock(p.x, p.y)).toBe(false);
+        expect(onTar(p.x, p.y)).toBe(true);
+        // Nowhere over the jetty, or the boat tied up beside it.
+        expect(Math.abs(p.x - JETTY.x) > JETTY.half + 30 || p.y < JETTY.y0 - 20).toBe(true);
+        expect(Math.hypot(p.x - ISLE_BERTH.x, p.y - ISLE_BERTH.y)).toBeGreaterThan(70);
+      }
+      // Away from the jetty, the middle one comes up within a throw, and slams the beach where you stand.
+      if (Math.abs(a - Math.PI / 2) > 0.6) {
+        const p = ISLE_GROUND.arm(f, 0.5);
+        expect(Math.hypot(p.x - f.x, p.y - f.y)).toBeLessThan(ASHORE.reach);
+        const eye = ISLE_GROUND.eye(f);
+        expect(onIsleRock(eye.x, eye.y)).toBe(false);
+        // The first spear's throw (95), from the beach.
+        expect(Math.hypot(eye.x - f.x, eye.y - f.y)).toBeLessThan(95 + 30);
+      }
+    }
+  });
+
+  it('slams the beach where you stood, a ring a figure can step out of', () => {
+    const k = ashore();
+    const f = onBeach(0);
+    let hits = 0;
+    let slams = 0;
+    k.onSlam = (_a, hit) => {
+      slams++;
+      if (hit) hits++;
+    };
+    run(k, f, 8);
+    expect(k.state).toBe('arms');
+    expect(slams).toBeGreaterThan(0);
+    expect(hits).toBe(slams);
+    // Stepped out of the ring as it rears back: missed.
+    const k2 = ashore();
+    let missed = 0;
+    k2.onWindup = () => {
+      f.x -= Math.cos(0) * (ASHORE.slam + 10);
+    };
+    k2.onSlam = (_a, hit) => {
+      if (!hit) missed++;
+    };
+    run(k2, onBeach(0), 0.01);
+    run(k2, f, 8);
+    expect(missed).toBeGreaterThan(0);
+  });
+
+  it('comes up after six chopped, its eye off the shore and five arms along it; nine in the eye beat it', () => {
+    const k = ashore();
+    const f = onBeach(5.5);
+    let beaten = 0;
+    k.onBeaten = () => beaten++;
+    for (let t = 0; t < 60 && k.state !== 'rise'; t += 0.1) {
+      run(k, f, 0.1);
+      for (const a of k.arms) if (TarKraken.choppable(a)) k.chop(a);
+    }
+    expect(k.chopped).toBe(ASHORE.chop);
+    expect(k.state).toBe('rise');
+    expect(onIsleRock(k.eye.x, k.eye.y)).toBe(false);
+    run(k, f, RISE_T + 0.1);
+    expect(k.state).toBe('eye');
+    expect(k.arms.filter((a) => a.ring)).toHaveLength(ASHORE.ringArms);
+    for (const a of k.arms.filter((q) => q.ring)) expect(onIsleRock(a.x, a.y)).toBe(false);
+    for (let i = 0; i < KRAKEN_HP; i++) {
+      k.eye.state = 'open';
+      expect(k.harpoonEye(1)).toBe(true);
+    }
+    expect(beaten).toBe(1);
+    run(k, f, SINK_T + 0.1);
+    expect(k.state).toBe('gone');
+  });
+
+  it('sinks back down whole once you are back aboard', () => {
+    const k = ashore();
+    const f = onBeach(0.3);
+    run(k, f, 4);
+    expect(k.up).toBe(true);
+    run(k, null, SINK_T + 0.1);
+    expect(k.state).toBe('sleep');
+    expect(k.chopped).toBe(0);
+  });
+
+  it('draws its slam ring a figure wide', () => {
+    const f = fakeView();
+    const a = {
+      x: 0,
+      y: 0,
+      state: 'windup' as const,
+      t: 0.5,
+      life: 1,
+      at: { x: 0, y: 0 },
+      flash: 0,
+      seed: 1,
+      ring: false,
+    };
+    drawKrakenArmMark(f.v, a, ASHORE.slam);
+    expect(f.calls.isoEllipse).toBe(1);
   });
 });

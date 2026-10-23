@@ -26,6 +26,7 @@ export const TROPHY_KINDS = [
   'tarsword',
   'skrillhorn',
   'krakenarm',
+  'krakeneye',
   'spine',
   'shard',
   'lure',
@@ -54,6 +55,8 @@ export interface Beaten {
   skrill: boolean;
   /** The tar kraken beaten, under the middle of the tar ocean. */
   kraken: boolean;
+  /** And again, round two, on foot on the tar island. */
+  krakenFoot: boolean;
   driven: Driven;
 }
 
@@ -193,6 +196,13 @@ export const TROPHIES: Readonly<Record<TrophyKind, Trophy>> = {
       "One of the tar kraken's arms, left floating when it sank under the middle of the tar ocean. Its suckers still twitch now and then.",
     hint: 'Beat the tar kraken, under the very middle of the tar ocean, once the tar eel is beaten.',
     won: (b) => b.kraken,
+  },
+  krakeneye: {
+    name: "the tar kraken's eye",
+    story:
+      "The tar kraken's own eye, shut for good when you beat it on foot off the tar island's shore. Every now and then its lid twitches, and a sliver of yellow shows.",
+    hint: 'Beat the tar kraken at sea, then go ashore on the tar island: it comes back for you there.',
+    won: (b) => b.krakenFoot,
   },
   spine: {
     name: "the leviathan's spine",

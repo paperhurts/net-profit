@@ -252,6 +252,18 @@ type Np = {
     harpoonEye(n: number): boolean;
   };
   KRAKEN_LAIR: { x: number; y: number };
+  krakenAshore: {
+    state: string;
+    hp: number;
+    chopped: number;
+    up: boolean;
+    eyeOpen: boolean;
+    eye: { x: number; y: number; state: string };
+    arms: { x: number; y: number; state: string; ring: boolean }[];
+    chop(a: unknown): boolean;
+    harpoonEye(n: number): boolean;
+  };
+  krakenFoot: boolean;
   TAR_ARENA: { x: number; y: number };
   tarRing: {
     r: number;
@@ -8323,7 +8335,7 @@ test("your headquarters' trophy hall: a trophy for each boss beaten, and empty s
     await page.waitForFunction((f) => window.__np.floor === f + 1, floor);
   }
   // The island 2 sorcerer, the Tar Anchorer, the Shark King, island 7's sorcerer, the Forgotten One twice, the Old One.
-  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 24 stands', {
+  await expect(page.locator('#toast')).toContainText('Your trophy hall! 7 of 25 stands', {
     timeout: 3000,
   });
   expect(await page.evaluate(() => window.__np.trophiesWon)).toBe(7);
@@ -11220,6 +11232,111 @@ async function outOnTheTar(page: Page): Promise<void> {
   await page.click('#climb');
   await page.waitForFunction(() => window.__np.tarSail !== null);
 }
+
+test('the tar kraken, round two: beaten at sea, it comes back for the tar island; its arms slam the beach, six chopped and its eye rises off the shore, nine in it beat it for good', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 0,
+    spear: 2,
+    isle3Stage: 1,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    bridgeSeen: true,
+    bridgeIn: true,
+    stealth1: true,
+    eelStage: 2,
+    krakenBeaten: true,
+    tarLeaderBeaten: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 7430, y: -5200, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await outOnTheTar(page);
+  const land = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      if (!n.tarSail) return;
+      n.tarSail.x = n.ISLE_BERTH.x + 20;
+      n.tarSail.y = n.ISLE_BERTH.y + 50;
+      n.tarSail.v = 0;
+    });
+    await expect(page.locator('#climb')).toHaveText('Step ashore', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction(() => window.__np.tarAshore);
+  };
+  await land();
+  await expect(page.locator('#toast')).toContainText('the tar kraken is back', { timeout: 4000 });
+  // Out on the east beach, its arms come up off the shore.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.TAR_ISLE.x + 400;
+    n.walker.y = n.TAR_ISLE.y;
+    n.setHearts(99);
+  });
+  await page.waitForFunction(
+    () => window.__np.krakenAshore.arms.some((a) => a.state === 'up' || a.state === 'windup'),
+    null,
+    { timeout: 6000 },
+  );
+  // A spear chops one.
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 3000 });
+  await page.locator('#throw').dispatchEvent('pointerdown');
+  await page.waitForFunction(() => window.__np.krakenAshore.chopped >= 1, null, { timeout: 4000 });
+  // Five more, and the kraken itself comes up off the shore.
+  await page.waitForFunction(
+    () => {
+      const k = window.__np.krakenAshore;
+      window.__np.setHearts(99);
+      for (const a of k.arms)
+        if (
+          k.state === 'arms' &&
+          (a.state === 'up' || a.state === 'windup' || a.state === 'recover')
+        )
+          k.chop(a);
+      return k.state === 'rise' || k.state === 'eye';
+    },
+    null,
+    { timeout: 30000, polling: 200 },
+  );
+  await expect(page.locator('#toast')).toContainText('The kraken itself!', { timeout: 3000 });
+  await page.waitForFunction(() => window.__np.krakenAshore.eyeOpen, null, { timeout: 10000 });
+  const hp0 = await page.evaluate(() => window.__np.krakenAshore.hp);
+  await page.evaluate(() => window.__np.setHearts(99));
+  await page.locator('#throw').dispatchEvent('pointerdown');
+  await page.waitForFunction((h) => window.__np.krakenAshore.hp < h, hp0, { timeout: 4000 });
+  // The rest: beaten for good, 900 coins and its eye for the trophy hall.
+  const coins = await page.evaluate(() => window.__np.coins);
+  const trophies = await page.evaluate(() => window.__np.trophiesWon);
+  await page.evaluate(() => {
+    const k = window.__np.krakenAshore;
+    while (k.state === 'eye') {
+      k.eye.state = 'open';
+      k.harpoonEye(1);
+    }
+  });
+  await expect(page.locator('#toast')).toContainText('You beat the tar kraken on foot!', {
+    timeout: 3000,
+  });
+  expect(
+    await page.evaluate(() => [window.__np.krakenFoot, window.__np.coins, window.__np.trophiesWon]),
+  ).toEqual([true, coins + 900, trophies + 1]);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').krakenFoot),
+  ).toBe(true);
+  // Back aboard and ashore again: the tar is still.
+  await page.click('#leave');
+  await page.waitForFunction(() => !window.__np.tarAshore);
+  await land();
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__np.krakenAshore.state)).toBe('gone');
+  expect(errors).toEqual([]);
+});
 
 test('the tar kraken: under the middle of the tar once the eel is beaten, its arms come up round the boat, ten chopped and its giant eye rises, nine harpoons in it beat it', async ({
   context,

@@ -1260,3 +1260,12 @@ describe('the Endless Isle', () => {
     });
   });
 });
+
+describe('the tar kraken, round two', () => {
+  it('an old save has not beaten it on foot; beaten, it stays beaten', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.krakenFoot).toBe(false);
+    s.krakenFoot = true;
+    expect(parseSave(serializeSave(s), bounds).krakenFoot).toBe(true);
+  });
+});

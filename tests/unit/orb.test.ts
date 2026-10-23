@@ -18,6 +18,7 @@ const start: Beaten = {
   tarLeader: false,
   skrill: false,
   kraken: false,
+  krakenFoot: false,
   driven: noDriven(),
 };
 
@@ -76,6 +77,7 @@ describe('the orb on the bridge', () => {
       tarLeader: true,
       skrill: true,
       kraken: true,
+      krakenFoot: true,
       driven: { guard: 1, cthulu: 1, angler: 1, gulper: 1, meteor: 1, reaper: 1 },
     };
     expect(TROPHY_KINDS.every((k) => TROPHIES[k].won(all))).toBe(true);

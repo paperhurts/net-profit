@@ -35,8 +35,8 @@ function armHeight(a: Arm): number {
   return Math.min(1, a.life / 0.35 + (a.ring ? 1 : 0));
 }
 
-/** One of its arms where it stands in the tar. */
-export function drawKrakenArm(v: DrawView, a: Arm): void {
+/** One of its arms where it stands in the tar, see-through by alpha (in front of the figure on foot). */
+export function drawKrakenArm(v: DrawView, a: Arm, alpha = 1): void {
   const { ctx, px, py, T } = v;
   const Z = v.zoom;
   const bx = px(a.x, a.y);
@@ -46,10 +46,10 @@ export function drawKrakenArm(v: DrawView, a: Arm): void {
   for (let i = 0; i < 2; i++) {
     const k = (T * 0.7 + i * 0.5 + a.seed) % 1;
     v.isoEllipse(a.x, a.y, 14 + k * 30);
-    ctx.globalAlpha = 1 - k;
+    ctx.globalAlpha = alpha * (1 - k);
     ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = alpha;
   const h = armHeight(a);
   if (h <= 0) return;
   const len = 84 * BIG * h;
@@ -106,8 +106,8 @@ export function drawKrakenArm(v: DrawView, a: Arm): void {
   ctx.fill();
 }
 
-/** The warnings on the tar: the bubbling before an arm rises, and the red ring where it will slam. */
-export function drawKrakenArmMark(v: DrawView, a: Arm): void {
+/** The warnings on the tar: the bubbling before an arm rises, and the red ring where it will slam, this wide. */
+export function drawKrakenArmMark(v: DrawView, a: Arm, slam = SLAM_R): void {
   const { ctx, T } = v;
   const Z = v.zoom;
   if (a.state === 'bubble') {
@@ -134,7 +134,7 @@ export function drawKrakenArmMark(v: DrawView, a: Arm): void {
   ctx.fillStyle = `rgba(220,60,50,${a.state === 'slam' ? 0.55 : 0.12 + 0.3 * k})`;
   ctx.strokeStyle = `rgba(255,120,90,${0.4 + 0.5 * k})`;
   ctx.lineWidth = 2 * Z;
-  v.isoEllipse(a.at.x, a.at.y, SLAM_R);
+  v.isoEllipse(a.at.x, a.at.y, slam);
   ctx.fill();
   ctx.stroke();
 }
