@@ -248,7 +248,12 @@ body.floedive #diveBtn{bottom:calc(162px + env(safe-area-inset-bottom))}
 body.floedive #iglooBtn{bottom:calc(220px + env(safe-area-inset-bottom))}
 /* Diving, the sea's own buttons and bubbles stand down: the dive draws its own air and depth. The hold stays, for what is speared, and so does the throw button. */
 body.diving #aboard,body.diving #climb,body.diving #sprayBtn,body.diving #honeyBtn,body.diving #pondcast,body.diving #crowGo,body.diving #order,body.diving #charter,body.diving #hull,body.diving #market,body.diving #wood,body.diving #junk,body.diving #tarBucket,body.diving #muffinBtn,body.diving .snack,body.diving #mapBtn,body.diving #seineBtn,body.diving #potBtn,body.diving #mend,body.diving #rodcast,body.diving #cast,body.diving #iceBtn,body.diving #iglooBtn{display:none}
-#leave{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;font-size:14px;height:38px;padding:3px 14px 0}
+/* The way out of a tower, a barge, the tunnels or the tar: up top, under the coins, out of the way of the thumb that walks
+   (the owner, 2026-10-23: at the bottom left it sat right where she steers). A long label wraps rather than reach the hearts. */
+#leave{position:fixed;left:calc(12px + env(safe-area-inset-left));top:calc(58px + env(safe-area-inset-top));z-index:3;font-size:14px;height:auto;min-height:38px;
+  max-width:calc(100vw - 210px);padding:6px 14px 4px;line-height:1.2;text-align:left;white-space:normal}
+/* With a way out showing there is no fishing to be done: the order card and the charter make room. */
+body:has(#leave:not([hidden])) #order,body:has(#leave:not([hidden])) #charter{display:none}
 /* The throw button sits where a right thumb rests, clear of the stick's usual middle. */
 #throw{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(170px + env(safe-area-inset-bottom));z-index:3;width:68px;height:68px;border-radius:50%;
   background:var(--buoy);display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.25)}
@@ -437,6 +442,9 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 #ctfBar .clock{font-size:16px;flex:1;text-align:center}
 #ctfBar .what{font-size:13px;margin-top:4px;color:var(--muted)}
 #ctfBar .what.hot{color:var(--pill-fg)}
+/* Leaving, up here out of the thumb's way, and only on a second tap: a battle left pays nothing. */
+#ctfLeave{pointer-events:auto;display:block;margin-top:6px;padding:5px 10px 3px;border-radius:999px;font-size:13px;font-weight:800;background:var(--track);color:var(--pill-fg)}
+#ctfLeave.sure{background:var(--buoy);color:var(--buoy-fg)}
 #ctfCard .say{margin:4px 4px 10px;padding:12px;border-radius:11px;font-size:16px;font-weight:800;line-height:1.35;background:var(--card);color:var(--card-fg)}
 #ctfCard .final{display:flex;justify-content:center;gap:12px;margin:4px 4px 10px;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
 #ctfCard .final span{color:#fff;border-radius:11px;padding:6px 14px 3px;min-width:2.4ch;text-align:center}
@@ -540,7 +548,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 </div>
 
 <div id="order" aria-live="polite"></div>
-<div id="ctfBar" hidden><div class="score"><span class="side pirate" id="ctfBarP">0</span><span class="clock" id="ctfClock">7:00</span><span class="side ninja" id="ctfBarN">0</span></div><div class="what" id="ctfWhat"></div></div>
+<div id="ctfBar" hidden><div class="score"><span class="side pirate" id="ctfBarP">0</span><span class="clock" id="ctfClock">7:00</span><span class="side ninja" id="ctfBarN">0</span></div><div class="what" id="ctfWhat"></div><button id="ctfLeave">Leave the battle</button></div>
 <div id="charter" aria-live="polite" hidden></div>
 <div id="rchips"><div id="hearts" title="Your hearts" hidden></div><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><button class="snack" id="snackApple" data-snack="apple" title="An apple: walk faster for a while" aria-label="Eat an apple" hidden></button><button class="snack" id="snackCarrot" data-snack="carrot" title="A carrot: your spear hits harder for a while" aria-label="Eat a carrot" hidden></button><button class="snack" id="snackBanana" data-snack="banana" title="A banana: two hearts back" aria-label="Eat a banana" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div><div id="tarBucket" title="Tar fish for the scientist" hidden></div></div>
 <div id="toast" role="status"></div>

@@ -7542,7 +7542,9 @@ test('Capture the Flag on the Endless Isle: the badge card, behind the gates, yo
   // In the pirates' fort, behind the gates: a Swashbuckler's eight hearts, and only Jacks Parrow fights with you.
   await expect(page.locator('#ctfBar')).toBeVisible();
   await expect(page.locator('#ctfWhat')).toContainText('Gates drop in');
-  await expect(page.locator('#leave')).toHaveText('Leave the battle');
+  // Leaving is up in the score bar, out of the walking thumb's way, not the pill down at the bottom.
+  await expect(page.locator('#ctfLeave')).toBeVisible();
+  await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#hearts')).toBeVisible();
   expect(
     await page.evaluate(() => {
@@ -7689,7 +7691,9 @@ test('Capture the Flag on the Endless Isle: the badge card, behind the gates, yo
   await page.click('#climb');
   await page.click('#endlessFight');
   await page.click('#endlessRoles [data-role="tank"]');
-  await expect(page.locator('#leave')).toHaveText('Leave the battle');
+  // Leaving is up in the score bar, out of the walking thumb's way, not the pill down at the bottom.
+  await expect(page.locator('#ctfLeave')).toBeVisible();
+  await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#hearts .hbar')).toBeVisible();
   expect(await page.evaluate(() => window.__np.hearts)).toBe(14);
   await page.evaluate(() => {
@@ -7711,7 +7715,11 @@ test('Capture the Flag on the Endless Isle: the badge card, behind the gates, yo
     null,
     { timeout: 3000 },
   );
-  await page.click('#leave');
+  // One tap only asks; the second leaves.
+  await page.click('#ctfLeave');
+  await expect(page.locator('#ctfLeave')).toHaveText('Leave? Tap again');
+  expect(await page.evaluate(() => !!window.__np.ctf)).toBe(true);
+  await page.click('#ctfLeave');
   await expect(page.locator('#toast')).toContainText('A battle left early pays nothing');
   expect(await page.evaluate(() => [window.__np.ctf, window.__np.coins])).toEqual([
     null,
