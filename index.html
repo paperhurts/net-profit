@@ -337,10 +337,10 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #help .helpbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:var(--plank);color:var(--plank-fg);font-size:16px;font-weight:800}
 #help .helpbar .pill{height:32px;padding:0 10px}
 #help iframe{flex:1;width:100%;border:0;background:var(--card)}
-#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneLand[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#endlessCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#ctfCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#ctfCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneLand[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#ctfCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#endlessCard h2,#ctfCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
 #tester h2 .pill,#boats h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#endlessCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#droneCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
 #tester .tnote,#boats .tnote,#orbCard .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#droneCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
@@ -413,6 +413,31 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #endlessCard .answer.join{background:#B5342B;color:#fff}
 #endlessCard[data-side="ninja"] .answer.join{background:#2B3A8C}
 #endlessCard [hidden]{display:none}
+#endlessCard .answer.fight{background:#2F2A24;color:#fff}
+/* A battle's score along the top, where the order card was, and its result after. */
+body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk,body.ctf #hull,body.ctf #muffinBtn,body.ctf #rchips .snack{display:none}
+#ctfBar{position:fixed;left:calc(12px + env(safe-area-inset-left));top:calc(58px + env(safe-area-inset-top));pointer-events:none;
+  max-width:calc(100vw - 198px);box-sizing:border-box;background:var(--pill-bg);color:var(--pill-fg);border-radius:12px;padding:7px 10px 6px;
+  box-shadow:0 2px 0 var(--pill-shadow);font-weight:800;line-height:1.15}
+#ctfBar[hidden]{display:none}
+#ctfBar .score{display:flex;align-items:center;gap:8px;font-size:20px;font-variant-numeric:tabular-nums}
+#ctfBar .side{display:flex;align-items:center;gap:5px;color:#fff;border-radius:8px;padding:3px 8px 1px;min-width:2ch;justify-content:center}
+#ctfBar .side.pirate{background:#D8443A}
+#ctfBar .side.ninja{background:#3D6FD8}
+#ctfBar .clock{font-size:16px;flex:1;text-align:center}
+#ctfBar .what{font-size:13px;margin-top:4px;color:var(--muted)}
+#ctfBar .what.hot{color:var(--pill-fg)}
+#ctfCard .say{margin:4px 4px 10px;padding:12px;border-radius:11px;font-size:16px;font-weight:800;line-height:1.35;background:var(--card);color:var(--card-fg)}
+#ctfCard .final{display:flex;justify-content:center;gap:12px;margin:4px 4px 10px;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+#ctfCard .final span{color:#fff;border-radius:11px;padding:6px 14px 3px;min-width:2.4ch;text-align:center}
+#ctfCard .final .pirate{background:#D8443A}
+#ctfCard .final .ninja{background:#3D6FD8}
+#ctfCard dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:0 4px 10px;padding:10px 12px;border-radius:11px;background:var(--card);color:var(--card-fg);font-size:15px;font-weight:800}
+#ctfCard dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+#ctfCard .got{margin:0 4px 10px;padding:10px 12px;border-radius:11px;background:#3FB37A;color:#fff;font-size:16px;font-weight:800}
+#ctfCard .answers{display:grid;gap:8px}
+#ctfCard .answer{width:100%;min-height:48px;text-align:left;padding:10px 14px;border:0;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;font-size:16px;font-weight:800;cursor:pointer}
+#ctfCard .answer.again{background:#2F2A24;color:#fff}
 #boats .rchip.on,#bargeCard .rchip.on,#badges .rchip.on,#stayCard .rchip.on,#charCard .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
 #badges .boat b{display:flex;align-items:center;gap:8px}
 #badges .pin{width:22px;height:22px;flex:0 0 auto}
@@ -505,6 +530,7 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 </div>
 
 <div id="order" aria-live="polite"></div>
+<div id="ctfBar" hidden><div class="score"><span class="side pirate" id="ctfBarP">0</span><span class="clock" id="ctfClock">7:00</span><span class="side ninja" id="ctfBarN">0</span></div><div class="what" id="ctfWhat"></div></div>
 <div id="charter" aria-live="polite" hidden></div>
 <div id="rchips"><div id="hearts" title="Your hearts" hidden></div><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><button class="snack" id="snackApple" data-snack="apple" title="An apple: walk faster for a while" aria-label="Eat an apple" hidden></button><button class="snack" id="snackCarrot" data-snack="carrot" title="A carrot: your spear hits harder for a while" aria-label="Eat a carrot" hidden></button><button class="snack" id="snackBanana" data-snack="banana" title="A banana: two hearts back" aria-label="Eat a banana" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div><div id="tarBucket" title="Tar fish for the scientist" hidden></div></div>
 <div id="toast" role="status"></div>
@@ -677,6 +703,20 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
     <div class="answers">
       <button class="answer" id="endlessWhy">Why are you fighting?</button>
       <button class="answer join" id="endlessJoin">Join</button>
+      <button class="answer fight" id="endlessFight" hidden>Fight: Capture the Flag</button>
+    </div>
+  </div>
+</section>
+<section id="ctfCard" hidden aria-label="Capture the Flag">
+  <div class="planks">
+    <h2><span id="ctfTitle">Capture the Flag</span></h2>
+    <div class="final" aria-label="The score"><span class="pirate" id="ctfP">0</span><span class="ninja" id="ctfN">0</span></div>
+    <p class="say" id="ctfSay"></p>
+    <dl id="ctfStats"></dl>
+    <p class="got" id="ctfGot"></p>
+    <div class="answers">
+      <button class="answer again" id="ctfAgain">Fight again</button>
+      <button class="answer" id="ctfDone">Done</button>
     </div>
   </div>
 </section>

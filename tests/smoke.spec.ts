@@ -12,6 +12,26 @@
 import { type BrowserContext, expect, type Page, test } from '@playwright/test';
 
 /** The slice of window.__np the smoke test touches. */
+type CtfFighter = {
+  side: 'pirate' | 'ninja';
+  role: string;
+  bot: boolean;
+  u: number;
+  v: number;
+  hp: number;
+  cd: number;
+  state: string;
+  downT: number;
+  carrying: boolean;
+};
+type Ctf = {
+  phase: string;
+  gateT: number;
+  you: CtfFighter;
+  fighters: CtfFighter[];
+  score: Record<'pirate' | 'ninja', number>;
+  flags: Record<'pirate' | 'ninja', { at: string; u: number; v: number }>;
+};
 type Np = {
   boat: { x: number; y: number; h: number; v: number };
   keys: 'drive' | 'point';
@@ -42,6 +62,7 @@ type Np = {
   isle11Seen: boolean;
   isle12Seen: boolean;
   endless: { seen: boolean; pirate: boolean; ninja: boolean };
+  ctf: Ctf | null;
   DOCK13: Record<'pirate' | 'ninja', { x: number; y: number; r: number }>;
   camAt: { x: number; y: number };
   LEADER13: Record<'pirate' | 'ninja', { x: number; y: number }>;
@@ -7469,6 +7490,185 @@ test("the Endless Isle's leaders: Captain Cappy gives you Jacks Parrow, who swea
   expect(errors).toEqual([]);
 });
 
+test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates, your strike, their flag brought home three times for the win, its pay and marks, and leaving one early pays nothing', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: { seen: true, pirate: true, ninja: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const toCappy = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const L = n.LEADER13.pirate;
+      n.walker.x = L.x + 16;
+      n.walker.y = L.y + 16;
+    });
+  await toCappy();
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+  const before = await page.evaluate(() => ({
+    coins: window.__np.coins,
+    hearts: window.__np.hearts,
+  }));
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  // In the pirates' fort, behind the gates: a Swashbuckler's eight hearts, and only Jacks Parrow fights with you.
+  await expect(page.locator('#ctfBar')).toBeVisible();
+  await expect(page.locator('#ctfWhat')).toContainText('Gates drop in');
+  await expect(page.locator('#leave')).toHaveText('Leave the battle');
+  await expect(page.locator('#hearts')).toBeVisible();
+  expect(
+    await page.evaluate(() => {
+      const n = window.__np;
+      const c = n.ctf as Ctf;
+      return {
+        role: c.you.role,
+        hearts: n.hearts,
+        pirates: c.fighters.filter((f) => f.side === 'pirate').length,
+        ninjas: c.fighters.filter((f) => f.side === 'ninja').length,
+        jacks: n.jacks.free,
+        bun: n.bunSan.free,
+      };
+    }),
+  ).toEqual({ role: 'damage', hearts: 8, pirates: 5, ninjas: 5, jacks: true, bun: false });
+  // Out of the fort before the gates drop, and you are back inside it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromEndless(0, 500);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await page.waitForTimeout(200);
+  expect(
+    await page.evaluate(() => {
+      const n = window.__np;
+      const [u, v] = n.toEndless(n.walker.x, n.walker.y);
+      const f = (n.ctf as Ctf).flags.pirate;
+      return Math.hypot(u - f.u, v - f.v);
+    }),
+  ).toBeLessThan(80);
+  // The gates down, and everyone else sent out of the way, but for one of theirs beside you to strike.
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf;
+    for (const f of c.fighters)
+      if (f.bot) {
+        f.state = 'down';
+        f.downT = 9999;
+      }
+    const foe = c.fighters.find((f) => f.side === 'ninja' && f.role === 'damage') as CtfFighter;
+    foe.state = 'live';
+    foe.cd = 99;
+    foe.u = c.you.u + 24;
+    foe.v = c.you.v;
+  });
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 3000 });
+  await page.dispatchEvent('#throw', 'pointerdown', { button: 0 });
+  await expect(page.locator('#throw')).toHaveClass(/wait/);
+  await page.waitForFunction(
+    () =>
+      (
+        (window.__np.ctf as Ctf).fighters.find(
+          (f) => f.side === 'ninja' && f.role === 'damage',
+        ) as CtfFighter
+      ).hp <= 6,
+    null,
+    { timeout: 3000 },
+  );
+  await page.evaluate(() => {
+    const foe = (window.__np.ctf as Ctf).fighters.find(
+      (f) => f.side === 'ninja' && f.role === 'damage',
+    ) as CtfFighter;
+    foe.state = 'down';
+    foe.downT = 9999;
+  });
+  // Their flag, three times, from their fort to yours.
+  const stand = (side: 'pirate' | 'ninja') =>
+    page.evaluate((side) => {
+      const n = window.__np;
+      const f = (n.ctf as Ctf).flags[side];
+      const [x, y] = n.fromEndless(f.u, f.v + (side === 'ninja' ? 14 : -14));
+      n.walker.x = x;
+      n.walker.y = y;
+    }, side);
+  for (let i = 1; i <= 3; i++) {
+    await stand('ninja');
+    await page.waitForFunction(() => (window.__np.ctf as Ctf).you.carrying, null, {
+      timeout: 3000,
+    });
+    if (i === 1) {
+      await expect(page.locator('#ctfWhat')).toContainText('You have their flag');
+      expect(await page.evaluate(() => window.__np.walker.speedK)).toBeCloseTo(0.85);
+    }
+    await stand('pirate');
+    if (i < 3) {
+      await page.waitForFunction((i) => window.__np.ctf?.score.pirate === i, i, { timeout: 3000 });
+      await expect(page.locator('#ctfBarP')).toHaveText(String(i));
+      await expect(page.locator('#toast')).toContainText('You scored!');
+    }
+  }
+  // Won: the card, the pay, and marks for a pirate Swashbuckler, kept in the save.
+  await expect(page.locator('#ctfCard')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('#ctfTitle')).toHaveText('The pirates win!');
+  await expect(page.locator('#ctfP')).toHaveText('3');
+  await expect(page.locator('#ctfGot')).toHaveText('+500 coins');
+  await expect(page.locator('#ctfStats')).toContainText('Flags you scored3');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(before.coins + 500);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.endless.battles).toEqual({
+    fought: 1,
+    won: 1,
+    marks: { pirate: { tank: 0, damage: 2, healer: 0 }, ninja: { tank: 0, damage: 0, healer: 0 } },
+  });
+  // Done: back by Captain Cappy, as you were, Bun-San with you again.
+  await page.click('#ctfDone');
+  await expect(page.locator('#ctfCard')).toBeHidden();
+  await expect(page.locator('#ctfBar')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.ctf)).toBeNull();
+  await page.waitForFunction(
+    (h) => window.__np.hearts === h && window.__np.bunSan.free,
+    before.hearts,
+    {
+      timeout: 3000,
+    },
+  );
+  // Another, left early: nothing paid.
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  await expect(page.locator('#leave')).toHaveText('Leave the battle');
+  await page.click('#leave');
+  await expect(page.locator('#toast')).toContainText('A battle left early pays nothing');
+  expect(await page.evaluate(() => [window.__np.ctf, window.__np.coins])).toEqual([
+    null,
+    before.coins + 500,
+  ]);
+  expect(errors).toEqual([]);
+});
+
 test("Skull Island: Skrill's men in bone armour come on in pairs, sweep a red fan, and fall apart into bones", async ({
   context,
   page,
@@ -9597,6 +9797,13 @@ test('the Battle Barge on the tar: bitten to nothing, the chemistry boat is pull
     barge: { size: 'medium', where: 'tar', tarFoes: { eel: 1, kraken: 1 } },
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  // A salvage crate that happens to be under the boat or the net pays too: none near, for this.
+  await page.evaluate(() => {
+    for (const f of window.__np.flotsam) {
+      f.x = -50000;
+      f.y = -50000;
+    }
   });
   await page.locator('#bargeBtn').click();
   // The kraken is not on the card until it is awake, after the tar eel.
