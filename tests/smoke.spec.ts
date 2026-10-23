@@ -41,16 +41,16 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
-  doom: { seen: boolean; pirate: boolean; ninja: boolean };
+  endless: { seen: boolean; pirate: boolean; ninja: boolean };
   DOCK13: Record<'pirate' | 'ninja', { x: number; y: number; r: number }>;
   LEADER13: Record<'pirate' | 'ninja', { x: number; y: number }>;
   jacks: { shown: boolean; free: boolean; x: number; y: number; z: number };
   bunSan: { shown: boolean; free: boolean; poofT: number; hurt(): boolean };
   squawk: { line: number; t: number; quiet: number };
   poofs: unknown[];
-  doomTalk: string | null;
-  fromDoom(u: number, v: number): [number, number];
-  toDoom(x: number, y: number): [number, number];
+  endlessTalk: string | null;
+  fromEndless(u: number, v: number): [number, number];
+  toEndless(x: number, y: number): [number, number];
   boneMen: {
     list: { x: number; y: number; hp: number; state: string; t: number }[];
     hit: (m: unknown, power: number) => boolean;
@@ -7218,7 +7218,7 @@ test('Skull Island: sighted, the camera takes in the whole skull, tie up off its
   expect(errors).toEqual([]);
 });
 
-test("Doom Island: sighted, the camera takes in both halves; tie up at the pirates' pier, cross a bridge to the ninjas' half, and wade the shallows at half pace", async ({
+test("the Endless Isle: sighted, the camera takes in both halves; tie up at the pirates' pier, cross a bridge to the ninjas' half, and wade the shallows at half pace", async ({
   context,
   page,
 }) => {
@@ -7237,9 +7237,9 @@ test("Doom Island: sighted, the camera takes in both halves; tie up at the pirat
   await page.evaluate(() => {
     window.__np.boat.v = 150;
   });
-  await expect(page.locator('#toast')).toContainText('Doom Island', { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('Endless Isle', { timeout: 8000 });
   await expect(page.locator('#toast')).toContainText('stimulate the economy');
-  expect(await page.evaluate(() => window.__np.doom.seen)).toBe(true);
+  expect(await page.evaluate(() => window.__np.endless.seen)).toBe(true);
   // The camera pulls right back to show both halves, then comes back in to the boat.
   await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
   await page.waitForFunction(() => window.__np.revealView < 0.1, null, { timeout: 9000 });
@@ -7257,11 +7257,11 @@ test("Doom Island: sighted, the camera takes in both halves; tie up at the pirat
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText("the pirates' half");
   const at = () =>
-    page.evaluate(() => window.__np.toDoom(window.__np.walker.x, window.__np.walker.y));
+    page.evaluate(() => window.__np.toEndless(window.__np.walker.x, window.__np.walker.y));
   // At the pirates' end of a rope bridge, walked straight up the screen: over the channel to the ninjas' half.
   await page.evaluate(() => {
     const n = window.__np;
-    const [x, y] = n.fromDoom(330, 190);
+    const [x, y] = n.fromEndless(330, 190);
     n.walker.x = x;
     n.walker.y = y;
   });
@@ -7276,7 +7276,7 @@ test("Doom Island: sighted, the camera takes in both halves; tie up at the pirat
   // From the ninjas' shore beside the sandbar, walked down the screen into the shallows: slower, and in to the knees.
   await page.evaluate(() => {
     const n = window.__np;
-    const [x, y] = n.fromDoom(200, -175);
+    const [x, y] = n.fromEndless(200, -175);
     n.walker.x = x;
     n.walker.y = y;
   });
@@ -7292,11 +7292,11 @@ test("Doom Island: sighted, the camera takes in both halves; tie up at the pirat
   // Down the screen through the shallows at about half pace: well short of a full walk's distance.
   expect(w1 - w0).toBeGreaterThan(40);
   expect(w1 - w0).toBeLessThan(85 * 2.7 * 0.7);
-  await expect(page.locator('#log')).toContainText('Doom Island found');
+  await expect(page.locator('#log')).toContainText('Endless Isle found');
   expect(errors).toEqual([]);
 });
 
-test("Doom Island's leaders: the Captain gives you Jacks Parrow, who swears in bleeps; the Master, though you are a pirate, gives you Bun-San, who vanishes in smoke when hit", async ({
+test("the Endless Isle's leaders: Captain Cappy gives you Jacks Parrow, who swears in bleeps; Master Sensei, though you are a pirate, gives you Bun-San, who vanishes in smoke when hit", async ({
   context,
   page,
 }) => {
@@ -7308,7 +7308,7 @@ test("Doom Island's leaders: the Captain gives you Jacks Parrow, who swears in b
     isle8Seen: true,
     isle10Seen: true,
     isle11Seen: true,
-    doom: { seen: true },
+    endless: { seen: true },
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
   });
@@ -7323,8 +7323,8 @@ test("Doom Island's leaders: the Captain gives you Jacks Parrow, who swears in b
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
   await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
-  await expect(page.locator('#toast')).toContainText('The Captain is at the foot of the pier');
-  // Up to the Captain.
+  await expect(page.locator('#toast')).toContainText('Captain Cappy is at the foot of the pier');
+  // Up to Captain Cappy.
   const toLeader = (side: 'pirate' | 'ninja') =>
     page.evaluate((side) => {
       const n = window.__np;
@@ -7333,18 +7333,19 @@ test("Doom Island's leaders: the Captain gives you Jacks Parrow, who swears in b
       n.walker.y = L.y + 16;
     }, side);
   await toLeader('pirate');
-  await expect(page.locator('#climb')).toHaveText('Talk to the Captain', { timeout: 4000 });
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
   await page.click('#climb');
-  await expect(page.locator('#doomCard')).toBeVisible();
-  await expect(page.locator('#doomSay')).toContainText('Sign the articles');
-  await page.click('#doomWhy');
-  await expect(page.locator('#doomSay')).toContainText('stimulate the economy');
-  await page.click('#doomJoin');
-  await expect(page.locator('#doomGot')).toHaveText('Jacks Parrow is yours!');
-  await expect(page.locator('#doomJoin')).toBeHidden();
-  expect(await page.evaluate(() => window.__np.doom.pirate)).toBe(true);
+  await expect(page.locator('#endlessCard')).toBeVisible();
+  await expect(page.locator('#endlessSay')).toContainText('Sign the articles');
+  await page.click('#endlessWhy');
+  await expect(page.locator('#endlessSay')).toContainText('stimulate the economy');
+  await expect(page.locator('#endlessWho')).toHaveText('Captain Cappy');
+  await page.click('#endlessJoin');
+  await expect(page.locator('#endlessGot')).toHaveText('Jacks Parrow is yours!');
+  await expect(page.locator('#endlessJoin')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.endless.pirate)).toBe(true);
   // Done talking: he flies to the figure's shoulder and squawks his first word.
-  await page.click('#doomClose');
+  await page.click('#endlessClose');
   await expect(page.locator('#toast')).toContainText('Jacks Parrow flies to your shoulder');
   await page.waitForFunction(() => window.__np.jacks.shown && window.__np.squawk.t > 0, null, {
     timeout: 3000,
@@ -7358,14 +7359,14 @@ test("Doom Island's leaders: the Captain gives you Jacks Parrow, who swears in b
     null,
     { timeout: 4000 },
   );
-  // Over the channel to the Master, a pirate now.
+  // Over the channel to Master Sensei, a pirate now.
   await toLeader('ninja');
-  await expect(page.locator('#climb')).toHaveText('Bow to the Master', { timeout: 4000 });
+  await expect(page.locator('#climb')).toHaveText('Bow to Master Sensei', { timeout: 4000 });
   await page.click('#climb');
-  await expect(page.locator('#doomSay')).toContainText('You are a pirate');
-  await page.click('#doomJoin');
-  await expect(page.locator('#doomGot')).toHaveText('Bun-San is yours!');
-  await page.click('#doomClose');
+  await expect(page.locator('#endlessSay')).toContainText('You are a pirate');
+  await page.click('#endlessJoin');
+  await expect(page.locator('#endlessGot')).toHaveText('Bun-San is yours!');
+  await page.click('#endlessClose');
   await expect(page.locator('#toast')).toContainText('Bun-San appears in a puff of smoke');
   await page.waitForFunction(() => window.__np.bunSan.shown, null, { timeout: 3000 });
   // Hit, he goes up in smoke and is back a moment later.
@@ -7373,7 +7374,7 @@ test("Doom Island's leaders: the Captain gives you Jacks Parrow, who swears in b
   expect(await page.evaluate(() => window.__np.bunSan.poofT)).toBeGreaterThanOrEqual(0);
   await page.waitForFunction(() => window.__np.bunSan.poofT < 0, null, { timeout: 3000 });
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
-  expect(saved.doom).toEqual({ seen: true, pirate: true, ninja: true });
+  expect(saved.endless).toEqual({ seen: true, pirate: true, ninja: true });
   expect(errors).toEqual([]);
 });
 

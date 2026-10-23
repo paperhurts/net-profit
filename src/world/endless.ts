@@ -1,6 +1,8 @@
 /**
- * Doom Island, island 13, the kid's (2026-10-22, through the owner): past the white buoys, two islands that mirror each
- * other perfectly, pirates on one and ninjas on the other, forever at war (why? the kid: "to stimulate the economy").
+ * The Endless Isle, island 13, the kid's (2026-10-22, through the owner): past the white buoys, two islands that mirror
+ * each other perfectly, pirates on one and ninjas on the other, forever at war (why? the kid: "to stimulate the economy").
+ * He called it Doom Island; the owner renamed it the Endless Isle (2026-10-23), after the endless battles between the
+ * pirates and the ninjas, and the name Doom Island goes to a separate island he will design next.
  * The ninjas have a snow-peaked mountain with a ski run, the pirates crazy treehouses to climb, and in time the two
  * sides fight battles you join, either side, with badges to earn. The owner took the whole plan as it stood
  * (2026-10-23); this is its first piece, the place: both halves, the channel between with its bridges, sandbar and
@@ -19,20 +21,20 @@ import { DEEP, FAR, FARFAR, type Point, WS } from './island';
  * The middle of the channel, in the far far sea's left corner, a little in from its middle toward home: its piers face
  * home, and this leaves room to sail round its far side before the sea ends.
  */
-export const DOOM = {
+export const ENDLESS = {
   x: -(DEEP + FAR) - FARFAR * 0.46,
   y: WS + DEEP + FAR + FARFAR * 0.46,
 } as const;
 
 const R2 = Math.SQRT1_2;
-/** From the world to Doom Island's own frame, and back. */
-export function toDoom(x: number, y: number): [number, number] {
-  const dx = x - DOOM.x;
-  const dy = y - DOOM.y;
+/** From the world to the Endless Isle's own frame, and back. */
+export function toEndless(x: number, y: number): [number, number] {
+  const dx = x - ENDLESS.x;
+  const dy = y - ENDLESS.y;
   return [(dx - dy) * R2, (dx + dy) * R2];
 }
-export function fromDoom(u: number, v: number): Point {
-  return [DOOM.x + (u + v) * R2, DOOM.y + (v - u) * R2];
+export function fromEndless(u: number, v: number): Point {
+  return [ENDLESS.x + (u + v) * R2, ENDLESS.y + (v - u) * R2];
 }
 
 /** The two sides, and which half each holds: the ninjas up the screen, the pirates down it. */
@@ -49,11 +51,11 @@ export function onHalf(side: Side, u: number, w: number): [number, number] {
 /** And in the world. */
 export function atHalf(side: Side, u: number, w: number): Point {
   const [hu, hv] = onHalf(side, u, w);
-  return fromDoom(hu, hv);
+  return fromEndless(hu, hv);
 }
 /** Whose half a point in the world is on (the channel's middle line counts as the pirates'). */
 export function sideAt(x: number, y: number): Side {
-  return toDoom(x, y)[1] >= 0 ? 'pirate' : 'ninja';
+  return toEndless(x, y)[1] >= 0 ? 'pirate' : 'ninja';
 }
 
 /**
@@ -150,16 +152,16 @@ for (let i = 0; i < N; i++) {
   ENV.push(lo);
 }
 /** How far the island's outer edge is from the channel's middle, at an angle round it in the island's frame. */
-export function doomEdge(a: number): number {
+export function endlessEdge(a: number): number {
   return lerpTable(ENV, a);
 }
 function polar(x: number, y: number): [number, number] {
-  const [u, v] = toDoom(x, y);
+  const [u, v] = toEndless(x, y);
   return [Math.atan2(v, u), Math.hypot(u, v)];
 }
 
 /** As a round island, for what only needs one: where to clear the sea map's fog, and how big to think of it. */
-export const DOOM13 = { x: DOOM.x, y: DOOM.y, r: Math.round(Math.max(...ENV)) } as const;
+export const ENDLESS13 = { x: ENDLESS.x, y: ENDLESS.y, r: Math.round(Math.max(...ENV)) } as const;
 
 /** A half's shoreline in the world, n points round: for the sea map. */
 export function halfOutline(side: Side, n: number): Point[] {
@@ -307,35 +309,35 @@ function halfGround(u: number, v: number): boolean {
 }
 
 /** Further out than this from it, nothing needs to know it is there. */
-export function nearDoom(x: number, y: number, pad: number): boolean {
+export function nearEndless(x: number, y: number, pad: number): boolean {
   const [a, d] = polar(x, y);
-  return d < doomEdge(a) + 90 + pad;
+  return d < endlessEdge(a) + 90 + pad;
 }
 
 /** Inside its outer edge, give or take pad. */
-export function insideDoom(x: number, y: number, pad: number): boolean {
+export function insideEndless(x: number, y: number, pad: number): boolean {
   const [a, d] = polar(x, y);
-  return d < doomEdge(a) + pad;
+  return d < endlessEdge(a) + pad;
 }
 
-/** Doom Island underfoot: either half's ground, a pier, a bridge, the sandbar or the shallows. */
-export function onDoom(x: number, y: number): boolean {
-  if (!insideDoom(x, y, 400)) return false;
-  const [u, v] = toDoom(x, y);
+/** The Endless Isle underfoot: either half's ground, a pier, a bridge, the sandbar or the shallows. */
+export function onEndless(x: number, y: number): boolean {
+  if (!insideEndless(x, y, 400)) return false;
+  const [u, v] = toEndless(x, y);
   if (pierAt(u, v) || bridgeAt(u, v) || sandbarAt(u, v) || wadeAt(u, v)) return true;
   return halfGround(u, v) && !blockedHalf(u, Math.abs(v));
 }
 
 /** In the shallows, wading: slower, and in up to the knees. */
-export function inDoomShallows(x: number, y: number): boolean {
-  if (!insideDoom(x, y, 0)) return false;
-  const [u, v] = toDoom(x, y);
+export function inEndlessShallows(x: number, y: number): boolean {
+  if (!insideEndless(x, y, 0)) return false;
+  const [u, v] = toEndless(x, y);
   return wadeAt(u, v) && !bridgeAt(u, v) && !halfGround(u, v);
 }
 
 /** The height of what is underfoot: a pier's planks, a bridge's deck (ramped up from each shore), or the ground. */
 export function groundZ13(x: number, y: number): number {
-  const [u, v] = toDoom(x, y);
+  const [u, v] = toEndless(x, y);
   if (bridgeAt(u, v)) {
     const fromEnd = BRIDGE13.w - Math.abs(v);
     return BRIDGE13.z * Math.min(1, Math.max(0, fromEnd / BRIDGE13.ramp));
@@ -348,19 +350,19 @@ export function groundZ13(x: number, y: number): number {
 export const SIGHT13 = 900;
 
 /** Keep a hull off its edge and the channel, wherever it is round it, and off both piers. */
-export function pushOffDoom(s: { x: number; y: number; v: number }, pad: number): void {
+export function pushOffEndless(s: { x: number; y: number; v: number }, pad: number): void {
   const [a, d] = polar(s.x, s.y);
-  const r = doomEdge(a) + pad;
+  const r = endlessEdge(a) + pad;
   if (d < r && d > 0) {
-    const [x, y] = fromDoom(Math.cos(a) * r, Math.sin(a) * r);
+    const [x, y] = fromEndless(Math.cos(a) * r, Math.sin(a) * r);
     s.x = x;
     s.y = y;
     s.v *= 0.6;
   }
-  const [u, v] = toDoom(s.x, s.y);
+  const [u, v] = toEndless(s.x, s.y);
   const off = Math.abs(v) - PIER13.w;
   if (u > PIER13.u0 && u < PIER13.u1 + pad * 0.3 && Math.abs(off) < PIER13.half + pad) {
-    const [x, y] = fromDoom(
+    const [x, y] = fromEndless(
       u,
       Math.sign(v) * (PIER13.w + Math.sign(off || 1) * (PIER13.half + pad)),
     );
@@ -375,7 +377,7 @@ export function pushOffDoom(s: { x: number; y: number; v: number }, pad: number)
  * comes back to the boat. It looks at the channel's middle.
  */
 export const REVEAL13_T = 6;
-export const REVEAL13 = { x: DOOM.x, y: DOOM.y } as const;
+export const REVEAL13 = { x: ENDLESS.x, y: ENDLESS.y } as const;
 /** How far the camera pulls back for it, as a share of the zoom it was at: both halves on the screen. */
 export function revealZoom13(width: number, height: number, zoom: number): number {
   const across = (width - 36) / (2 * BODY.half * zoom);

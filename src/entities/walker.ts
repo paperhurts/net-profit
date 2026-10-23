@@ -28,7 +28,14 @@ import type { ArmourLook } from '../data/armour';
 import { HAIR_COLOURS, HAT_COLOURS, type Look, SKINS, SKIPPER } from '../data/look';
 import { AQUARIUM, AQUARIUM_FROM, AQUARIUM_MID } from '../world/aquarium';
 import { BASES, polePoint } from '../world/bases';
-import { berth13, DOCK13, groundZ13, inDoomShallows, LANDING13, onDoom } from '../world/doom';
+import {
+  berth13,
+  DOCK13,
+  groundZ13,
+  inEndlessShallows,
+  LANDING13,
+  onEndless,
+} from '../world/endless';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
 import {
   BEACH,
@@ -153,7 +160,7 @@ export const WALK_FULL = 0.5;
 /** Swimming in the tar goes at this share of walking pace, sunk to the chest. */
 export const SWIM_PACE = 0.6;
 export const SWIM_SINK = 11;
-/** Wading Doom Island's shallows goes at half pace, in to the knees. */
+/** Wading the Endless Isle's shallows goes at half pace, in to the knees. */
 export const WADE_PACE = 0.5;
 export const WADE_SINK = 5;
 
@@ -267,15 +274,15 @@ export const ISLE12_DOCK: Dock = {
   berth: berth12,
   landing: LANDING12,
 };
-/** Doom Island's two docks, one past each half's pier: the pirates' and the ninjas'. */
-export const DOOM_P_DOCK: Dock = {
+/** The Endless Isle's two docks, one past each half's pier: the pirates' and the ninjas'. */
+export const ENDLESS_P_DOCK: Dock = {
   x: DOCK13.pirate.x,
   y: DOCK13.pirate.y,
   r: DOCK13.pirate.r,
   berth: (k) => berth13('pirate', k),
   landing: LANDING13.pirate,
 };
-export const DOOM_N_DOCK: Dock = {
+export const ENDLESS_N_DOCK: Dock = {
   x: DOCK13.ninja.x,
   y: DOCK13.ninja.y,
   r: DOCK13.ninja.r,
@@ -292,8 +299,8 @@ export const DOCKS: readonly Dock[] = [
   ISLE10_DOCK,
   ISLE11_DOCK,
   ISLE12_DOCK,
-  DOOM_P_DOCK,
-  DOOM_N_DOCK,
+  ENDLESS_P_DOCK,
+  ENDLESS_N_DOCK,
 ];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
@@ -367,7 +374,7 @@ export function setWalkLand(l: WalkLand | null): void {
  * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
  * gets into, island 6 and its pier, island 7, islands 8 and 9 with the sandbar between, island 10 and its
  * pier, round its pond and pools, island 11 and its pier, round its black lagoon, Skull Island and its pier, round
- * its eye sockets, nose and teeth, Doom Island's two halves, piers, bridges, sandbar and shallows, and whatever land
+ * its eye sockets, nose and teeth, the Endless Isle's two halves, piers, bridges, sandbar and shallows, and whatever land
  * comes and goes.
  */
 export function onLand(x: number, y: number): boolean {
@@ -382,7 +389,7 @@ export function onLand(x: number, y: number): boolean {
   if (onIsle10(x, y)) return true;
   if (onIsle11(x, y)) return true;
   if (onIsle12(x, y)) return true;
-  if (onDoom(x, y)) return true;
+  if (onEndless(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
@@ -401,7 +408,7 @@ export function groundZ(x: number, y: number): number {
   if (onIsle10(x, y)) return groundZ10(x, y);
   if (onIsle11(x, y)) return groundZ11(x, y);
   if (onIsle12(x, y)) return groundZ12(x, y);
-  if (onDoom(x, y)) return groundZ13(x, y);
+  if (onEndless(x, y)) return groundZ13(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -1000,7 +1007,7 @@ export class Walker implements Entity {
     let tx = 0;
     let ty = 0;
     const swim = inTar(this.x, this.y);
-    const wade = !swim && inDoomShallows(this.x, this.y);
+    const wade = !swim && inEndlessShallows(this.x, this.y);
     if (mag > 0) {
       const d = dirToWorld(this.ix, this.iy);
       const n = Math.hypot(d[0], d[1]) || 1;
@@ -1125,11 +1132,11 @@ export class Walker implements Entity {
     if (this.blink && Math.floor(this.now * 12) % 2) return;
     const { ctx, px, py } = v;
     const Z = v.zoom;
-    // Swimming in the tar, or wading Doom Island's shallows: rings round it, and nothing of it below the surface.
+    // Swimming in the tar, or wading the Endless Isle's shallows: rings round it, and nothing of it below the surface.
     const sunk = this.sink > 0.5;
     if (sunk) {
       const { x, y } = this;
-      const water = inDoomShallows(x, y);
+      const water = inEndlessShallows(x, y);
       const a = water ? 1 : this.sink / SWIM_SINK;
       ctx.lineWidth = 1.2 * Z;
       for (let k = 0; k < 2; k++) {

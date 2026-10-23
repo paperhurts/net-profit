@@ -1,8 +1,8 @@
 /**
- * Doom Island's folk, the kid's: the pirates' Captain and the ninjas' Master on their piers, and the minion each side
- * gives you for joining it. The kid named the minions (2026-10-23, his tab "doom island for rowan"): the parrot is
- * Jacks Parrow, the ninja-bun Bun-San. The leaders' names are asked; until he answers they are the Captain and the
- * Master. Why do the two sides fight? The kid: "to stimulate the economy".
+ * The Endless Isle's folk, the kid's: the pirates' captain and the ninjas' master on their piers, and the minion each
+ * side gives you for joining it. The kid named them all (2026-10-23, his tab "doom island for rowan"): the parrot is
+ * Jacks Parrow, the ninja-bun Bun-San, the captain Captain Cappy and the master Master Sensei. Why do the two sides
+ * fight? The kid: "to stimulate the economy".
  *
  * Jacks Parrow's lines are the owner's ("a parrot minion that yells expletive deleted!! and other funny censored
  * pirate puns"), passed by her as the plan listed them (2026-10-23). Every rude word is bleeped, and half the joke is
@@ -10,17 +10,17 @@
  * (a black bar with BLEEP on it, and the bleep's tone) and {#} a word sworn (a red bar of symbols).
  */
 
-import type { Side } from '../world/doom';
+import type { Side } from '../world/endless';
 
 export const MINION_NAME: Readonly<Record<Side, string>> = {
   pirate: 'Jacks Parrow',
   ninja: 'Bun-San',
 };
 
-/** The leaders, until the kid names them. */
+/** The leaders, the kid's names for them. */
 export const LEADER_NAME: Readonly<Record<Side, string>> = {
-  pirate: 'the Captain',
-  ninja: 'the Master',
+  pirate: 'Captain Cappy',
+  ninja: 'Master Sensei',
 };
 
 /** Jacks Parrow's lines. The first is what he squawks the moment he lands on your shoulder. */
@@ -79,7 +79,7 @@ export const LEADER_SAYS: Readonly<
 > = {
   pirate: {
     hello:
-      "Arr! Ye've come to Doom Island. Those sneaky ninjas over the water have been at war with us for a hundred years. Sign the articles and ye're a pirate! I'll even throw in me parrot.",
+      "Arr! Ye've come to the Endless Isle. I'm Captain Cappy, and those sneaky ninjas over the water have been at war with us for a hundred years. Sign the articles and ye're a pirate! I'll even throw in me parrot.",
     rival:
       "A ninja, are ye? Arr, no matter: plenty fight for both sides. Gold is gold! Sign the articles and ye can be a pirate as well. I'll even throw in me parrot.",
     joined:
@@ -88,7 +88,7 @@ export const LEADER_SAYS: Readonly<
   },
   ninja: {
     hello:
-      'Welcome, traveller. The pirates over the water have been at war with us for a hundred years. Bow, and you will be one of us. Bun-San will go with you. He is small, but he is very serious.',
+      'Welcome, traveller. I am Master Sensei. The pirates over the water have been at war with us for a hundred years. Bow, and you will be one of us. Bun-San will go with you. He is small, but he is very serious.',
     rival:
       'You are a pirate. It does not matter: many fight for both sides. Bow, and you will be a ninja as well. Bun-San will go with you.',
     joined:

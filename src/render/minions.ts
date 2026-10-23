@@ -1,6 +1,6 @@
 /**
- * Doom Island's two minions (entities/pals.ts, kinds 'parrot' and 'bun'), the kid's, and the two who give them
- * (world/doom.ts LEADER13). Jacks Parrow, the pirates' parrot: red and green with blue in his wings, a hooked
+ * The Endless Isle's two minions (entities/pals.ts, kinds 'parrot' and 'bun'), the kid's, and the two who give them
+ * (world/endless.ts LEADER13). Jacks Parrow, the pirates' parrot: red and green with blue in his wings, a hooked
  * beak, and an eyepatch over his right eye; he rides the figure's shoulder and flaps off to peck, and when he talks
  * a bubble comes up over him with the rude words bleeped. Bun-San, the ninjas' ninja-bun: a little blue bunny in a
  * black ninja suit, a red headband with its tails flying, and a tiny katana; he hops at the figure's heel, spins with
@@ -8,7 +8,7 @@
  * tricorn with a feather; the Master, small and old in grey robes, a white beard, a hood and a staff.
  */
 
-import { type Squawk, squawkParts } from '../data/doomfolk';
+import { type Squawk, squawkParts } from '../data/endlessfolk';
 import type { DrawView } from '../entities/entity';
 
 /** Which way something faces on the screen, from its heading in the world: 1 to the right, -1 to the left. */

@@ -7,7 +7,7 @@ import {
   nextLine,
   PARROT_LINES,
   squawkParts,
-} from '../../src/data/doomfolk';
+} from '../../src/data/endlessfolk';
 import { onLand, walkable } from '../../src/entities/walker';
 import {
   drawBun,
@@ -26,8 +26,8 @@ import {
   LEADER13_REACH,
   leaderNear,
   SIDES,
-  toDoom,
-} from '../../src/world/doom';
+  toEndless,
+} from '../../src/world/endless';
 import { fakeView } from './helpers/view';
 
 describe("Jacks Parrow's lines", () => {
@@ -81,11 +81,10 @@ describe("Jacks Parrow's lines", () => {
   });
 });
 
-describe("Doom Island's leaders", () => {
+describe("the Endless Isle's leaders", () => {
   it('say who they are, why they fight, and give their minion to anyone, of either side or both', () => {
     expect(MINION_NAME).toEqual({ pirate: 'Jacks Parrow', ninja: 'Bun-San' });
-    expect(LEADER_NAME.pirate).toMatch(/Captain/);
-    expect(LEADER_NAME.ninja).toMatch(/Master/);
+    expect(LEADER_NAME).toEqual({ pirate: 'Captain Cappy', ninja: 'Master Sensei' });
     for (const side of SIDES) {
       const says = LEADER_SAYS[side];
       expect(says.why).toMatch(/stimulate the economy/);
@@ -94,12 +93,13 @@ describe("Doom Island's leaders", () => {
     }
     expect(LEADER_SAYS.pirate.hello).toMatch(/parrot/);
     expect(LEADER_SAYS.ninja.hello).toMatch(/Bun-San/);
+    for (const side of SIDES) expect(LEADER_SAYS[side].hello).toMatch(LEADER_NAME[side]);
   });
 
   it('stand ashore at the foot of each pier, mirrored, in your way, and are talked to from close by', () => {
     for (const side of SIDES) {
       const L = LEADER13[side];
-      const [u, v] = toDoom(L.x, L.y);
+      const [u, v] = toEndless(L.x, L.y);
       expect(u).toBeCloseTo(LEADER13_AT.u, 3);
       expect(Math.abs(v)).toBeCloseTo(LEADER13_AT.w, 3);
       // Ground round him, the pier's landing a short walk off.

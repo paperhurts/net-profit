@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DOOM_N_DOCK,
-  DOOM_P_DOCK,
   dockAt,
+  ENDLESS_N_DOCK,
+  ENDLESS_P_DOCK,
   groundZ,
   onLand,
   WADE_PACE,
   WALK_SPEED,
   walkable,
 } from '../../src/entities/walker';
-import { doomSolids, drawDoomFlat, drawDoomSea, landmarkFade } from '../../src/render/doom';
+import {
+  drawEndlessFlat,
+  drawEndlessSea,
+  endlessSolids,
+  landmarkFade,
+} from '../../src/render/endless';
 import {
   atHalf,
   BASE,
@@ -21,23 +26,23 @@ import {
   CHANNEL,
   CRATES13,
   DOCK13,
-  DOOM,
-  DOOM13,
-  doomEdge,
+  ENDLESS,
+  ENDLESS13,
+  endlessEdge,
   FORT,
-  fromDoom,
+  fromEndless,
   GRAVE,
   groundZ13,
   halfOutline,
-  inDoomShallows,
-  insideDoom,
+  inEndlessShallows,
+  insideEndless,
   LANDING13,
-  nearDoom,
-  onDoom,
+  nearEndless,
+  onEndless,
   PEAK,
   PIER13,
   PIER13_Z,
-  pushOffDoom,
+  pushOffEndless,
   revealZoom13,
   rival,
   SANDBAR,
@@ -45,8 +50,8 @@ import {
   SIGHT13,
   sideAt,
   TREES13,
-  toDoom,
-} from '../../src/world/doom';
+  toEndless,
+} from '../../src/world/endless';
 import { DEEP, FAR, FARFAR, IX, IY, pastFarFar, WS } from '../../src/world/island';
 import { fakeView } from './helpers/view';
 
@@ -63,10 +68,10 @@ function insideEnd(x: number, y: number): number {
 
 const edge = Array.from({ length: 360 }, (_, i) => {
   const a = (i / 360) * Math.PI * 2;
-  return fromDoom(Math.cos(a) * doomEdge(a), Math.sin(a) * doomEdge(a));
+  return fromEndless(Math.cos(a) * endlessEdge(a), Math.sin(a) * endlessEdge(a));
 });
 
-describe('Doom Island, in the far far sea', () => {
+describe('the Endless Isle, in the far far sea', () => {
   it("lies in the far far sea's left corner, past the white buoys, with water all round it", () => {
     for (const [x, y] of [...edge, ...halfOutline('pirate', 120), ...halfOutline('ninja', 120)]) {
       expect(pastFarFar(x, y)).toBe(true);
@@ -80,17 +85,17 @@ describe('Doom Island, in the far far sea', () => {
       expect(insideEnd(d.x, d.y)).toBeGreaterThan(d.r + 150);
     }
     // Straight left along the screen from home: its middle on the line through home and the sea's left corner.
-    expect(DOOM.x - IX).toBeCloseTo(-(DOOM.y - IY), 5);
-    expect(DOOM.x).toBeLessThan(-(DEEP + FAR));
-    expect(DOOM.y).toBeGreaterThan(WS + DEEP + FAR);
+    expect(ENDLESS.x - IX).toBeCloseTo(-(ENDLESS.y - IY), 5);
+    expect(ENDLESS.x).toBeLessThan(-(DEEP + FAR));
+    expect(ENDLESS.y).toBeGreaterThan(WS + DEEP + FAR);
   });
 
   it('faces home: its piers point toward home, across the screen from its far side', () => {
-    const [hu, hv] = toDoom(IX, IY);
+    const [hu, hv] = toEndless(IX, IY);
     expect(hu).toBeGreaterThan(9000);
     expect(Math.abs(hv)).toBeLessThan(1);
     for (const side of SIDES) {
-      const [du] = toDoom(DOCK13[side].x, DOCK13[side].y);
+      const [du] = toEndless(DOCK13[side].x, DOCK13[side].y);
       expect(du).toBeGreaterThan(BODY.half);
     }
   });
@@ -114,7 +119,7 @@ describe('Doom Island, in the far far sea', () => {
         const a = onLand(ax, ay);
         expect(onLand(bx, by)).toBe(a);
         expect(groundZ(bx, by)).toBeCloseTo(groundZ(ax, ay), 6);
-        expect(inDoomShallows(bx, by)).toBe(inDoomShallows(ax, ay));
+        expect(inEndlessShallows(bx, by)).toBe(inEndlessShallows(ax, ay));
         if (a) land++;
       }
     expect(land).toBeGreaterThan(1000);
@@ -123,7 +128,7 @@ describe('Doom Island, in the far far sea', () => {
   it('is big: each half wider across than it is long, as long as island 11 is wide', () => {
     expect(BODY.half * 2).toBeGreaterThan(1200);
     expect(CAP.w + CAP.rw - CHANNEL).toBeGreaterThan(800);
-    expect(DOOM13.r).toBeGreaterThanOrEqual(CAP.w + CAP.rw - 1);
+    expect(ENDLESS13.r).toBeGreaterThanOrEqual(CAP.w + CAP.rw - 1);
   });
 
   it('puts each fort at the far end of its half, its gate toward the channel, its flag inside', () => {
@@ -167,29 +172,29 @@ describe('Doom Island, in the far far sea', () => {
   it('joins the halves with two rope bridges and the sandbar; the rest of the channel is deep water', () => {
     for (const b of BRIDGES13) {
       for (let v = -CHANNEL - 20; v <= CHANNEL + 20; v += 10) {
-        const [x, y] = fromDoom(b, v);
+        const [x, y] = fromEndless(b, v);
         expect(onLand(x, y)).toBe(true);
-        expect(inDoomShallows(x, y)).toBe(false);
+        expect(inEndlessShallows(x, y)).toBe(false);
       }
       // Up on its deck over the middle, ramped down at the ends.
-      const [mx, my] = fromDoom(b, 0);
+      const [mx, my] = fromEndless(b, 0);
       expect(groundZ(mx, my)).toBeCloseTo(BRIDGE13.z, 5);
-      const [ex, ey] = fromDoom(b, BRIDGE13.w - 2);
+      const [ex, ey] = fromEndless(b, BRIDGE13.w - 2);
       expect(groundZ13(ex, ey)).toBeLessThan(1);
       // Off its side into the water.
-      const [ox, oy] = fromDoom(b + BRIDGE13.half + 10, 0);
+      const [ox, oy] = fromEndless(b + BRIDGE13.half + 10, 0);
       expect(onLand(ox, oy)).toBe(false);
     }
     // The channel between the bridges and the shallows, and out beyond the bridges: deep.
     for (const u of [-500, -450, 450, 500]) {
-      const [x, y] = fromDoom(u, 0);
+      const [x, y] = fromEndless(u, 0);
       expect(onLand(x, y)).toBe(false);
     }
     // The sandbar can be walked, all but the wreck on it.
-    const [sx, sy] = fromDoom(SANDBAR.ru - 20, 0);
+    const [sx, sy] = fromEndless(SANDBAR.ru - 20, 0);
     expect(onLand(sx, sy)).toBe(true);
-    expect(inDoomShallows(sx, sy)).toBe(false);
-    const [wx, wy] = fromDoom(0, 0);
+    expect(inEndlessShallows(sx, sy)).toBe(false);
+    const [wx, wy] = fromEndless(0, 0);
     expect(onLand(wx, wy)).toBe(false);
   });
 
@@ -202,35 +207,35 @@ describe('Doom Island, in the far far sea', () => {
       expect(onLand(x0, y0) && onLand(x1, y1)).toBe(true);
       let wet = 0;
       for (let v = -CHANNEL - 60; v <= CHANNEL + 60; v += 4) {
-        const [x, y] = fromDoom(u, v);
+        const [x, y] = fromEndless(u, v);
         expect(walkable(x, y, 0)).toBe(true);
-        if (inDoomShallows(x, y)) wet++;
+        if (inEndlessShallows(x, y)) wet++;
       }
       expect(wet).toBeGreaterThan(20);
     }
     // On the beach either side it is dry going, not wading.
     const [bx, by] = atHalf('pirate', 0, CHANNEL + 40);
     expect(onLand(bx, by)).toBe(true);
-    expect(inDoomShallows(bx, by)).toBe(false);
+    expect(inEndlessShallows(bx, by)).toBe(false);
   });
 
   it('wades the shallows at half pace', () => {
     for (let v = -CHANNEL + 10; v <= CHANNEL - 10; v += 8) {
-      const [x, y] = fromDoom(0, v);
+      const [x, y] = fromEndless(0, v);
       if (Math.abs(v) <= SANDBAR.rv) continue;
       expect(onLand(x, y)).toBe(true);
-      expect(inDoomShallows(x, y)).toBe(true);
+      expect(inEndlessShallows(x, y)).toBe(true);
     }
     expect(WADE_PACE).toBe(0.5);
     expect(WALK_SPEED * WADE_PACE).toBeLessThan(WALK_SPEED);
   });
 
   it('runs a pier off each half toward home, its dock past the end, the figure landing on the planks', () => {
-    expect(DOOM_P_DOCK.x).toBe(DOCK13.pirate.x);
-    expect(DOOM_N_DOCK.y).toBe(DOCK13.ninja.y);
+    expect(ENDLESS_P_DOCK.x).toBe(DOCK13.pirate.x);
+    expect(ENDLESS_N_DOCK.y).toBe(DOCK13.ninja.y);
     for (const [side, dock] of [
-      ['pirate', DOOM_P_DOCK],
-      ['ninja', DOOM_N_DOCK],
+      ['pirate', ENDLESS_P_DOCK],
+      ['ninja', ENDLESS_N_DOCK],
     ] as const) {
       expect(dockAt(dock.x, dock.y)).toBe(dock);
       const land = LANDING13[side];
@@ -242,14 +247,14 @@ describe('Doom Island, in the far far sea', () => {
       expect(Math.hypot(b.x - dock.x, b.y - dock.y)).toBeLessThan(dock.r);
       expect(Math.hypot(b.x - land.x, b.y - land.y)).toBeLessThan(60);
       // Bow in toward the pier: heading toward the island, against home.
-      const [u0] = toDoom(b.x, b.y);
-      const [u1] = toDoom(b.x + Math.cos(b.h) * 10, b.y + Math.sin(b.h) * 10);
+      const [u0] = toEndless(b.x, b.y);
+      const [u1] = toEndless(b.x + Math.cos(b.h) * 10, b.y + Math.sin(b.h) * 10);
       expect(u1).toBeLessThan(u0);
       // The pier's root is on the land, and the crates by it.
       const [rx, ry] = atHalf(side, PIER13.u0 + 20, PIER13.w);
-      expect(onDoom(rx, ry)).toBe(true);
+      expect(onEndless(rx, ry)).toBe(true);
       const c = CRATES13[side];
-      expect(insideDoom(c.x, c.y, 0)).toBe(true);
+      expect(insideEndless(c.x, c.y, 0)).toBe(true);
     }
   });
 
@@ -257,30 +262,30 @@ describe('Doom Island, in the far far sea', () => {
     const k = 24;
     // From inside the channel.
     const s = { x: 0, y: 0, v: 10 };
-    [s.x, s.y] = fromDoom(-450, 10);
-    pushOffDoom(s, k);
-    expect(insideDoom(s.x, s.y, k - 1)).toBe(false);
+    [s.x, s.y] = fromEndless(-450, 10);
+    pushOffEndless(s, k);
+    expect(insideEndless(s.x, s.y, k - 1)).toBe(false);
     // From up on a half.
     [s.x, s.y] = atHalf('ninja', 100, 600);
-    pushOffDoom(s, k);
-    expect(insideDoom(s.x, s.y, k - 1)).toBe(false);
+    pushOffEndless(s, k);
+    expect(insideEndless(s.x, s.y, k - 1)).toBe(false);
     // Into the side of a pier.
     [s.x, s.y] = atHalf('pirate', PIER13.u0 + 140, PIER13.w + 4);
-    pushOffDoom(s, k);
-    const [, v] = toDoom(s.x, s.y);
+    pushOffEndless(s, k);
+    const [, v] = toEndless(s.x, s.y);
     expect(Math.abs(Math.abs(v) - PIER13.w)).toBeGreaterThanOrEqual(PIER13.half + k - 0.01);
     // Out in open water, nothing moves.
-    const far = { x: DOOM.x + 3000, y: DOOM.y, v: 10 };
-    pushOffDoom(far, k);
-    expect(far.x).toBe(DOOM.x + 3000);
+    const far = { x: ENDLESS.x + 3000, y: ENDLESS.y, v: 10 };
+    pushOffEndless(far, k);
+    expect(far.x).toBe(ENDLESS.x + 3000);
   });
 
   it('is sighted from out at sea, and nothing far off needs to know it is there', () => {
-    const [x, y] = fromDoom(doomEdge(0) + SIGHT13 - 10, 0);
-    expect(nearDoom(x, y, SIGHT13)).toBe(true);
-    const [fx, fy] = fromDoom(doomEdge(0) + SIGHT13 + 200, 0);
-    expect(nearDoom(fx, fy, SIGHT13)).toBe(false);
-    expect(onDoom(DOOM.x + 3000, DOOM.y)).toBe(false);
+    const [x, y] = fromEndless(endlessEdge(0) + SIGHT13 - 10, 0);
+    expect(nearEndless(x, y, SIGHT13)).toBe(true);
+    const [fx, fy] = fromEndless(endlessEdge(0) + SIGHT13 + 200, 0);
+    expect(nearEndless(fx, fy, SIGHT13)).toBe(false);
+    expect(onEndless(ENDLESS.x + 3000, ENDLESS.y)).toBe(false);
   });
 
   it('pulls the camera back far enough on a phone to see both halves when first sighted', () => {
@@ -295,9 +300,9 @@ describe('Doom Island, in the far far sea', () => {
 
   it('draws the shallows and channel, both halves, and everything standing on them', () => {
     const f = fakeView();
-    drawDoomSea(f.v);
-    drawDoomFlat(f.v);
-    const solids = doomSolids(f.v);
+    drawEndlessSea(f.v);
+    drawEndlessFlat(f.v);
+    const solids = endlessSolids(f.v);
     // Each half: its wall in segments (the gate leaves out a few) and two gateposts, the flag, the graveyard, the base,
     // the landmark, its trees and its crates; and the wreck.
     expect(solids.length).toBeGreaterThan(2 * (15 + 2 + 4 + TREES13.length + 1));
@@ -314,20 +319,20 @@ describe('Doom Island, in the far far sea', () => {
     let T = 0;
     for (let i = 0; i < 40; i++) {
       f.v.T = T += 1 / 30;
-      doomSolids(f.v, hid);
+      endlessSolids(f.v, hid);
     }
     expect(landmarkFade('pirate')).toBeLessThan(0.4);
     expect(landmarkFade('ninja')).toBeGreaterThan(0.95);
     // In front of it, it comes back solid.
     for (let i = 0; i < 60; i++) {
       f.v.T = T += 1 / 30;
-      doomSolids(f.v, { x: tx + 60, y: ty + 60 });
+      endlessSolids(f.v, { x: tx + 60, y: ty + 60 });
     }
     expect(landmarkFade('pirate')).toBeGreaterThan(0.95);
     // Behind the peak, out at sea past the ninjas' end.
     for (let i = 0; i < 40; i++) {
       f.v.T = T += 1 / 30;
-      doomSolids(f.v, { x: nx - 80, y: ny - 80 });
+      endlessSolids(f.v, { x: nx - 80, y: ny - 80 });
     }
     expect(landmarkFade('ninja')).toBeLessThan(0.4);
   });
@@ -335,9 +340,9 @@ describe('Doom Island, in the far far sea', () => {
   it('draws nothing when it is far off the screen', () => {
     const f = fakeView();
     f.onScreen = false;
-    drawDoomSea(f.v);
-    drawDoomFlat(f.v);
-    expect(doomSolids(f.v)).toHaveLength(0);
+    drawEndlessSea(f.v);
+    drawEndlessFlat(f.v);
+    expect(endlessSolids(f.v)).toHaveLength(0);
     expect(f.calls.fill ?? 0).toBe(0);
   });
 });

@@ -35,7 +35,7 @@
  * does, but off the bow on the side away from the viewer (the otter has the near side), his little striped fin up,
  * and every few seconds he leaps clear of the water and dives back in. Tap him and he leaps for you.
  *
- * And Doom Island's two minions, the kid's, one for joining each side. Jacks Parrow, the pirates' parrot, rides the
+ * And the Endless Isle's two minions, the kid's, one for joining each side. Jacks Parrow, the pirates' parrot, rides the
  * figure's shoulder and flies off to peck whatever it fights, for 1, then back; nothing can hurt him, for he is up out
  * of the way, and at sea he perches on the boat's mast. Bun-San, the ninjas' ninja-bun, hops at the figure's heel and
  * spins in with his sword, for 1; hit, he goes up in a puff of smoke and pops out behind the figure, so he is never

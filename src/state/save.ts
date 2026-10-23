@@ -371,12 +371,12 @@ export type SaveData = {
     sirens: boolean;
   };
   /**
-   * Doom Island, island 13, the kid's: whether it has been sighted, out in the far far sea's left corner, and which
+   * The Endless Isle, island 13, the kid's: whether it has been sighted, out in the far far sea's left corner, and which
    * sides you have joined, the pirates (Jacks Parrow with you) and the ninjas (Bun-San); you can join both. More of it
    * comes in later pieces (battle badges, the mini-games' best runs). Missing in old saves and read as not seen and
    * nobody joined; left out of the save until it is seen, so the copy-my-game link stays short.
    */
-  doom: {
+  endless: {
     seen: boolean;
     pirate: boolean;
     ninja: boolean;
@@ -563,7 +563,7 @@ export function defaultSave(b: Bounds): SaveData {
       up: noUpgrades(),
     },
     mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false, sirens: false },
-    doom: { seen: false, pirate: false, ninja: false },
+    endless: { seen: false, pirate: false, ninja: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -846,9 +846,11 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
       sirens: !!k.sirens,
     };
   }
-  if (o.doom && typeof o.doom === 'object') {
-    const k = o.doom as Record<string, unknown>;
-    d.doom = { seen: !!k.seen, pirate: k.pirate === true, ninja: k.ninja === true };
+  // Its key was doom the day it was built, before the rename; doom is never to be used again, for the new Doom Island.
+  const endless = o.endless ?? o.doom;
+  if (endless && typeof endless === 'object') {
+    const k = endless as Record<string, unknown>;
+    d.endless = { seen: !!k.seen, pirate: k.pirate === true, ninja: k.ninja === true };
   }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
@@ -1015,7 +1017,7 @@ export function serializeSave(d: SaveData): string {
     // Left out while untouched, as most games' is: the save travels in a link (state/share.ts), kept short.
     drone: untouchedDrone(d.drone) ? undefined : d.drone,
     mer: d.mer.seen || d.mer.given || d.mer.sirens ? d.mer : undefined,
-    doom: d.doom.seen || d.doom.pirate || d.doom.ninja ? d.doom : undefined,
+    endless: d.endless.seen || d.endless.pirate || d.endless.ninja ? d.endless : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
