@@ -24,6 +24,7 @@ import { type HqBuilt, noHq, parseHq } from '../data/hq';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { type Look, parseLook, SKIPPER } from '../data/look';
 import { isScanKind, type ScanKind } from '../data/scans';
+import { parseSlalom, type Slalom } from '../data/slalom';
 import { noSnacks, parseHoney, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
 import { type Companion, parseStay } from '../data/stay';
@@ -378,13 +379,15 @@ export type SaveData = {
    * sides you have joined, the pirates (Jacks Parrow with you) and the ninjas (Bun-San); you can join both. More of it
    * comes in later pieces (battle badges, the mini-games' best runs). Missing in old saves and read as not seen and
    * nobody joined; left out of the save until it is seen, so the copy-my-game link stays short. Its battles fought,
-   * won and marked (data/battle.ts) are there once you have fought one.
+   * won and marked (data/battle.ts) are there once you have fought one, and the Ninja Slalom's runs and best times
+   * (data/slalom.ts) once you have skied one.
    */
   endless: {
     seen: boolean;
     pirate: boolean;
     ninja: boolean;
     battles?: Battles;
+    slalom?: Slalom;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -860,6 +863,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     d.endless = { seen: !!k.seen, pirate: k.pirate === true, ninja: k.ninja === true };
     const battles = parseBattles(k.battles);
     if (battles) d.endless.battles = battles;
+    const slalom = parseSlalom(k.slalom);
+    if (slalom) d.endless.slalom = slalom;
   }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;

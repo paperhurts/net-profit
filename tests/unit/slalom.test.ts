@@ -1,0 +1,287 @@
+import { describe, expect, it } from 'vitest';
+import { clockOf, GATE_MISS, parseSlalom, RUNS, skied, TRICK_BONUS } from '../../src/data/slalom';
+import {
+  CRUISE,
+  type Feature,
+  HOWTO_T,
+  hits,
+  layRun,
+  lineAt,
+  READY_T,
+  SKIER_R,
+  Slalom,
+  TUCK,
+} from '../../src/entities/slalom';
+
+const DT = 1 / 60;
+type Gate = Feature & { kind: 'gate' };
+const gatesOf = (s: Slalom) => s.course.filter((f): f is Gate => f.kind === 'gate');
+
+/** Skis a run to its end, or for so long, under a policy for the thumb. */
+function ski(s: Slalom, policy: (s: Slalom) => [number, number], until = (_: Slalom) => false) {
+  for (let i = 0; i < 60 * 200 && s.state !== 'done' && !until(s); i++) {
+    const [sx, sy] = policy(s);
+    s.step(DT, sx, sy);
+  }
+  return s;
+}
+/** Down the racing line, looking a little ahead, tucked or not. */
+const theLine =
+  (sy = 0) =>
+  (s: Slalom): [number, number] => {
+    const want = lineAt(gatesOf(s), s.z + Math.max(4, s.v * 0.6));
+    return [Math.max(-1, Math.min(1, (want - s.x) * 0.9 - s.vx * 0.08)), sy];
+  };
+/** A run with nothing on it but what is given, past the countdown. */
+function bare(...fs: Feature[]): Slalom {
+  const s = new Slalom(RUNS.bunny);
+  s.course.splice(0, s.course.length, ...fs);
+  s.step(READY_T + DT, 0, 0);
+  return s;
+}
+
+describe('the Ninja Slalom', () => {
+  it('lays the Bunny Slope out the same every time, its gates swinging side to side inside the piste', () => {
+    const run = RUNS.bunny;
+    const a = layRun(run);
+    expect(layRun(run)).toEqual(a);
+    const gates = a.filter((f): f is Gate => f.kind === 'gate');
+    expect(gates.length).toBeGreaterThanOrEqual(12);
+    gates.forEach((g, i) => {
+      if (i) expect(Math.sign(g.x)).toBe(-Math.sign((gates[i - 1] as Gate).x));
+      expect(Math.abs(g.x) + g.w / 2).toBeLessThan(run.half);
+      expect(g.red).toBe(i % 2 === 0);
+    });
+    expect(a.filter((f) => f.kind === 'jump')).toHaveLength(run.jumps);
+    expect(a.filter((f) => f.kind === 'lantern').length).toBeGreaterThanOrEqual(6);
+    for (const f of a) {
+      expect(f.z).toBeGreaterThan(0);
+      expect(f.z).toBeLessThan(run.len);
+      if ('x' in f) expect(Math.abs(f.x)).toBeLessThan(run.half);
+    }
+  });
+
+  it('leaves a clear line through every gate: nothing stands within reach of it', () => {
+    const a = layRun(RUNS.bunny);
+    const gates = a.filter((f): f is Gate => f.kind === 'gate');
+    for (const f of a)
+      if (f.kind === 'pine' || f.kind === 'rock' || f.kind === 'snowman')
+        expect(hits(f, lineAt(gates, f.z), 0)).toBe(false);
+  });
+
+  it('counts down before it goes, and the clock starts at go', () => {
+    const s = new Slalom(RUNS.bunny);
+    const said: string[] = [];
+    s.onEvent = (w) => said.push(w);
+    expect(s.count).toBe(3);
+    for (let t = 0; t < READY_T - 0.1; t += DT) s.step(DT, 1, -1);
+    expect(s.state).toBe('ready');
+    expect(s.count).toBe(1);
+    expect(s.z).toBe(0);
+    expect(s.x).toBe(0);
+    expect(s.t).toBe(0);
+    for (let t = 0; t < 0.2; t += DT) s.step(DT, 0, 0);
+    expect(s.state).toBe('ski');
+    expect(said).toEqual(['go']);
+  });
+
+  it('shows how it goes first, on a first run, until the time is up or the trick button is tapped', () => {
+    const s = new Slalom(RUNS.bunny);
+    s.showHowTo();
+    expect(s.howTo).toBe(true);
+    expect(s.count).toBe(3);
+    for (let t = 0; t < HOWTO_T - 0.1; t += DT) s.step(DT, 0, 0);
+    expect(s.howTo).toBe(true);
+    for (let t = 0; t < 0.2; t += DT) s.step(DT, 0, 0);
+    expect(s.howTo).toBe(false);
+    expect(s.state).toBe('ready');
+    const tap = new Slalom(RUNS.bunny);
+    tap.showHowTo();
+    expect(tap.press()).toBe(false);
+    expect(tap.howTo).toBe(false);
+    expect(tap.readyT).toBe(READY_T);
+  });
+
+  it('down the line makes every gate without a fall, in under a minute, quicker tucked', () => {
+    const easy = ski(new Slalom(RUNS.bunny), theLine());
+    expect(easy.state).toBe('done');
+    expect(easy.gatesMade).toBe(easy.gatesOut);
+    expect(easy.gatesMissed).toBe(0);
+    expect(easy.crashes).toBe(0);
+    expect(easy.time).toBeGreaterThan(40);
+    expect(easy.time).toBeLessThan(60);
+    const fast = ski(new Slalom(RUNS.bunny), theLine(-1));
+    expect(fast.gatesMade).toBe(fast.gatesOut);
+    expect(fast.crashes).toBe(0);
+    expect(fast.time).toBeLessThan(easy.time - 8);
+    // Pulled back, it slows right down.
+    const slow = ski(new Slalom(RUNS.bunny), theLine(1));
+    expect(slow.time).toBeGreaterThan(easy.time + 20);
+  });
+
+  it('adds time for every gate gone round, so straight down is slower than the line', () => {
+    const s = ski(new Slalom(RUNS.bunny), () => [0, -1]);
+    const line = ski(new Slalom(RUNS.bunny), theLine(-1));
+    expect(s.gatesMissed).toBeGreaterThan(s.gatesOut / 2);
+    expect(s.penalty).toBeCloseTo(s.gatesMissed * GATE_MISS, 6);
+    expect(s.time).toBeGreaterThan(line.time + 10);
+  });
+
+  it('a crash is a tumble in the snow and about two seconds lost, never the end of the run', () => {
+    const clear = ski(
+      bare(),
+      () => [0, 0],
+      (s) => s.z >= 150,
+    );
+    const pine: Feature = { kind: 'pine', z: 60, x: 0, r: 0.9 };
+    const said: string[] = [];
+    const hit = bare(pine);
+    hit.onEvent = (w) => said.push(w);
+    ski(
+      hit,
+      () => [0, 0],
+      (s) => s.state === 'tumble',
+    );
+    expect(said).toEqual(['crash']);
+    expect(hit.crashes).toBe(1);
+    ski(
+      hit,
+      () => [0, 0],
+      (s) => s.z >= 150,
+    );
+    expect(said).toEqual(['crash', 'up']);
+    expect(hit.state).toBe('ski');
+    const lost = hit.t - clear.t;
+    expect(lost).toBeGreaterThan(1.5);
+    expect(lost).toBeLessThan(2.6);
+    // Passing it by a hair is no crash.
+    const by = bare({ kind: 'pine', z: 60, x: 0.9 + SKIER_R + 0.05, r: 0.9 });
+    ski(
+      by,
+      () => [0, 0],
+      (s) => s.z >= 150,
+    );
+    expect(by.crashes).toBe(0);
+  });
+
+  it('throws you off a ramp; a trick landed takes time off, one still turning as you land is a tumble', () => {
+    const ramp: Feature = { kind: 'jump', z: 60, x0: -2.5, x1: 2.5 };
+    // On the snow, the button does nothing.
+    const s = bare(ramp);
+    expect(s.press()).toBe(false);
+    ski(
+      s,
+      () => [0, 0],
+      (q) => q.air,
+    );
+    expect(s.y).toBeGreaterThan(0);
+    expect(s.press(0)).toBe(true);
+    expect(s.trick).toBe('flip');
+    expect(s.press(0)).toBe(false);
+    ski(
+      s,
+      () => [0, 0],
+      (q) => !q.air,
+    );
+    expect(s.state).toBe('ski');
+    expect(s.tricks).toBe(1);
+    expect(s.bonus).toBe(TRICK_BONUS);
+    expect(s.time).toBeCloseTo(s.t - TRICK_BONUS, 6);
+    // Steering as you tap, a spin; tapped too late, still turning on landing: a tumble, and no time off.
+    const late = bare(ramp);
+    ski(
+      late,
+      () => [0, 0],
+      (q) => q.air && q.vy < -5,
+    );
+    expect(late.press(1)).toBe(true);
+    expect(late.trick).toBe('spin');
+    ski(
+      late,
+      () => [0, 0],
+      (q) => !q.air,
+    );
+    expect(late.state).toBe('tumble');
+    expect(late.tricks).toBe(0);
+    expect(late.bonus).toBe(0);
+    // Round the ramp, no jump at all.
+    const round = bare(ramp);
+    round.x = 4;
+    ski(
+      round,
+      () => [0, 0],
+      (q) => q.z > 70,
+    );
+    expect(round.air).toBe(false);
+  });
+
+  it('slices a lantern passed close by, not one passed wide', () => {
+    const s = bare(
+      { kind: 'lantern', z: 40, x: 1, cut: -1 },
+      { kind: 'lantern', z: 60, x: 3, cut: -1 },
+    );
+    const said: string[] = [];
+    s.onEvent = (w) => said.push(w);
+    ski(
+      s,
+      () => [0, 0],
+      (q) => q.z > 80,
+    );
+    expect(s.lanterns).toBe(1);
+    expect(said).toEqual(['lantern']);
+    expect((s.course[0] as Feature & { kind: 'lantern' }).cut).toBeGreaterThan(0);
+    expect((s.course[1] as Feature & { kind: 'lantern' }).cut).toBe(-1);
+    expect(s.slashT).toBeGreaterThanOrEqual(0);
+  });
+
+  it('carries you on sideways on ice, and slows you in moguls', () => {
+    const turn = (s: Slalom) => {
+      ski(
+        s,
+        () => [0, 0],
+        (q) => q.z > 30,
+      );
+      for (let i = 0; i < 12; i++) s.step(DT, 1, 0);
+      return s.vx;
+    };
+    const snow = turn(bare());
+    const ice = turn(bare({ kind: 'ice', z: 20, len: 40, x0: -8, x1: 8 }));
+    expect(ice).toBeLessThan(snow * 0.5);
+    const flat = ski(
+      bare(),
+      () => [0, 0],
+      (q) => q.z > 100,
+    );
+    const bumps = ski(
+      bare({ kind: 'moguls', z: 10, len: 90, x0: -8, x1: 8 }),
+      () => [0, 0],
+      (q) => q.z > 100,
+    );
+    expect(bumps.t).toBeGreaterThan(flat.t + 1);
+    expect(bumps.v).toBeLessThan(CRUISE);
+  });
+
+  it('is never faster than the tuck, and keeps to the piste', () => {
+    const s = ski(new Slalom(RUNS.bunny), (q) => [q.z % 80 < 40 ? 1 : -1, -1]);
+    expect(s.v).toBeLessThanOrEqual(TUCK + 1e-6);
+    expect(Math.abs(s.x)).toBeLessThan(RUNS.bunny.half);
+  });
+
+  it('keeps the best time for each run, in tenths, and reads only what makes sense from a save', () => {
+    expect(parseSlalom(undefined)).toBeUndefined();
+    expect(parseSlalom({ runs: 0, best: { bunny: 40 } })).toBeUndefined();
+    let s = skied(undefined, 'bunny', 52.34);
+    expect(s).toEqual({ runs: 1, best: { bunny: 52.3 } });
+    s = skied(s, 'bunny', 58);
+    expect(s).toEqual({ runs: 2, best: { bunny: 52.3 } });
+    s = skied(s, 'bunny', 47.06);
+    expect(s.best.bunny).toBe(47.1);
+    expect(parseSlalom(JSON.parse(JSON.stringify(s)))).toEqual(s);
+    expect(parseSlalom({ runs: 'x', best: {} })).toBeUndefined();
+    expect(parseSlalom({ runs: 3, best: { bunny: -2, fox: 30 } })).toEqual({ runs: 3, best: {} });
+    expect(parseSlalom({ runs: 3, best: 'fast' })).toEqual({ runs: 3, best: {} });
+    expect(clockOf(47.06)).toBe('47.1');
+    expect(clockOf(63.5)).toBe('1:03.5');
+    expect(clockOf(9)).toBe('9.0');
+  });
+});

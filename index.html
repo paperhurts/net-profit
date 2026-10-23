@@ -427,6 +427,12 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #ability{position:fixed;right:calc(23px + env(safe-area-inset-right));bottom:calc(252px + env(safe-area-inset-bottom));z-index:3;width:58px;height:58px;border-radius:50%;
   background:var(--ab,#2F2A24);display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.25);overflow:hidden}
 #ability[hidden]{display:none}
+#skiTrick{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(150px + env(safe-area-inset-bottom));z-index:3;width:78px;height:78px;border-radius:50%;
+  background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;padding:3px 0 0;box-shadow:0 4px 0 rgba(0,0,0,.25);touch-action:none}
+#skiTrick[hidden]{display:none}
+#skiTrick:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#skiTrick.bite{background:#F0C544;color:#2A1E08;animation:skipulse .35s ease-in-out infinite alternate}
+@keyframes skipulse{to{transform:scale(1.08)}}
 #ability .sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(8,16,24,.66) calc(var(--cd,0) * 360deg),transparent 0);pointer-events:none}
 #ability:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 /* A battle's score along the top, where the order card was, and its result after. */
@@ -584,6 +590,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 <button id="scanBtn" hidden aria-label="Scan it"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="9" y="4" width="12" height="22" rx="3" fill="#E6FBFF"/><rect x="11" y="7" width="8" height="8" rx="1.5" fill="#2E6FA8"/><path d="M13 11a2 2 0 1 1 4 0" stroke="#7FE0FF" stroke-width="1.6" fill="none"/><circle cx="15" cy="21" r="2" fill="#2E6FA8"/><path d="M4 9a11 11 0 0 1 0 12M26 9a11 11 0 0 0 0 12" stroke="#E6FBFF" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
 <div id="scanOut" hidden role="status" aria-live="polite"><b id="scanName"></b><p><span class="lbl">How to beat it</span> <span id="scanBeat"></span></p><p id="scanWeakP"><span class="lbl">Weakness</span> <span id="scanWeak"></span></p><p id="scanHpP"><span class="lbl" id="scanHpL">Hit points</span> <span id="scanHp"></span></p><p class="cnt" id="scanCount"></p><p class="better" id="scanUp" hidden></p></div>
 <button id="throw" hidden aria-label="Throw the spear"><svg class="spearIcon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M5 29 L25 9" stroke="#FFF6E5" stroke-width="3.2" stroke-linecap="round"/><path d="M22 6 L30 4 L28 12 Z" fill="#FFF6E5"/></svg><svg class="knifeIcon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M13 21 L27 5 L28 9 L16 24 Z" fill="#FFF6E5"/><path d="M10 18 L18 26" stroke="#FFF6E5" stroke-width="3" stroke-linecap="round"/><path d="M12 24 L6 30" stroke="#E8C79A" stroke-width="4" stroke-linecap="round"/></svg></button>
+<button id="skiTrick" hidden>Trick!</button>
 <button id="ability" hidden aria-label="Ability"><span id="abilityIcon"></span><i class="sweep"></i></button>
 
 <section id="shop" aria-hidden="true" aria-label="Upgrades">

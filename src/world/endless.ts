@@ -229,6 +229,20 @@ export const GRAVE = { u: -360, w: 780, r: 34 } as const;
 export const BASE = { u: -380, w: 380, r: 48, core: 16 } as const;
 /** Each half's landmark, the same ground on each: the ninjas' snow peak, the pirates' great tree. */
 export const PEAK = { u: 340, w: 760, r: 110 } as const;
+/**
+ * The ninjas' chairlift up their peak, the Ninja Slalom's way up: its station at the peak's foot on the channel side,
+ * and how near to ride it. The pirates' great tree has its ladder there instead, so this one is not mirrored.
+ */
+export const LIFT13_AT = { u: PEAK.u, w: PEAK.w - PEAK.r - 26 } as const;
+export const LIFT13_REACH = 34;
+export const LIFT13 = (() => {
+  const [x, y] = atHalf('ninja', LIFT13_AT.u, LIFT13_AT.w);
+  return { x, y } as const;
+})();
+/** Whether a point is at the chairlift's station, near enough to ride it up. */
+export function atLift(x: number, y: number): boolean {
+  return Math.hypot(x - LIFT13.x, y - LIFT13.y) < LIFT13_REACH;
+}
 /** The two rope bridges over the channel, the same on both halves by their nature. */
 export const BRIDGES13: readonly number[] = [-330, 330];
 export const BRIDGE13 = { w: CHANNEL + 45, half: 18, walk: 14, z: 6, ramp: 24 } as const;
