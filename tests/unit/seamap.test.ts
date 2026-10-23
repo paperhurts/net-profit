@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES } from '../../src/data/tuning';
 import {
+  type Box,
+  boxesMeet,
   drawMapCastle,
   drawMapFish,
   drawMapMark,
+  freeSpot,
   labelX,
   mapFish,
+  nameSpots,
   Projection,
+  placeNames,
 } from '../../src/render/seamap';
 import { SEA_MIN, SEA_SPAN } from '../../src/state/sailed';
 import { DEEP, WS } from '../../src/world/island';
@@ -121,5 +126,70 @@ describe('your castle on the sea map, once the dock is built', () => {
     expect(calls.fill).toBe(2);
     expect(calls.lineTo).toBeGreaterThan(8);
     expect(texts).toEqual(['Your castle']);
+  });
+});
+
+describe('names on a crowded sea map', () => {
+  const thing = { x: 100, y: 100, up: 10, down: 10, side: 10 };
+
+  it('tries under a thing first (over, for one whose name goes over), then the other, then each side', () => {
+    const under = nameSpots(thing, 40, 10, false).map((q) => q.box);
+    expect(under).toEqual([
+      [80, 110, 120, 120],
+      [80, 80, 120, 90],
+      [50, 95, 90, 105],
+      [110, 95, 150, 105],
+    ]);
+    expect(nameSpots(thing, 40, 10, true)[0]?.box).toEqual([80, 80, 120, 90]);
+    expect(nameSpots(thing, 40, 10, false)[2]?.at).toMatchObject({
+      x: 90,
+      align: 'right',
+      base: 'middle',
+    });
+  });
+
+  it('keeps a name centred under a thing whole inside the map, as labelX does', () => {
+    expect(nameSpots({ ...thing, x: 10 }, 40, 10, false, 300)[0]?.box[0]).toBe(2);
+  });
+
+  it('takes the first place that is on the map and covers nothing; failing that, the one covering least', () => {
+    const spots: Box[] = [
+      [0, 0, 10, 10],
+      [20, 0, 30, 10],
+      [40, 0, 50, 10],
+    ];
+    expect(boxesMeet([0, 0, 10, 10], [10, 0, 20, 10])).toBe(false);
+    expect(boxesMeet([0, 0, 10, 10], [9, 9, 20, 20])).toBe(true);
+    expect(freeSpot(spots, [[0, 0, 12, 10]])).toBe(1);
+    expect(freeSpot(spots, [], 45)).toBe(0);
+    expect(freeSpot([[-5, 0, 5, 10], ...spots.slice(1)], [])).toBe(1);
+    // Everything covered: the one covering least.
+    expect(
+      freeSpot(spots, [
+        [0, 0, 30, 10],
+        [40, 0, 45, 10],
+      ]),
+    ).toBe(2);
+  });
+
+  it("places the most hemmed-in name first: island 11's under it, so island 10's goes over its island", () => {
+    // Two islands side by side, a mark over the right one's top: the left one's name under it would take the only
+    // free place the right one's had.
+    const ten = { x: 100, y: 100, up: 10, down: 10, side: 10 };
+    const eleven = { x: 150, y: 100, up: 10, down: 10, side: 10 };
+    const mark: Box = [130, 70, 150, 90];
+    const taken: Box[] = [[90, 90, 110, 110], [140, 90, 160, 110], mark];
+    const W = 175;
+    const at = placeNames(
+      [{ spots: nameSpots(ten, 50, 10, false, W) }, { spots: nameSpots(eleven, 50, 10, true, W) }],
+      taken,
+      W,
+    );
+    expect(at[1]).toMatchObject({ base: 'top', y: 110 });
+    expect(at[0]).toMatchObject({ base: 'bottom', y: 90 });
+    // No two names, and no name and island or mark, overlap.
+    const boxes = taken.slice(3);
+    expect(boxes.length).toBe(2);
+    for (const b of boxes) for (const t of taken) if (b !== t) expect(boxesMeet(b, t)).toBe(false);
   });
 });
