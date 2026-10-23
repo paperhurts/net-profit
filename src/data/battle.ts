@@ -54,7 +54,7 @@ export const CTF = {
   /** Behind the gates before they drop. */
   gates: 10,
   /** Beaten, back up at your graveyard after this long. */
-  respawn: 10,
+  respawn: 6,
   /** A flag carrier's pace. */
   carry: 0.85,
   /** A dropped flag left alone this long goes home. */
@@ -66,10 +66,11 @@ export const CTF = {
 } as const;
 
 /**
- * What a battle pays, and the marks it earns toward the next badge for the side and role you fought as (1 for a loss,
- * 2 for a win, so losing never stalls you). A draw counts as a loss for marks, and pays between.
+ * What a battle pays, the plan's (less than fishing pays for the time, so fishing stays the way to earn), and the marks
+ * it earns toward the next badge for the side and role you fought as (1 for a loss, 2 for a win, so losing never stalls
+ * you). The plan has no draw: one pays and marks as a loss.
  */
-export const PAY = { win: 200, draw: 120, loss: 80 } as const;
+export const PAY = { win: 500, draw: 200, loss: 200 } as const;
 export const MARKS = { win: 2, draw: 1, loss: 1 } as const;
 
 /** What you have fought on the Endless Isle: battles fought and won, and your marks for each side and role. */

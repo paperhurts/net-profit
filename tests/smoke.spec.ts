@@ -7634,9 +7634,9 @@ test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates
   await expect(page.locator('#ctfCard')).toBeVisible({ timeout: 3000 });
   await expect(page.locator('#ctfTitle')).toHaveText('The pirates win!');
   await expect(page.locator('#ctfP')).toHaveText('3');
-  await expect(page.locator('#ctfGot')).toHaveText('+200 coins');
+  await expect(page.locator('#ctfGot')).toHaveText('+500 coins');
   await expect(page.locator('#ctfStats')).toContainText('Flags you scored3');
-  expect(await page.evaluate(() => window.__np.coins)).toBe(before.coins + 200);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(before.coins + 500);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect(saved.endless.battles).toEqual({
     fought: 1,
@@ -7664,7 +7664,7 @@ test('Capture the Flag on the Endless Isle: from Captain Cappy, behind the gates
   await expect(page.locator('#toast')).toContainText('A battle left early pays nothing');
   expect(await page.evaluate(() => [window.__np.ctf, window.__np.coins])).toEqual([
     null,
-    before.coins + 200,
+    before.coins + 500,
   ]);
   expect(errors).toEqual([]);
 });
