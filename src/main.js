@@ -2510,7 +2510,7 @@ function startCtf(side, role = ctfRole){ if (ctf || walker.state !== 'ashore' ||
   ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role); ctfShots = []; ctfRings = []; ctfHud = '';
   const [x, y] = fromEndless(ctf.you.u, ctf.you.v); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0;
   hearts = ctf.you.hp; invulnT = 0; benchStaying(); hudHearts();
-  document.body.classList.add('ctf'); $('ctfBar').hidden = false; hudCtf(); sfx.phaseChange(); toasts.clear();
+  document.body.classList.add('ctf'); $('ctfBar').hidden = false; ctfLeaveReset(); hudCtf(); sfx.phaseChange(); toasts.clear();
   toast(`Capture the Flag, as a ${ROLE_NAME[side][role]}! Bring the ${CTF_SIDES[rival(side)]}' flag to yours, while yours is at home. First to three wins.`, 5000, 2); }
 function updateCtf(dt){ if (!ctf) return;
   if (walker.state !== 'ashore'){ toasts.clear(); toast('You left the battle. A battle left early pays nothing.', 3200, 1); endCtf(); return; }
@@ -2578,6 +2578,12 @@ function endCtf(home = false){ if (!ctf) return; const side = ctf.yours; ctf = n
   if (home && walker.state === 'ashore'){ const L = LEADER13[side], h = side === 'pirate' ? 1 : -1, x = L.x - 26*h, y = L.y + 26*h, ok = walkable(x, y, build);
     walker.x = cam.x = ok ? x : LANDING13[side].x; walker.y = cam.y = ok ? y : LANDING13[side].y; walker.vx = walker.vy = 0; } }
 function leaveCtf(){ toasts.clear(); toast('You left the battle. A battle left early pays nothing.', 3200, 1); endCtf(true); }
+// Its button, in the score bar out of the way of the thumb that walks: the first tap asks, the second leaves.
+let ctfLeaveT = 0;
+$('ctfLeave').addEventListener('click', () => { audio(); const b = $('ctfLeave');
+  if (!b.classList.contains('sure')){ sfx.click(); b.classList.add('sure'); b.textContent = 'Leave? Tap again'; clearTimeout(ctfLeaveT); ctfLeaveT = setTimeout(ctfLeaveReset, 3000); return; }
+  ctfLeaveReset(); leaveCtf(); });
+function ctfLeaveReset(){ clearTimeout(ctfLeaveT); const b = $('ctfLeave'); b.classList.remove('sure'); b.textContent = 'Leave the battle'; }
 $('ctfAgain').addEventListener('click', () => { const side = ctf?.yours; sfx.click(); endCtf(); if (side) startCtf(side, ctfRole); });
 $('ctfDone').addEventListener('click', () => { sfx.click(); endCtf(true); });
 // The badge card: which place to fight in, each with its hearts and its Badge I ability for this side.
@@ -3930,7 +3936,8 @@ function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' &
     // The cat's heals left, as little pink crosses.
     + (cat.shown && cat.heals ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: cat.heals}, () => HEAL_SVG).join('') : '')
     // Soul armour: a pale shield, its dots filling with each hit until the third gives a heart back.
-    + (soulArmour ? '<i style="display:inline-block;width:8px"></i>' + soulSvg(soulN) : ''); }
+    // Soul armour stays outside a battle, with the rest.
+    + (soulArmour && !ctf ? '<i style="display:inline-block;width:8px"></i>' + soulSvg(soulN) : ''); }
 function soulSvg(n){ return '<svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M8 1 15 4v5c0 4-3 7-7 8-4-1-7-4-7-8V4z" fill="none" stroke="#8FE6FF" stroke-width="1.6"/>'
   + [0, 1, 2].map(i => `<circle cx="${4.5 + i*3.5}" cy="9" r="1.3" fill="${i < n ? '#BFF6FF' : 'rgba(143,230,255,.3)'}"/>`).join('') + '</svg>'; }
 const HEAL_SVG = '<svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M4 2h4v4h4v4H8v4H4v-4H0V6h4z" fill="#FF8FB0"/></svg>';
@@ -5280,7 +5287,7 @@ elClimb.addEventListener('click', () => { audio(); const a = climbAction(); if (
   if (a === 'door') enterTower(towerAtDoor());
   else if (a === 'dive') dive(); else if (a === 'portal') intoDemons();
   else if (a === 'stairs' || a === 'onward'){ toRoom(floor + 1); if (hearts < maxHearts()){ hearts = maxHearts(); hudHearts(); toast('You catch your breath on the stairs. Hearts full.', 2000); } } });
-elLeave.addEventListener('click', () => { audio(); if (ctf){ leaveCtf(); return; } if (tarSail){ if (tarRing) endTarRing(false); else if (tarAshore) tarBoard(); else endTarSail(); return; } if (seaFight){ if (swallowT <= 0) endSea(false); return; } if (tunnels){ leaveTunnels('Out of the tunnels. Come back and try again any time.'); return; } if (floor < 0) return;
+elLeave.addEventListener('click', () => { audio(); if (tarSail){ if (tarRing) endTarRing(false); else if (tarAshore) tarBoard(); else endTarSail(); return; } if (seaFight){ if (swallowT <= 0) endSea(false); return; } if (tunnels){ leaveTunnels('Out of the tunnels. Come back and try again any time.'); return; } if (floor < 0) return;
   if (tower === BARGE){ endBarge(false); return; }
   if (tower === BRIDGE_TOWER){ outOfBridge(); return; }
   // Island 7's tower beaten: down the stairs and out at its door, to see the portal wake.
@@ -5623,8 +5630,8 @@ function update(dt){
     if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); } }
   { const show = !!scanning || !!scanTarget(); if (show !== scanShown){ scanShown = show; elScan.hidden = !show; } elScan.classList.toggle('busy', !!scanning); }
   { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = tarSail ? tarLabel(a) : tunnels ? (a === 'kick' ? 'Kick him off!' : 'Backstab!') : tower === BRIDGE_TOWER ? (a === 'bmission' && stealth1 ? (eelStage < 2 ? 'Mission 2: the tar eel' : 'Mission 1 again') : bridgeLabel(a)) : a === 'aquarium' ? 'Look in the aquarium' : a === 'tar' ? 'Into the tar' : a === 'bridge' ? 'Onto the bridge' : a === 'isle' ? 'Step ashore' : a === 'temple' ? 'Into the temple' : a === 'door' ? 'Climb the tower' : a === 'dive' ? 'Dive' : a === 'portal' || a === 'castle' || a === 'oldplace' ? 'Into the portal' : a === 'workshop' ? 'Caterman\'s workshop' : a === 'onward' ? 'Through the door' : a === 'skull' ? 'Open the skull door' : a === 'fgtour' ? 'Go with him' : a === 'scope' ? 'Look through the telescope' : a === 'bed' ? 'Sleep till morning' : a === 'plans' ? 'Look at the castle plans' : a === 'roster' ? 'Choose who comes with you' : a === 'captain' ? `Talk to ${LEADER_NAME.pirate}` : a === 'master' ? `Bow to ${LEADER_NAME.ninja}` : a.startsWith('trophy-') ? trophyLabel(+a.slice(7)) : a === 'fishwall' ? `Look at your fish (${fishCaught()} of ${SPECIES.length})` : a.startsWith('armoury-') ? armouryLabel(a.slice(8)) : a === 'heap' ? heapLabel() : a === 'forge' ? 'Sharpen your weapons' : a === 'tower' ? 'Climb the tower' : a === 'landing' ? 'Through the castle gate' : a === 'bridgein' ? 'In through the door' : a === 'pick-apple' ? 'Pick an apple' : a === 'pick-carrot' ? 'Pull up a carrot' : a === 'pick-banana' ? 'Pick a banana' : a === 'skrill' ? 'Through Skrill\'s door' : tower && floor + 1 === tower.roof && ROOMS[tower.roof].roof ? 'Up to the roof' : 'Climb the stairs'; } }
-  { const l = ctf && walker.state === 'ashore' ? 'ctf' : tarSail ? (tarAshore ? 'tarboat' : 'tarsea') : seaFight && walker.state === 'aboard' ? 'sea' : tunnels && walker.state === 'ashore' ? (tunnels.kickT >= 0 ? null : 'tunnels') : floor >= 0 && walker.state === 'ashore' && !fgScene ? (tower === BARGE ? 'barge' : tower === BRIDGE_TOWER ? 'gate' : inGigantis() ? (tower === CASTLE && viaLanding ? 'gate' : 'home') : towerWon ? (tower && tower.boss === boss7 ? 'down' : 'jump') : tower === DEPTHS || tower === TEMPLE_DEEP ? 'swim' : 'leave') : null;
-    if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : l === 'down' ? 'Down to the portal' : l === 'home' ? 'Back through the portal' : l === 'gate' ? 'Back to your boat' : l === 'barge' ? 'Leave the barge' : l === 'sea' ? 'Leave the Battle Barge' : l === 'swim' ? 'Swim up' : l === 'tunnels' ? 'Leave the tunnels' : l === 'tarboat' ? 'Back to the chemistry boat' : l === 'tarsea' ? 'Back to the bridge' : l === 'ctf' ? 'Leave the battle' : 'Leave the tower'; } }
+  { const l = ctf ? null : tarSail ? (tarAshore ? 'tarboat' : 'tarsea') : seaFight && walker.state === 'aboard' ? 'sea' : tunnels && walker.state === 'ashore' ? (tunnels.kickT >= 0 ? null : 'tunnels') : floor >= 0 && walker.state === 'ashore' && !fgScene ? (tower === BARGE ? 'barge' : tower === BRIDGE_TOWER ? 'gate' : inGigantis() ? (tower === CASTLE && viaLanding ? 'gate' : 'home') : towerWon ? (tower && tower.boss === boss7 ? 'down' : 'jump') : tower === DEPTHS || tower === TEMPLE_DEEP ? 'swim' : 'leave') : null;
+    if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : l === 'down' ? 'Down to the portal' : l === 'home' ? 'Back through the portal' : l === 'gate' ? 'Back to your boat' : l === 'barge' ? 'Leave the barge' : l === 'sea' ? 'Leave the Battle Barge' : l === 'swim' ? 'Swim up' : l === 'tunnels' ? 'Leave the tunnels' : l === 'tarboat' ? 'Back to the chemistry boat' : l === 'tarsea' ? 'Back to the bridge' : 'Leave the tower'; } }
   if (isle5Stage >= 1 && king.state !== 'dead' && king.state !== 'dying') king.dead();
   // His last words, owed to a game the tester skipped past him: he is up dying ahead of the boat as it nears his reef.
   if (kingOwed && king.state === 'dead' && walker.aboard && !cine && !seaFight && Math.hypot(boat.x - ISLE5_REEF.x, boat.y - ISLE5_REEF.y) < ISLE5_REEF.notice){
