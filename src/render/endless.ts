@@ -22,6 +22,7 @@ import {
   GRAVE,
   HALF_C,
   halfShore,
+  LIFT13,
   onHalf,
   PEAK,
   PIER13,
@@ -898,6 +899,69 @@ function drawPeak(v: DrawView, x: number, y: number): void {
   ctx.fill();
 }
 
+/**
+ * The ninjas' chairlift: a station of dark wood under a red roof at the peak's foot, its cable running up the face to
+ * a hut on the snowy top, chairs going slowly up one side and down the other.
+ */
+function drawChairlift(v: DrawView, x: number, y: number, peakX: number, peakY: number): void {
+  const { ctx, px, py, T } = v;
+  const Z = v.zoom;
+  ctx.fillStyle = 'rgba(0,0,0,.18)';
+  v.isoEllipse(x, y, 24);
+  ctx.fill();
+  v.box(x - 16, y - 16, 32, 32, 0, 3, '#5A3A22', '#8F6A44');
+  // Its posts at the back, toward the peak, the red roof over them, and the big wheel the cable turns on.
+  const back = Math.atan2(peakY - y, peakX - x);
+  const bx = Math.cos(back) * 12;
+  const by = Math.sin(back) * 12;
+  for (const k of [-1, 1])
+    v.box(x + bx - 2 + k * by * 0.9, y + by - 2 - k * bx * 0.9, 4, 4, 3, 34, '#3E2A1A', '#5A3A22');
+  v.box(x + bx * 0.5 - 18, y + by * 0.5 - 18, 36, 36, 34, 38, '#8A2A22', '#A8322A');
+  const sx = px(x + bx * 0.5, y + by * 0.5);
+  const sy = py(x + bx * 0.5, y + by * 0.5, 40);
+  ctx.strokeStyle = '#3A3F4A';
+  ctx.lineWidth = 2 * Z;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, 9 * Z, 3.5 * Z, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // The cable, up and down, to the hut on top.
+  const tx = px(peakX, peakY);
+  const ty = py(peakX, peakY) - 300 * Z;
+  ctx.fillStyle = '#5A3A22';
+  ctx.fillRect(tx - 9 * Z, ty - 6 * Z, 18 * Z, 10 * Z);
+  ctx.fillStyle = '#A8322A';
+  ctx.beginPath();
+  ctx.moveTo(tx - 12 * Z, ty - 6 * Z);
+  ctx.lineTo(tx, ty - 14 * Z);
+  ctx.lineTo(tx + 12 * Z, ty - 6 * Z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(42,45,51,.85)';
+  ctx.lineWidth = Math.max(1, 1.1 * Z);
+  for (const k of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(sx + k * 8 * Z, sy);
+    ctx.lineTo(tx + k * 6 * Z, ty);
+    ctx.stroke();
+  }
+  // The chairs: up on one side, down the other, a few of them each.
+  for (const k of [-1, 1])
+    for (let i = 0; i < 4; i++) {
+      const f = ((((k > 0 ? T : -T) * 0.035 + i / 4) % 1) + 1) % 1;
+      const cx = sx + k * 8 * Z + (tx + k * 6 * Z - sx - k * 8 * Z) * f;
+      const cy = sy + (ty - sy) * f;
+      ctx.strokeStyle = '#3A3F4A';
+      ctx.lineWidth = Math.max(1, Z);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx, cy + 9 * Z);
+      ctx.stroke();
+      ctx.fillStyle = '#C23B30';
+      ctx.fillRect(cx - 5 * Z, cy + 9 * Z, 10 * Z, 2.5 * Z);
+      ctx.fillRect(cx - 5 * Z, cy + 4 * Z, 2 * Z, 6 * Z);
+    }
+}
+
 /** The pirates' great tree: a huge trunk on spreading roots, a crown of green, treehouses and rope ladders in it. */
 function drawGreatTree(v: DrawView, x: number, y: number): void {
   const { ctx, px, py, T } = v;
@@ -1168,6 +1232,8 @@ export function endlessSolids(
         },
       });
     }
+    if (side === 'ninja' && on(LIFT13.x, LIFT13.y, 200))
+      out.push({ d: LIFT13.x + LIFT13.y, f: () => drawChairlift(v, LIFT13.x, LIFT13.y, px0, py0) });
     TREES13.forEach(([u, w], i) => {
       const [tx, ty] = hw(side, u, w);
       if (!on(tx, ty, 90)) return;

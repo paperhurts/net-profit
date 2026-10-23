@@ -32,6 +32,23 @@ type Ctf = {
   score: Record<'pirate' | 'ninja', number>;
   flags: Record<'pirate' | 'ninja', { at: string; u: number; v: number }>;
 };
+/** The Ninja Slalom's run, as far as the smoke test looks at it. */
+type SkiFeature = { kind: string; z: number; x: number; x0: number; x1: number };
+type Ski = {
+  howTo: boolean;
+  state: 'ready' | 'ski' | 'tumble' | 'done';
+  course: SkiFeature[];
+  run: { len: number };
+  x: number;
+  z: number;
+  v: number;
+  vx: number;
+  air: boolean;
+  trick: 'flip' | 'spin' | null;
+  tricks: number;
+  bonus: number;
+  lanterns: number;
+};
 type Np = {
   boat: { x: number; y: number; h: number; v: number };
   keys: 'drive' | 'point';
@@ -61,8 +78,15 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
-  endless: { seen: boolean; pirate: boolean; ninja: boolean };
+  endless: {
+    seen: boolean;
+    pirate: boolean;
+    ninja: boolean;
+    slalom?: { runs: number; best: { bunny?: number } };
+  };
   ctf: Ctf | null;
+  ski: Ski | null;
+  LIFT13: { x: number; y: number };
   DOCK13: Record<'pirate' | 'ninja', { x: number; y: number; r: number }>;
   camAt: { x: number; y: number };
   LEADER13: Record<'pirate' | 'ninja', { x: number; y: number }>;
@@ -7725,6 +7749,114 @@ test('Capture the Flag on the Endless Isle: the badge card, behind the gates, yo
     null,
     before.coins + 500,
   ]);
+  expect(errors).toEqual([]);
+});
+
+test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time and coins; then a run stopped early, its time not kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: { seen: true, pirate: true, ninja: false },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.ninja;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = -Math.PI / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Open to anyone who has landed, the ninjas joined or not.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.LIFT13.x + 4;
+    n.walker.y = n.LIFT13.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
+  const before = await page.evaluate(() => window.__np.coins);
+  await page.click('#climb');
+  await page.waitForFunction(() => !!window.__np.ski);
+  // How it goes first, on the first run; the trick button skips it.
+  expect(await page.evaluate(() => (window.__np.ski as Ski).howTo)).toBe(true);
+  await expect(page.locator('#leave')).toHaveText('Stop the run');
+  await expect(page.locator('#skiTrick')).toBeVisible();
+  await expect(page.locator('#climb')).toBeHidden();
+  await page.dispatchEvent('#skiTrick', 'pointerdown', { button: 0 });
+  expect(await page.evaluate(() => (window.__np.ski as Ski).howTo)).toBe(false);
+  await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
+    timeout: 4000,
+  });
+  // A lantern, right on the skier's line: sliced on the way past.
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    const l = s.course.find((f) => f.kind === 'lantern') as SkiFeature;
+    s.z = l.z - 12;
+    s.x = l.x;
+    s.vx = 0;
+  });
+  await page.waitForFunction(() => (window.__np.ski as Ski).lanterns === 1, null, {
+    timeout: 4000,
+  });
+  // A jump, its middle, and a flip tapped as it takes off: landed for a second off.
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    const j = s.course.find((f) => f.kind === 'jump') as SkiFeature;
+    s.z = j.z - 10;
+    s.x = (j.x0 + j.x1) / 2;
+    s.vx = 0;
+    s.v = 12;
+  });
+  await page.waitForFunction(() => (window.__np.ski as Ski).air, null, { timeout: 4000 });
+  await page.dispatchEvent('#skiTrick', 'pointerdown', { button: 0 });
+  expect(await page.evaluate(() => (window.__np.ski as Ski).trick)).toBe('flip');
+  await page.waitForFunction(() => !(window.__np.ski as Ski).air, null, { timeout: 4000 });
+  const mid = await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    return { tricks: s.tricks, state: s.state, bonus: s.bonus };
+  });
+  expect(mid).toEqual({ tricks: 1, state: 'ski', bonus: 1 });
+  // On to the finish: its time kept, the lantern paid for, and back at the chairlift.
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.z = s.run.len - 15;
+    s.x = 0;
+  });
+  await page.waitForFunction(() => window.__np.ski?.state === 'done', null, { timeout: 4000 });
+  await page.waitForFunction(() => !window.__np.ski, null, { timeout: 6000 });
+  const after = await page.evaluate(() => ({
+    coins: window.__np.coins,
+    slalom: window.__np.endless.slalom,
+  }));
+  expect(after.coins).toBe(before + 10);
+  expect(after.slalom?.runs).toBe(1);
+  expect(after.slalom?.best.bunny).toBeGreaterThan(0);
+  await expect(page.locator('#skiTrick')).toBeHidden();
+  await expect(page.locator('#leave')).toBeHidden();
+  await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
+  // Again: no how it goes this time, and stopped partway, the run is not kept.
+  await page.click('#climb');
+  await page.waitForFunction(() => !!window.__np.ski);
+  expect(await page.evaluate(() => (window.__np.ski as Ski).howTo)).toBe(false);
+  await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
+    timeout: 4000,
+  });
+  await page.click('#leave');
+  expect(await page.evaluate(() => window.__np.ski)).toBeNull();
+  expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(after.slalom);
+  await expect(page.locator('#leave')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

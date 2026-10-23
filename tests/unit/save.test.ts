@@ -5,6 +5,7 @@ import { DEFAULT_CREW } from '../../src/data/crew';
 import { OLD_START_FLAG } from '../../src/data/flag';
 import { JUNK_MAX } from '../../src/data/junk';
 import { SKIPPER } from '../../src/data/look';
+import { skied } from '../../src/data/slalom';
 import { HONEY_MAX } from '../../src/data/snacks';
 import { SPEAR_MAX } from '../../src/data/spear';
 import { LEGGY_MAX } from '../../src/entities/leggy';
@@ -1294,6 +1295,24 @@ describe('the Endless Isle', () => {
     });
     const junk = { ...JSON.parse(serializeSave(s)), endless: { seen: true, battles: 'many' } };
     expect(parseSave(JSON.stringify(junk), bounds).endless.battles).toBeUndefined();
+  });
+
+  it('keeps the Ninja Slalom runs and best times, a save from before them reading as none skied', () => {
+    const s = parseSave(legacy, bounds);
+    s.endless = { seen: true, pirate: false, ninja: true };
+    expect(parseSave(serializeSave(s), bounds).endless.slalom).toBeUndefined();
+    s.endless = { ...s.endless, slalom: skied(skied(undefined, 'bunny', 51.26), 'bunny', 49.9) };
+    expect(parseSave(serializeSave(s), bounds).endless.slalom).toEqual({
+      runs: 2,
+      best: { bunny: 49.9 },
+    });
+    const junk = {
+      ...JSON.parse(serializeSave(s)),
+      endless: { seen: true, slalom: { runs: 2, best: { bunny: 'fast' } } },
+    };
+    expect(parseSave(JSON.stringify(junk), bounds).endless.slalom).toEqual({ runs: 2, best: {} });
+    const none = { ...JSON.parse(serializeSave(s)), endless: { seen: true, slalom: 'lots' } };
+    expect(parseSave(JSON.stringify(none), bounds).endless.slalom).toBeUndefined();
   });
 });
 
