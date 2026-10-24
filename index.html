@@ -641,6 +641,33 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 #intro .keys{font-size:13px;opacity:.75;margin:10px 0 0}
 @media (hover:none){#intro .keys{display:none}}
 /* The pet book (data/petsys.ts, ui/petbook.ts): its own lines, so other cards' long selector lists are left alone. */
+#petRing{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#petRing[hidden],#petFightHud[hidden],.pfBtn[hidden]{display:none}
+#petRing .planks{max-width:480px;margin:0 auto;padding:10px}
+#petRing h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#petRing h2 .pill{height:32px;padding:0 10px}
+#petRing .foe{display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22)}
+#petRing .foe b{font-size:16px;font-weight:800}
+#petRing .foe small{font-size:12px;font-weight:700;color:var(--muted)}
+#petRing .won{align-self:flex-start;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#3FB37A;color:#fff}
+#petRing .shelf{font-size:15px;font-weight:800;margin:12px 4px 4px}
+#petRing .tnote{margin:4px 4px 6px;font-size:13px;font-weight:700}
+#petRing .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 2px 6px}
+#petRing .rchip{min-height:36px;padding:4px 12px;border-radius:14px;border:2px solid var(--card-fg);background:var(--card);color:var(--card-fg);font:800 13px var(--font);text-align:left}
+#petRing .rchip small{display:block;font-size:11px;font-weight:700;opacity:.8}
+#petRing .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
+#petFightHud{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:4;width:min(360px,calc(100vw - 20px));padding:8px 10px;border-radius:12px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22);display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center}
+#petFightHud .pfRow{grid-column:1;display:flex;align-items:center;gap:8px;min-width:0}
+#petFightHud .pfRow b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+#petFightHud .pfHearts{font-size:15px;letter-spacing:1px;color:#E4572E;white-space:nowrap}
+#petFightHud .pfBar{flex:1;height:10px;border-radius:5px;background:rgba(0,0,0,.12);overflow:hidden}
+#petFightHud .pfBar i{display:block;height:100%;width:100%;background:#E4572E;border-radius:5px;transition:width .2s}
+#petFightHud #pfLeave{grid-column:2;grid-row:1 / span 2;height:32px;padding:0 10px;font-size:12px}
+#petFightHud #pfWord{grid-column:1 / span 2;margin:0;font-size:13px;font-weight:800;text-align:center;min-height:0}
+#petFightHud #pfWord:empty{display:none}
+.pfBtn span{font:800 13px var(--font);color:#fff;position:relative;z-index:1}
+#pfBite{--ab:#E4572E;width:72px;height:72px;right:calc(18px + env(safe-area-inset-right));bottom:calc(64px + env(safe-area-inset-bottom))}
+#pfSpecial{--ab:#2B8A99;right:calc(100px + env(safe-area-inset-right));bottom:calc(28px + env(safe-area-inset-bottom))}
 #petBook{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
 #petBook[hidden],#petsBtn[hidden],#petHouseBtn[hidden]{display:none}
 #petBook .planks{max-width:480px;margin:0 auto;padding:10px}
@@ -919,6 +946,20 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
   </div>
 </section>
 
+<section id="petRing" hidden aria-label="Pet battle">
+  <div class="planks">
+    <h2>Pet battle <button class="pill icon" id="petRingClose" aria-label="Close">✕</button></h2>
+    <div id="petRingBody"></div>
+  </div>
+</section>
+<div id="petFightHud" hidden>
+  <div class="pfRow"><b id="pfYouName"></b><span id="pfYouHearts" class="pfHearts" aria-live="polite"></span></div>
+  <div class="pfRow foe"><b id="pfFoeName"></b><span class="pfBar"><i id="pfFoeBar"></i></span></div>
+  <p id="pfWord" aria-live="polite"></p>
+  <button class="pill" id="pfLeave">Give up</button>
+</div>
+<button id="pfBite" class="abBtn pfBtn" hidden aria-label="Bite"><span>Bite</span><i class="sweep"></i></button>
+<button id="pfSpecial" class="abBtn pfBtn" hidden aria-label="Special"><span id="pfSpecialName">Special</span><i class="sweep"></i></button>
 <section id="hatchCard" hidden aria-label="An egg is hatching">
   <div class="planks">
     <canvas id="hatchCanvas" aria-hidden="true"></canvas>
