@@ -193,11 +193,12 @@ import { drawIsle11Flat, drawIsle11Sea, isle11Solids } from './render/isle11';
 import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, insideIsle12, ISLE12, isle12Outline, nearIsle12, PITS12, pushOffIsle12, REVEAL12, REVEAL12_T, revealZoom12, SIGHT12 } from './world/isle12';
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { atHalf, atLift, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, fromEndless, HALF_C, halfOutline, insideEndless, LANDING13, LEADER13, leaderNear, nearEndless, PEAK, pushOffEndless, REVEAL13, REVEAL13_T, revealZoom13, rival, SIDES, SIGHT13, toEndless } from './world/endless';
-import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_NAME, LEADER_PICK, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T } from './data/endlessfolk';
+import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
-import { ABILITY, ABILITY_I, ABILITY_NAME, ABILITY_SAYS, CTF, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
+import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
+import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
 import { Ctf, flagHome, graveSpot } from './entities/ctf';
 import { answers, SCIENCE } from './data/science';
 import { drawIsle10Flat, drawIsle10Sea, isle10Solids } from './render/isle10';
@@ -2538,7 +2539,13 @@ function minionComes(side){ if (walker.state !== 'ashore' || stay.has(side === '
 // side's minion. Beaten, you get up again at your graveyard. It pays its coin and its marks at the end; leaving one
 // early gets neither. (The roles' abilities and the badges are the next piece.)
 const CTF_SIDES = {pirate: 'pirates', ninja: 'ninjas'};
-let ctfShots = [], ctfRings = [], ctfHud = '';
+let ctfShots = [], ctfRings = [], ctfFx = [], ctfHud = '';
+// Your marks in a side's role, and so the badge you fight with in it: as many abilities as badges, everyone alike.
+const ctfMarks = (side, role) => endless.battles?.marks[side][role] ?? 0;
+const ctfBadge = (side, role) => badgeOf(ctfMarks(side, role));
+const ROMAN = ['', 'I', 'II', 'III'];
+// Hearts as they are shown: half ones come of a tank's guard.
+const fmtHearts = (n) => Number.isInteger(n) ? `${n}` : n < 1 ? '\u00BD' : `${Math.floor(n)}\u00BD`;
 // Where a fighter stands in the world.
 function ctfAt(f){ const [x, y] = fromEndless(f.u, f.v); return {x, y}; }
 // A fighter as your minion's foe: where it is, and what a hit from him does.
@@ -2552,7 +2559,7 @@ function ctfTarget(){ const t = ctf && ctf.phase === 'fight' ? ctf.inReach(ctf.y
 function ctfGrave(f){ const [u, v] = graveSpot(f.side); return fromEndless(u + ((f.slot % 3) - 1)*14, v); }
 function startCtf(side, role = ctfRole){ if (ctf || walker.state !== 'ashore' || !endless[side]) return; ctfRole = role;
   endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; $('ctfCard').hidden = true;
-  ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role); ctfShots = []; ctfRings = []; ctfHud = '';
+  ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role, ctfBadge(side, role)); ctfShots = []; ctfRings = []; ctfFx = []; ctfHud = ''; shanty = null;
   const [x, y] = fromEndless(ctf.you.u, ctf.you.v); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0;
   hearts = ctf.you.hp; invulnT = 0; benchStaying(); hudHearts();
   document.body.classList.add('ctf'); $('ctfBar').hidden = false; ctfLeaveReset(); hudCtf(); sfx.phaseChange(); toasts.clear();
@@ -2563,13 +2570,17 @@ function updateCtf(dt){ if (!ctf) return;
   // Behind the gates, kept in the fort.
   if (ctf.phase === 'gates'){ const [fu, fv] = flagHome(me.side), [u, v] = toEndless(walker.x, walker.y), d = Math.hypot(u - fu, v - fv), r = FORT.r - FORT.wall - 14;
     if (d > r){ const [x, y] = fromEndless(fu + (u - fu)/d*r, fv + (v - fv)/d*r); walker.x = x; walker.y = y; } }
+  // Stunned, or winding up a stomp, you stand where you are.
+  if (me.state === 'live' && ctf.held(me)){ const [x, y] = fromEndless(me.u, me.v); walker.x = x; walker.y = y; walker.vx = walker.vy = 0; }
   ctf.update(dt, toEndless(walker.x, walker.y));
   for (const e of ctf.events.splice(0)){ ctfEvent(e); if (!ctf) return; }
   for (const s of ctfShots) s.t += dt/(s.dur ?? .35); ctfShots = ctfShots.filter(s => s.t < 1);
   for (const r of ctfRings) r.t += dt/.5; ctfRings = ctfRings.filter(r => r.t < 1);
+  for (const x of ctfFx) x.t += dt/x.dur; ctfFx = ctfFx.filter(x => x.t < 1);
+  playShanty(dt);
   // Your hearts are the battle's; down, you wait at your graveyard, flickering.
   hearts = Math.max(0, me.hp); if (me.state === 'down'){ invulnT = Math.max(invulnT, .3); const [x, y] = ctfGrave(me); walker.x = x; walker.y = y; walker.vx = walker.vy = 0; }
-  walker.speedK = me.carrying ? CTF.carry : 1;
+  walker.speedK = (me.carrying ? CTF.carry : 1)*(me.singT > 0 ? .5 : 1);
   hudCtf(); hudAbility(); }
 function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
   if (e.k === 'go'){ sfx.tierUp(); toasts.clear(); toast('The gates are down! Go and get their flag!', 2200, 2); return; }
@@ -2586,7 +2597,7 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
     else { sfx.denied(); toast(`The ${CTF_SIDES[e.side]} scored. ${s}`, 3000, 2); }
     return; }
   if (e.k === 'hit'){ if (e.f === me){ shake = Math.max(shake, .3); sfx.whump(); addText(walker.x, walker.y, 30, e.by?.kit.thrown ? (e.by.side === 'pirate' ? 'Splat!' : 'Bonk!') : 'Ow!', '#FF9A8A', 16, 1); }
-    else if (e.by === me){ sfx.spearHit(); const p = ctfAt(e.f); addText(p.x, p.y, 34, `-${e.n}`, '#FFF3C4', 16, .9); }
+    else if (e.by === me){ sfx.spearHit(); const p = ctfAt(e.f); addText(p.x, p.y, 34, `-${fmtHearts(e.n)}`, '#FFF3C4', 16, .9); }
     return; }
   if (e.k === 'swing'){ if (e.f.kit.thrown) ctfShots.push({f: e.f, to: e.to, t: 0}); return; }
   // The abilities: a shout's ring and its words, a shot's flash or its two stars, a heal's biscuit or tea flying over.
@@ -2599,6 +2610,22 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
     return; }
   if (e.k === 'heal'){ ctfShots.push({f: e.f, to: e.to, t: 0, dur: .4, kind: e.f.side === 'pirate' ? 'biscuit' : 'tea'}); const p = ctfAt(e.to);
     if (e.f === me || e.to === me || onScreen(p.x, p.y, 40*Z)){ sfx.nom(); addText(p.x, p.y, 40, `+${e.n}`, '#7CE38B', 17, 1.2); } return; }
+  // Badges II and III: the guard, the stomp, the leap, the bomb, the heal over time and the group heal.
+  const near = (f) => { const p = f === me ? walker : ctfAt(f); return f === me || onScreen(p.x, p.y, 60*Z); };
+  if (e.k === 'guard'){ if (near(e.f)){ sfx.clang(); const p = e.f === me ? walker : ctfAt(e.f); addText(p.x, p.y, 46, e.f.side === 'pirate' ? 'Batten down!' : 'Stone!', '#E8E0C8', 14, 1.1); } return; }
+  if (e.k === 'wind'){ if (near(e.f)) sfx.hop(); return; }
+  if (e.k === 'stomp'){ ctfFx.push({k: 'stomp', f: e.f, u: e.f.u, v: e.f.v, t: 0, dur: .6});
+    if (near(e.f)){ sfx.whump(); sfx.clang(); shake = Math.max(shake, e.f === me || Math.hypot(me.u - e.f.u, me.v - e.f.v) < ABILITY.stomp.reach ? .5 : .2); } return; }
+  if (e.k === 'leap'){ ctfFx.push({k: 'leap', f: e.f, fu: e.fu, fv: e.fv, u: e.f.u, v: e.f.v, t: 0, dur: .45});
+    if (e.f === me){ const [x, y] = fromEndless(me.u, me.v); walker.x = x; walker.y = y; walker.vx = walker.vy = 0; const p = ctfAt(e.to); walker.stabAt(p.x, p.y); stabFlash(p, 18); }
+    if (near(e.f) || near(e.to)){ if (e.f.side === 'pirate') sfx.spearThrow(); else sfx.poof(); } return; }
+  if (e.k === 'bomb'){ if (near(e.f)) sfx.spearThrow(); return; }
+  if (e.k === 'burst'){ ctfFx.push({k: 'burst', f: e.f, u: e.u, v: e.v, t: 0, dur: .55}); const [x, y] = fromEndless(e.u, e.v);
+    if (onScreen(x, y, 80*Z)){ sfx.whump(); shake = Math.max(shake, Math.hypot(me.u - e.u, me.v - e.v) < ABILITY.bomb.ring*2 ? .45 : .2); if (e.f.side === 'ninja') sfx.ring(); } return; }
+  if (e.k === 'hot'){ ctfShots.push({f: e.f, to: e.to, t: 0, dur: .4, kind: e.f.side === 'pirate' ? 'lime' : 'petal'}); if (near(e.f) || near(e.to)) sfx.nom(); return; }
+  if (e.k === 'mend'){ if (e.to === me || e.f === me){ const p = e.to === me ? walker : ctfAt(e.to); addText(p.x, p.y, 36, `+${e.n}`, '#7CE38B', 13, .8); } return; }
+  if (e.k === 'group'){ if (near(e.f)){ const p = e.f === me ? walker : ctfAt(e.f); addText(p.x, p.y, 50, ABILITY_NAME[e.f.side].group, '#FFF3C4', 14, 1.4);
+      if (e.f.side === 'pirate') shanty = {f: e.f, i: 0, t: 0}; else sfx.rightAnswer(); } return; }
   if (e.k === 'down'){ if (e.f === me){ sfx.whump(); toasts.clear(); toast(`Beaten! You'll be back up at your graveyard in ${CTF.respawn}.`, 2800, 2); const [x, y] = ctfGrave(me); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0; }
     else if (e.by === me){ const p = ctfAt(e.f); addText(p.x, p.y, 40, 'Beaten!', '#FFF3C4', 18, 1.3); }
     return; }
@@ -2606,19 +2633,51 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
   if (e.k === 'over') ctfOver(e.winner); }
 // Over: the result, its coin and its marks, and the card.
 function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner === 'draw' ? 'draw' : winner === side ? 'win' : 'loss', pay = PAY[result];
+  const was = ctfBadge(side, me.role);
   coins += pay; earned += pay; endless = {...endless, battles: marked(endless.battles ?? noBattles(), side, me.role, result)};
+  const now = ctfBadge(side, me.role), m = ctfMarks(side, me.role);
   if (result === 'win') sfx.tierUp(); else sfx.sale();
   const card = $('ctfCard'); card.dataset.side = side;
   $('ctfTitle').textContent = result === 'win' ? `The ${CTF_SIDES[side]} win!` : result === 'draw' ? 'A draw!' : `The ${CTF_SIDES[rival(side)]} win this one`;
   $('ctfP').textContent = ctf.score.pirate; $('ctfN').textContent = ctf.score.ninja;
   $('ctfSay').textContent = `${LEADER_NAME[side]}: ${LEADER_AFTER[side][result]}`;
   const b = endless.battles, st = me.stats;
-  $('ctfStats').innerHTML = [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns], ['Foes you beat', st.beaten], ...(me.role === 'healer' ? [['Hearts you healed', st.healed]] : []), [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
+  $('ctfStats').innerHTML = [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns], ['Foes you beat', st.beaten], ...(me.role === 'healer' ? [['Hearts you healed', st.healed]] : []), [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`],
+    [`Marks, as a ${ROLE_NAME[side][me.role]}`, now < 3 ? `${m} of ${BADGE_MARKS[now]} for Badge ${ROMAN[now + 1]}` : `${m}, Badge III`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
   $('ctfGot').textContent = `+${pay} coins`;
-  card.hidden = false; hudAbility(); hud(); refreshShop(); save(); }
+  $('ctfResults').hidden = false; $('ctfBadge').hidden = true;
+  card.hidden = false; hudAbility(); hud(); refreshShop(); save();
+  if (now > was) ceremony(side, me.role, now); }
+// A new badge stops the results for its ceremony, the plan's: the medal spins in, the leader says something proud
+// (and Jacks Parrow something rude), and the new ability plays once, so you can see what it does.
+function ceremony(side, role, badge){ const ab = ABILITIES[role][badge - 1];
+  $('ctfBadgeTitle').textContent = `Badge ${ROMAN[badge]}!`;
+  const medal = $('ctfMedal'); medal.textContent = ROMAN[badge]; medal.dataset.side = side;
+  $('ctfBadgeRole').textContent = `${ROLE_NAME[side][role]} of the ${CTF_SIDES[side]}`;
+  $('ctfBadgeSay').textContent = `${LEADER_NAME[side]}: ${LEADER_BADGE[side][badge]}`;
+  const sq = $('ctfBadgeSquawk'); sq.hidden = !(side === 'pirate' && jacks.shown);
+  if (!sq.hidden){ const i = nextLine(squawk.line, Math.random()); jacksSay(i); sq.innerHTML = `<b>${MINION_NAME.pirate}:</b> ${squawkHtml(PARROT_LINES[i] ?? '')}`; }
+  $('ctfBadgeAb').innerHTML = `New: <b>${ABILITY_NAME[side][ab]}</b>. ${abilitySays(side, ab)} It is on your ${badge === 2 ? 'second' : 'third'} button, or ${AB_KEYS[badge - 1].toUpperCase()}.`;
+  $('ctfResults').hidden = true; $('ctfBadge').hidden = false; sfx.orderFilled(); showStart(side, role, ab); }
+// A line of his in words: each bleep a black bar, each swear a run of symbols.
+function squawkHtml(line){ return squawkParts(line).map(p => p.kind === 'text' ? p.text.replace(/[<&>]/g, '') : `<span class="${p.kind}">${p.text}</span>`).join(''); }
+$('ctfBadgeOn').addEventListener('click', () => { sfx.click(); showStop(); $('ctfBadge').hidden = true; $('ctfResults').hidden = false; });
+// The new ability's little show on the ceremony's card, once; tap it to see it again.
+let showRaf = 0, showWhat = null;
+function showStart(side, role, ab){ showStop(); showWhat = {side, role, ab}; const c = $('ctfBadgeShow'), k = Math.min(2, window.devicePixelRatio || 1), w = 300, h = 140;
+  if (c.width !== w*k){ c.width = w*k; c.height = h*k; } const g = c.getContext('2d'), t0 = performance.now();
+  const step = () => { const t = Math.min(SHOW_T, (performance.now() - t0)/1000); g.setTransform(k, 0, 0, k, 0, 0); drawBadgeShow(g, w, h, side, role, ab, t); showRaf = t < SHOW_T ? requestAnimationFrame(step) : 0; };
+  step(); }
+function showStop(){ if (showRaf) cancelAnimationFrame(showRaf); showRaf = 0; }
+$('ctfBadgeShow').addEventListener('click', () => { if (showWhat) showStart(showWhat.side, showWhat.role, showWhat.ab); });
+// The Sea Shanty, sung: a jaunty tune on the mermaids' four notes, for as long as the singing lasts.
+const SHANTY = [[2, .3], [2, .15], [2, .15], [2, .3], [2, .15], [2, .15], [2, .3], [0, .3], [1, .3], [2, .3], [1, .3], [1, .15], [1, .15], [1, .3], [1, .15], [1, .15], [1, .3], [0, .3], [1, .3], [3, .6]];
+let shanty = null;
+function playShanty(dt){ if (!shanty) return; if (!ctf || shanty.f.singT <= 0 || shanty.f.state !== 'live'){ shanty = null; return; }
+  shanty.t -= dt; while (shanty.t <= 0){ const [n, secs] = SHANTY[shanty.i % SHANTY.length]; if (ambience && !muted) ambience.mermaidNote(n, secs*.9, 0, shanty.f === ctf.you ? .1 : .06); shanty.t += secs; shanty.i++; } }
 // Out of the battle, back to how you were: by your side's leader, if it was played to the end.
-function endCtf(home = false){ if (!ctf) return; const side = ctf.yours; ctf = null; ctfShots = [];
-  document.body.classList.remove('ctf'); $('ctfBar').hidden = true; $('ctfCard').hidden = true; $('ability').hidden = true;
+function endCtf(home = false){ if (!ctf) return; const side = ctf.yours; ctf = null; ctfShots = []; ctfFx = [];
+  document.body.classList.remove('ctf'); $('ctfBar').hidden = true; $('ctfCard').hidden = true; for (const id of AB_BUTTONS) $(id).hidden = true; shanty = null; showStop();
   walker.speedK = 1; invulnT = 0; hearts = maxHearts(); hudHearts();
   if (home && walker.state === 'ashore'){ const L = LEADER13[side], h = side === 'pirate' ? 1 : -1, x = L.x - 26*h, y = L.y + 26*h, ok = walkable(x, y, build);
     walker.x = cam.x = ok ? x : LANDING13[side].x; walker.y = cam.y = ok ? y : LANDING13[side].y; walker.vx = walker.vy = 0; } }
@@ -2635,30 +2694,44 @@ $('ctfDone').addEventListener('click', () => { sfx.click(); endCtf(true); });
 const ROLES = ['tank', 'damage', 'healer'];
 let ctfRole = 'damage';
 function openRoles(){ const side = endlessTalk; if (!side) return; sfx.click();
-  $('endlessRoles').innerHTML = ROLES.map(r => { const ab = ABILITY_I[r];
-    return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts</span><small>Badge I: <b>${ABILITY_NAME[side][ab]}</b>. ${ABILITY_SAYS[ab]}</small></button>`; }).join('')
+  $('endlessRoles').innerHTML = ROLES.map(r => { const m = ctfMarks(side, r), b = badgeOf(m), abs = ABILITIES[r], top = abs[b - 1];
+    return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts \u00B7 Badge ${ROMAN[b]}</span>`
+      + `<small>${abs.slice(0, b).map(a => `<b>${ABILITY_NAME[side][a]}</b>`).join(' \u00B7 ')}<br>${b > 1 ? 'New: ' : ''}${abilitySays(side, top)}</small>`
+      + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>` : '') + '</button>'; }).join('')
     + '<button class="answer" data-role="">Back</button>';
   $('endlessSay').textContent = LEADER_PICK[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
 $('endlessFight').addEventListener('click', openRoles);
 $('endlessRoles').addEventListener('click', (e) => { const b = e.target.closest('[data-role]'); if (!b || !endlessTalk) return;
   if (b.dataset.role) startCtf(endlessTalk, b.dataset.role); else { sfx.click(); renderEndlessTalk(LEADER_SAYS[endlessTalk].joined); } });
-// Your ability: what it did, or why not.
-function ctfAbility(){ audio(); if (!ctf) return; const me = ctf.you;
-  if (ctf.phase !== 'fight' || me.state !== 'live') return;
-  if (me.abCd > 0 || me.aimT >= 0){ sfx.denied(); return; }
-  if (!ctf.ability()){ sfx.denied(); addText(walker.x, walker.y, 40, me.ab === 'heal' ? 'Nobody hurt' : 'Nobody in reach', '#F4F1E6', 14, 1); } }
-$('ability').addEventListener('pointerdown', (e) => { if (e.button > 0) return; ctfAbility(); });
-$('ability').addEventListener('click', (e) => { if (e.detail === 0) ctfAbility(); });
-window.addEventListener('keydown', (e) => { if (ctf && !e.repeat && (e.key === 'e' || e.key === 'E')){ e.preventDefault(); ctfAbility(); } });
-// Its button: the side's colour, the ability's mark, and how long until it is ready, as a sweep.
+// Your abilities, one for each badge: what one did, or why not.
+function ctfAbility(slot = 0){ audio(); if (!ctf) return; const me = ctf.you, ab = me.abs[slot];
+  if (!ab || ctf.phase !== 'fight' || me.state !== 'live') return;
+  if (me.abCd[slot] > 0 || me.aimT >= 0 || ctf.held(me)){ sfx.denied(); return; }
+  if (!ctf.ability(me, slot)){ sfx.denied(); addText(walker.x, walker.y, 40, ab === 'heal' || ab === 'hot' || ab === 'group' ? 'Nobody hurt' : 'Nobody in reach', '#F4F1E6', 14, 1); return; }
+  // Its events now, before the next frame puts you back where the walker was: a leap moves the walker.
+  for (const e of ctf.events.splice(0)){ ctfEvent(e); if (!ctf) return; } }
+// Their buttons, in an arc round the blade: Badge I's above it, II's and III's round to its left. E, R and F on keys.
+const AB_BUTTONS = ['ability', 'ability2', 'ability3'], AB_KEYS = ['e', 'r', 'f'];
+AB_BUTTONS.forEach((id, slot) => {
+  $(id).addEventListener('pointerdown', (e) => { if (e.button > 0) return; ctfAbility(slot); });
+  $(id).addEventListener('click', (e) => { if (e.detail === 0) ctfAbility(slot); }); });
+window.addEventListener('keydown', (e) => { const slot = AB_KEYS.indexOf(e.key.toLowerCase()); if (ctf && !e.repeat && slot >= 0){ e.preventDefault(); ctfAbility(slot); } });
+// Each button: the side's colour, the ability's mark, and how long until it is ready, as a sweep.
 const ABILITY_ICON = {
   taunt: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3l10 4v7c0 7-5 11-10 13C10 25 5 21 5 14V7z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M15 9v8" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="15" cy="21.5" r="1.8" fill="#fff"/></svg>',
   shot: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="9" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M15 2v7M15 21v7M2 15h7M21 15h7" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="15" cy="15" r="2.2" fill="#fff"/></svg>',
-  heal: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 26S4 19 4 11.5A5.5 5.5 0 0 1 15 9a5.5 5.5 0 0 1 11 2.5C26 19 15 26 15 26z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M15 12v8M11 16h8" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>'};
-function hudAbility(){ const el = $('ability'), me = ctf?.you, show = !!me && ctf.phase !== 'over' && walker.state === 'ashore';
-  if (el.hidden === show) el.hidden = !show; if (!show) return;
-  const key = `${me.side}|${me.ab}`; if (el.dataset.k !== key){ el.dataset.k = key; $('abilityIcon').innerHTML = ABILITY_ICON[me.ab]; el.style.setProperty('--ab', SIDE_COLOUR[me.side]); el.setAttribute('aria-label', ABILITY_NAME[me.side][me.ab]); }
-  el.style.setProperty('--cd', (me.state !== 'live' || ctf.phase !== 'fight' ? 1 : me.abCd/ABILITY[me.ab].every).toFixed(3)); }
+  heal: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 26S4 19 4 11.5A5.5 5.5 0 0 1 15 9a5.5 5.5 0 0 1 11 2.5C26 19 15 26 15 26z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M15 12v8M11 16h8" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  guard: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3l10 4v7c0 7-5 11-10 13C10 25 5 21 5 14V7z" fill="#fff" fill-opacity=".35" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M10 14h10" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  stomp: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 4v13" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M9 12l6 6 6-6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="15" cy="23" rx="11" ry="3.6" fill="none" stroke="#fff" stroke-width="2.4"/></svg>',
+  leap: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M4 24C8 8 20 6 25 12" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="3 3"/><path d="M20 9l5 3-3 5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  hot: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 26S4 19 4 11.5A5.5 5.5 0 0 1 15 9a5.5 5.5 0 0 1 11 2.5C26 19 15 26 15 26z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M15 12v4l3 2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  bomb: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="13" cy="18" r="8" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M18 11l4-4" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M24 3v3M27 6h-3M26 9l-2-2" stroke="#FFE066" stroke-width="2" stroke-linecap="round"/></svg>',
+  group: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="11" fill="none" stroke="#fff" stroke-width="2.4" stroke-dasharray="4 3"/><path d="M15 10v10M10 15h10" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>'};
+function hudAbility(){ const me = ctf?.you, show = !!me && ctf.phase !== 'over' && walker.state === 'ashore';
+  AB_BUTTONS.forEach((id, slot) => { const el = $(id), ab = show ? me.abs[slot] : null;
+    if (el.hidden === !!ab) el.hidden = !ab; if (!ab) return;
+    const key = `${me.side}|${ab}`; if (el.dataset.k !== key){ el.dataset.k = key; el.querySelector('.abIcon').innerHTML = ABILITY_ICON[ab]; el.style.setProperty('--ab', SIDE_COLOUR[me.side]); el.setAttribute('aria-label', ABILITY_NAME[me.side][ab]); }
+    el.style.setProperty('--cd', (me.state !== 'live' || ctf.phase !== 'fight' ? 1 : me.abCd[slot]/ABILITY[ab].every).toFixed(3)); }); }
 // Your strike, at the nearest foe in reach.
 function ctfStrike(){ if (!ctf || T < reloadAt) return; const to = ctf.strike(); if (!to) return;
   reloadAt = T + ctf.you.kit.every; const p = ctfAt(to); sfx.spearThrow(); if (ctf.you.kit.thrown) walker.throwAt(p.x, p.y); else { walker.stabAt(p.x, p.y); stabFlash(p, 18); } }
@@ -2681,6 +2754,29 @@ function ctfSolids(){ const out = [];
   // Your ring, in your side's colour, and their flag on your back.
   const me = ctf.you; if (me.state === 'live') out.push({d: -1e9, f: () => { const sx = px(walker.x, walker.y), sy = py(walker.x, walker.y, walker.z);
     ctx.strokeStyle = SIDE_COLOUR[me.side]; ctx.lineWidth = 2.2*Z; ctx.beginPath(); ctx.ellipse(sx, sy, 12*Z, 4.8*Z, 0, 0, Math.PI*2); ctx.stroke(); }});
+  // Badges II and III, on the ground under everyone: a stomp's ring winding up, a bomb's ring, a group heal's reach,
+  // and over each fighter what is on it: a guard, a stun, a heal over time, a song.
+  const iso = (u, v, r) => { const [x, y] = fromEndless(u, v); return [px(x, y), py(x, y, groundZ(x, y)), r*Z, r*Z*.5]; };
+  for (const f of ctf.fighters){ if (f.state !== 'live') continue; const mine = f === me, w = mine ? walker : ctfAt(f);
+    if (!mine && !onScreen(w.x, w.y, 160*Z)) continue;
+    if (f.windT >= 0) out.push({d: -1e9, f: () => { const [cx, cy, rx, ry] = iso(f.u, f.v, ABILITY.stomp.reach); drawWarnRing(ctx, cx, cy, rx, ry, 1 - f.windT/ABILITY.stomp.wind); }});
+    if (!(f.guardT > 0 || f.stunT > 0 || f.hotT > 0 || f.singT > 0)) continue;
+    out.push({d: w.x + w.y + .5, f: () => { const sx = px(w.x, w.y), sy = py(w.x, w.y, mine ? walker.z : groundZ(w.x, w.y));
+      if (f.guardT > 0) drawGuard(ctx, sx, sy, Z, f.side, T);
+      if (f.hotT > 0) drawHot(ctx, sx, sy, Z, f.side, T);
+      if (f.singT > 0) drawShanty(ctx, sx, sy, Z, T);
+      if (f.stunT > 0) drawStun(ctx, sx, sy, Z, T); }}); }
+  for (const z of ctf.zones){ const [x, y] = fromEndless(z.u, z.v); if (!onScreen(x, y, (ABILITY.group.reach + 40)*Z)) continue;
+    out.push({d: -1e9, f: () => { const [cx, cy, rx, ry] = iso(z.u, z.v, ABILITY.group.reach); drawHealRing(ctx, cx, cy, rx, ry, Z, z.side, T, z.t/ABILITY.group.lasts); }}); }
+  for (const b of ctf.bombs){ const B = ABILITY.bomb, [x, y] = fromEndless(b.u, b.v);
+    if (b.fly > 0){ const k = 1 - b.fly/B.fly, [fx, fy] = fromEndless(b.fu, b.fv), bx = fx + (x - fx)*k, by = fy + (y - fy)*k;
+      out.push({d: 1e9, f: () => drawBomb(ctx, px(bx, by), py(bx, by, groundZ(bx, by) + Math.sin(k*Math.PI)*60), Z, b.side, T)}); continue; }
+    out.push({d: -1e9, f: () => { const [cx, cy, rx, ry] = iso(b.u, b.v, B.ring); drawWarnRing(ctx, cx, cy, rx, ry, 1 - b.t/B.fuse); }});
+    out.push({d: x + y, f: () => drawBomb(ctx, px(x, y), py(x, y, groundZ(x, y)), Z, b.side, T)}); }
+  for (const x of ctfFx){
+    if (x.k === 'stomp') out.push({d: -1e9, f: () => { const [cx, cy, rx, ry] = iso(x.u, x.v, ABILITY.stomp.reach); drawStomp(ctx, cx, cy, rx, ry, Z, x.f.side, x.t); }});
+    else if (x.k === 'burst') out.push({d: 1e9, f: () => { const [cx, cy, rx, ry] = iso(x.u, x.v, ABILITY.bomb.ring); drawBurst(ctx, cx, cy, rx, ry, Z, x.f.side, x.t); }});
+    else out.push({d: 1e9, f: () => { const [ax, ay] = iso(x.fu, x.fv, 0), [bx, by] = iso(x.u, x.v, 0); drawLeap(ctx, ax, ay, bx, by, Z, x.f.side, x.t); }}); }
   // A shout's ring, spreading on the ground.
   for (const r of ctfRings){ const p = ctfAt(r.f); out.push({d: -1e9, f: () => { ctx.globalAlpha = 1 - r.t; ctx.strokeStyle = SIDE_COLOUR[r.f.side]; ctx.lineWidth = 3*Z; isoEllipse(p.x, p.y, 20 + r.t*(ABILITY.taunt.reach - 20)); ctx.stroke(); ctx.globalAlpha = 1; }}); }
   out.push({d: 1e9, f: () => {
@@ -2695,6 +2791,8 @@ function ctfSolids(){ const out = [];
         for (let i = 0; i < 8; i++){ const r = (i % 2 ? 1.6 : 5)*Z, a2 = i*Math.PI/4; ctx.lineTo(Math.cos(a2)*r, Math.sin(a2)*r); } ctx.closePath(); ctx.fill(); ctx.restore(); }
       else if (s.kind === 'biscuit'){ ctx.fillStyle = '#D9B26A'; ctx.strokeStyle = '#8A6A3A'; ctx.lineWidth = 1*Z; ctx.beginPath(); ctx.roundRect(sx - 4.5*Z, sy - 3.5*Z, 9*Z, 7*Z, 2*Z); ctx.fill(); ctx.stroke(); }
       else if (s.kind === 'tea'){ ctx.fillStyle = '#E8F0E0'; ctx.fillRect(sx - 3.5*Z, sy - 3*Z, 7*Z, 6*Z); ctx.fillStyle = '#7FB85A'; ctx.fillRect(sx - 3*Z, sy - 2.5*Z, 6*Z, 2*Z); }
+      else if (s.kind === 'lime'){ ctx.fillStyle = '#9BD45A'; ctx.beginPath(); ctx.arc(sx, sy, 3.6*Z, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#E8F6C8'; ctx.beginPath(); ctx.arc(sx, sy, 2*Z, 0, Math.PI*2); ctx.fill(); }
+      else if (s.kind === 'petal'){ for (let i = 0; i < 3; i++){ ctx.fillStyle = i % 2 ? '#F7B6CC' : '#F28CB1'; ctx.beginPath(); ctx.ellipse(sx + (i - 1)*4*Z, sy + Math.sin(k*9 + i)*2*Z, 2.6*Z, 1.5*Z, k*6 + i, 0, Math.PI*2); ctx.fill(); } }
       else { ctx.fillStyle = s.f.side === 'pirate' ? '#9AB8C8' : '#F2A6C0'; ctx.beginPath(); ctx.ellipse(sx, sy, 4*Z, 2.2*Z, k*6, 0, Math.PI*2); ctx.fill(); } } }});
   return out; }
 function drawMyFlag(){ const me = ctf?.you; if (!me?.carrying) return; const sx = px(walker.x, walker.y), sy = py(walker.x, walker.y, walker.z), dir = Math.cos(walker.h) - Math.sin(walker.h) < 0 ? -1 : 1;
@@ -3975,7 +4073,7 @@ function climbAction(){
   return null; }
 function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (tower === BARGE || tarAshore || walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || walker.dock === ISLE7_DOCK || walker.dock === ISLE8_DOCK || walker.dock === ISLE10_DOCK || walker.dock === ISLE11_DOCK || walker.dock === ISLE12_DOCK || (walker.dock === ISLE6_DOCK && reaperEgg < 1) || walker.dock.tar || walker.dock.isle || warlock.shown || cat.shown || bonesPal.shown || naga.shown || necroPal.shown || baby.shown || !!ctf) || hearts < maxHearts(); el.hidden = !show;
   // A tank's fourteen do not fit on a phone: in a battle, past nine, a bar.
-  if (show && ctf && maxHearts() > 9){ const k = Math.round(100*hearts/maxHearts()); el.innerHTML = HEART_SVG + `<span class="hbar"><i style="width:${k}%;background:${k <= 34 ? '#E4572E' : '#5BBF6A'}"></i></span><span>${hearts}</span>`; }
+  if (show && ctf && maxHearts() > 9){ const k = Math.round(100*hearts/maxHearts()); el.innerHTML = HEART_SVG + `<span class="hbar"><i style="width:${k}%;background:${k <= 34 ? '#E4572E' : '#5BBF6A'}"></i></span><span>${fmtHearts(hearts)}</span>`; }
   else if (show) el.innerHTML = Array.from({length: maxHearts()}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
     // The warlock's, in green, after a gap.
     + (warlock.shown ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: WARLOCK_HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < warlock.hearts ? '#3FB37A' : 'rgba(128,128,128,.35)')).join('') : '')

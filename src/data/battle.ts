@@ -5,7 +5,7 @@
  * companions sit it out, only your side's minion fighting. The two sides have the same numbers, only their looks
  * differ, so neither is better.
  *
- * This piece is Capture the Flag with each role's basic attack. The roles' abilities and badges come next.
+ * This is Capture the Flag with each role's basic attack, its three badges and their abilities.
  */
 
 import type { Side } from '../world/endless';
@@ -46,11 +46,25 @@ export const BOT_NAMES: Readonly<Record<Side, readonly string[]>> = {
 };
 
 /**
- * Each role's first badge, Badge I, and the ability it gives, the plan's: yours the first time you fight in that role
- * for that side, the bots' always. The same numbers on both sides; only the names and the looks differ. Each aims
- * itself.
+ * Each role's three badges and the ability each gives, the plan's: Badge I yours the first time you fight in that role
+ * for that side, Badge II at 3 marks, Badge III at 8. The same numbers on both sides; only the names and the looks
+ * differ. Each aims itself.
  */
-export type Ability = 'taunt' | 'shot' | 'heal';
+export type Ability =
+  | 'taunt'
+  | 'shot'
+  | 'heal'
+  | 'guard'
+  | 'leap'
+  | 'hot'
+  | 'stomp'
+  | 'bomb'
+  | 'group';
+export const ABILITIES: Readonly<Record<Role, readonly [Ability, Ability, Ability]>> = {
+  tank: ['taunt', 'guard', 'stomp'],
+  damage: ['shot', 'leap', 'bomb'],
+  healer: ['heal', 'hot', 'group'],
+};
 export const ABILITY_I: Readonly<Record<Role, Ability>> = {
   tank: 'taunt',
   damage: 'shot',
@@ -63,18 +77,70 @@ export const ABILITY = {
   shot: { hit: 4, reach: 300, aim: 0.4, every: 6 },
   /** Hearts back for the most hurt teammate this near, or yourself. */
   heal: { hearts: 4, reach: 220, every: 7 },
+  /** Hits on you count this much, for this long. */
+  guard: { take: 0.5, lasts: 6, every: 18 },
+  /** A jump to a foe this far off, and a strike for this much. */
+  leap: { reach: 220, hit: 3, every: 10 },
+  /** A heart a second for the most hurt teammate this near, or yourself, for this long. */
+  hot: { reach: 220, lasts: 6, every: 10 },
+  /** A red ring for this long, then this much to every foe this near, and stunned for this long. */
+  stomp: { wind: 0.6, reach: 90, hit: 2, stun: 1.5, every: 20 },
+  /** Thrown at a foe this far off: in the air this long, then a red ring this wide round where it lands, bursting for
+   * this much this long after it lands. */
+  bomb: { reach: 250, fly: 0.35, ring: 45, fuse: 1.2, hit: 5, every: 22 },
+  /** A heart a second for every teammate this near, for this long. */
+  group: { reach: 180, lasts: 6, every: 25 },
 } as const;
 /** What each is called on each side: the pirates' and the ninjas' look for the same thing. */
 export const ABILITY_NAME: Readonly<Record<Side, Readonly<Record<Ability, string>>>> = {
-  pirate: { taunt: 'Oi! Over here!', shot: 'Flintlock', heal: 'Sea Biscuit' },
-  ninja: { taunt: 'Mountain Shout', shot: 'Shuriken', heal: 'Green Tea' },
+  pirate: {
+    taunt: 'Oi! Over here!',
+    shot: 'Flintlock',
+    heal: 'Sea Biscuit',
+    guard: 'Batten the Hatches',
+    leap: 'Swing In',
+    hot: 'Lime Ration',
+    stomp: 'Drop Anchor',
+    bomb: 'Powder Keg',
+    group: 'Sea Shanty',
+  },
+  ninja: {
+    taunt: 'Mountain Shout',
+    shot: 'Shuriken',
+    heal: 'Green Tea',
+    guard: 'Iron Skin',
+    leap: 'Shadow Step',
+    hot: 'Cherry Blossom',
+    stomp: 'Earthquake Stomp',
+    bomb: 'Firework Bomb',
+    group: 'Lotus Circle',
+  },
 };
-/** What each does, in a line. */
-export const ABILITY_SAYS: Readonly<Record<Ability, string>> = {
+/** What each does, in a line. The group heal works a little differently on each side, so it has a line for each. */
+export const ABILITY_SAYS: Readonly<Record<Exclude<Ability, 'group'>, string>> = {
   taunt: 'Every enemy close by has to come at you for 4 seconds.',
   shot: 'A hit for 4 on the nearest enemy up to 300 away.',
   heal: '4 hearts back for the most hurt teammate near you, or for you.',
+  guard: 'You take half damage for 6 seconds.',
+  leap: 'Jump to an enemy up to 220 away and strike for 3.',
+  hot: 'A heart a second for 6 seconds, for the most hurt teammate near you, or for you.',
+  stomp:
+    'A red ring, then every enemy close round you takes 2 and is stunned for a second and a half.',
+  bomb: 'Thrown at an enemy: a red ring where it lands, then it bursts for 5 on everyone still in it.',
 };
+export function abilitySays(side: Side, ab: Ability): string {
+  if (ab !== 'group') return ABILITY_SAYS[ab];
+  return side === 'pirate'
+    ? 'You sing, and every teammate near you gets a heart a second for 6 seconds. You walk at half speed while you sing.'
+    : 'A glowing ring on the ground: every teammate in it gets a heart a second for 6 seconds.';
+}
+
+/** The marks a badge takes, Badge I's none (yours in your first battle); and the badge a track's marks give. */
+export const BADGE_MARKS: readonly [number, number, number] = [0, 3, 8];
+export type Badge = 1 | 2 | 3;
+export function badgeOf(marks: number): Badge {
+  return marks >= BADGE_MARKS[2] ? 3 : marks >= BADGE_MARKS[1] ? 2 : 1;
+}
 
 /** Capture the Flag's rules. */
 export const CTF = {

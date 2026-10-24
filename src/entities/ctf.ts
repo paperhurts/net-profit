@@ -10,9 +10,10 @@
 
 import { rng } from '../core/math';
 import {
+  ABILITIES,
   ABILITY,
-  ABILITY_I,
   type Ability,
+  type Badge,
   BOT_NAMES,
   CTF,
   KITS,
@@ -64,17 +65,50 @@ export type Fighter = {
   gu: number;
   gv: number;
   dir: [number, number] | null;
-  /** Its battle: flags taken, captured and sent home, and foes beaten. */
-  /** Its Badge I ability, and how long until it is ready again. */
-  readonly ab: Ability;
-  abCd: number;
+  /** Its abilities, one for each of its badges, and how long until each is ready again. */
+  readonly abs: readonly Ability[];
+  abCd: number[];
   /** Taunted: made to come at this foe, for so long. */
   tauntBy: Fighter | null;
   tauntT: number;
   /** Aiming a shot at a foe, so long still to go; below 0 when it is not. */
   aimT: number;
   aimAt: Fighter | null;
+  /** Taking half damage, so long still; stunned, so long still; winding up a stomp, so long still (below 0 when not). */
+  guardT: number;
+  stunT: number;
+  windT: number;
+  /** A heal over time on it, so long still, from whom, and the part of a second toward its next heart. */
+  hotT: number;
+  hotBy: Fighter | null;
+  hotAcc: number;
+  /** Singing its sea shanty, so long still: it walks at half speed. */
+  singT: number;
+  /** Its battle: flags taken, captured and sent home, foes beaten, and hearts healed. */
   stats: { carries: number; caps: number; returns: number; beaten: number; healed: number };
+};
+
+/** A group heal on the ground: a heart a second for every teammate in it, for so long; it goes with the singer, or stays
+ * where it was laid down. */
+export type Zone = {
+  readonly side: Side;
+  readonly by: Fighter;
+  u: number;
+  v: number;
+  t: number;
+  acc: number;
+  readonly follow: boolean;
+};
+/** A bomb thrown: in the air so long still, then on the ground until it bursts. */
+export type Bomb = {
+  readonly side: Side;
+  readonly by: Fighter;
+  readonly u: number;
+  readonly v: number;
+  readonly fu: number;
+  readonly fv: number;
+  fly: number;
+  t: number;
 };
 
 export type FlagAt = 'home' | 'carried' | 'dropped';
@@ -97,6 +131,13 @@ export type CtfEvent =
   | { k: 'aim'; f: Fighter; to: Fighter }
   | { k: 'shot'; f: Fighter; to: Fighter | null }
   | { k: 'heal'; f: Fighter; to: Fighter; n: number }
+  | { k: 'guard' | 'wind' | 'group'; f: Fighter }
+  | { k: 'stomp'; f: Fighter; n: number }
+  | { k: 'leap'; f: Fighter; to: Fighter; fu: number; fv: number }
+  | { k: 'bomb'; f: Fighter; u: number; v: number }
+  | { k: 'burst'; f: Fighter; u: number; v: number; n: number }
+  | { k: 'hot'; f: Fighter; to: Fighter }
+  | { k: 'mend'; f: Fighter; to: Fighter; n: number }
   | { k: 'over'; winner: Side | 'draw' };
 
 /** A fighter's size, for keeping out of each other's way. */
@@ -150,6 +191,11 @@ export class Ctf {
   bothOutT = 0;
   winner: Side | 'draw' | null = null;
   readonly events: CtfEvent[] = [];
+  /** Group heals on the ground, and bombs thrown. */
+  readonly zones: Zone[] = [];
+  readonly bombs: Bomb[] = [];
+  /** How many badges everyone has, so how many abilities: yours in the role you fight in, the bots' the same. */
+  readonly badge: Badge;
   private readonly rand: () => number;
   /** Everyone, and everyone the other way round: who goes first takes turns, so neither side always strikes first. */
   private readonly back: Fighter[] = [];
@@ -157,9 +203,19 @@ export class Ctf {
   /** The side you fight against attacks a little slower, so a kid wins a bit more than half the time. */
   private readonly foeSlow: number;
 
-  /** You fight for yours, in the role given; null for a battle of bots alone. */
-  constructor(yours: Side | null, seed = 1, foeSlow = 1.12, yourRole: Role = 'damage') {
+  /**
+   * You fight for yours, in the role given, with your badges in it; null for a battle of bots alone. Everyone has as
+   * many badges as you, so they have what you have.
+   */
+  constructor(
+    yours: Side | null,
+    seed = 1,
+    foeSlow = 1.12,
+    yourRole: Role = 'damage',
+    badge: Badge = 1,
+  ) {
     this.yours = yours;
+    this.badge = badge;
     this.rand = rng(seed);
     this.foeSlow = yours ? foeSlow : 1;
     this.flags = {
@@ -202,12 +258,19 @@ export class Ctf {
           gu: u,
           gv: v,
           dir: null,
-          ab: ABILITY_I[role],
-          abCd: 0,
+          abs: ABILITIES[role].slice(0, badge),
+          abCd: ABILITIES[role].slice(0, badge).map(() => 0),
           tauntBy: null,
           tauntT: 0,
           aimT: -1,
           aimAt: null,
+          guardT: 0,
+          stunT: 0,
+          windT: -1,
+          hotT: 0,
+          hotBy: null,
+          hotAcc: 0,
+          singT: 0,
           stats: { carries: 0, caps: 0, returns: 0, beaten: 0, healed: 0 },
         };
         if (isYou) (this as { you: Fighter | null }).you = f;
@@ -261,8 +324,11 @@ export class Ctf {
     }
     for (const f of this.fighters) {
       f.cd = Math.max(0, f.cd - dt);
-      f.abCd = Math.max(0, f.abCd - dt);
+      for (let i = 0; i < f.abCd.length; i++) f.abCd[i] = Math.max(0, (f.abCd[i] ?? 0) - dt);
       f.tauntT = Math.max(0, f.tauntT - dt);
+      f.guardT = Math.max(0, f.guardT - dt);
+      f.stunT = Math.max(0, f.stunT - dt);
+      f.singT = Math.max(0, f.singT - dt);
       f.swingT += dt;
       f.hurtT += dt;
     }
@@ -284,12 +350,18 @@ export class Ctf {
         if (f.downT <= 0) this.getUp(f);
         continue;
       }
-      // A shot aimed goes off when its aim is done, yours too.
+      // A shot aimed goes off when its aim is done, and a stomp when its wind-up is, yours too.
       if (f.aimT >= 0) {
         f.aimT -= dt;
         if (f.aimT < 0) this.fire(f);
         if (this.phase !== 'fight') return;
       }
+      if (f.windT >= 0) {
+        f.windT -= dt;
+        if (f.windT < 0) this.stomp(f);
+        if (this.phase !== 'fight') return;
+      }
+      if (f.hotT > 0) this.hotTick(f, dt);
       if (!f.bot) continue;
       f.thinkT -= dt;
       if (f.thinkT <= 0) {
@@ -298,6 +370,9 @@ export class Ctf {
       }
       this.act(f, dt);
     }
+    this.zoneTicks(dt);
+    this.bombTicks(dt);
+    if (this.phase !== 'fight') return;
     // Dropped flags, left alone, go home.
     for (const side of SIDES) {
       const flag = fl[side];
@@ -383,7 +458,22 @@ export class Ctf {
     f.target = null;
     f.thinkT = 0;
     f.tauntT = 0;
+    this.calm(f);
     this.events.push({ k: 'up', f });
+  }
+
+  /** Whatever was going on with it, over: beaten, or back up. */
+  private calm(f: Fighter): void {
+    f.guardT = 0;
+    f.stunT = 0;
+    f.windT = -1;
+    f.hotT = 0;
+    f.hotBy = null;
+    f.singT = 0;
+    for (let i = this.zones.length - 1; i >= 0; i--) {
+      const z = this.zones[i] as Zone;
+      if (z.by === f && z.follow) this.zones.splice(i, 1);
+    }
   }
 
   /** Hearts off a fighter: from a foe's blow, or from your minion. A carrier takes one more once both flags have been
@@ -391,7 +481,7 @@ export class Ctf {
   hurt(f: Fighter, n: number, by: Fighter | null = null): void {
     if (f.state !== 'live' || this.phase !== 'fight') return;
     const extra = f.carrying && this.bothOutT >= CTF.bothOut ? 1 : 0;
-    const k = n + extra;
+    const k = (n + extra) * (f.guardT > 0 ? ABILITY.guard.take : 1);
     f.hp = Math.max(0, f.hp - k);
     f.hurtT = 0;
     this.events.push({ k: 'hit', f, by, n: k });
@@ -402,6 +492,7 @@ export class Ctf {
     f.aimT = -1;
     f.aimAt = null;
     f.tauntT = 0;
+    this.calm(f);
     if (by) by.stats.beaten++;
     this.events.push({ k: 'down', f, by });
     if (f.carrying) {
@@ -433,7 +524,7 @@ export class Ctf {
 
   /** You strike (or throw) at the nearest foe in reach, if your last attack is done; who was struck, if anyone. */
   strike(f: Fighter | null = this.you): Fighter | null {
-    if (f?.state !== 'live' || this.phase !== 'fight' || f.cd > 0) return null;
+    if (f?.state !== 'live' || this.phase !== 'fight' || f.cd > 0 || this.held(f)) return null;
     const to = this.inReach(f);
     if (!to) return null;
     this.blow(f, to);
@@ -445,51 +536,147 @@ export class Ctf {
     return f.bot && this.yours && f.side !== this.yours ? this.foeSlow : 1;
   }
 
+  /** Stunned, or winding up a stomp: it can do nothing else. */
+  held(f: Fighter): boolean {
+    return f.stunT > 0 || f.windT >= 0;
+  }
+
   /**
-   * A fighter's ability, if it is ready and there is something for it: the tank's shout makes every foe close by come
-   * at it; the damage's shot aims at the nearest foe in reach, a carrier first, and goes off when the aim is done; the
-   * healer's heal goes to the most hurt teammate near, or itself. What it did, or null if nothing.
+   * One of a fighter's abilities, by its place (0 for Badge I's), if it is ready and there is something for it; what
+   * it did, or null if nothing. Each aims itself:
+   *
+   * - the tank's shout makes every foe close by come at it; its guard halves what it takes for a while; its stomp
+   *   winds up in a red ring, then hits and stuns every foe close round it;
+   * - the damage's shot aims at the nearest foe in reach, a carrier first, and goes off when the aim is done; its leap
+   *   lands it behind a foe further off with a strike; its bomb is thrown where it will catch the most foes, a carrier
+   *   above all, and bursts a moment after it lands;
+   * - the healer's heal goes to the most hurt teammate near, or itself; its heal over time to the same, a heart a
+   *   second; its group heal to every teammate near, a heart a second, sung (the pirates', going with the singer, who
+   *   walks at half speed) or laid on the ground (the ninjas', staying where it is).
    */
-  ability(f: Fighter | null = this.you, at: Fighter | null = null): Ability | null {
-    if (f?.state !== 'live' || this.phase !== 'fight' || f.abCd > 0 || f.aimT >= 0) return null;
-    const every = ABILITY[f.ab].every * this.slowOf(f);
-    if (f.ab === 'taunt') {
-      const near = this.fighters.filter(
-        (e) =>
-          e.side !== f.side &&
-          e.state === 'live' &&
-          Math.hypot(e.u - f.u, e.v - f.v) <= ABILITY.taunt.reach,
-      );
-      if (!near.length) return null;
-      for (const e of near) {
-        e.tauntBy = f;
-        e.tauntT = ABILITY.taunt.lasts;
-        if (e.bot) e.target = f;
+  ability(f: Fighter | null = this.you, slot = 0, at: Fighter | null = null): Ability | null {
+    const ab = f?.abs[slot];
+    if (!f || !ab || f.state !== 'live' || this.phase !== 'fight') return null;
+    if ((f.abCd[slot] ?? 0) > 0 || f.aimT >= 0 || this.held(f)) return null;
+    const every = ABILITY[ab].every * this.slowOf(f);
+    const done = (): Ability => {
+      f.abCd[slot] = every;
+      return ab;
+    };
+    switch (ab) {
+      case 'taunt': {
+        const near = this.foesNear(f.u, f.v, f.side, ABILITY.taunt.reach);
+        if (!near.length) return null;
+        for (const e of near) {
+          e.tauntBy = f;
+          e.tauntT = ABILITY.taunt.lasts;
+          if (e.bot) e.target = f;
+        }
+        f.swingT = 0;
+        this.events.push({ k: 'taunt', f, n: near.length });
+        return done();
       }
-      f.abCd = every;
-      f.swingT = 0;
-      this.events.push({ k: 'taunt', f, n: near.length });
-      return 'taunt';
+      case 'shot': {
+        const to = at ?? this.nearestFoe(f, ABILITY.shot.reach);
+        if (!to) return null;
+        f.aimT = ABILITY.shot.aim;
+        f.aimAt = to;
+        f.face = Math.atan2(to.v - f.v, to.u - f.u);
+        this.events.push({ k: 'aim', f, to });
+        return done();
+      }
+      case 'heal': {
+        const to = this.mostHurt(f, 1, ABILITY.heal.reach);
+        if (!to) return null;
+        const n = Math.min(ABILITY.heal.hearts, to.kit.hearts - to.hp);
+        to.hp += n;
+        f.stats.healed += n;
+        f.swingT = 0;
+        this.events.push({ k: 'heal', f, to, n });
+        return done();
+      }
+      case 'guard': {
+        f.guardT = ABILITY.guard.lasts;
+        this.events.push({ k: 'guard', f });
+        return done();
+      }
+      case 'stomp': {
+        if (!this.foesNear(f.u, f.v, f.side, ABILITY.stomp.reach).length) return null;
+        f.windT = ABILITY.stomp.wind;
+        this.events.push({ k: 'wind', f });
+        return done();
+      }
+      case 'leap': {
+        const to = at ?? this.nearestFoe(f, ABILITY.leap.reach);
+        if (!to) return null;
+        const fu = f.u;
+        const fv = f.v;
+        // Down behind it, the way it was going, or in front if that is no place to stand.
+        const d = Math.hypot(to.u - f.u, to.v - f.v) || 1;
+        const du = (to.u - f.u) / d;
+        const dv = (to.v - f.v) / d;
+        const step = BODY * 2;
+        if (walkable(to.u + du * step, to.v + dv * step)) {
+          f.u = to.u + du * step;
+          f.v = to.v + dv * step;
+        } else {
+          f.u = to.u - du * step;
+          f.v = to.v - dv * step;
+        }
+        f.face = Math.atan2(to.v - f.v, to.u - f.u);
+        f.swingT = 0;
+        f.target = to;
+        this.events.push({ k: 'leap', f, to, fu, fv });
+        this.hurt(to, ABILITY.leap.hit, f);
+        return done();
+      }
+      case 'bomb': {
+        const to = at ?? this.bombAt(f);
+        if (!to) return null;
+        const B = ABILITY.bomb;
+        this.bombs.push({
+          side: f.side,
+          by: f,
+          u: to.u,
+          v: to.v,
+          fu: f.u,
+          fv: f.v,
+          fly: B.fly,
+          t: B.fly + B.fuse,
+        });
+        f.face = Math.atan2(to.v - f.v, to.u - f.u);
+        f.swingT = 0;
+        this.events.push({ k: 'bomb', f, u: to.u, v: to.v });
+        return done();
+      }
+      case 'hot': {
+        const to = this.mostHurt(f, 1, ABILITY.hot.reach);
+        if (!to) return null;
+        to.hotT = ABILITY.hot.lasts;
+        to.hotBy = f;
+        to.hotAcc = 0;
+        f.swingT = 0;
+        this.events.push({ k: 'hot', f, to });
+        return done();
+      }
+      case 'group': {
+        if (!this.mostHurt(f, 1, ABILITY.group.reach)) return null;
+        const follow = f.side === 'pirate';
+        this.zones.push({
+          side: f.side,
+          by: f,
+          u: f.u,
+          v: f.v,
+          t: ABILITY.group.lasts,
+          acc: 0,
+          follow,
+        });
+        if (follow) f.singT = ABILITY.group.lasts;
+        f.swingT = 0;
+        this.events.push({ k: 'group', f });
+        return done();
+      }
     }
-    if (f.ab === 'shot') {
-      const to = at ?? this.shotAt(f);
-      if (!to) return null;
-      f.aimT = ABILITY.shot.aim;
-      f.aimAt = to;
-      f.face = Math.atan2(to.v - f.v, to.u - f.u);
-      f.abCd = every;
-      this.events.push({ k: 'aim', f, to });
-      return 'shot';
-    }
-    const to = this.mostHurt(f, 1);
-    if (!to) return null;
-    const n = Math.min(ABILITY.heal.hearts, to.kit.hearts - to.hp);
-    to.hp += n;
-    f.stats.healed += n;
-    f.abCd = every;
-    f.swingT = 0;
-    this.events.push({ k: 'heal', f, to, n });
-    return 'heal';
   }
 
   /** A shot's aim done: it hits, if what it aimed at is still up and not too far gone. */
@@ -504,14 +691,101 @@ export class Ctf {
     } else this.events.push({ k: 'shot', f, to: null });
   }
 
-  /** The foe a shot goes at: the nearest in reach, one carrying a flag first. */
-  private shotAt(f: Fighter): Fighter | null {
+  /** A stomp's wind-up done: every foe still close round it hit, and stunned. */
+  private stomp(f: Fighter): void {
+    f.windT = -1;
+    f.swingT = 0;
+    const near = this.foesNear(f.u, f.v, f.side, ABILITY.stomp.reach);
+    this.events.push({ k: 'stomp', f, n: near.length });
+    for (const e of near) {
+      this.hurt(e, ABILITY.stomp.hit, f);
+      if (e.state !== 'live') continue;
+      e.stunT = ABILITY.stomp.stun;
+      // Knocked out of whatever it was doing.
+      e.aimT = -1;
+      e.aimAt = null;
+      e.windT = -1;
+    }
+  }
+
+  /** A heal over time: a heart each whole second it has run. */
+  private hotTick(f: Fighter, dt: number): void {
+    f.hotAcc += dt;
+    f.hotT -= dt;
+    while (f.hotAcc >= 1) {
+      f.hotAcc -= 1;
+      this.mend(f.hotBy ?? f, f, 1);
+    }
+    if (f.hotT <= 0) {
+      f.hotT = 0;
+      f.hotBy = null;
+    }
+  }
+
+  /** Group heals: each, every whole second, a heart for every teammate in it; a sung one goes with its singer. */
+  private zoneTicks(dt: number): void {
+    for (let i = this.zones.length - 1; i >= 0; i--) {
+      const z = this.zones[i] as Zone;
+      if (z.follow) {
+        z.u = z.by.u;
+        z.v = z.by.v;
+      }
+      z.acc += dt;
+      z.t -= dt;
+      while (z.acc >= 1) {
+        z.acc -= 1;
+        for (const t of this.fighters)
+          if (
+            t.side === z.side &&
+            t.state === 'live' &&
+            Math.hypot(t.u - z.u, t.v - z.v) <= ABILITY.group.reach
+          )
+            this.mend(z.by, t, 1);
+      }
+      if (z.t <= 0) this.zones.splice(i, 1);
+    }
+  }
+
+  /** Bombs: in the air, then on the ground, then bursting on every foe of its thrower still in its ring. */
+  private bombTicks(dt: number): void {
+    for (let i = this.bombs.length - 1; i >= 0; i--) {
+      const b = this.bombs[i] as Bomb;
+      b.fly -= dt;
+      b.t -= dt;
+      if (b.t > 0) continue;
+      this.bombs.splice(i, 1);
+      const caught = this.foesNear(b.u, b.v, b.side, ABILITY.bomb.ring);
+      this.events.push({ k: 'burst', f: b.by, u: b.u, v: b.v, n: caught.length });
+      for (const e of caught) this.hurt(e, ABILITY.bomb.hit, b.by);
+      if (this.phase !== 'fight') return;
+    }
+  }
+
+  /** Hearts back for a teammate, up to its whole, counted to the healer. */
+  private mend(by: Fighter, to: Fighter, n: number): void {
+    if (to.state !== 'live') return;
+    const k = Math.min(n, to.kit.hearts - to.hp);
+    if (k <= 0) return;
+    to.hp += k;
+    by.stats.healed += k;
+    this.events.push({ k: 'mend', f: by, to, n: k });
+  }
+
+  /** The live foes of a side this near a point. */
+  private foesNear(u: number, v: number, side: Side, r: number): Fighter[] {
+    return this.fighters.filter(
+      (e) => e.side !== side && e.state === 'live' && Math.hypot(e.u - u, e.v - v) <= r,
+    );
+  }
+
+  /** The foe a shot or a leap goes at: the nearest in reach, one carrying a flag first. */
+  private nearestFoe(f: Fighter, reach: number): Fighter | null {
     let best: Fighter | null = null;
     let bs = Infinity;
     for (const e of this.fighters) {
       if (e.side === f.side || e.state !== 'live') continue;
       const d = Math.hypot(e.u - f.u, e.v - f.v);
-      if (d > ABILITY.shot.reach) continue;
+      if (d > reach) continue;
       const s = d - (e.carrying ? 1000 : 0);
       if (s < bs) {
         bs = s;
@@ -521,13 +795,33 @@ export class Ctf {
     return best;
   }
 
-  /** The teammate in a heal's reach (itself included) missing the most of its hearts, at least so many. */
-  private mostHurt(f: Fighter, least: number): Fighter | null {
+  /** The foe a bomb goes at: in reach, where its ring would catch the most, one carrying a flag above all. */
+  private bombAt(f: Fighter): Fighter | null {
+    let best: Fighter | null = null;
+    let bs = -Infinity;
+    for (const e of this.fighters) {
+      if (e.side === f.side || e.state !== 'live') continue;
+      const d = Math.hypot(e.u - f.u, e.v - f.v);
+      if (d > ABILITY.bomb.reach) continue;
+      const s =
+        this.foesNear(e.u, e.v, f.side, ABILITY.bomb.ring).length * 100 +
+        (e.carrying ? 1000 : 0) -
+        d * 0.1;
+      if (s > bs) {
+        bs = s;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /** The teammate in reach (itself included) missing the most of its hearts, at least so many. */
+  private mostHurt(f: Fighter, least: number, reach: number): Fighter | null {
     let best: Fighter | null = null;
     let bm = least - 0.5;
     for (const t of this.fighters) {
       if (t.side !== f.side || t.state !== 'live') continue;
-      if (Math.hypot(t.u - f.u, t.v - f.v) > ABILITY.heal.reach) continue;
+      if (Math.hypot(t.u - f.u, t.v - f.v) > reach) continue;
       const m = t.kit.hearts - t.hp + (t.carrying ? 0.5 : 0);
       if (m > bm) {
         bm = m;
@@ -538,32 +832,75 @@ export class Ctf {
   }
 
   /**
-   * When a bot uses its ability: a healer once a teammate near is three hearts down; a shot whenever a foe is in its
-   * reach; the tank's shout once two foes are close, or one close is after a teammate or carries our flag.
+   * When a bot uses its abilities, its last badge's first: a healer's heal once a teammate near is three hearts down,
+   * its heal over time once one is two down with none on it, its group heal once two near are two down; a shot or a
+   * leap at the foe it is after and not yet in its sword's reach; a bomb where it will catch two, or a carrier; the
+   * tank's shout once two foes are close, or one close is after a teammate or carries our flag; its guard when a foe
+   * is on it and it is three hearts down; its stomp once two foes are round it, or one carrying our flag.
    */
   private botAbility(f: Fighter): void {
-    if (f.abCd > 0 || f.aimT >= 0) return;
-    if (f.ab === 'heal') {
-      if (this.mostHurt(f, 3)) this.ability(f);
-      return;
+    if (f.aimT >= 0 || this.held(f)) return;
+    for (let slot = f.abs.length - 1; slot >= 0; slot--) {
+      const ab = f.abs[slot] as Ability;
+      if ((f.abCd[slot] ?? 0) > 0) continue;
+      const at = this.botWants(f, ab);
+      if (at === false) continue;
+      if (this.ability(f, slot, at === true ? null : at)) return;
     }
-    if (f.ab === 'shot') {
-      // Only at the foe it is after, to reach it before it gets close.
-      const t = f.target;
-      if (t?.state !== 'live') return;
-      const d = Math.hypot(t.u - f.u, t.v - f.v);
-      if (d > f.kit.reach + 30 && d <= ABILITY.shot.reach) this.ability(f, t);
-      return;
+  }
+
+  /** Whether a bot wants an ability now: false, true, or the foe to use it on. */
+  private botWants(f: Fighter, ab: Ability): boolean | Fighter {
+    const t = f.target?.state === 'live' ? f.target : null;
+    const d = t ? Math.hypot(t.u - f.u, t.v - f.v) : Infinity;
+    switch (ab) {
+      case 'heal':
+        return !!this.mostHurt(f, 3, ABILITY.heal.reach);
+      case 'hot': {
+        const to = this.mostHurt(f, 2, ABILITY.hot.reach);
+        return !!to && to.hotT <= 0;
+      }
+      case 'group': {
+        let n = 0;
+        for (const m of this.fighters)
+          if (
+            m.side === f.side &&
+            m.state === 'live' &&
+            m.kit.hearts - m.hp >= 2 &&
+            Math.hypot(m.u - f.u, m.v - f.v) <= ABILITY.group.reach * 0.8
+          )
+            n++;
+        return n >= 2;
+      }
+      case 'shot':
+        // Only at the foe it is after, to reach it before it gets close.
+        return t && d > f.kit.reach + 30 && d <= ABILITY.shot.reach ? t : false;
+      case 'leap':
+        return t && d > f.kit.reach + 40 && d <= ABILITY.leap.reach ? t : false;
+      case 'bomb': {
+        const to = this.bombAt(f);
+        if (!to) return false;
+        const n = this.foesNear(to.u, to.v, f.side, ABILITY.bomb.ring).length;
+        return n >= 2 || to.carrying ? to : false;
+      }
+      case 'guard': {
+        const near = this.foesNear(f.u, f.v, f.side, f.kit.reach + 30);
+        return near.length > 0 && (f.kit.hearts - f.hp >= 3 || f.carrying);
+      }
+      case 'stomp': {
+        const near = this.foesNear(f.u, f.v, f.side, ABILITY.stomp.reach * 0.85);
+        return near.length >= 2 || near.some((e) => e.carrying);
+      }
+      case 'taunt': {
+        let n = 0;
+        let want = false;
+        for (const e of this.foesNear(f.u, f.v, f.side, ABILITY.taunt.reach)) {
+          n++;
+          if (e.carrying || (e.target && e.target !== f)) want = true;
+        }
+        return n >= 2 || (n > 0 && want);
+      }
     }
-    let n = 0;
-    let want = false;
-    for (const e of this.fighters) {
-      if (e.side === f.side || e.state !== 'live') continue;
-      if (Math.hypot(e.u - f.u, e.v - f.v) > ABILITY.taunt.reach) continue;
-      n++;
-      if (e.carrying || (e.target && e.target !== f)) want = true;
-    }
-    if (n >= 2 || (n && want)) this.ability(f);
   }
 
   private blow(f: Fighter, to: Fighter): void {
@@ -703,7 +1040,7 @@ export class Ctf {
    * or walks the way it worked out. Close to its foe it goes straight at it.
    */
   private act(f: Fighter, dt: number): void {
-    if (f.aimT >= 0) {
+    if (f.aimT >= 0 || this.held(f)) {
       f.moving = false;
       return;
     }
@@ -743,7 +1080,11 @@ export class Ctf {
     const dl = Math.hypot(du, dv) || 1;
     du /= dl;
     dv /= dl;
-    const pace = f.kit.speed * (f.carrying ? CTF.carry : 1) * (wading(f.u, f.v) ? 0.5 : 1);
+    const pace =
+      f.kit.speed *
+      (f.carrying ? CTF.carry : 1) *
+      (wading(f.u, f.v) ? 0.5 : 1) *
+      (f.singT > 0 ? 0.5 : 1);
     this.move(f, du * pace * dt, dv * pace * dt);
     f.du = du;
     f.dv = dv;
