@@ -16,6 +16,7 @@
 import { decode, encode, type Stroke } from './doodle';
 import { type Egg, type EggFrom, eggDue, HATCHLING_ART, HATCHLING_NAMES, parseEggs } from './eggs';
 import { COMPANION_NAMES, COMPANIONS, type Companion } from './stay';
+import { cleanXp, type Level, levelOf } from './training';
 
 /** The pets, as the book has them. The crows and the muffins have one card each, however many there are. */
 export const PET_KEYS = ['dog', 'otter', 'neil', 'crows', 'muffins'] as const;
@@ -85,13 +86,23 @@ export function cleanName(s: unknown): string {
 }
 
 /** A pet drawn on the pad (data/doodle.ts): its number, the name given it, the drawing, and when it was drawn. */
-export type DrawnPet = { id: number; nm: string; d: string; got: number };
+export type DrawnPet = { id: number; nm: string; d: string; got: number; xp?: number };
 /** The most drawn pets kept at once; another means letting one go. It keeps the save, and the link, small. */
 export const DRAWN_MAX = 4;
 /** A drawn pet's place in the book: d and its number. */
 export type DrawnKey = `d${number}`;
-/** A pet hatched from an egg (data/eggs.ts): its number, what it is, the name given it, when, and whose egg. */
-export type HatchedPet = { id: number; sp: string; nm: string; got: number; from: EggFrom };
+/**
+ * A pet hatched from an egg (data/eggs.ts): its number, what it is, the name given it, when, and whose egg. Each of
+ * your own also has its experience from training (data/training.ts), missing until it has some.
+ */
+export type HatchedPet = {
+  id: number;
+  sp: string;
+  nm: string;
+  got: number;
+  from: EggFrom;
+  xp?: number;
+};
 /** The most hatched pets kept, a cap for the save's sake only: eggs come three at a time. */
 export const HATCHED_MAX = 24;
 /** A hatched pet's place in the book: h and its number. */
@@ -127,10 +138,12 @@ export type PetSave = {
   hatched: HatchedPet[];
   /** The pet house is built on the home island (world/pethouse.ts): your own pets not walking with you live there. */
   house: boolean;
+  /** When training at the pet house was last counted (data/training.ts), real-time milliseconds; 0 for never. */
+  tr: number;
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [], house: false };
+  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [], house: false, tr: 0 };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -157,12 +170,15 @@ export function parsePets(v: unknown): PetSave {
       const strokes = decode(r.d);
       const id = whole(r.id);
       if (!strokes.length || p.drawn.some((q) => q.id === id)) continue;
-      p.drawn.push({
+      const d: DrawnPet = {
         id,
         nm: cleanName(r.nm) || DRAWN_NAME,
         d: encode(strokes),
         got: whole(r.got),
-      });
+      };
+      const xp = cleanXp(r.xp);
+      if (xp) d.xp = xp;
+      p.drawn.push(d);
     }
   }
   p.eggs = parseEggs((v as { eggs?: unknown }).eggs);
@@ -175,18 +191,22 @@ export function parsePets(v: unknown): PetSave {
       const sp = typeof r.sp === 'string' && HATCHLING_NAMES[r.sp] ? r.sp : '';
       const id = whole(r.id);
       if (!sp || p.hatched.some((q) => q.id === id)) continue;
-      p.hatched.push({
+      const h: HatchedPet = {
         id,
         sp,
         nm: cleanName(r.nm) || (HATCHLING_NAMES[sp] ?? sp),
         got: whole(r.got),
         from: r.from === 'gift' ? 'gift' : 'garden',
-      });
+      };
+      const xp = cleanXp(r.xp);
+      if (xp) h.xp = xp;
+      p.hatched.push(h);
     }
   }
   const walk = (v as { walk?: unknown }).walk;
   if (typeof walk === 'string' && isOwnKey(walk) && ownOf(p, walk)) p.walk = walk;
   p.house = (v as { house?: unknown }).house === true;
+  if (p.house) p.tr = whole((v as { tr?: unknown }).tr);
   return p;
 }
 
@@ -199,6 +219,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (p.eggs.length) out.eggs = p.eggs;
   if (p.hatched.length) out.hatched = p.hatched;
   if (p.house) out.house = true;
+  if (p.house && p.tr) out.tr = p.tr;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -320,6 +341,9 @@ export type BookEntry = {
   doodle?: string;
   /** The one walking with you. */
   walking?: boolean;
+  /** One of your own's level (data/training.ts), and whether it is training at the pet house now. */
+  level?: Level;
+  training?: boolean;
 };
 
 /** What the game tells the book: whether each is yours, where it is, and how many crows and muffins there are. */
@@ -338,6 +362,26 @@ const PET_WHERE: Readonly<Record<PetKey, (f: BookFacts) => string>> = {
   crows: (f) => `On your boat's rail: ${f.crows} of 3.`,
   muffins: (f) => `Following you about: ${f.muffins} of 6, and a cloud of stink.`,
 };
+
+/** Where one of your own is, its level, and whether it is training: only at the pet house, never walking with you. */
+function ownWhere(
+  p: PetSave,
+  k: OwnKey,
+  xp: number | undefined,
+): Pick<BookEntry, 'where' | 'walking' | 'level' | 'training'> {
+  const walking = p.walk === k;
+  const training = p.house && !walking;
+  return {
+    where: walking
+      ? `Walks with you, ashore and aboard. Tap it to pet it.${p.house ? ' Leave it at the pet house to train.' : ''}`
+      : p.house
+        ? 'Lives at your pet house on the home island, playing in its yard.'
+        : 'In your pet book. Take it along and it walks with you.',
+    walking,
+    level: levelOf(xp ?? 0),
+    training,
+  };
+}
 
 /** Everyone who is yours: the pets, the pets you drew, those hatched, then the companions in the order they join you. */
 export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
@@ -366,13 +410,7 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       name: d.nm,
       was: null,
       from: 'You drew this one.',
-      where:
-        p.walk === drawnKey(d.id)
-          ? 'Walks with you, ashore and aboard. Tap it to pet it.'
-          : p.house
-            ? 'Lives at your pet house on the home island, playing in its yard.'
-            : 'In your pet book. Take it along and it walks with you.',
-      walking: p.walk === drawnKey(d.id),
+      ...ownWhere(p, drawnKey(d.id), d.xp),
       doodle: d.d,
     }),
   );
@@ -387,13 +425,7 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
         h.from === 'gift'
           ? 'Hatched from a gift egg.'
           : 'Hatched from an egg from the Garden Isle.',
-      where:
-        p.walk === hatchedKey(h.id)
-          ? 'Walks with you, ashore and aboard. Tap it to pet it.'
-          : p.house
-            ? 'Lives at your pet house on the home island, playing in its yard.'
-            : 'In your pet book. Take it along and it walks with you.',
-      walking: p.walk === hatchedKey(h.id),
+      ...ownWhere(p, hatchedKey(h.id), h.xp),
       doodle: HATCHLING_ART[h.sp],
     };
   });

@@ -244,4 +244,22 @@ describe('the pet book', () => {
     expect(parsePets(JSON.parse(JSON.stringify(petsForSave(p)))).house).toBe(true);
     expect(parsePets({ house: 'yes' }).house).toBe(false);
   });
+
+  it('shows each of your own pets its level, and whether it is training at the pet house', () => {
+    const p = noPets();
+    p.drawn.push({ id: 1, nm: 'Wiggles', d: 'AUUsU', got: 0, xp: 350 });
+    p.hatched.push({ id: 1, sp: 'frog', nm: 'Hoppy', got: 0, from: 'garden', xp: 4500 });
+    p.walk = 'h1';
+    const st = { editing: null, letting: null, drawn: 1 };
+    const out = bookEntries(p, facts([]));
+    expect(out[0]?.level).toEqual({ lv: 3, into: 50, need: 300 });
+    expect(out[0]?.training).toBe(false);
+    p.house = true;
+    const html = bookHtml(bookEntries(p, facts([])), st);
+    expect(html).toContain('<span class="lv">Level 3</span>');
+    expect(html).toContain('width:17%');
+    expect(html).toContain('Training');
+    expect(html).toContain('<span class="lv">Level 10</span>, the most there is.');
+    expect(bookEntries(p, facts([]))[1]?.where).toContain('Leave it at the pet house to train.');
+  });
 });

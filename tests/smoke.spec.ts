@@ -919,11 +919,12 @@ type Np = {
   pets: {
     save: {
       nm: Record<string, string>;
-      drawn: { id: number; nm: string; d: string; got: number }[];
+      drawn: { id: number; nm: string; d: string; got: number; xp?: number }[];
       walk: string | null;
       eggs: { k: string; sp: string; at: number; due: number }[];
-      hatched: { id: number; sp: string; nm: string; from: string }[];
+      hatched: { id: number; sp: string; nm: string; from: string; xp?: number }[];
       house?: boolean;
+      tr?: number;
     };
     PET_HOUSE: { x0: number; y0: number; x1: number; y1: number };
     yard: { key: string; x: number; y: number }[];
@@ -14552,6 +14553,50 @@ test('the pet house: built from the shop by the hut, its keeper gives an egg, an
   await page.waitForTimeout(400);
   await page.reload();
   await page.waitForFunction(() => window.__np?.pets?.save.house === true, null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test('training: pets at the pet house level up while you are away, the one walking with you does not, and the book shows it', async ({
+  context,
+  page,
+}) => {
+  const now = Date.now();
+  // Two and a half hours since training was last counted; the frog walks with you, the drawn one stays at the house.
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: {
+      drawn: [{ id: 1, nm: 'Wiggles', d: 'EUUsUyetoUoOeOU.EYoYv.EgpWv.Ekpkv', got: 1 }],
+      hatched: [{ id: 1, sp: 'frog', nm: 'Hoppy', got: 1, from: 'garden' }],
+      walk: 'h1',
+      house: true,
+      tr: now - 150 * 60_000,
+    },
+  });
+  const p = await page.evaluate(() => window.__np.pets.save);
+  expect(p.drawn[0]?.xp).toBe(150);
+  expect(p.hatched[0]?.xp).toBeUndefined();
+  await expect(page.locator('#toast')).toContainText(
+    'While you were away, Wiggles trained up to level 2!',
+    { timeout: 8000 },
+  );
+  // In the book: its level, the bar toward the next, and that it is training; the frog, walking, is not.
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await expect(page.locator('[data-pet="d1"] .lvl')).toContainText('Level 2');
+  await expect(page.locator('[data-pet="d1"] .lvl')).toContainText('Training');
+  await expect(page.locator('[data-pet="h1"] .lvl')).toContainText('Level 1');
+  await expect(page.locator('[data-pet="h1"] .lvl')).not.toContainText('Training');
+  // The level row fits a card at phone width.
+  const bar = await page.locator('[data-pet="d1"] .xpbar').boundingBox();
+  if (!bar) throw new Error('no bar');
+  expect(bar.x + bar.width).toBeLessThanOrEqual(390);
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.drawn[0]?.xp === 150, null, {
+    timeout: 5000,
+  });
   expect(errors).toEqual([]);
 });
 
