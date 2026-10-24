@@ -875,6 +875,8 @@ type Np = {
   catAt: [number, number] | null;
   king: { fighting: boolean; state: string; t: number; resolve: number };
   fireHarpoon(): void;
+  /** The pet system (data/petsys.ts): what it saves, and whether the pet book is open. */
+  pets: { save: { nm: Record<string, string> }; open: boolean };
 };
 
 /** One of the Battle Barge's own groups: its gorillas, its gators or its lancers. */
@@ -13239,6 +13241,72 @@ test('the sirens and the charm: their song cannot pull a boat that wears it, and
   );
   await expect(page.locator('#toast')).toContainText('shriek');
   expect(await page.evaluate(() => window.__np.hpNow)).toBe(100);
+  expect(errors).toEqual([]);
+});
+
+test('the pet book: everyone who is yours on two shelves, drawn, and a name kept for the Baby Reaper', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    isle6Stage: 2,
+    reaperEgg: 3,
+    crows: 2,
+    feederFull: true,
+    leggy: 3,
+    stay: ['cat'],
+  });
+  await page.waitForFunction(() => document.getElementById('petsBtn')?.hidden === false, null, {
+    timeout: 4000,
+  });
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await expect(page.locator('#petBook')).toBeVisible();
+  const cards = page.locator('#petBookList .pet');
+  await expect(cards).toHaveCount(6);
+  expect(await cards.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.pet))).toEqual([
+    'dog',
+    'crows',
+    'muffins',
+    'cat',
+    'warrior',
+    'baby',
+  ]);
+  await expect(page.locator('[data-pet="cat"] .now')).toContainText('castle');
+  await expect(page.locator('[data-pet="crows"] [data-rename]')).toHaveCount(0);
+  // Every picture is drawn: something on each canvas.
+  await page.waitForTimeout(300);
+  const inked = await page.locator('#petBookList .petpic').evaluateAll((els) =>
+    els.map((el) => {
+      const c = el as HTMLCanvasElement;
+      const d = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data ?? [];
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if ((d[i] ?? 0) > 0) n++;
+      return n > 50;
+    }),
+  );
+  expect(inked).toEqual([true, true, true, true, true, true]);
+  // A name, typed: the keys go to the name, not the boat.
+  await page.locator('[data-rename="baby"]').click();
+  const box = page.locator('#petName');
+  await expect(box).toBeFocused();
+  const h0 = await page.evaluate(() => window.__np.boat.h);
+  await box.fill('');
+  await box.pressSequentially('Chomp');
+  await box.press('Enter');
+  await expect(page.locator('[data-pet="baby"] b')).toHaveText('Chomp');
+  await expect(page.locator('[data-pet="baby"] .was')).toContainText('Baby Reaper');
+  expect(await page.evaluate(() => window.__np.pets.save.nm)).toEqual({ baby: 'Chomp' });
+  expect(await page.evaluate(() => window.__np.boat.h)).toBeCloseTo(h0, 5);
+  await page.locator('#petBookClose').click();
+  await expect(page.locator('#petBook')).toBeHidden();
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.nm.baby === 'Chomp', null, {
+    timeout: 5000,
+  });
   expect(errors).toEqual([]);
 });
 
