@@ -43,7 +43,7 @@ import { LOVE_T as PET_LOVE_T, WalkingPet } from './entities/petwalk';
 import { bookHtml, esc } from './ui/petbook';
 import { nearStand, standAt, TROPHIES, TROPHY_KINDS, trophiesWon } from './data/trophies';
 import { orbBoats, orbNext, orbPast } from './data/orb';
-import { drawStand } from './render/trophies';
+import { drawHallPiece, drawStand } from './render/trophies';
 import { FISH_WALL_AT, FISH_WALL_REACH, fishWallFront } from './data/fishwall';
 import { drawFishWall } from './render/fishwall';
 import { ARMOUR_STANDS, armourName, armourStandAt, armourStory, hasArmour, hasWeapon, nearArmoury, WEAPON_RACKS, weaponName, weaponRackAt, weaponStory } from './data/armoury';
@@ -119,8 +119,8 @@ import { skullBeastsAt, skullFloor, skullMenAt } from './world/skulltower';
 import { drawSkrillDoor, drawSkullRoom } from './render/skulltower';
 import { Spears } from './entities/spears';
 import { ARMOURS, armourAt, nextArmour, heartsFor, hasKnife, HONOR_GUARD, knifeUse, KNIFE } from './data/armour';
-import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, OUTFITS, outfitOf, PRESETS, presetOf, SKINS, SKIPPER, wornArmour } from './data/look';
-import { ALL_BADGES, emblemWon, FLAG_BADGES, flagWon, newOutfits, newRewards, nextReward, OUTFIT_HOW, OUTFIT_NAME, outfitWon, paintWon, rewardName, rewardsWon, sideBadges, WON_FLAGS } from './data/rewards';
+import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, OUTFITS, outfitOf, PRESETS, presetOf, SKINS, SKIPPER, TITLES, wornArmour } from './data/look';
+import { ALL_BADGES, emblemWon, FLAG_BADGES, flagWon, HALL_KINDS, HALL_PIECES, HALL_SOLID, hallAt, hallWon, listOf, nearHall, newOutfits, newRewards, nextReward, OUTFIT_HOW, OUTFIT_NAME, outfitWon, paintWon, rewardName, rewardsWon, sideBadges, TITLE_NAME, titleWon, WON_FLAGS } from './data/rewards';
 import { decodeSailed, encodeSailed, noSailed, sail, sailAll, sailedCount, sailedShare, seedSailed } from './state/sailed';
 import { drawRadar } from './render/radar';
 import { inRange } from './world/radar';
@@ -202,7 +202,7 @@ import { drawIsle11Flat, drawIsle11Sea, isle11Solids } from './render/isle11';
 import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, insideIsle12, ISLE12, isle12Outline, nearIsle12, PITS12, pushOffIsle12, REVEAL12, REVEAL12_T, revealZoom12, SIGHT12 } from './world/isle12';
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { atHalf, atLift, atTree, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, fromEndless, HALF_C, halfOutline, insideEndless, LANDING13, LEADER13, leaderNear, nearEndless, PEAK, pushOffEndless, REVEAL13, REVEAL13_T, revealZoom13, rival, SIDES, SIGHT13, toEndless, TREE13 } from './world/endless';
-import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
+import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_SAYS, LEADER_TITLED, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { bedsInReach, CRATES14, DOCK14, fromGarden, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
@@ -1291,10 +1291,13 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   if (dressed) toast(`Gold on all three runs! ${outfitSay(dressed)}`, 6000, 1);
   hud(); save(); refreshShop(); }
 // An outfit won since then, put straight on: the first of them, if any; what to say of it.
-function wearWon(before){ const won = newOutfits(before, endless); if (!won.length) return null; charLook = {...charLook, outfit: won[0]}; sfx.orderFilled(); return won[0]; }
+function wearWon(before){ const t = ['endless', 'lord', 'master'].find(k => !titleWon(k, before) && titleWon(k, endless)); if (t) charLook = {...charLook, title: t};
+  const won = newOutfits(before, endless); if (!won.length) return null; charLook = {...charLook, outfit: won[0]}; sfx.orderFilled(); return won[0]; }
 const outfitSay = (k) => `You've won ${OUTFIT_NAME[k]}, and you're wearing it now. Change it with Your character, in the shop.`;
 // Any reward, as said when it is won: an outfit is put on; a flag and a paint wait in the shop.
-const rewardSay = (r) => r.kind === 'outfit' ? outfitSay(r.key) : r.kind === 'flag' ? `You've won ${rewardName(r)}: fly it from Your flag, in the shop.` : `You've won ${rewardName(r)}: paint your boat with it in the shop.`;
+const rewardSay = (r) => r.kind === 'outfit' ? outfitSay(r.key) : r.kind === 'flag' ? `You've won ${rewardName(r)}: fly it from Your flag, in the shop.`
+  : r.kind === 'paint' ? `You've won ${rewardName(r)}: paint your boat with it in the shop.` : r.kind === 'title' ? `You're the ${TITLE_NAME[r.key]}! It's under your name on Your character.`
+  : `${HALL_PIECES[r.key].name.replace(/^./, c => c.toUpperCase())} is yours, ${castleHQ ? 'in your trophy hall at Gigantis' : 'for your trophy hall, when you have one'}.`;
 // The Treehouse Climb (entities/treehouse.ts), part eight of the Endless Isle: in at the foot of the pirates' great tree,
 // and it turns side on, a stage a screen, the way Donkey Kong is. The figure waits at the foot meanwhile.
 let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, thBest, thStage = 1, thPaid = 0, thUp = [], thChest = 0;
@@ -2734,7 +2737,9 @@ function updateEndlessFolk(dt){ for (const f of poofs) f.t += dt/.6; while (poof
 // Talking to a leader: what he says, why they fight, and the side to join.
 let endlessTalk = null, endlessJoined = null;
 function openEndlessTalk(side){ endlessTalk = side; endlessJoined = null; sfx.click();
-  renderEndlessTalk(LEADER_SAYS[side][endless[side] ? 'joined' : endless[rival(side)] ? 'rival' : 'hello']); $('endlessCard').hidden = false; }
+  // A title won, and he greets you by it first.
+  const hail = titleWon('endless', endless) ? `${LEADER_TITLED[side].both} ` : titleWon(side === 'pirate' ? 'lord' : 'master', endless) ? `${LEADER_TITLED[side].own} ` : '';
+  renderEndlessTalk(hail + LEADER_SAYS[side][endless[side] ? 'joined' : endless[rival(side)] ? 'rival' : 'hello']); $('endlessCard').hidden = false; }
 function renderEndlessTalk(says){ const side = endlessTalk; if (!side) return; $('endlessCard').dataset.side = side;
   $('endlessWho').textContent = LEADER_NAME[side]; $('endlessSay').textContent = says;
   $('endlessJoin').hidden = endless[side]; $('endlessJoin').textContent = side === 'pirate' ? 'Sign the articles: join the pirates' : 'Bow: join the ninjas';
@@ -2932,8 +2937,8 @@ function openRoles(mode){ const side = endlessTalk; if (!side) return; sfx.click
       + `<small>${abs.slice(0, b).map(a => `<b>${ABILITY_NAME[side][a]}</b>`).join(' \u00B7 ')}<br>${b > 1 ? 'New: ' : ''}${abilitySays(side, top)}</small>`
       + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>` : '') + '</button>'; }).join('')
     + (() => { const nx = nextReward(endless.battles, side), had = rewardsWon(endless.battles, side).map(rewardName);
-      return nx ? `<p class="reward">${had.length ? `Won so far: ${had.join(', ')}. ` : ''}At ${nx.at} badges as a ${side}, all three roles counted: ${nx.what}. You have ${nx.have}.</p>`
-        : `<p class="reward">All ${ALL_BADGES} badges as a ${side}! Yours: ${had.join(', ')}.</p>`; })()
+      return nx ? `<p class="reward">${had.length ? `Won so far: ${listOf(had)}. ` : ''}At ${nx.at} badges as a ${side}, all three roles counted: ${nx.what}. You have ${nx.have}.</p>`
+        : `<p class="reward">All ${ALL_BADGES} badges as a ${side}! Yours: ${listOf(had)}.</p>`; })()
     + '<button class="answer" data-role="">Back</button>';
   $('endlessSay').textContent = (mode === 'forts' ? LEADER_PICK_FORTS : LEADER_PICK)[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
 $('endlessFight').addEventListener('click', () => openRoles('flag'));
@@ -4425,6 +4430,7 @@ function climbAction(){
     if (floor === HALL_A && castleHQ && phase !== 'Dawn' && Math.hypot(walker.x - HQ_BED.x, walker.y - HQ_BED.y) < BED_REACH) return 'bed';
     if (floor === HALL_A && castleHQ && Math.hypot(walker.x - HQ_FISH_FRONT.x, walker.y - HQ_FISH_FRONT.y) < FISH_WALL_REACH) return 'fishwall';
     if (floor === HALL_B && castleHQ && Math.hypot(walker.x - HQ_HEAP.x, walker.y - HQ_HEAP.y) < HEAP_REACH) return 'heap';
+    if (floor === HALL_B && castleHQ && endless.seen){ const k = nearHall(walker.x - ROOMS[HALL_B].x, walker.y - ROOMS[HALL_B].y); if (k) return 'hall-' + k; }
     if (floor === HALL_B && castleHQ && !(h && h.cleared && Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6)){ const i = nearStand(walker.x - ROOMS[HALL_B].x, walker.y - ROOMS[HALL_B].y); if (i >= 0) return 'trophy-' + i; }
     return h && h.cleared && Math.hypot(walker.x - st.x, walker.y - st.y) < STEP + 6 ? 'onward' : null; }
   if (floor === HALL && isle3Stage >= 2 && pullT <= 0 && Math.hypot(walker.x - PORTAL.x, walker.y - PORTAL.y) < STEP + 6) return 'portal';
@@ -5347,7 +5353,7 @@ function drawCharPreview(){ const el = $('charPreview'), c2 = el.getContext('2d'
   p.drawPortrait(v);
   if (charOpen) requestAnimationFrame(drawCharPreview); }
 function renderChar(){ const cur = presetOf(charLook);
-  $('charName').textContent = cur ? PRESETS.find(p => p.id === cur).name : 'Your own';
+  $('charName').innerHTML = (cur ? PRESETS.find(p => p.id === cur).name : 'Your own') + (charLook.title !== 'none' ? `<small class="title">${TITLE_NAME[charLook.title]}</small>` : '');
   $('charPresets').innerHTML = PRESETS.map(p => `<button class="rchip${cur === p.id ? ' on' : ''}" data-preset="${p.id}">${p.name}</button>`).join('')
     + `<button class="rchip${cur ? '' : ' on'}" data-preset="">Your own</button>`;
   const row = (label, key, opts) => `<div class="crow"><small>${label}</small><div class="bchips">${opts.map(([k, name]) => `<button class="rchip${charLook[key] === k ? ' on' : ''}" data-key="${key}" data-val="${k}">${name}</button>`).join('')}</div></div>`;
@@ -5358,6 +5364,8 @@ function renderChar(){ const cur = presetOf(charLook);
     + (endless.seen ? `<div class="crow"><small>Outfit${charLook.outfit === 'none' ? '' : ': over your hat and clothes'}</small><div class="bchips">${OUTFITS.map(([k, name]) => { const won = outfitWon(k, endless);
       return `<button class="rchip${charLook.outfit === k ? ' on' : ''}${won ? '' : ' locked'}" data-key="outfit" data-val="${k}"${won ? '' : ' disabled'}>${name}</button>`; }).join('')}</div>`
       + OUTFITS.filter(([k]) => !outfitWon(k, endless)).map(([k, name]) => `<small class="how">${name}: win it with ${OUTFIT_HOW[k]}.</small>`).join('') + '</div>' : '')
+    // The titles won there, shown under your name: only once there is one to show.
+    + (TITLES.some(([k]) => k !== 'none' && titleWon(k, endless)) ? `<div class="crow"><small>Title</small><div class="bchips">${TITLES.filter(([k]) => titleWon(k, endless)).map(([k, name]) => `<button class="rchip${charLook.title === k ? ' on' : ''}" data-key="title" data-val="${k}">${name}</button>`).join('')}</div></div>` : '')
     // The armour from the shipwright, shown over the look or hidden so the look shows; its hearts stay either way.
     + (armourAt(armour) ? `<div class="crow"><small>Your armour (${armourAt(armour).name}): hidden, its hearts still count</small><div class="bchips">`
       + `<button class="rchip${charLook.hideArmour ? '' : ' on'}" data-key="hideArmour" data-val="">Show it</button><button class="rchip${charLook.hideArmour ? ' on' : ''}" data-key="hideArmour" data-val="1">Hide it</button></div></div>` : '')
@@ -5368,7 +5376,7 @@ $('charBtn').addEventListener('click', openChar);
 $('charIntro').addEventListener('click', openChar);
 $('charClose').addEventListener('click', closeChar);
 $('charCard').addEventListener('click', (e) => { const b = e.target.closest('[data-preset], [data-key]'); if (!b) return;
-  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour, outfit: charLook.outfit}; }
+  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour, outfit: charLook.outfit, title: charLook.title}; }
   else { const k = b.dataset.key, val = b.dataset.val;
     charLook = {...charLook, [k]: k === 'honorGuard' || k === 'hideArmour' ? val === '1' : ['skin', 'hairColour', 'hatColour'].includes(k) ? +val : val}; }
   sfx.click(); renderChar(); save(); });
@@ -5817,6 +5825,7 @@ elClimb.addEventListener('click', () => { audio(); const a = climbAction(); if (
   if (a && tower === BRIDGE_TOWER){ useBridge(a); return; }
   if (a && a.startsWith('pick-')){ pickGarden(a.slice(5)); return; }
   if (a && a.startsWith('trophy-')){ lookAtTrophy(+a.slice(7)); return; }
+  if (a && a.startsWith('hall-')){ const k = a.slice(5); sfx.click(); toasts.clear(); toast(hallWon(k, endless) ? HALL_PIECES[k].story : `An empty stand. ${HALL_PIECES[k].hint}`, 4200, 1); return; }
   if (a === 'fishwall'){ openGuide(); return; }
   if (a && a.startsWith('armoury-')){ lookAtArmoury(a.slice(8)); return; }
   if (a === 'heap'){ sfx.orderFilled(); toasts.clear(); toast(treasureStory(finds()), 5200, 1); return; }
@@ -6172,7 +6181,7 @@ function update(dt){
     const wait = !!show && T < (show === 'harpoon' ? harpoonAt : reloadAt);
     if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); } }
   { const show = !!scanning || !!scanTarget(); if (show !== scanShown){ scanShown = show; elScan.hidden = !show; } elScan.classList.toggle('busy', !!scanning); }
-  { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a.startsWith('g-') ? gardenLabel(gardenIsle, a, gardenSeed, gardenNow(), gardenTool) : tarSail ? tarLabel(a) : tunnels ? (a === 'kick' ? 'Kick him off!' : 'Backstab!') : tower === BRIDGE_TOWER ? (a === 'bmission' && stealth1 ? (eelStage < 2 ? 'Mission 2: the tar eel' : 'Mission 1 again') : bridgeLabel(a)) : a === 'aquarium' ? 'Look in the aquarium' : a === 'tar' ? 'Into the tar' : a === 'bridge' ? 'Onto the bridge' : a === 'isle' ? 'Step ashore' : a === 'temple' ? 'Into the temple' : a === 'door' ? 'Climb the tower' : a === 'dive' ? 'Dive' : a === 'portal' || a === 'castle' || a === 'oldplace' ? 'Into the portal' : a === 'workshop' ? 'Caterman\'s workshop' : a === 'onward' ? 'Through the door' : a === 'skull' ? 'Open the skull door' : a === 'fgtour' ? 'Go with him' : a === 'scope' ? 'Look through the telescope' : a === 'bed' ? 'Sleep till morning' : a === 'plans' ? 'Look at the castle plans' : a === 'roster' ? 'Choose who comes with you' : a === 'captain' ? `Talk to ${LEADER_NAME.pirate}` : a === 'master' ? `Bow to ${LEADER_NAME.ninja}` : a === 'lift' ? 'Ride the chairlift' : a === 'tree' ? 'Climb the great tree' : a.startsWith('trophy-') ? trophyLabel(+a.slice(7)) : a === 'fishwall' ? `Look at your fish (${fishCaught()} of ${SPECIES.length})` : a.startsWith('armoury-') ? armouryLabel(a.slice(8)) : a === 'heap' ? heapLabel() : a === 'forge' ? 'Sharpen your weapons' : a === 'tower' ? 'Climb the tower' : a === 'landing' ? 'Through the castle gate' : a === 'bridgein' ? 'In through the door' : a === 'pick-apple' ? 'Pick an apple' : a === 'pick-carrot' ? 'Pull up a carrot' : a === 'pick-banana' ? 'Pick a banana' : a === 'skrill' ? 'Through Skrill\'s door' : tower && floor + 1 === tower.roof && ROOMS[tower.roof].roof ? 'Up to the roof' : 'Climb the stairs'; } }
+  { const a = climbAction(); if (a !== climbShown){ climbShown = a; elClimb.hidden = !a; if (a) elClimb.textContent = a.startsWith('g-') ? gardenLabel(gardenIsle, a, gardenSeed, gardenNow(), gardenTool) : tarSail ? tarLabel(a) : tunnels ? (a === 'kick' ? 'Kick him off!' : 'Backstab!') : tower === BRIDGE_TOWER ? (a === 'bmission' && stealth1 ? (eelStage < 2 ? 'Mission 2: the tar eel' : 'Mission 1 again') : bridgeLabel(a)) : a === 'aquarium' ? 'Look in the aquarium' : a === 'tar' ? 'Into the tar' : a === 'bridge' ? 'Onto the bridge' : a === 'isle' ? 'Step ashore' : a === 'temple' ? 'Into the temple' : a === 'door' ? 'Climb the tower' : a === 'dive' ? 'Dive' : a === 'portal' || a === 'castle' || a === 'oldplace' ? 'Into the portal' : a === 'workshop' ? 'Caterman\'s workshop' : a === 'onward' ? 'Through the door' : a === 'skull' ? 'Open the skull door' : a === 'fgtour' ? 'Go with him' : a === 'scope' ? 'Look through the telescope' : a === 'bed' ? 'Sleep till morning' : a === 'plans' ? 'Look at the castle plans' : a === 'roster' ? 'Choose who comes with you' : a === 'captain' ? `Talk to ${LEADER_NAME.pirate}` : a === 'master' ? `Bow to ${LEADER_NAME.ninja}` : a === 'lift' ? 'Ride the chairlift' : a === 'tree' ? 'Climb the great tree' : a.startsWith('trophy-') ? trophyLabel(+a.slice(7)) : a.startsWith('hall-') ? (hallWon(a.slice(5), endless) ? `Look at ${HALL_PIECES[a.slice(5)].name}` : 'Look at the empty stand') : a === 'fishwall' ? `Look at your fish (${fishCaught()} of ${SPECIES.length})` : a.startsWith('armoury-') ? armouryLabel(a.slice(8)) : a === 'heap' ? heapLabel() : a === 'forge' ? 'Sharpen your weapons' : a === 'tower' ? 'Climb the tower' : a === 'landing' ? 'Through the castle gate' : a === 'bridgein' ? 'In through the door' : a === 'pick-apple' ? 'Pick an apple' : a === 'pick-carrot' ? 'Pull up a carrot' : a === 'pick-banana' ? 'Pick a banana' : a === 'skrill' ? 'Through Skrill\'s door' : tower && floor + 1 === tower.roof && ROOMS[tower.roof].roof ? 'Up to the roof' : 'Climb the stairs'; } }
   { const l = ctf ? null : tarSail ? (tarAshore ? 'tarboat' : 'tarsea') : seaFight && walker.state === 'aboard' ? 'sea' : tunnels && walker.state === 'ashore' ? (tunnels.kickT >= 0 ? null : 'tunnels') : floor >= 0 && walker.state === 'ashore' && !fgScene ? (tower === BARGE ? 'barge' : tower === BRIDGE_TOWER ? 'gate' : inGigantis() ? (tower === CASTLE && viaLanding ? 'gate' : 'home') : towerWon ? (tower && tower.boss === boss7 ? 'down' : 'jump') : tower === DEPTHS || tower === TEMPLE_DEEP ? 'swim' : 'leave') : null;
     if (l !== leaveShown){ leaveShown = l; elLeave.hidden = !l; if (l) elLeave.textContent = l === 'jump' ? 'Back to the boat' : l === 'down' ? 'Down to the portal' : l === 'home' ? 'Back through the portal' : l === 'gate' ? 'Back to your boat' : l === 'barge' ? 'Leave the barge' : l === 'sea' ? 'Leave the Battle Barge' : l === 'swim' ? 'Swim up' : l === 'tunnels' ? 'Leave the tunnels' : l === 'tarboat' ? 'Back to the chemistry boat' : l === 'tarsea' ? 'Back to the bridge' : 'Leave the tower'; } }
   if (isle5Stage >= 1 && king.state !== 'dead' && king.state !== 'dying') king.dead();
@@ -6189,6 +6198,8 @@ function update(dt){
   // Nothing walks through your treasure heap.
   if (floor === HALL_B && castleHQ && walker.state === 'ashore'){ const dx = walker.x - HQ_HEAP.x, dy = walker.y - HQ_HEAP.y, d = Math.hypot(dx, dy);
     if (d < HEAP_R && d > 0) walkStep(walker, dx/d*(HEAP_R - d), dy/d*(HEAP_R - d), build); }
+  if (floor === HALL_B && castleHQ && endless.seen && walker.state === 'ashore') for (const k of HALL_KINDS){ const p = hallAt(k), dx = walker.x - ROOMS[HALL_B].x - p.dx, dy = walker.y - ROOMS[HALL_B].y - p.dy, d = Math.hypot(dx, dy);
+    if (d < HALL_SOLID && d > 0) walkStep(walker, dx/d*(HALL_SOLID - d), dy/d*(HALL_SOLID - d), build); }
   if (floor === TEMPLE6 && cth.state !== 'gone' && walker.state === 'ashore'){ const dx = walker.x - cth.x, dy = walker.y - cth.y, d = Math.hypot(dx, dy);
     if (d < CTH_R && d > 0) walkStep(walker, dx/d*(CTH_R - d), dy/d*(CTH_R - d), build); }
   jawsT -= dt; { const k = [king, ...seaBoss.king].find(s => s.state === 'stalk'); if (k && jawsT <= 0){ sfx.jaws(); jawsT = k.angry ? .7 : 1.1; } }
@@ -7224,6 +7235,9 @@ function drawRoom(){
   if (floor === HALL_B && castleHQ){ const got = treasuresFound(finds()); actors.push({d: HQ_HEAP.x + HQ_HEAP.y, f: () => drawTreasureHeap(drawView, HQ_HEAP.x, HQ_HEAP.y, got)}); }
   if (floor === HALL_B && castleHQ){ const b = beaten(); TROPHY_KINDS.forEach((k, i) => { const s = standAt(i), x = ROOMS[HALL_B].x + s.dx, y = ROOMS[HALL_B].y + s.dy;
     actors.push({d: x + y, f: () => drawStand(drawView, x, y, TROPHIES[k].won(b) ? k : null)}); }); }
+  // The Endless Isle's three round the dais, once you have been there.
+  if (floor === HALL_B && castleHQ && endless.seen) for (const k of HALL_KINDS){ const p = hallAt(k), x = ROOMS[HALL_B].x + p.dx, y = ROOMS[HALL_B].y + p.dy, won = hallWon(k, endless);
+    actors.push({d: x + y, f: () => drawHallPiece(drawView, x, y, k, won)}); }
   if (R.kind === 'bridge') actors.push(...bridgeSolids(drawView, floor, {talk: bridgeTalk, slap: bridgeSlap, news: bridgeNews, boat: stealth1, caged: eelStage >= 2, rattle: cageRattle, orb: orbGlow}));
   for (const a of allies.list) actors.push({d: a.x + a.y, f: () => allies.drawBody(drawView, a)});
   if (floor === ROOF10){ drawScoopRing(drawView, pelican); actors.push({d: pelican.nest.x + pelican.nest.y - 30, f: () => drawPerchNest(drawView, pelican)});

@@ -7,6 +7,11 @@ import {
   emblemWon,
   FLAG_BADGES,
   flagWon,
+  HALL_KINDS,
+  HALL_SOLID,
+  hallAt,
+  hallWon,
+  nearHall,
   newOutfits,
   newRewards,
   nextReward,
@@ -16,9 +21,13 @@ import {
   rewardName,
   rewardsWon,
   sideBadges,
+  TITLE_NAME,
+  titleWon,
   WON_FLAGS,
 } from '../../src/data/rewards';
 import { RUNS, skied } from '../../src/data/slalom';
+import { HEAP_R } from '../../src/data/treasury';
+import { STAND_RING } from '../../src/data/trophies';
 import { LORD_PAINT, MASTER_PAINT, PAINTS } from '../../src/data/tuning';
 
 describe("the Endless Isle's side rewards", () => {
@@ -96,6 +105,8 @@ describe("the Endless Isle's side rewards", () => {
       "the captain's coat and tricorn",
       'the Jolly Roger',
       'the Pirate Lord hull paint, black and red',
+      'the title Pirate Lord',
+      "Captain Cappy's cutlass for your trophy hall",
     ]);
   });
 
@@ -117,6 +128,48 @@ describe("the Endless Isle's side rewards", () => {
     expect(PAINTS).toHaveLength(13);
   });
 
+  it('gives a side its title and its stand in the trophy hall at all nine, and the mirror and a title for both', () => {
+    const b = noBattles();
+    b.marks.pirate = { tank: 8, damage: 8, healer: 8 };
+    const pirate = { battles: structuredClone(b) };
+    expect(titleWon('lord', pirate)).toBe(true);
+    expect(titleWon('master', pirate)).toBe(false);
+    expect(titleWon('endless', pirate)).toBe(false);
+    expect(titleWon('none', {})).toBe(true);
+    expect(hallWon('cutlass', pirate)).toBe(true);
+    expect(hallWon('mirror', pirate)).toBe(false);
+    b.marks.ninja = { tank: 8, damage: 8, healer: 7 };
+    const almost = { battles: structuredClone(b) };
+    b.marks.ninja.healer = 8;
+    const both = { battles: structuredClone(b) };
+    expect(newRewards(almost, both).map(rewardName)).toEqual([
+      'the Grand Master hull paint, midnight blue and silver',
+      'the title Grand Master',
+      "Master Sensei's katana for your trophy hall",
+      'the title Master of the Endless Isle',
+      'the golden mirror',
+    ]);
+    expect(TITLE_NAME.endless).toBe('Master of the Endless Isle');
+    expect(nextReward(almost.battles, 'ninja')?.what).toBe(
+      "the Grand Master hull paint, midnight blue and silver, the title Grand Master and Master Sensei's katana for your trophy hall",
+    );
+  });
+
+  it('stands the three in the trophy hall round the dais, clear of it and of the stands round the wall, the two sides mirrored', () => {
+    const cut = hallAt('cutlass');
+    const kat = hallAt('katana');
+    expect(cut.dx).toBeCloseTo(-kat.dx, 6);
+    expect(cut.dy).toBeCloseTo(-kat.dy, 6);
+    for (const k of HALL_KINDS) {
+      const p = hallAt(k);
+      const r = Math.hypot(p.dx, p.dy);
+      expect(r).toBeGreaterThan(HEAP_R + HALL_SOLID + 16);
+      expect(r).toBeLessThan(STAND_RING - 30);
+      expect(nearHall(p.dx + 5, p.dy)).toBe(k);
+    }
+    expect(nearHall(0, 0)).toBeNull();
+  });
+
   it('names the next reward for a side and how far off it is, up the ladder, until there are none left', () => {
     expect(nextReward(undefined, 'ninja')).toEqual({
       at: OUTFIT_BADGES,
@@ -131,7 +184,7 @@ describe("the Endless Isle's side rewards", () => {
     expect(nextReward(b, 'pirate')?.at).toBe(ALL_BADGES);
     b.marks.pirate.healer = 8;
     expect(nextReward(b, 'pirate')).toBeNull();
-    expect(rewardsWon(b, 'pirate')).toHaveLength(3);
+    expect(rewardsWon(b, 'pirate')).toHaveLength(5);
     expect(nextReward(b, 'ninja')?.have).toBe(0);
   });
 });

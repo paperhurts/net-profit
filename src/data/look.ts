@@ -16,6 +16,8 @@ export type HatKind = 'souwester' | 'cap' | 'fishing' | 'cowboy' | 'none';
 export type HairKind = 'none' | 'short' | 'spiky' | 'long' | 'pigtails';
 export type FaceKind = 'dots' | 'smile' | 'grin' | 'freckles' | 'glasses';
 export type OutfitKind = 'none' | 'captain' | 'ninja' | 'snow';
+/** A title won on the Endless Isle, shown under your name: for all nine of a side's badges, or of both sides'. */
+export type TitleKind = 'none' | 'lord' | 'master' | 'endless';
 
 export type Look = {
   skin: number;
@@ -34,6 +36,8 @@ export type Look = {
   hideArmour: boolean;
   /** An outfit won on the Endless Isle, over the look: like the armour shown or hidden, not part of who a preset is. */
   outfit: OutfitKind;
+  /** The title shown under your name, won there too; nor is it. */
+  title: TitleKind;
 };
 
 export const SKINS = ['#F3CDA9', '#E2AE84', '#C68B5E', '#9A6440', '#6B4228'] as const;
@@ -76,6 +80,12 @@ export const FACES: readonly [FaceKind, string][] = [
   ['freckles', 'Freckles'],
   ['glasses', 'Glasses'],
 ];
+export const TITLES: readonly [TitleKind, string][] = [
+  ['none', 'No title'],
+  ['lord', 'Pirate Lord'],
+  ['master', 'Grand Master'],
+  ['endless', 'Master of the Endless Isle'],
+];
 export const OUTFITS: readonly [OutfitKind, string][] = [
   ['none', 'Your own clothes'],
   ['captain', "Captain's coat"],
@@ -109,6 +119,7 @@ export const SKIPPER: Look = {
   honorGuard: false,
   hideArmour: false,
   outfit: 'none',
+  title: 'none',
 };
 
 /** The people on the pick screen: the old figure first, then the kid's three, named by us. */
@@ -127,6 +138,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       honorGuard: false,
       hideArmour: false,
       outfit: 'none',
+      title: 'none',
     },
   },
   {
@@ -142,6 +154,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       honorGuard: false,
       hideArmour: false,
       outfit: 'none',
+      title: 'none',
     },
   },
   {
@@ -157,6 +170,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       honorGuard: false,
       hideArmour: false,
       outfit: 'none',
+      title: 'none',
     },
   },
 ];
@@ -171,7 +185,7 @@ export function presetOf(l: Look): string | null {
     a.hatColour === b.hatColour &&
     a.face === b.face &&
     a.honorGuard === b.honorGuard;
-  // Whether the bought armour shows, and the outfit over it all, are not part of who a preset is.
+  // Whether the bought armour shows, the outfit over it all and the title are not part of who a preset is.
   return PRESETS.find((p) => same(p.look, l))?.id ?? null;
 }
 
@@ -196,6 +210,7 @@ export function parseLook(o: unknown): Look {
     honorGuard: r.honorGuard === true,
     hideArmour: r.hideArmour === true,
     outfit: pick(r.outfit, OUTFITS, SKIPPER.outfit),
+    title: pick(r.title, TITLES, SKIPPER.title),
   };
 }
 

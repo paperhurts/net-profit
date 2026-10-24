@@ -2,13 +2,15 @@
  * The Endless Isle's side rewards, the eleventh piece of the owner's plan (2026-10-23, taken as it stood): things to
  * wear, fly and show for fighting for a side, counted across that side's badges, three roles of three, nine in all;
  * and for the Ninja Slalom, a snow ninja's white outfit for gold on all three runs. A side's outfit at 3 of its badges,
- * its flag for the boat at 6, and its hull paint at all 9.
+ * its flag for the boat at 6, and at all 9 its hull paint, its title and a stand in your trophy hall; at all nine of
+ * both sides', the golden mirror and the title Master of the Endless Isle (the plan said Doom Island, the isle's name
+ * then).
  */
 
 import type { Side } from '../world/endless';
 import { type Battles, badgeOf } from './battle';
 import { EMBLEMS, type Flag } from './flag';
-import type { OutfitKind } from './look';
+import type { OutfitKind, TitleKind } from './look';
 import { medalOf, RUN_ORDER, RUNS, type Slalom } from './slalom';
 
 /** A side's outfit takes this many of its badges, its flag this many, and its paint all of them. */
@@ -101,39 +103,158 @@ export function paintWon(k: WonPaint, w: Won): boolean {
   return sideBadges(w.battles, WON_PAINTS[k].side) >= ALL_BADGES;
 }
 
-/** A reward of either kind, as it is announced. */
+/** The titles: Pirate Lord and Grand Master for all of a side's badges, Master of the Endless Isle for both. */
+export type WonTitle = Exclude<TitleKind, 'none'>;
+export function titleWon(k: TitleKind, w: Won): boolean {
+  if (k === 'lord') return sideBadges(w.battles, 'pirate') >= ALL_BADGES;
+  if (k === 'master') return sideBadges(w.battles, 'ninja') >= ALL_BADGES;
+  if (k === 'endless') return titleWon('lord', w) && titleWon('master', w);
+  return true;
+}
+export const TITLE_NAME: Readonly<Record<WonTitle, string>> = {
+  lord: 'Pirate Lord',
+  master: 'Grand Master',
+  endless: 'Master of the Endless Isle',
+};
+
+/**
+ * The trophy hall's three from the Endless Isle, at Gigantis, round the treasure dais: Captain Cappy's cutlass on a
+ * stand to its left and Master Sensei's katana on one to its right, as the two isles mirror each other, and the golden
+ * mirror behind it, before the way up. Where each stands from the hall's middle, as the boss trophies' stands are.
+ */
+export type HallKind = 'cutlass' | 'katana' | 'mirror';
+export const HALL_KINDS: readonly HallKind[] = ['cutlass', 'katana', 'mirror'];
+export const HALL_PIECES: Readonly<
+  Record<HallKind, { name: string; story: string; hint: string; angle: number; r: number }>
+> = {
+  cutlass: {
+    name: "Captain Cappy's cutlass",
+    story:
+      'Captain Cappy\'s own cutlass, its hilt all gold, for the Pirate Lord. "Only the finest pirate on the seven seas gets to hang this on a wall. Arr, that\'s you!"',
+    hint: 'Win all nine pirate badges on the Endless Isle.',
+    angle: Math.PI * 0.75,
+    r: 72,
+  },
+  katana: {
+    name: "Master Sensei's katana",
+    story:
+      'Master Sensei\'s katana, in its black and silver, for the Grand Master. "It remembers every lesson. Now it will remember yours."',
+    hint: 'Win all nine ninja badges on the Endless Isle.',
+    angle: Math.PI * 1.75,
+    r: 72,
+  },
+  mirror: {
+    name: 'the golden mirror',
+    story:
+      'The golden mirror, for the Master of the Endless Isle. Look in it and two of everything look back, the way the two isles do.',
+    hint: 'Win all nine badges on both sides of the Endless Isle.',
+    angle: Math.PI * 1.25,
+    r: 62,
+  },
+};
+export function hallWon(k: HallKind, w: Won): boolean {
+  if (k === 'cutlass') return titleWon('lord', w);
+  if (k === 'katana') return titleWon('master', w);
+  return titleWon('endless', w);
+}
+/** Where a piece stands, from the hall's middle; how near to look at it, and how near it stops you. */
+export function hallAt(k: HallKind): { dx: number; dy: number } {
+  const h = HALL_PIECES[k];
+  return { dx: Math.cos(h.angle) * h.r, dy: Math.sin(h.angle) * h.r };
+}
+export const HALL_REACH = 22;
+export const HALL_SOLID = 10;
+/** The piece within reach of a point in the hall, or null. */
+export function nearHall(dx: number, dy: number): HallKind | null {
+  let best: HallKind | null = null;
+  let bestD = HALL_REACH;
+  for (const k of HALL_KINDS) {
+    const p = hallAt(k);
+    const d = Math.hypot(dx - p.dx, dy - p.dy);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
+  }
+  return best;
+}
+
+/** A reward of any kind, as it is announced. */
 export type Reward =
   | { kind: 'outfit'; key: Exclude<OutfitKind, 'none'> }
   | { kind: 'flag'; key: WonFlag }
-  | { kind: 'paint'; key: WonPaint };
+  | { kind: 'paint'; key: WonPaint }
+  | { kind: 'title'; key: WonTitle }
+  | { kind: 'hall'; key: HallKind };
 export function rewardName(r: Reward): string {
   if (r.kind === 'outfit') return OUTFIT_NAME[r.key];
   if (r.kind === 'flag') return WON_FLAGS[r.key].name;
-  return WON_PAINTS[r.key].name;
+  if (r.kind === 'paint') return WON_PAINTS[r.key].name;
+  if (r.kind === 'title') return `the title ${TITLE_NAME[r.key]}`;
+  return r.key === 'mirror'
+    ? HALL_PIECES.mirror.name
+    : `${HALL_PIECES[r.key].name} for your trophy hall`;
 }
-/** Every reward won between two moments, outfits first. */
+export function rewardWon(r: Reward, w: Won): boolean {
+  if (r.kind === 'outfit') return outfitWon(r.key, w);
+  if (r.kind === 'flag') return flagWon(r.key, w);
+  if (r.kind === 'paint') return paintWon(r.key, w);
+  if (r.kind === 'title') return titleWon(r.key, w);
+  return hallWon(r.key, w);
+}
+const ALL_REWARDS: readonly Reward[] = [
+  { kind: 'outfit', key: 'captain' },
+  { kind: 'outfit', key: 'ninja' },
+  { kind: 'outfit', key: 'snow' },
+  { kind: 'flag', key: 'jolly' },
+  { kind: 'flag', key: 'banner' },
+  { kind: 'paint', key: 'lord' },
+  { kind: 'paint', key: 'master' },
+  { kind: 'title', key: 'lord' },
+  { kind: 'title', key: 'master' },
+  { kind: 'hall', key: 'cutlass' },
+  { kind: 'hall', key: 'katana' },
+  { kind: 'title', key: 'endless' },
+  { kind: 'hall', key: 'mirror' },
+];
+/** Every reward won between two moments, in the order they are said. */
 export function newRewards(was: Won, now: Won): Reward[] {
-  const out: Reward[] = newOutfits(was, now).map((key) => ({ kind: 'outfit', key }) as const);
-  for (const key of ['jolly', 'banner'] as const)
-    if (!flagWon(key, was) && flagWon(key, now)) out.push({ kind: 'flag', key });
-  for (const key of ['lord', 'master'] as const)
-    if (!paintWon(key, was) && paintWon(key, now)) out.push({ kind: 'paint', key });
-  return out;
+  return ALL_REWARDS.filter((r) => !rewardWon(r, was) && rewardWon(r, now));
 }
 
-/** A side's rewards for its badges, in the order they come. */
-const LADDER: Readonly<Record<Side, readonly { at: number; r: Reward }[]>> = {
+/** A side's rewards for its badges, a step at a time. */
+const LADDER: Readonly<Record<Side, readonly { at: number; rs: readonly Reward[] }[]>> = {
   pirate: [
-    { at: OUTFIT_BADGES, r: { kind: 'outfit', key: 'captain' } },
-    { at: FLAG_BADGES, r: { kind: 'flag', key: 'jolly' } },
-    { at: ALL_BADGES, r: { kind: 'paint', key: 'lord' } },
+    { at: OUTFIT_BADGES, rs: [{ kind: 'outfit', key: 'captain' }] },
+    { at: FLAG_BADGES, rs: [{ kind: 'flag', key: 'jolly' }] },
+    {
+      at: ALL_BADGES,
+      rs: [
+        { kind: 'paint', key: 'lord' },
+        { kind: 'title', key: 'lord' },
+        { kind: 'hall', key: 'cutlass' },
+      ],
+    },
   ],
   ninja: [
-    { at: OUTFIT_BADGES, r: { kind: 'outfit', key: 'ninja' } },
-    { at: FLAG_BADGES, r: { kind: 'flag', key: 'banner' } },
-    { at: ALL_BADGES, r: { kind: 'paint', key: 'master' } },
+    { at: OUTFIT_BADGES, rs: [{ kind: 'outfit', key: 'ninja' }] },
+    { at: FLAG_BADGES, rs: [{ kind: 'flag', key: 'banner' }] },
+    {
+      at: ALL_BADGES,
+      rs: [
+        { kind: 'paint', key: 'master' },
+        { kind: 'title', key: 'master' },
+        { kind: 'hall', key: 'katana' },
+      ],
+    },
   ],
 };
+/** Names in a list: a, b and c. */
+export function listOf(names: readonly string[]): string {
+  return names.length < 2
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
 
 /** The next reward for fighting for a side, while there is one to win: how many badges, and what it is. */
 export function nextReward(
@@ -142,10 +263,10 @@ export function nextReward(
 ): { at: number; what: string; have: number } | null {
   const have = sideBadges(b, side);
   const next = LADDER[side].find((s) => have < s.at);
-  return next ? { at: next.at, what: rewardName(next.r), have } : null;
+  return next ? { at: next.at, what: listOf(next.rs.map(rewardName)), have } : null;
 }
 /** The rewards a side's badges have won so far. */
 export function rewardsWon(b: Battles | undefined, side: Side): Reward[] {
   const have = sideBadges(b, side);
-  return LADDER[side].filter((s) => have >= s.at).map((s) => s.r);
+  return LADDER[side].filter((s) => have >= s.at).flatMap((s) => s.rs);
 }

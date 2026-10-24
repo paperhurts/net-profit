@@ -724,6 +724,7 @@ type Np = {
     honorGuard: boolean;
     hideArmour: boolean;
     outfit: string;
+    title: string;
   };
   charOpen: boolean;
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
@@ -8474,7 +8475,7 @@ test("the side rewards' outfits: a third pirate badge wins the captain's coat an
   expect(errors).toEqual([]);
 });
 
-test("the side rewards' flags and paints: the Jolly Roger at six pirate badges, flown with a tap and its emblem for any flag; a ninth badge wins the Pirate Lord hull paint", async ({
+test("the side rewards' flags, paints and titles: the Jolly Roger at six pirate badges, flown with a tap and its emblem for any flag; a ninth badge wins the Pirate Lord hull paint, the title Pirate Lord and the cutlass", async ({
   context,
   page,
 }) => {
@@ -8541,7 +8542,7 @@ test("the side rewards' flags and paints: the Jolly Roger at six pirate badges, 
   await page.click('#climb');
   await page.click('#endlessFight');
   await expect(page.locator('#endlessRoles .reward')).toContainText(
-    'At 9 badges as a pirate, all three roles counted: the Pirate Lord hull paint, black and red. You have 8.',
+    "At 9 badges as a pirate, all three roles counted: the Pirate Lord hull paint, black and red, the title Pirate Lord and Captain Cappy's cutlass for your trophy hall. You have 8.",
   );
   await page.click('#endlessRoles [data-role="healer"]');
   await page.evaluate(() => {
@@ -8559,16 +8560,139 @@ test("the side rewards' flags and paints: the Jolly Roger at six pirate badges, 
   await expect(page.locator('#ctfReward')).toContainText(
     "You've won the Pirate Lord hull paint, black and red: paint your boat with it in the shop.",
   );
+  // The title, under your name now, and the cutlass for a trophy hall.
+  await expect(page.locator('#ctfReward')).toContainText(
+    "You're the Pirate Lord! It's under your name on Your character.",
+  );
+  await expect(page.locator('#ctfReward')).toContainText(
+    "Captain Cappy's cutlass is yours, for your trophy hall, when you have one.",
+  );
+  expect(await page.evaluate(() => window.__np.charLook.title)).toBe('lord');
   await page.click('#ctfDone');
   expect(await page.locator('#paints .sw').count()).toBe(11);
   await page.locator('#paints [aria-label="Pirate Lord"]').dispatchEvent('click');
   await page.waitForFunction(() => window.__np.paint === 11, null, { timeout: 2000 });
-  // All nine: the card at the leader lists what they are.
+  // All nine: Captain Cappy greets you by your title, and the card at the leader lists what is yours.
   await page.click('#climb');
+  await expect(page.locator('#endlessSay')).toContainText('Ahoy, Pirate Lord!');
   await page.click('#endlessFight');
   await expect(page.locator('#endlessRoles .reward')).toContainText(
-    "All 9 badges as a pirate! Yours: the captain's coat and tricorn, the Jolly Roger, the Pirate Lord hull paint, black and red.",
+    "All 9 badges as a pirate! Yours: the captain's coat and tricorn, the Jolly Roger, the Pirate Lord hull paint, black and red, the title Pirate Lord and Captain Cappy's cutlass for your trophy hall.",
   );
+  await page.click('#endlessClose');
+  // On the character card, under the name, and to pick from.
+  await page.locator('#charBtn').dispatchEvent('click');
+  await expect(page.locator('#charName')).toContainText('Pirate Lord');
+  await page.click('#charOptions [data-key="title"][data-val="none"]');
+  await expect(page.locator('#charName')).not.toContainText('Pirate Lord');
+  await expect(page.locator('#charOptions [data-key="title"][data-val="master"]')).toHaveCount(0);
+  await page.click('#charClose');
+  expect(errors).toEqual([]);
+});
+
+test("the side rewards in your trophy hall: Captain Cappy's cutlass and Master Sensei's katana either side of the treasure dais, and the golden mirror behind it, for all nine badges of both sides", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 1000,
+    spear: 4,
+    day: 5,
+    towerTaken: true,
+    isle4Stage: 1,
+    isle5Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 4,
+    cryptWon: true,
+    castleHQ: true,
+    scanner: 1,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 40,
+        won: 30,
+        marks: {
+          pirate: { tank: 8, damage: 8, healer: 8 },
+          ninja: { tank: 8, damage: 8, healer: 3 },
+        },
+      },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 2400, y: 6500, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.walker.x = 2400 + 150;
+    window.__np.walker.y = 6900 + 95;
+  });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === 12);
+  for (const [floor, y, r] of [
+    [12, -6000, 170],
+    [13, -6900, 160],
+  ] as const) {
+    await page.evaluate(
+      ([y0, r0]) => {
+        window.__np.walker.x = -13500 - r0 * 0.6 * Math.SQRT1_2 + 6;
+        window.__np.walker.y = y0 - r0 * 0.6 * Math.SQRT1_2 + 6;
+      },
+      [y, r] as const,
+    );
+    await expect(page.locator('#climb')).toHaveText('Through the door', { timeout: 3000 });
+    await page.click('#climb');
+    await page.waitForFunction((f) => window.__np.floor === f + 1, floor);
+  }
+  // The hall's middle, from the dais, and each piece by its place round it.
+  const mid = await page.evaluate(() => window.__np.HQ_HEAP);
+  const at = async (dx: number, dy: number) => {
+    await page.evaluate(
+      ([x, y]) => {
+        window.__np.walker.x = x as number;
+        window.__np.walker.y = y as number;
+      },
+      [mid.x + dx, mid.y + dy] as const,
+    );
+  };
+  const k = Math.SQRT1_2;
+  // All nine pirate badges: the cutlass on its stand to the left of the dais.
+  await at(-72 * k + 14, 72 * k);
+  await expect(page.locator('#climb')).toHaveText("Look at Captain Cappy's cutlass", {
+    timeout: 3000,
+  });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Pirate Lord');
+  // Not yet the ninjas': an empty stand that says how; nor the mirror, for both.
+  await at(72 * k - 14, -72 * k);
+  await expect(page.locator('#climb')).toHaveText('Look at the empty stand', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText(
+    'Win all nine ninja badges on the Endless Isle.',
+  );
+  await at(-62 * k - 14, -62 * k);
+  await expect(page.locator('#climb')).toHaveText('Look at the empty stand', { timeout: 3000 });
+  // A stand stops you walking through it.
+  await at(-72 * k + 2, 72 * k);
+  await page.waitForTimeout(200);
+  const pushed = await page.evaluate(
+    ([x, y]) =>
+      Math.hypot(window.__np.walker.x - (x as number), window.__np.walker.y - (y as number)),
+    [mid.x - 72 * k, mid.y + 72 * k] as const,
+  );
+  expect(pushed).toBeGreaterThanOrEqual(9);
+  // All nine on both sides: the katana, and the golden mirror.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const e = n.endless as unknown as { battles: { marks: { ninja: { healer: number } } } };
+    e.battles.marks.ninja.healer = 8;
+  });
+  await at(-62 * k - 14, -62 * k);
+  await expect(page.locator('#climb')).toHaveText('Look at the golden mirror', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('two of everything look back');
   expect(errors).toEqual([]);
 });
 
