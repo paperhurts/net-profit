@@ -219,7 +219,7 @@ export const CROPS: Record<CropId, Crop> = {
     'lantern gourds',
     'divine',
     30000,
-    560,
+    500,
     30 * M,
     10 * M,
     3,
@@ -274,6 +274,8 @@ export type Bed = {
    * sizes: their ripe fruit are normal-sized. */
   w?: number[];
   born?: number;
+  /** Gold or Rainbow, for each ripe fruit that is; '' for one that is not. Missing in saves from before them. */
+  v?: Variant[];
 };
 
 /**
@@ -310,6 +312,30 @@ export function sizeOf(planted: number, n: number): number {
   return m * (SIZE.giantMin + (SIZE.giantMax - SIZE.giantMin) * hash01(planted, n * 3 + 2));
 }
 
+/**
+ * Gold and Rainbow (part five), rolled as each fruit ripens, at Grow a Garden's own numbers, the owner's call: one in
+ * 100 is Gold and sells for 20 times as much, one in 1,000 Rainbow and 50 times; never both. Worked out like its size,
+ * from its plant and its count, so a reload cannot roll it again.
+ */
+export type Variant = '' | 'gold' | 'rainbow';
+export const VARIANTS = {
+  gold: { odds: 100, times: 20 },
+  rainbow: { odds: 1000, times: 50 },
+} as const;
+
+/** Gold, Rainbow, or neither, for the n-th fruit a plant planted at this time ripens. */
+export function variantOf(planted: number, n: number): Variant {
+  const r = hash01(planted + 7, n * 5 + 3);
+  if (r < 1 / VARIANTS.rainbow.odds) return 'rainbow';
+  if (r < 1 / VARIANTS.rainbow.odds + 1 / VARIANTS.gold.odds) return 'gold';
+  return '';
+}
+
+/** How many times as much a fruit of this variant sells for. */
+export function variantTimes(v: Variant | undefined): number {
+  return v ? VARIANTS[v].times : 1;
+}
+
 /** Is this size a giant's. */
 export function isGiant(m: number): boolean {
   return m >= SIZE.giantMin * SIZE.min;
@@ -322,8 +348,11 @@ export function isGiant(m: number): boolean {
 export const FRUIT_MAX = 100000;
 
 /** What a fruit of a crop, this size, sells for. */
-export function fruitValue(k: CropId, m: number): number {
-  return Math.min(FRUIT_MAX, Math.round(CROPS[k].sell * Math.max(SIZE.floor, m) ** 2));
+export function fruitValue(k: CropId, m: number, v?: Variant): number {
+  return Math.min(
+    FRUIT_MAX,
+    Math.round(CROPS[k].sell * Math.max(SIZE.floor, m) ** 2 * variantTimes(v)),
+  );
 }
 
 /** What a fruit of a crop, this size, weighs, in kilos, to two places (three for the smallest). */
@@ -333,7 +362,7 @@ export function fruitKg(k: CropId, m: number): string {
 }
 
 /** A fruit in the basket: its crop and its size. */
-export type Fruit = { c: CropId; m: number };
+export type Fruit = { c: CropId; m: number; v?: Variant };
 
 /** The garden's part of the save. Everything past seen is optional, so saves made before it still load. */
 export type Garden = {
@@ -400,6 +429,9 @@ export function growBed(b: Bed, now: number): void {
     const n = b.born ?? b.ripe;
     w.push(sizeOf(b.planted, n));
     b.w = w;
+    const v = variantsOn(b);
+    v.push(variantOf(b.planted, n));
+    b.v = v;
     b.born = n + 1;
     b.ripe++;
     b.next = b.ripe < c.holds && c.regrow ? b.next + c.regrow * S : 0;
@@ -411,6 +443,13 @@ export function sizesOn(b: Bed): number[] {
   const w = (b.w ?? []).slice(0, b.ripe);
   while (w.length < b.ripe) w.push(1);
   return w;
+}
+
+/** Gold or Rainbow for each ripe fruit on a bed ('' where it is neither, and for any saved before them). */
+export function variantsOn(b: Bed): Variant[] {
+  const v = (b.v ?? []).slice(0, b.ripe);
+  while (v.length < b.ripe) v.push('');
+  return v;
 }
 
 /** Every bed brought up to now. */
@@ -430,7 +469,7 @@ export function basketCount(g: Garden): number {
 
 /** What the basket would sell for at the stand. */
 export function basketValue(g: Garden): number {
-  return (g.bag ?? []).reduce((n, f) => n + fruitValue(f.c, f.m), 0);
+  return (g.bag ?? []).reduce((n, f) => n + fruitValue(f.c, f.m, f.v), 0);
 }
 
 /** Seeds of a crop left at the stall today. */
@@ -472,9 +511,14 @@ export function pick(g: Garden, i: number, now: number): Fruit[] {
   if (n <= 0) return [];
   const c = CROPS[b.crop];
   const w = sizesOn(b);
-  const got = w.slice(0, n).map((m) => ({ c: b.crop, m }));
+  const vs = variantsOn(b);
+  const got: Fruit[] = w.slice(0, n).map((m, j) => {
+    const v = vs[j];
+    return v ? { c: b.crop, m, v } : { c: b.crop, m };
+  });
   g.bag = [...(g.bag ?? []), ...got];
   b.w = w.slice(n);
+  b.v = vs.slice(n);
   b.ripe -= n;
   if (!c.regrow) {
     if (b.ripe === 0 && g.beds) g.beds[i] = null;
@@ -512,6 +556,11 @@ function size(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.max(0.5, Math.min(5, v)) : 1;
 }
 
+/** Gold or Rainbow from the save, or neither. */
+function variant(v: unknown): Variant {
+  return v === 'gold' || v === 'rainbow' ? v : '';
+}
+
 /** A time from the save: a finite number of milliseconds from 0, or null. */
 function time(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
@@ -526,6 +575,7 @@ function parseBed(v: unknown): Bed | null {
   if (planted === null || next === null) return null;
   const b: Bed = { crop: k.crop, planted, ripe: count(k.ripe, CROPS[k.crop].holds), next };
   if (Array.isArray(k.w)) b.w = k.w.slice(0, b.ripe).map(size);
+  if (Array.isArray(k.v)) b.v = k.v.slice(0, b.ripe).map(variant);
   if (typeof k.born === 'number' && Number.isFinite(k.born) && k.born >= b.ripe)
     b.born = Math.floor(k.born);
   return b;
@@ -568,8 +618,14 @@ export function parseGarden(raw: unknown): Garden {
   const bag: Fruit[] = [];
   if (Array.isArray(k.bag))
     for (const f of k.bag)
-      if (f && typeof f === 'object' && isCrop((f as Fruit).c))
-        bag.push({ c: (f as Fruit).c, m: size((f as Fruit).m) });
+      if (f && typeof f === 'object' && isCrop((f as Fruit).c)) {
+        const v = variant((f as Fruit).v);
+        bag.push(
+          v
+            ? { c: (f as Fruit).c, m: size((f as Fruit).m), v }
+            : { c: (f as Fruit).c, m: size((f as Fruit).m) },
+        );
+      }
   const old = parseCounts(k.basket, BASKET_MAX);
   for (const c of CROP_IDS) for (let n = old?.[c] ?? 0; n > 0; n--) bag.push({ c, m: 1 });
   if (bag.length) g.bag = bag.slice(0, BASKET_MAX);

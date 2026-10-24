@@ -2198,9 +2198,10 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
   if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, got = pickBed(gardenIsle, i, now); toasts.clear();
     if (!got.length){ sfx.denied(); toast('Your basket is full. Sell it at the stand.', 2400); return; }
     got.forEach((f, j) => sfx.sale(j, 0)); save();
-    // A giant is a rare catch: its own fanfare, and its weight.
-    const big = got.find(f => isGiant(f.m));
-    if (big){ sfx.tierUp(); toast(`A giant ${CROPS[k].fruit}! ${fruitKg(k, big.m)} kg. It sells for ${fruitValue(k, big.m).toLocaleString('en-GB')}.`, 4200, 2); return; }
+    // Rainbow, Gold and giants are rare catches: their own fanfare, and what they are worth. The rarest picked says so.
+    const rare = got.find(f => f.v === 'rainbow') ?? got.find(f => f.v === 'gold') ?? got.find(f => isGiant(f.m));
+    if (rare){ sfx.tierUp(); const what = (rare.v === 'rainbow' ? 'A Rainbow ' : rare.v === 'gold' ? 'A Gold ' : 'A ') + (isGiant(rare.m) ? 'giant ' : '') + CROPS[k].fruit;
+      toast(`${what}! ${fruitKg(k, rare.m)} kg. It sells for ${fruitValue(k, rare.m, rare.v).toLocaleString('en-GB')}.`, 4200, 2); return; }
     toast(`Picked ${howMany(k, got.length)}` + (got.length === 1 ? `, ${fruitKg(k, got[0].m)} kg.` : '.'), 1800); return; }
   if (a.startsWith('g-wait-')){ toasts.clear(); toast(gardenLabel(gardenIsle, a, gardenSeed, now) + '.', 1800); } }
 // The seed stall's card: each seed, what it grows, and a button to buy one. Its stock comes in at each dawn, rolled the
