@@ -2,8 +2,8 @@
  * The Treehouse Climb, the Endless Isle's other mini-game, part eight of the owner's plan (2026-10-23: "All your
  * picks"): in at the foot of the pirates' great tree, and it turns side-on, one tall screen a stage, the way Donkey Kong
  * is (the kid's: gorillas roll the barrels down the treehouses). Here: the stages, what is where on them, and what a
- * climb gives. The Barrel Planks (part eight), the Rope Swings and the Bucket Lifts (part nine's first two); the Crow's
- * Nest comes after. Each stage's door at the top goes on up to the next.
+ * climb gives. The Barrel Planks (part eight), then the Rope Swings, the Bucket Lifts and the Crow's Nest at the very top
+ * (part nine). Each stage's door at the top goes on up to the next; the last has none.
  *
  * A stage is laid out in its own frame: x across (0 to its width), y up from the bottom (0 to its height), in units a
  * little bigger than a pixel on a phone.
@@ -48,21 +48,23 @@ export type Rope = {
 };
 /** A rope ladder: where across, and the plank at its foot (it goes up to the next). */
 export type Ladder = { readonly x: number; readonly lo: number };
+/** A peg holding the crow's nest up, through a plank: walked over, it is knocked out, and leaves a hole. */
+export type Peg = { readonly x: number; readonly plank: number };
 export type Stage = {
   readonly name: string;
   /** How it goes, a few short lines on the card before a first climb of it. */
   readonly howTo: readonly string[];
   readonly w: number;
   readonly h: number;
-  /** Bottom to top; the last is the ledge with the door at the top. */
+  /** Bottom to top; the last is the ledge with the door at the top (or, at the very top, the crow's nest). */
   readonly planks: readonly Plank[];
   readonly ladders: readonly Ladder[];
   /** Belaying pins, each floating over a plank. */
   readonly pins: readonly { readonly x: number; readonly plank: number }[];
   /** Where you start. */
   readonly start: { readonly x: number; readonly plank: number };
-  /** The door to the next stage, on the top ledge. */
-  readonly door: number;
+  /** The door to the next stage, on the top ledge; none at the very top. */
+  readonly door?: number;
   /** The gorilla at the top rolling its barrels down, and the gap between barrels, seconds, at least and at most. */
   readonly gorilla?: { readonly x: number; readonly plank: number };
   readonly rollMin?: number;
@@ -74,6 +76,11 @@ export type Stage = {
   readonly nutMax?: number;
   readonly lifts?: readonly Lift[];
   readonly levers?: readonly Lever[];
+  /** The pegs to knock out: with every one out, the stage is climbed. */
+  readonly pegs?: readonly Peg[];
+  /** The gorilla in the crow's nest, tossing monkeys down, so many at most about at once. */
+  readonly nest?: { readonly x: number; readonly plank: number };
+  readonly monkeys?: number;
 };
 
 /**
@@ -220,8 +227,66 @@ export const BUCKET_LIFTS: Stage = {
   door: 170,
 };
 
+/**
+ * The Crow's Nest, the very top, Donkey Kong's rivets: four decks round the top of the trunk, narrower going up, each
+ * held by two pegs near its ends, and the crow's nest on top of them all with the gorilla in it, and the pirates'
+ * treasure chest. Walk over a peg and it is knocked out, leaving a hole to jump (or drop through); the gorilla tosses
+ * monkeys down, who scamper along the decks and up and down the ladders. Every peg out, the crow's nest gives way.
+ */
+export const CROWS_NEST: Stage = {
+  name: "Crow's Nest",
+  howTo: [
+    'Walk over a peg to knock it out',
+    'Mind the holes they leave!',
+    'Jump the monkeys for coins',
+    'Knock out all eight pegs!',
+  ],
+  w: 240,
+  h: 420,
+  planks: [
+    { x0: 0, x1: 240, y0: 10, y1: 10 },
+    { x0: 12, x1: 228, y0: 80, y1: 80 },
+    { x0: 20, x1: 220, y0: 150, y1: 150 },
+    { x0: 28, x1: 212, y0: 220, y1: 220 },
+    { x0: 36, x1: 204, y0: 290, y1: 290 },
+    { x0: 96, x1: 144, y0: 364, y1: 364 },
+  ],
+  ladders: [
+    { x: 30, lo: 0 },
+    { x: 120, lo: 0 },
+    { x: 210, lo: 0 },
+    { x: 84, lo: 1 },
+    { x: 156, lo: 1 },
+    { x: 36, lo: 2 },
+    { x: 120, lo: 2 },
+    { x: 204, lo: 2 },
+    { x: 92, lo: 3 },
+    { x: 148, lo: 3 },
+  ],
+  pins: [
+    { x: 176, plank: 1 },
+    { x: 100, plank: 3 },
+  ],
+  pegs: [
+    { x: 46, plank: 1 },
+    { x: 194, plank: 1 },
+    { x: 54, plank: 2 },
+    { x: 186, plank: 2 },
+    { x: 62, plank: 3 },
+    { x: 178, plank: 3 },
+    { x: 70, plank: 4 },
+    { x: 170, plank: 4 },
+  ],
+  nest: { x: 112, plank: 5 },
+  monkeys: 3,
+  start: { x: 20, plank: 0 },
+};
+
 /** The stages, bottom to top of the tree. */
-export const STAGES_UP: readonly Stage[] = [BARREL_PLANKS, ROPE_SWINGS, BUCKET_LIFTS];
+export const STAGES_UP: readonly Stage[] = [BARREL_PLANKS, ROPE_SWINGS, BUCKET_LIFTS, CROWS_NEST];
+
+/** A knocked-out peg's hole, how wide. */
+export const HOLE = 12;
 
 /** A bucket's rim width, and how long a drawbridge takes to come down. */
 export const BUCKET_W = 24;
@@ -251,15 +316,22 @@ export function loadedY(p: Plank, x: number, at: number, dip: number): number {
 }
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/** Coins for each barrel jumped, each smashed with a belaying pin, each rope swung on, each lever pulled, and for
- * getting to the top. */
+/** Coins for each barrel (or monkey) jumped, each smashed with a belaying pin, each rope swung on, each lever pulled,
+ * each peg knocked out, and for getting to the top. */
 export const JUMP_COINS = 5;
 export const ROPE_COINS = 5;
 export const LEVER_COINS = 10;
+export const PEG_COINS = 10;
 export const SMASH_COINS = 10;
 export const TOP_COINS = 100;
 /** Tries a stage: a barrel costs one, and with none left the stage starts again from the bottom. */
 export const TRIES = 3;
+/** The pirates' treasure chest, at the top of the Crow's Nest: the first time, and every time after. */
+export const CHEST_FIRST = 1000;
+export const CHEST_AGAIN = 250;
+/** What the chest holds, the Crow's Nest climbed with the highest stage climbed before this at top. */
+export const chestOf = (top: number): number =>
+  top >= STAGES_UP.length ? CHEST_AGAIN : CHEST_FIRST;
 
 /** The climbs made, the highest stage got to the top of, and each stage's best time, in seconds. */
 export type Climbs = { climbs: number; top: number; best: Partial<Record<number, number>> };
