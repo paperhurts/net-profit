@@ -344,3 +344,105 @@ export function drawNestCrate(
   ctx.fillStyle = '#E9C76B';
   for (let i = 0; i < 6; i++) ctx.fillRect(sx - 8 * Z + i * 3 * Z, sy - 5 * Z, 1.4 * Z, 1.6 * Z);
 }
+
+/**
+ * The pet house (world/pethouse.ts): before it is built, its plot, roped off with a sign (a paw); built, a little
+ * wooden house with a red roof, a round door and a paw over it, on the sand by the hut.
+ */
+export function drawPetHouse(
+  v: DrawView,
+  built: boolean,
+  f: { x0: number; y0: number; x1: number; y1: number },
+  wall: number,
+  ridge: number,
+): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const { x0, y0, x1, y1 } = f;
+  const mx = (x0 + x1) / 2;
+  const my = (y0 + y1) / 2;
+  const paw = (x: number, y: number, z: number, r: number, c: string) => {
+    ctx.fillStyle = c;
+    const sx = px(x, y);
+    const sy = py(x, y, z);
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + r * 0.3, r * 0.55, r * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const [dx, dy] of [
+      [-0.55, -0.45],
+      [-0.2, -0.75],
+      [0.2, -0.75],
+      [0.55, -0.45],
+    ] as const) {
+      ctx.beginPath();
+      ctx.arc(sx + dx * r, sy + dy * r, r * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  if (!built) {
+    const corners = [
+      [x0, y0],
+      [x1, y0],
+      [x1, y1],
+      [x0, y1],
+    ] as const;
+    ctx.strokeStyle = 'rgba(255,246,229,.8)';
+    ctx.lineWidth = Z;
+    ctx.beginPath();
+    corners.forEach(([cx, cy], i) => {
+      if (i) ctx.lineTo(px(cx, cy), py(cx, cy, 5));
+      else ctx.moveTo(px(cx, cy), py(cx, cy, 5));
+    });
+    ctx.closePath();
+    ctx.stroke();
+    ctx.strokeStyle = '#8A6243';
+    ctx.lineWidth = 2 * Z;
+    for (const [cx, cy] of corners) {
+      ctx.beginPath();
+      ctx.moveTo(px(cx, cy), py(cx, cy, 0));
+      ctx.lineTo(px(cx, cy), py(cx, cy, 8));
+      ctx.stroke();
+    }
+    // The sign at the plot's front, with a paw on it.
+    v.box(mx - 9, y1 - 1, 18, 2, 6, 16, '#C98B4E', '#E6B877');
+    paw(mx, y1 + 1, 11, 3.2 * Z, '#8A4B2C');
+    return;
+  }
+  // Its walls, then the roof's two slopes and its gable ends, then the door and the paw over it.
+  v.box(x0, y0, x1 - x0, y1 - y0, 0, wall, '#C98B4E', '#E6B877');
+  const slope = (a: readonly [number, number], b: readonly [number, number], fill: string) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(px(a[0], a[1]), py(a[0], a[1], wall));
+    ctx.lineTo(px(b[0], b[1]), py(b[0], b[1], wall));
+    ctx.lineTo(px(b[0], my), py(b[0], my, ridge));
+    ctx.lineTo(px(a[0], my), py(a[0], my, ridge));
+    ctx.closePath();
+    ctx.fill();
+  };
+  const gable = (x: number, fill: string) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(px(x, y0), py(x, y0, wall));
+    ctx.lineTo(px(x, y1), py(x, y1, wall));
+    ctx.lineTo(px(x, my), py(x, my, ridge));
+    ctx.closePath();
+    ctx.fill();
+  };
+  slope([x0 - 2, y0 - 2], [x1 + 2, y0 - 2], '#B8452F');
+  gable(x1 + 1, '#E0BC86');
+  slope([x0 - 2, y1 + 2], [x1 + 2, y1 + 2], '#E4572E');
+  // The round door on the front (+y) face, and a paw over it.
+  const dx = mx + 3;
+  const dsx = px(dx, y1);
+  const dsy = py(dx, y1, 0);
+  ctx.fillStyle = '#5A3A22';
+  ctx.beginPath();
+  ctx.moveTo(dsx - 4 * Z, dsy);
+  ctx.lineTo(dsx - 4 * Z, dsy - 7 * Z);
+  ctx.arc(dsx, dsy - 7 * Z, 4 * Z, Math.PI, 0);
+  ctx.lineTo(dsx + 4 * Z, dsy);
+  ctx.closePath();
+  ctx.fill();
+  paw(dx, y1, wall - 3, 2.6 * Z, '#FFF6E5');
+}

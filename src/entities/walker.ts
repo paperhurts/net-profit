@@ -151,6 +151,7 @@ import {
   WORKSHOP11,
 } from '../world/isle11';
 import { berth12, CRATES12, DOCK12, groundZ12, LANDING12, onIsle12 } from '../world/isle12';
+import { PET_HOUSE, PET_HOUSE_FROM, PET_HOUSE_MID } from '../world/pethouse';
 import { inTunnelBounds, tunnelWalkable } from '../world/stealth';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
@@ -500,6 +501,15 @@ export const PROPS: readonly Prop[] = [
     AQUARIUM.y1,
     AQUARIUM_MID.x + AQUARIUM_MID.y,
     AQUARIUM_FROM,
+  ),
+  // The pet house's plot (world/pethouse.ts), staked out with the tree platform, and then the house on it.
+  prop(
+    PET_HOUSE.x0,
+    PET_HOUSE.y0,
+    PET_HOUSE.x1,
+    PET_HOUSE.y1,
+    PET_HOUSE_MID.x + PET_HOUSE_MID.y,
+    PET_HOUSE_FROM,
   ),
   // The crates on the pier, a little inside their fronts so the way past along the front edge is wide enough.
   prop(PX0 + 117, IY - 13, PX0 + 141, IY + 8, 0, 0, 0, false),

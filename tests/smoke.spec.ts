@@ -926,7 +926,10 @@ type Np = {
       walk: string | null;
       eggs: { k: string; sp: string; at: number; due: number }[];
       hatched: { id: number; sp: string; nm: string; from: string }[];
+      house?: boolean;
     };
+    PET_HOUSE: { x0: number; y0: number; x1: number; y1: number };
+    yard: { key: string; x: number; y: number }[];
     open: boolean;
     padOpen: boolean;
     hatching: unknown;
@@ -14502,6 +14505,56 @@ test('eggs: one due hatches aboard with its reveal and a name, and one still wai
   await page.waitForFunction(() => window.__np?.pets?.save.hatched.length === 1, null, {
     timeout: 5000,
   });
+  expect(errors).toEqual([]);
+});
+
+test('the pet house: built from the shop by the hut, its keeper gives an egg, and your pets play in its yard', async ({
+  context,
+  page,
+}) => {
+  // Tied up at home with the tree platform built, the wood and coins for it, a drawn pet and a hatched one.
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    coins: 1600,
+    wood: 30,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: {
+      drawn: [{ id: 1, nm: 'Wiggles', d: 'EUUsUyetoUoOeOU.EYoYv.EgpWv.Ekpkv', got: 1 }],
+      hatched: [{ id: 1, sp: 'frog', nm: 'Frog', got: 1, from: 'garden' }],
+    },
+  });
+  const card = page.locator('#petHouseBtn');
+  await expect(card).toContainText('Build a pet house');
+  expect(await page.evaluate(() => window.__np.pets.yard.length)).toBe(0);
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.pets.save.house === true, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(100);
+  // Its keeper's egg, a common one, in the nest crate.
+  const eggs = await page.evaluate(() => window.__np.pets.save.eggs);
+  expect(eggs.map((e) => e.k)).toEqual(['common']);
+  await expect(card).toContainText('2 of your pets live there');
+  // Both play in the yard; one taken along leaves it.
+  expect(await page.evaluate(() => window.__np.pets.yard.map((y) => y.key))).toEqual(['d1', 'h1']);
+  // Ashore, up to the house, and in to visit them: the book, where each lives at the house.
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const H = window.__np.pets.PET_HOUSE;
+    w.x = (H.x0 + H.x1) / 2;
+    w.y = H.y1 + 10;
+  });
+  await expect(page.locator('#climb')).toHaveText('Visit your pets', { timeout: 4000 });
+  await page.locator('#climb').click();
+  await expect(page.locator('#petBook')).toBeVisible();
+  await expect(page.locator('[data-pet="d1"] .now')).toContainText('pet house');
+  await page.locator('[data-walk="h1"]').click();
+  expect(await page.evaluate(() => window.__np.pets.yard.map((y) => y.key))).toEqual(['d1']);
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.house === true, null, { timeout: 5000 });
   expect(errors).toEqual([]);
 });
 

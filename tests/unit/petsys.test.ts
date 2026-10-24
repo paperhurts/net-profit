@@ -221,4 +221,27 @@ describe('the pet book', () => {
       }).hatched,
     ).toEqual([{ id: 2, sp: 'moth', nm: 'Lantern moth', got: 0, from: 'garden' }]);
   });
+
+  it('says a pet of your own lives at the pet house once it is built', () => {
+    const p = noPets();
+    addDrawn(
+      p,
+      [
+        {
+          c: 1,
+          p: [
+            [3, 4],
+            [20, 30],
+          ] as [number, number][],
+        },
+      ],
+      'Doodle',
+      1,
+    );
+    expect(bookEntries(p, facts([]))[0]?.where).toContain('pet book');
+    p.house = true;
+    expect(bookEntries(p, facts([]))[0]?.where).toContain('pet house');
+    expect(parsePets(JSON.parse(JSON.stringify(petsForSave(p)))).house).toBe(true);
+    expect(parsePets({ house: 'yes' }).house).toBe(false);
+  });
 });

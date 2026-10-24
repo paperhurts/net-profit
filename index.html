@@ -641,7 +641,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 @media (hover:none){#intro .keys{display:none}}
 /* The pet book (data/petsys.ts, ui/petbook.ts): its own lines, so other cards' long selector lists are left alone. */
 #petBook{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#petBook[hidden],#petsBtn[hidden]{display:none}
+#petBook[hidden],#petsBtn[hidden],#petHouseBtn[hidden]{display:none}
 #petBook .planks{max-width:480px;margin:0 auto;padding:10px}
 #petBook h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
 #petBook h2 .pill{height:32px;padding:0 10px}
@@ -782,6 +782,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
     <button class="build" id="charterBtn" hidden></button>
     <button class="build" id="build"></button>
     <button class="build" id="aquaBtn" hidden></button>
+    <button class="build" id="petHouseBtn" hidden></button>
     <div class="yours" id="yours" hidden></div>
     <div class="swatches" id="paints" role="group" aria-label="Paint"></div>
     <div class="log" id="log" aria-label="Catch log"></div>
