@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { RING_R } from '../../src/entities/petfight';
+import { blocked } from '../../src/entities/walker';
 import { IR, IX, IY } from '../../src/world/island';
 import {
   nearPetHouse,
   PET_HOUSE,
   PET_HOUSE_MID,
+  PET_RING,
   PET_YARD,
   YARD_MAX,
   yardSpot,
 } from '../../src/world/pethouse';
+import { PLANTS } from '../../src/world/plants';
 
 describe('the pet house', () => {
   it('stands on the home island, its yard too', () => {
@@ -44,5 +48,20 @@ describe('the pet house', () => {
     }
     // The same time finds them in the same places.
     expect(yardSpot(2, 4, 50)).toEqual(yardSpot(2, 4, 50));
+  });
+
+  it('has its battle ring on open ground: on the island, clear of anything built and of the bushes', () => {
+    expect(Math.hypot(PET_RING.x - IX, PET_RING.y - IY)).toBeLessThan(IR - RING_R - 20);
+    for (let a = 0; a < 24; a++) {
+      const q = (a / 24) * Math.PI * 2;
+      for (const r of [0, RING_R / 2, RING_R])
+        expect(blocked(PET_RING.x + Math.cos(q) * r, PET_RING.y + Math.sin(q) * r, 99)).toBe(false);
+    }
+    for (const b of PLANTS.filter((p) => p.kind === 'bush'))
+      expect(Math.hypot(b.x - PET_RING.x, b.y - PET_RING.y) - b.r).toBeGreaterThan(RING_R - 2);
+    const { x0, y0, x1, y1 } = PET_HOUSE;
+    const dx = Math.max(x0 - PET_RING.x, 0, PET_RING.x - x1);
+    const dy = Math.max(y0 - PET_RING.y, 0, PET_RING.y - y1);
+    expect(Math.hypot(dx, dy)).toBeGreaterThan(RING_R + 10);
   });
 });

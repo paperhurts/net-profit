@@ -922,15 +922,35 @@ type Np = {
   pets: {
     save: {
       nm: Record<string, string>;
-      drawn: { id: number; nm: string; d: string; got: number; xp?: number }[];
+      drawn: {
+        id: number;
+        nm: string;
+        d: string;
+        got: number;
+        xp?: number;
+        fb?: string;
+        fs?: string;
+      }[];
       walk: string | null;
       eggs: { k: string; sp: string; at: number; due: number }[];
       hatched: { id: number; sp: string; nm: string; from: string; xp?: number }[];
       house?: boolean;
       tr?: number;
+      won?: string[];
     };
     PET_HOUSE: { x0: number; y0: number; x1: number; y1: number };
     yard: { key: string; x: number; y: number }[];
+    fight: {
+      phase: string;
+      won: boolean;
+      foeState: string;
+      move: string | null;
+      you: { x: number; y: number; hp: number; max: number };
+      foe: { x: number; y: number; hp: number; max: number; hurt: number };
+      stats: { special: string; specialName: string };
+    } | null;
+    RING: { x: number; y: number };
+    startFight(key: string): void;
     open: boolean;
     padOpen: boolean;
     hatching: unknown;
@@ -14600,6 +14620,136 @@ test('training: pets at the pet house level up while you are away, the one walki
   await page.waitForFunction(() => window.__np?.pets?.save.drawn[0]?.xp === 150, null, {
     timeout: 5000,
   });
+  expect(errors).toEqual([]);
+});
+
+test("pet battles: in the ring by the pet house, a drawn pet picks how it fights, bites the trainer's pet and wins", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    coins: 100,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: {
+      drawn: [{ id: 1, nm: 'Wiggles', d: 'EUUsUyetoUoOeOU.EYoYv.EgpWv.Ekpkv', got: 1 }],
+      hatched: [{ id: 1, sp: 'frog', nm: 'Hoppy', got: 1, from: 'garden' }],
+      house: true,
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const R = window.__np.pets.RING;
+    w.x = R.x;
+    w.y = R.y + 10;
+  });
+  await expect(page.locator('#climb')).toHaveText('Pet battle', { timeout: 4000 });
+  await page.locator('#climb').click();
+  await expect(page.locator('#petRing')).toBeVisible();
+  await expect(page.locator('#petRingBody .foe')).toContainText('Pip and Scamp');
+  // The frog fights as frogs do; the drawn one picks, once.
+  await page.locator('[data-fpet="h1"]').click();
+  await expect(page.locator('#petRingBody')).toContainText('its special is Spit');
+  await page.locator('[data-fpet="d1"]').click();
+  await expect(page.locator('#petRingBody')).toContainText('How does Wiggles fight?');
+  await expect(page.locator('#petFightGo')).toHaveAttribute('aria-disabled', 'true');
+  await page.locator('[data-fb="strong"]').click();
+  await page.locator('[data-fs="roar"]').click();
+  await page.locator('#petFightGo').click();
+  await expect(page.locator('#petRing')).toBeHidden();
+  await expect(page.locator('#petFightHud')).toBeVisible();
+  await expect(page.locator('#pfSpecial')).toContainText('Roar');
+  const d = await page.evaluate(() => window.__np.pets.save.drawn[0]);
+  expect([d?.fb, d?.fs]).toEqual(['strong', 'roar']);
+  await page.waitForFunction(() => window.__np.pets.fight?.phase === 'fight', null, {
+    timeout: 4000,
+  });
+  // The buttons fit a phone, clear of each other.
+  const bite = await page.locator('#pfBite').boundingBox();
+  const sp = await page.locator('#pfSpecial').boundingBox();
+  if (!bite || !sp) throw new Error('no buttons');
+  expect(bite.x + bite.width).toBeLessThanOrEqual(390);
+  expect(sp.x + sp.width <= bite.x || sp.y + sp.height <= bite.y).toBe(true);
+  // Up close, a bite lands.
+  await page.evaluate(() => {
+    const f = window.__np.pets.fight;
+    if (!f) return;
+    f.you.x = 0;
+    f.you.y = 0;
+    f.foe.x = 14;
+    f.foe.y = 0;
+  });
+  await page.locator('#pfBite').dispatchEvent('pointerdown');
+  const hurt = await page.evaluate(() => window.__np.pets.fight?.foe.hp ?? 0);
+  expect(hurt).toBeLessThan(30);
+  // Near the end: one more bite and Scamp is beaten.
+  await page.waitForTimeout(900);
+  await page.evaluate(() => {
+    const f = window.__np.pets.fight;
+    if (!f) return;
+    f.foe.hp = 1;
+    f.foe.hurt = 0;
+    f.you.x = 0;
+    f.you.y = 0;
+    f.foe.x = 14;
+    f.foe.y = 0;
+  });
+  await page.keyboard.press('e');
+  await expect(page.locator('#pfWord')).toContainText('Scamp is beaten!', { timeout: 2000 });
+  await page.waitForFunction(() => window.__np.pets.fight === null, null, { timeout: 4000 });
+  await expect(page.locator('#petFightHud')).toBeHidden();
+  const after = await page.evaluate(() => ({
+    save: window.__np.pets.save,
+    coins: window.__np.coins,
+  }));
+  expect(after.coins).toBe(160);
+  expect(after.save.drawn[0]?.xp).toBe(80);
+  expect(after.save.won).toEqual(['t1']);
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.won?.length === 1, null, {
+    timeout: 5000,
+  });
+  expect(errors).toEqual([]);
+});
+
+test('pet battles: losing costs nothing, and giving up sends the pet home', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: {
+      hatched: [{ id: 1, sp: 'hedgehog', nm: 'Spike', got: 1, from: 'garden' }],
+      house: true,
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => window.__np.pets.startFight('h1'));
+  await page.waitForFunction(() => window.__np.pets.fight?.phase === 'fight', null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const f = window.__np.pets.fight;
+    if (f) f.you.hp = 0;
+  });
+  await page.waitForFunction(() => window.__np.pets.fight === null, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('fine already');
+  const p = await page.evaluate(() => window.__np.pets.save);
+  expect(p.hatched[0]?.xp).toBeUndefined();
+  expect(p.won ?? []).toEqual([]);
+  await page.evaluate(() => window.__np.pets.startFight('h1'));
+  await expect(page.locator('#petFightHud')).toBeVisible();
+  await page.locator('#pfLeave').click();
+  await expect(page.locator('#petFightHud')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.pets.fight)).toBeNull();
   expect(errors).toEqual([]);
 });
 

@@ -15,6 +15,7 @@
 
 import { decode, encode, type Stroke } from './doodle';
 import { type Egg, type EggFrom, eggDue, HATCHLING_ART, HATCHLING_NAMES, parseEggs } from './eggs';
+import { BUILDS, type Build, KIND_FIGHT, SPECIALS, type Special, TRAINERS } from './petfight';
 import { COMPANION_NAMES, COMPANIONS, type Companion } from './stay';
 import { cleanXp, type Level, levelOf } from './training';
 
@@ -86,7 +87,16 @@ export function cleanName(s: unknown): string {
 }
 
 /** A pet drawn on the pad (data/doodle.ts): its number, the name given it, the drawing, and when it was drawn. */
-export type DrawnPet = { id: number; nm: string; d: string; got: number; xp?: number };
+export type DrawnPet = {
+  id: number;
+  nm: string;
+  d: string;
+  got: number;
+  xp?: number;
+  /** How it fights, picked at its first pet battle (data/petfight.ts): its build and its special. */
+  fb?: Build;
+  fs?: Special;
+};
 /** The most drawn pets kept at once; another means letting one go. It keeps the save, and the link, small. */
 export const DRAWN_MAX = 4;
 /** A drawn pet's place in the book: d and its number. */
@@ -140,10 +150,12 @@ export type PetSave = {
   house: boolean;
   /** When training at the pet house was last counted (data/training.ts), real-time milliseconds; 0 for never. */
   tr: number;
+  /** The trainers beaten at the pet house's ring (data/petfight.ts), each once. */
+  won: string[];
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [], house: false, tr: 0 };
+  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [], house: false, tr: 0, won: [] };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -178,6 +190,10 @@ export function parsePets(v: unknown): PetSave {
       };
       const xp = cleanXp(r.xp);
       if (xp) d.xp = xp;
+      if (BUILDS.includes(r.fb as Build) && SPECIALS.includes(r.fs as Special)) {
+        d.fb = r.fb as Build;
+        d.fs = r.fs as Special;
+      }
       p.drawn.push(d);
     }
   }
@@ -207,6 +223,8 @@ export function parsePets(v: unknown): PetSave {
   if (typeof walk === 'string' && isOwnKey(walk) && ownOf(p, walk)) p.walk = walk;
   p.house = (v as { house?: unknown }).house === true;
   if (p.house) p.tr = whole((v as { tr?: unknown }).tr);
+  const won = (v as { won?: unknown }).won;
+  if (Array.isArray(won)) p.won = TRAINERS.map((t) => t.id).filter((id) => won.includes(id));
   return p;
 }
 
@@ -220,6 +238,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (p.hatched.length) out.hatched = p.hatched;
   if (p.house) out.house = true;
   if (p.house && p.tr) out.tr = p.tr;
+  if (p.won.length) out.won = p.won;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -326,6 +345,30 @@ export function toggleWalk(p: PetSave, k: EntryKey): boolean {
   if (!isOwnKey(k) || !ownOf(p, k)) return false;
   p.walk = p.walk === k ? null : k;
   return p.walk === k;
+}
+
+/**
+ * How one of your own fights: a hatched one as its kind does, a drawn one as picked at its first battle; none for a
+ * drawn one not yet picked, or one that is not there.
+ */
+export function fightOf(
+  p: PetSave,
+  k: EntryKey,
+): { build: Build; special: Special; name?: string } | null {
+  const d = drawnOf(p, k);
+  if (d) return d.fb && d.fs ? { build: d.fb, special: d.fs } : null;
+  const h = hatchedOf(p, k);
+  const kf = h ? KIND_FIGHT[h.sp] : undefined;
+  return kf ? { build: kf.build, special: kf.special, name: kf.name } : null;
+}
+
+/** A drawn pet's way of fighting, picked once. Says whether it was picked now. */
+export function pickFight(p: PetSave, k: EntryKey, build: Build, special: Special): boolean {
+  const d = drawnOf(p, k);
+  if (!d || d.fb || !BUILDS.includes(build) || !SPECIALS.includes(special)) return false;
+  d.fb = build;
+  d.fs = special;
+  return true;
 }
 
 /** One card in the book: who, on which shelf, called what, and where it is now. */

@@ -19,6 +19,12 @@ export const PET_HOUSE_COST = { wood: 30, coins: 1500 } as const;
 export const PET_HOUSE_REACH = 22;
 /** The yard in front of it where the pets play: its middle, and how far they roam. */
 export const PET_YARD = { x: IX - 44, y: IY - 48, r: 36 } as const;
+/** The ring where pet battles are fought (entities/petfight.ts): its middle, on open grass clear of the house. */
+export const PET_RING = { x: IX + 66, y: IY + 30 } as const;
+/** How much closer the view comes for a pet battle. */
+export const RING_ZOOM = 0.6;
+/** How far up the screen the ring is lifted, as a share of its height, clear of the buttons below. */
+export const RING_LIFT = 0.2;
 /** The most pets drawn playing in the yard at once. */
 export const YARD_MAX = 6;
 
