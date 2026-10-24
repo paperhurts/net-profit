@@ -600,6 +600,31 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 #petBook .rchip.on{background:#3FB37A;border-color:#3FB37A;color:#fff}
 #petBook .pname{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 #petBook .pname input{flex:1 1 140px;min-width:0;height:36px;margin-top:6px;padding:0 10px;border-radius:10px;border:2px solid var(--muted);background:#fff;color:#12303A;font:800 16px var(--font)}
+#petBook .ask{margin:6px 0 0;font-size:13px;font-weight:800}
+#petBook .rchip.warn{background:var(--buoy);border-color:var(--buoy);color:var(--buoy-fg)}
+#petBook .drawrow .build{margin-top:0}
+/* The drawing pad (data/doodle.ts): a square to draw on with a finger, the colours, the ink pot, Undo, Clear and Done. */
+#petPad{position:fixed;inset:0;z-index:6;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.7)}
+#petPad[hidden],#padDraw[hidden],#padName[hidden]{display:none}
+#petPad .planks{max-width:420px;margin:0 auto;padding:10px}
+#petPad h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#petPad h2 .pill{height:32px;padding:0 10px}
+#petPad .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
+#petPad canvas{position:static;inset:auto;display:block;margin:0 auto;border-radius:14px;background:#FFFDF7;box-shadow:inset 0 0 0 2px rgba(18,48,58,.18)}
+#padCanvas{width:min(100%,360px);aspect-ratio:1;height:auto;touch-action:none;cursor:crosshair}
+#padPreview{width:min(100%,260px);aspect-ratio:16/10;height:auto}
+#petPad .pswatches{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0 6px}
+#petPad .sw{width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);padding:0;cursor:pointer}
+#petPad .sw.on{box-shadow:0 0 0 3px #12303A}
+#petPad .ink{display:flex;align-items:center;gap:8px;margin:4px 6px;font-size:13px;font-weight:800}
+#petPad .ink .bar{flex:1;height:12px;border-radius:999px;background:var(--track);overflow:hidden}
+#petPad .ink .bar i{display:block;height:100%;width:100%;background:var(--fill);transition:width .12s}
+#petPad .prow{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:10px;flex-wrap:wrap}
+#petPad .rchip{height:40px;padding:0 16px;border-radius:999px;border:2px solid var(--muted);background:transparent;color:var(--card-fg);font:800 14px var(--font)}
+#petPad .go{height:44px;padding:0 24px;border-radius:12px;background:var(--buoy);color:var(--buoy-fg);font:800 17px var(--font);box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#petPad .go[aria-disabled="true"]{opacity:.45}
+#petPad input{display:block;width:min(100%,280px);margin:6px auto 0;height:42px;padding:0 12px;border-radius:10px;border:2px solid var(--muted);background:#fff;color:#12303A;font:800 18px var(--font);text-align:center}
+@media (prefers-reduced-motion: reduce){#petPad .ink .bar i{transition:none}}
 @media (prefers-reduced-motion: reduce){.hold.full{animation:none}#shop,#toast,.track i{transition:none}}
 </style>
 </head>
@@ -689,7 +714,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <button class="build" id="bargeOpen" hidden><span><b>Battle Barge</b><small>Pick who to fight, and fight them.</small></span><span class="buy">Open</span></button>
     <button class="build" id="boatsBtn" hidden><span><b>Boats</b><small>Who rides which boat.</small></span><span class="buy">Open</span></button>
     <button class="build" id="charBtn"><span><b>Your character</b><small>Who you are, and how you look.</small></span><span class="buy">Open</span></button>
-    <button class="build" id="petsBtn" hidden><span><b>Your pets</b><small>Everyone who is yours, and their names.</small></span><span class="buy">Open</span></button>
+    <button class="build" id="petsBtn"><span><b>Your pets</b><small>Everyone who is yours, their names, and pets you draw.</small></span><span class="buy">Open</span></button>
     <button class="build" id="badgesBtn" hidden><span><b>Badges</b><small>Who wears which badge.</small></span><span class="buy">Open</span></button>
     <button class="build" id="carryBtn"><span><b>Play on another device</b><small>A link to this game, to open there.</small></span><span class="buy">Open</span></button>
     <button class="build" id="testerBtn" hidden><span><b>Tester</b><small>Skip ahead past a boss, or add coins.</small></span><span class="buy">Open</span></button>
@@ -786,6 +811,25 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <h2>Your pets <button class="pill icon" id="petBookClose" aria-label="Close your pets">✕</button></h2>
     <p class="tnote">Everyone who is yours. Tap Rename to give one a name of your own.</p>
     <div id="petBookList"></div>
+  </div>
+</section>
+
+<section id="petPad" hidden aria-label="Draw a pet">
+  <div class="planks">
+    <h2>Draw a pet <button class="pill icon" id="petPadClose" aria-label="Close the drawing pad">✕</button></h2>
+    <div id="padDraw">
+      <p class="tnote">Draw your pet with your finger. Draw its legs as separate lines and it will walk on them.</p>
+      <canvas id="padCanvas" aria-label="Drawing pad"></canvas>
+      <div class="pswatches" id="padColours" role="group" aria-label="Colours"></div>
+      <div class="ink"><span>Ink</span><span class="bar"><i id="padInk"></i></span></div>
+      <div class="prow"><button class="rchip" id="padUndo">Undo</button><button class="rchip" id="padClear">Clear</button><button class="go" id="padDone" aria-disabled="true">Done</button></div>
+    </div>
+    <div id="padName" hidden>
+      <canvas id="padPreview" aria-hidden="true"></canvas>
+      <p class="tnote" style="text-align:center">What's its name?</p>
+      <input id="padNameIn" type="text" maxlength="32" placeholder="Doodle" aria-label="Your pet's name" autocomplete="off" enterkeyhint="done">
+      <div class="prow"><button class="rchip" id="padBack">Back to drawing</button><button class="go" id="padKeep">Keep it</button></div>
+    </div>
   </div>
 </section>
 

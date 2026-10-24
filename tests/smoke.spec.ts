@@ -876,7 +876,15 @@ type Np = {
   king: { fighting: boolean; state: string; t: number; resolve: number };
   fireHarpoon(): void;
   /** The pet system (data/petsys.ts): what it saves, and whether the pet book is open. */
-  pets: { save: { nm: Record<string, string> }; open: boolean };
+  pets: {
+    save: {
+      nm: Record<string, string>;
+      drawn: { id: number; nm: string; d: string; got: number }[];
+    };
+    open: boolean;
+    padOpen: boolean;
+    pad: { strokes: unknown[]; inkLeft: number };
+  };
 };
 
 /** One of the Battle Barge's own groups: its gorillas, its gators or its lancers. */
@@ -13382,6 +13390,92 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
     () => JSON.parse(localStorage.getItem('netprofit.v1') || '{}').garden,
   );
   expect(saved).toEqual({ seen: true });
+  expect(errors).toEqual([]);
+});
+
+test('the drawing pad: a pet drawn with a finger, named, kept in the book walking, and let go', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true });
+  // Nobody is yours yet, and the book is still there to draw in.
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await expect(page.locator('#petBook')).toBeVisible();
+  await expect(page.locator('#petBookList .pet')).toHaveCount(0);
+  await page.locator('#petDraw').click();
+  await expect(page.locator('#petPad')).toBeVisible();
+  await expect(page.locator('#padDone')).toHaveAttribute('aria-disabled', 'true');
+  const box = await page.locator('#padCanvas').boundingBox();
+  if (!box) throw new Error('no pad');
+  const at = (u: number, v: number) => [box.x + u * box.width, box.y + v * box.height] as const;
+  const line = async (pts: readonly (readonly [number, number])[]) => {
+    const [x0, y0] = at(...(pts[0] as [number, number]));
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    for (const p of pts.slice(1)) {
+      const [x, y] = at(...p);
+      await page.mouse.move(x, y, { steps: 6 });
+    }
+    await page.mouse.up();
+  };
+  // A body, round; a red stroke undone; then three legs.
+  const ring = Array.from({ length: 17 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2;
+    return [0.5 + Math.cos(a) * 0.3, 0.45 + Math.sin(a) * 0.2] as const;
+  });
+  await line(ring);
+  await page.locator('[data-colour="1"]').click();
+  await line([
+    [0.1, 0.1],
+    [0.9, 0.12],
+  ]);
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(2);
+  await page.locator('#padUndo').click();
+  await page.locator('[data-colour="0"]').click();
+  for (const x of [0.32, 0.5, 0.68])
+    await line([
+      [x, 0.63],
+      [x, 0.85],
+    ]);
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(4);
+  expect(await page.evaluate(() => window.__np.pets.pad.inkLeft)).toBeLessThan(1);
+  await page.locator('#padDone').click();
+  await expect(page.locator('#padName')).toBeVisible();
+  // The name, typed: the keys go to the name, not the boat.
+  const h0 = await page.evaluate(() => window.__np.boat.h);
+  await page.locator('#padNameIn').pressSequentially('Wiggles');
+  await page.locator('#padKeep').click();
+  await expect(page.locator('#petPad')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.boat.h)).toBeCloseTo(h0, 5);
+  const drawn = await page.evaluate(() => window.__np.pets.save.drawn);
+  expect(drawn.map((d) => [d.id, d.nm])).toEqual([[1, 'Wiggles']]);
+  expect(drawn[0]?.d.length).toBeLessThan(120);
+  // In the book, walking on its card.
+  const card = page.locator('[data-pet="d1"]');
+  await expect(card.locator('b')).toHaveText('Wiggles');
+  await page.waitForTimeout(300);
+  const inked = await card.locator('canvas').evaluate((el) => {
+    const c = el as HTMLCanvasElement;
+    const d = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data ?? [];
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if ((d[i] ?? 0) > 0) n++;
+    return n;
+  });
+  expect(inked).toBeGreaterThan(200);
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.drawn.length === 1, null, {
+    timeout: 5000,
+  });
+  await page.click('#go');
+  // Let go, after a second tap.
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await page.locator('[data-letgo="d1"]').click();
+  await expect(page.locator('[data-pet="d1"] .ask')).toContainText('Let Wiggles go');
+  await page.locator('[data-gone="d1"]').click();
+  await expect(page.locator('[data-pet="d1"]')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__np.pets.save.drawn)).toEqual([]);
   expect(errors).toEqual([]);
 });
 
