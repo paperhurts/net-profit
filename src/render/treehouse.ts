@@ -10,7 +10,7 @@
 
 import { clamp } from '../core/math';
 import { clockOf } from '../data/slalom';
-import { type Plank, plankY } from '../data/treehouse';
+import { BUCKET_W, type Plank, plankY } from '../data/treehouse';
 import {
   BARREL_R,
   type Barrel,
@@ -123,10 +123,13 @@ export function drawClimb(
   drawTree(ctx, W, f, s.w, s.h, T);
   for (const L of s.ladders)
     drawLadder(ctx, f, L.x, c.surfaceY(L.lo, L.x), c.surfaceY(L.lo + 1, L.x));
+  drawLifts(ctx, f, c);
   s.planks.forEach((p, i) => {
     if (p.sag) drawBridge(ctx, f, c, i);
+    else if (p.lever !== undefined) drawDrawbridge(ctx, f, c, i);
     else drawPlank(ctx, f, p);
   });
+  drawLevers(ctx, f, c);
   const ledge = plankOf(c, s.planks.length - 1);
   drawHut(ctx, f, s.door, ledge.y0, c.phase === 'clear', T);
   if (s.gorilla) {
@@ -386,6 +389,130 @@ function drawBridge(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, i: n
     ctx.closePath();
     ctx.fill();
   }
+}
+
+/** The pulley lifts: a wheel at the top on a beam and one at the bottom, the rope round them going by, and the buckets
+ * on it, each open-topped to stand in. */
+function drawLifts(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb): void {
+  const { k, X, Y } = f;
+  (c.stage.lifts ?? []).forEach((L, i) => {
+    const back = L.x + (L.up ? 12 : -12);
+    // The rope: up the front where the buckets hang, down the back, with knots going round.
+    ctx.strokeStyle = ROPE;
+    ctx.lineWidth = Math.max(1, 1.6 * k);
+    for (const x of [L.x, back]) {
+      ctx.beginPath();
+      ctx.moveTo(X(x), Y(L.y0));
+      ctx.lineTo(X(x), Y(L.y1 + 14));
+      ctx.stroke();
+    }
+    ctx.fillStyle = RUNG;
+    const run = (c.clock * L.speed) % 18;
+    for (let y = L.y0 + (L.up ? run : 18 - run); y < L.y1 + 14; y += 18) {
+      ctx.fillRect(X(L.x) - 1.4 * k, Y(y) - 1 * k, 2.8 * k, 2 * k);
+      ctx.fillRect(X(back) - 1.4 * k, Y(L.y1 + 14 - (y - L.y0)) - 1 * k, 2.8 * k, 2 * k);
+    }
+    // The wheels, the top one on a beam into the trunk.
+    ctx.strokeStyle = BARK_DARK;
+    ctx.lineWidth = 5 * k;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(X((L.x + back) / 2), Y(L.y1 + 14));
+    ctx.lineTo(X(L.x < c.stage.w / 2 ? L.x + 50 : L.x - 50), Y(L.y1 + 24));
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    for (const y of [L.y1 + 14, L.y0 + 2]) {
+      ctx.fillStyle = PLANK_DARK;
+      ctx.beginPath();
+      ctx.arc(X((L.x + back) / 2), Y(y), 8 * k, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = PLANK_LIT;
+      ctx.beginPath();
+      ctx.arc(X((L.x + back) / 2), Y(y), 3 * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // The buckets.
+    for (let b = 0; b < c.buckets(L); b++) {
+      const rim = c.rimY(i, b);
+      if (rim === null) continue;
+      const w = BUCKET_W / 2;
+      ctx.strokeStyle = HOOP;
+      ctx.lineWidth = Math.max(1, 1.2 * k);
+      ctx.beginPath();
+      ctx.moveTo(X(L.x - w + 2), Y(rim));
+      ctx.quadraticCurveTo(X(L.x), Y(rim + 16), X(L.x + w - 2), Y(rim));
+      ctx.stroke();
+      ctx.fillStyle = WOOD;
+      ctx.beginPath();
+      ctx.moveTo(X(L.x - w), Y(rim));
+      ctx.lineTo(X(L.x + w), Y(rim));
+      ctx.lineTo(X(L.x + w - 3), Y(rim - 18));
+      ctx.lineTo(X(L.x - w + 3), Y(rim - 18));
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = HOOP;
+      for (const d of [2, 13])
+        ctx.fillRect(X(L.x - w + d * 0.2), Y(rim - d), (BUCKET_W - d * 0.4) * k, 1.6 * k);
+      ctx.fillStyle = PLANK_LIT;
+      ctx.fillRect(X(L.x - w), Y(rim) - 1 * k, BUCKET_W * k, 1.6 * k);
+    }
+  });
+}
+
+/** A drawbridge: up on its hinge until its lever is pulled, then swinging down across, a chain from a post to its end. */
+function drawDrawbridge(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, i: number): void {
+  const { k, X, Y } = f;
+  const p = plankOf(c, i);
+  const down = c.lowered[p.lever ?? 0] ?? 0;
+  const left = p.hinge !== 'right';
+  const hx = left ? p.x0 : p.x1;
+  const len = (p.x1 - p.x0) * k;
+  const a = (1 - down) * (Math.PI / 2);
+  ctx.save();
+  ctx.translate(X(hx), Y(p.y0));
+  ctx.scale(left ? 1 : -1, 1);
+  ctx.rotate(-a);
+  ctx.fillStyle = PLANK;
+  ctx.fillRect(0, 0, len, 6 * k);
+  ctx.fillStyle = PLANK_DARK;
+  ctx.fillRect(0, 4.4 * k, len, 1.6 * k);
+  for (let x = 12 * k; x < len; x += 12 * k) ctx.fillRect(x, 0, 0.9 * k, 6 * k);
+  ctx.restore();
+  // The post at the hinge and the chain to the far end.
+  const end = [X(hx) + (left ? 1 : -1) * Math.cos(a) * len, Y(p.y0) - Math.sin(a) * len];
+  ctx.fillStyle = PLANK_DARK;
+  ctx.fillRect(X(hx) - 2 * k, Y(p.y0 + 34), 4 * k, 34 * k);
+  ctx.strokeStyle = '#6E7480';
+  ctx.lineWidth = Math.max(1, 1.2 * k);
+  ctx.setLineDash([2 * k, 1.5 * k]);
+  ctx.beginPath();
+  ctx.moveTo(X(hx), Y(p.y0 + 32));
+  ctx.lineTo(end[0] as number, end[1] as number);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+/** The levers: a post with a handle leaning back, thrown forward once pulled. */
+function drawLevers(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb): void {
+  const { k, X, Y } = f;
+  (c.stage.levers ?? []).forEach((v, i) => {
+    const y = plankY(plankOf(c, v.plank), v.x);
+    const a = c.pulled[i] ? 0.7 : -0.7;
+    ctx.fillStyle = PLANK_DARK;
+    ctx.fillRect(X(v.x) - 4 * k, Y(y + 5), 8 * k, 5 * k);
+    ctx.strokeStyle = '#5A5F68';
+    ctx.lineWidth = 2 * k;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(X(v.x), Y(y + 4));
+    ctx.lineTo(X(v.x + Math.sin(a) * 14), Y(y + 4 + Math.cos(a) * 14));
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = c.pulled[i] ? '#3FB37A' : '#D8392B';
+    ctx.beginPath();
+    ctx.arc(X(v.x + Math.sin(a) * 14), Y(y + 4 + Math.cos(a) * 14), 3 * k, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 /** The ropes, each hanging from a stub of branch, swinging. */
@@ -1069,7 +1196,9 @@ function drawClear(
   ctx.font = `800 13px ${FONT}`;
   const did = c.stage.gorilla
     ? `Jumped ${c.jumped} · Smashed ${c.smashed}`
-    : `Ropes swung ${c.swung}`;
+    : c.stage.levers?.length
+      ? `Levers pulled ${c.pulled.filter(Boolean).length}`
+      : `Ropes swung ${c.swung}`;
   ctx.fillText(`${did} · ${c.coins} coins`, W / 2, y + 102);
   ctx.fillText(after, W / 2, y + 124);
 }

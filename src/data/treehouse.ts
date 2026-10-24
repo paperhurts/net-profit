@@ -2,8 +2,8 @@
  * The Treehouse Climb, the Endless Isle's other mini-game, part eight of the owner's plan (2026-10-23: "All your
  * picks"): in at the foot of the pirates' great tree, and it turns side-on, one tall screen a stage, the way Donkey Kong
  * is (the kid's: gorillas roll the barrels down the treehouses). Here: the stages, what is where on them, and what a
- * climb gives. The Barrel Planks (part eight) and the Rope Swings (part nine's first); the Bucket Lifts and the Crow's
- * Nest come after. Each stage's door at the top goes on up to the next.
+ * climb gives. The Barrel Planks (part eight), the Rope Swings and the Bucket Lifts (part nine's first two); the Crow's
+ * Nest comes after. Each stage's door at the top goes on up to the next.
  *
  * A stage is laid out in its own frame: x across (0 to its width), y up from the bottom (0 to its height), in units a
  * little bigger than a pixel on a phone.
@@ -19,7 +19,24 @@ export type Plank = {
   readonly y0: number;
   readonly y1: number;
   readonly sag?: number;
+  /** A drawbridge: up on its hinge (its left end or its right) until this lever is pulled, then let down across. */
+  readonly lever?: number;
+  readonly hinge?: 'left' | 'right';
 };
+/**
+ * A pulley lift up a column of the tree at x, from y0 to y1: buckets on a rope going round, going up (or down) at
+ * speed, gap apart. Stand in one to ride it; at the end of its run it goes over the wheel, and you are tipped off.
+ */
+export type Lift = {
+  readonly x: number;
+  readonly y0: number;
+  readonly y1: number;
+  readonly up: boolean;
+  readonly speed: number;
+  readonly gap: number;
+};
+/** A lever on a plank, pulled by walking into it: it lets down the drawbridge with its number. */
+export type Lever = { readonly x: number; readonly plank: number };
 /** A swinging rope, tied to a branch at (x, y): this long, swinging this far either way (radians), once a period. */
 export type Rope = {
   readonly x: number;
@@ -55,6 +72,8 @@ export type Stage = {
   readonly nuts?: readonly { readonly x: number; readonly y: number }[];
   readonly nutMin?: number;
   readonly nutMax?: number;
+  readonly lifts?: readonly Lift[];
+  readonly levers?: readonly Lever[];
 };
 
 /**
@@ -155,8 +174,58 @@ export const ROPE_SWINGS: Stage = {
   door: 190,
 };
 
+/**
+ * The Bucket Lifts, the puzzle: a lift up the trunk's left side and one down its right, and two levers, each letting
+ * down a drawbridge. Up the left lift to a ledge, its lever lets down the bridge to the ladder on up to the next; that
+ * one's lever lets down the bridge at the very top. Then down the right lift, up the left one all the way, and over.
+ */
+export const BUCKET_LIFTS: Stage = {
+  name: 'Bucket Lifts',
+  howTo: [
+    'Stand in a bucket to ride it',
+    'Step off where you want to get off',
+    'Walk into a lever to pull it',
+    'Each one lets a bridge down',
+  ],
+  w: 240,
+  h: 420,
+  planks: [
+    { x0: 0, x1: 240, y0: 10, y1: 10 },
+    { x0: 50, x1: 104, y0: 120, y1: 120 },
+    { x0: 104, x1: 164, y0: 120, y1: 120, lever: 0, hinge: 'left' },
+    { x0: 164, x1: 188, y0: 120, y1: 120 },
+    { x0: 120, x1: 188, y0: 200, y1: 200 },
+    { x0: 50, x1: 100, y0: 290, y1: 290 },
+    { x0: 100, x1: 150, y0: 290, y1: 290, lever: 1, hinge: 'left' },
+    { x0: 150, x1: 190, y0: 290, y1: 290 },
+  ],
+  ladders: [{ x: 176, lo: 3 }],
+  pins: [],
+  lifts: [
+    { x: 36, y0: 10, y1: 312, up: true, speed: 22, gap: 72 },
+    { x: 204, y0: 10, y1: 300, up: false, speed: 22, gap: 72 },
+  ],
+  levers: [
+    { x: 94, plank: 1 },
+    { x: 130, plank: 4 },
+  ],
+  nuts: [
+    { x: 76, y: 282 },
+    { x: 150, y: 192 },
+    { x: 160, y: 282 },
+  ],
+  nutMin: 3,
+  nutMax: 5.5,
+  start: { x: 120, plank: 0 },
+  door: 170,
+};
+
 /** The stages, bottom to top of the tree. */
-export const STAGES_UP: readonly Stage[] = [BARREL_PLANKS, ROPE_SWINGS];
+export const STAGES_UP: readonly Stage[] = [BARREL_PLANKS, ROPE_SWINGS, BUCKET_LIFTS];
+
+/** A bucket's rim width, and how long a drawbridge takes to come down. */
+export const BUCKET_W = 24;
+export const LOWER_T = 1.2;
 
 /** How much deeper a rope bridge dips where you stand on it than it hangs at rest, once your weight is on it. */
 export const BRIDGE_DIP = 1.2;
@@ -182,9 +251,11 @@ export function loadedY(p: Plank, x: number, at: number, dip: number): number {
 }
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/** Coins for each barrel jumped, each smashed with a belaying pin, each rope swung on, and for getting to the top. */
+/** Coins for each barrel jumped, each smashed with a belaying pin, each rope swung on, each lever pulled, and for
+ * getting to the top. */
 export const JUMP_COINS = 5;
 export const ROPE_COINS = 5;
+export const LEVER_COINS = 10;
 export const SMASH_COINS = 10;
 export const TOP_COINS = 100;
 /** Tries a stage: a barrel costs one, and with none left the stage starts again from the bottom. */
