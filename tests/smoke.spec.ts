@@ -942,6 +942,7 @@ type Np = {
       house?: boolean;
       tr?: number;
       won?: string[];
+      oxp?: Record<string, number>;
     };
     PET_HOUSE: { x0: number; y0: number; x1: number; y1: number };
     yard: { key: string; x: number; y: number }[];
@@ -956,6 +957,7 @@ type Np = {
     } | null;
     RING: { x: number; y: number };
     startFight(key: string, trainer?: string): void;
+    dogInRing: boolean;
     openRing(): void;
     open: boolean;
     padOpen: boolean;
@@ -14833,6 +14835,48 @@ test('pet battles: a trainer not yet open will not fight', async ({ context, pag
   await page.evaluate(() => window.__np.pets.startFight('h1', 'champ'));
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => window.__np.pets.fight)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('pet battles: the dog fights too, barking, drawn in the ring and not at your heel, and its experience kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: { house: true },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // No pets of your own, but the dog is yours: it can fight.
+  await page.evaluate(() => window.__np.pets.openRing());
+  await expect(page.locator('[data-fpet="dog"]')).toContainText('The dog');
+  await page.locator('[data-fpet="dog"]').click();
+  await expect(page.locator('#petRingBody')).toContainText('its special is Bark');
+  await page.locator('#petFightGo').click();
+  await expect(page.locator('#pfSpecial')).toContainText('Bark');
+  await page.waitForFunction(() => window.__np.pets.fight?.phase === 'fight', null, {
+    timeout: 4000,
+  });
+  expect(await page.evaluate(() => window.__np.pets.dogInRing)).toBe(true);
+  await page.evaluate(() => {
+    const f = window.__np.pets.fight;
+    if (f) f.foe.hp = 0;
+  });
+  await page.waitForFunction(() => window.__np.pets.fight === null, null, { timeout: 5000 });
+  expect(await page.evaluate(() => window.__np.pets.dogInRing)).toBe(false);
+  const p = await page.evaluate(() => window.__np.pets.save);
+  expect(p.oxp).toEqual({ dog: 80 });
+  // Its level in the book.
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await expect(page.locator('[data-pet="dog"] .lvl')).toContainText('Level 1');
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.oxp?.dog === 80, null, {
+    timeout: 5000,
+  });
   expect(errors).toEqual([]);
 });
 
