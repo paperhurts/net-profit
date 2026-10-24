@@ -46,8 +46,11 @@ describe('choose your character', () => {
     expect(parseLook({ skin: 1 }).outfit).toBe('none');
     expect(parseLook({ ...SKIPPER, outfit: 'snow' }).outfit).toBe('snow');
     expect(parseLook({ ...SKIPPER, outfit: 'pyjamas' }).outfit).toBe('none');
-    // Like the armour shown or hidden, it is not part of who a preset is.
+    // Like the armour shown or hidden, it is not part of who a preset is; nor is a title.
     for (const p of PRESETS) expect(presetOf({ ...p.look, outfit: 'captain' })).toBe(p.id);
+    expect(parseLook({ ...SKIPPER, title: 'endless' }).title).toBe('endless');
+    expect(parseLook({ ...SKIPPER, title: 'king' }).title).toBe('none');
+    for (const p of PRESETS) expect(presetOf({ ...p.look, title: 'lord' })).toBe(p.id);
   });
 
   it('draws each outfit over the same look: its shapes, the coat or suit in place of the shirt, and its colours', () => {
