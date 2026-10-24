@@ -31,6 +31,7 @@ export type CropId =
   | 'dragonfruit'
   | 'lantern'
   | 'kraken'
+  | 'starfall'
   | 'moonpetal';
 
 export type Tier = 'common' | 'uncommon' | 'rare' | 'legendary' | 'mythic' | 'divine';
@@ -66,6 +67,8 @@ export type Crop = {
   /** What a normal-sized fruit weighs, in kilos. */
   kg: number;
   stock: readonly [number, number];
+  /** Sprouts only over a legendary fish from the compost bin (part fourteen): the top crop. */
+  legend?: true;
 };
 
 const M = 60;
@@ -83,6 +86,7 @@ const KG: Record<CropId, number> = {
   dragonfruit: 0.5,
   lantern: 2.5,
   kraken: 9,
+  starfall: 6,
   moonpetal: 0.6,
 };
 /** Where one fruit is not called what its plant is. */
@@ -245,6 +249,25 @@ export const CROPS: Record<CropId, Crop> = {
     120,
     [1, 1],
   ),
+  // The starfall melon (part fourteen), a stand-in for the kid's top crop: the dearest seed at the stall, and it sprouts
+  // only over a legendary fish from the compost bin (the Remoro, the attack nibbler or the Moonkoi), so the fish is spent
+  // on it. Picked once, as the kraken squash is; a normal one sells under FRUIT_MAX, so its size and Gold still count.
+  starfall: {
+    ...crop(
+      'starfall',
+      'starfall melon',
+      'starfall melons',
+      'divine',
+      50000,
+      80000,
+      60 * M,
+      0,
+      1,
+      150,
+      [1, 1],
+    ),
+    legend: true,
+  },
   // The moonpetal vine (part nine), the garden's best crop that keeps fruiting, never at the stall: its only seed is the
   // one the Moonkoi drops, one a catch, and the Moonkoi rises once a night at most. A stand-in until the kid names it.
   moonpetal: crop(
@@ -261,7 +284,7 @@ export const CROPS: Record<CropId, Crop> = {
     [0, 0],
   ),
 };
-/** Every crop, the stall's and the moonpetal vine. */
+/** Every crop, the stall's and the moonpetal vine, in the stall's order with the moonpetal vine last. */
 export const ALL_CROP_IDS: readonly CropId[] = Object.keys(CROPS) as CropId[];
 /** The crops the seed stall sells, in its order: all but the moonpetal vine, whose seed only the Moonkoi gives. */
 export const CROP_IDS: readonly CropId[] = ALL_CROP_IDS.filter((k) => CROPS[k].odds > 0);
@@ -843,10 +866,22 @@ export function buySeeds(g: Garden, k: CropId, n: number, coins: number): number
   return cost;
 }
 
-/** Plant a seed of a crop in bed i, if the bed is open and empty and there is a seed. */
+/**
+ * Plant a seed of a crop in bed i, if the bed is open and empty and there is a seed, burying a fish from the bin under
+ * it if one is in hand (or, for the top crop, a legendary fish, without which it will not sprout).
+ */
 export function plant(g: Garden, i: number, k: CropId, now: number, fish?: FishClass): boolean {
   if (i < 0 || i >= bedsOpen(g) || bedAt(g, i) || seedsOf(g, k) <= 0) return false;
-  const fed = fish && binOf(g, fish) > 0 ? fish : undefined;
+  // The top crop takes a legendary fish, whatever is in hand, and will not sprout without one; nothing else takes one.
+  const legend = !!CROPS[k].legend;
+  const fed = legend
+    ? binOf(g, 'legend') > 0
+      ? 'legend'
+      : undefined
+    : fish && fish !== 'legend' && binOf(g, fish) > 0
+      ? fish
+      : undefined;
+  if (legend && !fed) return false;
   const beds = g.beds ? [...g.beds] : [];
   while (beds.length < bedsOpen(g)) beds.push(null);
   const b: Bed = { crop: k, planted: now, ripe: 0, next: 0 };
@@ -954,8 +989,8 @@ export function landKoi(g: Garden): void {
  * A common fish grows it a quarter faster to its first fruit; a dawn or dusk rare makes its first fruit Gold one time in
  * 50, not 100; a deep fish makes them a tenth bigger. A fish in the bin is a fish not sold.
  */
-export type FishClass = 'common' | 'rare' | 'deep';
-export const FISH_CLASSES: readonly FishClass[] = ['common', 'rare', 'deep'];
+export type FishClass = 'common' | 'rare' | 'deep' | 'legend';
+export const FISH_CLASSES: readonly FishClass[] = ['common', 'rare', 'deep', 'legend'];
 export const BIN_MAX = 10;
 export const FED = {
   common: { grow: 0.75 },
@@ -963,17 +998,21 @@ export const FED = {
   deep: { size: 1.1 },
 } as const;
 
-/** What kind of fish a species is, for the bin, or null for what it does not take (crabs, and the great fish). */
+/** What kind of fish a species is, for the bin, or null for what it does not take (crabs). */
 export function fishClass(sp: number): FishClass | null {
   const S = SPECIES[sp];
-  if (!S || S.crab || BIG_FISH.includes(sp)) return null;
+  if (!S || S.crab) return null;
+  if (LEGEND_FISH.includes(sp)) return 'legend';
   if (sp === DAWN_SP || sp === DUSK_SP) return 'rare';
   const h = HABITAT[sp];
   if (h?.deep || h?.far || h?.isle2 || h?.isle3 || ABYSS_FISH.includes(sp)) return 'deep';
   return 'common';
 }
-/** The great ones the bin never takes: the Remoro, the attack nibbler and the Moonkoi. */
-const BIG_FISH: readonly number[] = [REMORO, ATTACK_NIBBLER, MOONKOI];
+/**
+ * The legendary fish (part fourteen): the Remoro, the attack nibbler and the Moonkoi, each one a day at most. The top
+ * crop sprouts only over one, and nothing else will take one.
+ */
+export const LEGEND_FISH: readonly number[] = [REMORO, ATTACK_NIBBLER, MOONKOI];
 
 /** Fish of a kind in the bin, and in all. */
 export function binOf(g: Garden, k: FishClass): number {
@@ -1099,7 +1138,7 @@ function parseBed(v: unknown): Bed | null {
   if (Array.isArray(k.mu)) b.mu = k.mu.slice(0, b.ripe).map(marks);
   if (typeof k.born === 'number' && Number.isFinite(k.born) && k.born >= b.ripe)
     b.born = Math.floor(k.born);
-  if (k.fed === 'common' || k.fed === 'rare' || k.fed === 'deep') b.fed = k.fed;
+  if ((FISH_CLASSES as readonly unknown[]).includes(k.fed)) b.fed = k.fed as FishClass;
   return b;
 }
 

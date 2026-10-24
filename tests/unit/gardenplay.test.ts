@@ -378,8 +378,8 @@ describe('the garden: what the action button does', () => {
 describe('drawing what grows', () => {
   it('draws every crop, growing and grown, by day and at night', () => {
     for (const k of CROP_IDS) {
-      const g: Garden = { seen: true, seeds: { [k]: 2 } };
-      plant(g, 0, k, T0);
+      const g: Garden = { seen: true, seeds: { [k]: 2 }, bin: { legend: 1 } };
+      expect(plant(g, 0, k, T0)).toBe(true);
       for (const t of [CROPS[k].grow / 2, CROPS[k].grow + 1])
         for (const dark of [0, 1]) {
           const f = fakeView();

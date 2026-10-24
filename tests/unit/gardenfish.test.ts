@@ -41,7 +41,7 @@ const sec = (s: number) => T0 + s * 1000;
 const DEEP = DEEP_RINGS[0]?.sp ?? 0;
 
 describe('the compost bin: which fish it takes', () => {
-  it('sorts fish into common, rare and deep, and takes no crab and none of the great fish', () => {
+  it('sorts fish into common, rare, deep and legendary, and takes no crab', () => {
     expect(fishClass(0)).toBe('common');
     expect(fishClass(CARP)).toBe('common');
     expect(fishClass(DAWN_SP)).toBe('rare');
@@ -49,8 +49,8 @@ describe('the compost bin: which fish it takes', () => {
     expect(fishClass(DEEP)).toBe('deep');
     expect(fishClass(ABYSS_FISH[1] ?? 0)).toBe('deep');
     expect(fishClass(CRAB)).toBeNull();
-    expect(fishClass(REMORO)).toBeNull();
-    expect(fishClass(MOONKOI)).toBeNull();
+    expect(fishClass(REMORO)).toBe('legend');
+    expect(fishClass(MOONKOI)).toBe('legend');
   });
 
   it('keeps only the kinds it is set to, cheapest first, ten at most, out of the hold', () => {
@@ -167,7 +167,7 @@ describe('the compost bin: the card, the tray, the action button and the save', 
     expect(tray).toContain('data-tool="fish-deep"');
     expect(tray).not.toContain('data-tool="fish-common"');
     const shelf = binShelfHtml({ ...g, binKeep: { deep: true } });
-    expect(shelf.match(/data-keep=/g)).toHaveLength(3);
+    expect(shelf.match(/data-keep=/g)).toHaveLength(4);
     expect(shelf).toContain('Keeping');
     expect(shelf).toContain('Not keeping');
   });

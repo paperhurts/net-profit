@@ -14301,7 +14301,7 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   await expect(climb).toHaveText('Look at the seeds', { timeout: 4000 });
   await climb.dispatchEvent('click');
   await expect(page.locator('#gardenCard')).toBeVisible();
-  await expect(page.locator('#gardenShelf [data-seed]')).toHaveCount(12);
+  await expect(page.locator('#gardenShelf [data-seed]')).toHaveCount(13);
   // Today's stock was rolled as the stall opened, and saved at once: a reload cannot roll it again.
   const day = await page.evaluate(() => window.__np.gardenIsle.stock?.day);
   expect(day).toBeGreaterThanOrEqual(1);
@@ -15149,6 +15149,70 @@ test("the Garden Isle's compost bin: tie up with fish aboard, the bin keeps them
   expect(errors).toEqual([]);
 });
 
+test("the Garden Isle's starfall melon: the bin keeps a Moonkoi, and the melon sprouts only over it", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true, seeds: { starfall: 2 }, binKeep: { legend: true } },
+    // One Moonkoi (species 43) in the hold.
+    trip: {
+      x: -1200,
+      y: 5600,
+      h: Math.PI / 2,
+      clock: 0.3,
+      hold: Array.from({ length: 44 }, (_, i) => (i === 43 ? 1 : 0)),
+    },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#toast')).toContainText('The compost bin keeps a fish', {
+    timeout: 6000,
+  });
+  expect(await page.evaluate(() => window.__np.gardenIsle.bin)).toEqual({ legend: 1 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  const climb = page.locator('#climb');
+  // The melon's seed in hand: it takes the legendary fish from the bin by itself.
+  await page.locator('#seedTray [data-pick="starfall"]').dispatchEvent('click');
+  await expect(page.locator('#seedTray [data-tool="fish-legend"]')).toHaveCount(0);
+  await standAt(172, 30);
+  await expect(climb).toHaveText('Plant a starfall melon over a legendary fish', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#toast')).toContainText('over a legendary fish');
+  expect(
+    await page.evaluate(() => [
+      window.__np.gardenIsle.bin,
+      (window.__np.gardenIsle.beds?.[0] as { crop?: string; fed?: string } | null)?.fed,
+    ]),
+  ).toEqual([{ legend: 0 }, 'legend']);
+  // No legendary fish left: the next bed says so, and will not take the seed.
+  await standAt(128, 30);
+  await expect(climb).toHaveText('It needs a legendary fish', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#toast')).toContainText('only sprouts over a legendary fish');
+  expect(await page.evaluate(() => window.__np.gardenIsle.seeds?.starfall)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
 test("the Garden Isle's plot grows: dig six more beds and plant in one, and buy the bigger basket", async ({
   context,
   page,
@@ -15222,7 +15286,7 @@ test('the garden journal: the field guide has a page for every crop, filled in a
   await expect(page.locator('#guide')).toBeVisible();
   const head = page.locator('#pages .jhead');
   await expect(head).toContainText('Garden journal');
-  await expect(head).toContainText('1 of 13 picked');
+  await expect(head).toContainText('1 of 14 picked');
   const tomato = page.locator('#pages article', { hasText: 'Picked 12' });
   await expect(tomato).toContainText('Tomato');
   await expect(tomato).toContainText('Gold 1');

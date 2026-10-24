@@ -1159,6 +1159,40 @@ function drawPlant(
     leaf(-2, -8 - 2 * f, 3 * f, 2 * f, 0, 'rgba(255,255,255,.25)');
     return;
   }
+  if (k === 'starfall') {
+    // A melon as dark as the night sky, swelling as it grows, speckled with stars that twinkle, glowing gold at night.
+    line(
+      [
+        [-12, -1],
+        [-6, -5],
+        [0, -3],
+      ],
+      1.6,
+      '#4E9A3E',
+    );
+    leaf(-10, -4, 4, 2.6, -0.3, '#5FAE4E');
+    leaf(10, -3, 4, 2.6, 0.3, '#5FAE4E');
+    const r = (3 + 5 * f) * (ripe ? Math.min(1.6, sz(0)) : 1);
+    if (ripe && v.dark > 0.05) ball(0, -6, r * 1.4, `rgba(255,224,122,${0.35 * v.dark})`);
+    leaf(0, -6, r * 1.15, r, 0, ripe ? tint(0, '#2E4A7A') : '#5D7A9E');
+    if (f >= 0.5)
+      [
+        [-0.4, -0.3],
+        [0.35, -0.5],
+        [0.1, 0.25],
+        [-0.5, 0.3],
+        [0.55, 0.15],
+      ].forEach(([ox, oy], j) => {
+        const tw = 0.6 + 0.4 * Math.sin(T * 3 + j * 1.7);
+        ball(
+          (ox as number) * r,
+          -6 + (oy as number) * r,
+          0.9 * tw,
+          `rgba(255,224,122,${0.5 + 0.5 * tw})`,
+        );
+      });
+    return;
+  }
   // Blueberry: a little round bush, berries in clusters, pale until ripe.
   ctx.fillStyle = '#7A5230';
   ctx.fillRect(sx - 1.2 * s, sy - 8 * s, 2.4 * s, 8 * s);
