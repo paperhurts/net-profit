@@ -607,6 +607,14 @@ export function gardenSolids(v: DrawView): Solid[] {
   return out;
 }
 
+const TALL: ReadonlySet<CropId> = new Set([
+  'tomato',
+  'sweetcorn',
+  'papaya',
+  'coconut',
+  'dragonfruit',
+]);
+
 /** A plant in a bed, at screen x, y: grown this far (0 to 1), with this many ripe fruit on it, swaying a little. */
 function drawPlant(
   v: DrawView,
@@ -621,7 +629,8 @@ function drawPlant(
   const { ctx } = v;
   const Z = v.zoom;
   const sway = Math.sin(T * 1.6 + i * 1.3) * 1.2 * Z;
-  const s = (0.35 + 0.65 * f) * 1.4 * Z;
+  // The low crops a little larger than life, so they read on a phone; the tall ones as they are, so they keep to their beds.
+  const s = (0.35 + 0.65 * f) * (TALL.has(k) ? 1 : 1.4) * Z;
   const leaf = (dx: number, dy: number, rx: number, ry: number, a: number, c: string) => {
     ctx.fillStyle = c;
     ctx.beginPath();
@@ -677,6 +686,262 @@ function drawPlant(
         ctx.fill();
       });
     }
+    return;
+  }
+  const ball = (dx: number, dy: number, r: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(sx + dx * s + sway * (-dy / 30), sy + dy * s, r * s, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  const line = (pts: readonly (readonly [number, number])[], w: number, c: string) => {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = w * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    pts.forEach(([dx, dy], j) => {
+      const x = sx + dx * s + sway * (-dy / 30);
+      const y = sy + dy * s;
+      if (j === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  };
+  /** The fruit at these spots: ripe in its colour, still growing small and pale, none until the plant is grown. */
+  const fruit = (
+    spots: readonly (readonly [number, number])[],
+    r: number,
+    on: string,
+    off: string,
+  ) => {
+    if (f < 1) return;
+    spots.forEach(([dx, dy], j) => {
+      ball(dx, dy, j < ripe ? r : r * 0.6, j < ripe ? on : off);
+    });
+  };
+  if (k === 'sweetpotato') {
+    // A low spreading vine, heart-shaped leaves; ripe, a purple tuber shows at the soil.
+    if (ripe) ball(0, 0, 5, '#B4566B');
+    for (const [dx, dy, a] of [
+      [-8, -3, -0.6],
+      [8, -3, 0.6],
+      [-3, -7, -0.2],
+      [4, -8, 0.3],
+      [0, -2, 0],
+    ] as const)
+      leaf(dx, dy, 4.5, 3.6, a, dy < -6 ? '#6DB55A' : '#4E9A3E');
+    return;
+  }
+  if (k === 'tomato') {
+    line(
+      [
+        [4, 0],
+        [4, -28],
+      ],
+      1.4,
+      '#8A6234',
+    );
+    for (const [dx, dy, a] of [
+      [-4, -8, -0.4],
+      [2, -14, 0.3],
+      [-3, -20, -0.3],
+      [3, -25, 0.2],
+    ] as const)
+      leaf(dx, dy, 5, 3, a, '#4E9A3E');
+    fruit(
+      [
+        [-6, -11],
+        [6, -16],
+        [-4, -23],
+      ],
+      3.2,
+      '#E4413A',
+      '#9CCB6B',
+    );
+    return;
+  }
+  if (k === 'sweetcorn') {
+    line(
+      [
+        [0, 0],
+        [0, -36],
+      ],
+      2.4,
+      '#6DA544',
+    );
+    for (const [x1, y1] of [
+      [-10, -16],
+      [10, -20],
+      [-9, -28],
+      [9, -32],
+    ] as const)
+      line(
+        [
+          [0, y1 + 8],
+          [x1, y1],
+        ],
+        1.8,
+        '#4E9A3E',
+      );
+    if (f >= 1)
+      [
+        [3, -18],
+        [-3, -24],
+        [3, -29],
+      ].forEach(([dx, dy], j) => {
+        leaf(dx as number, dy as number, 2.4, 5, 0.2, j < ripe ? '#F2C94C' : '#B7D98A');
+      });
+    return;
+  }
+  if (k === 'pineapple') {
+    // A rosette of spiky leaves, the fruit up in its middle.
+    for (const a of [-1.2, -0.7, -0.25, 0.25, 0.7, 1.2])
+      line(
+        [
+          [0, -2],
+          [Math.sin(a) * 13, -2 - Math.cos(a) * 9],
+        ],
+        1.8,
+        '#4E8F4A',
+      );
+    if (f >= 1) {
+      leaf(0, -9, 5, 7, 0, ripe ? '#F2B33D' : '#8DBE5A');
+      line(
+        [
+          [0, -16],
+          [-2, -21],
+        ],
+        1.4,
+        '#4E9A3E',
+      );
+      line(
+        [
+          [0, -16],
+          [2, -21],
+        ],
+        1.4,
+        '#4E9A3E',
+      );
+    }
+    return;
+  }
+  if (k === 'papaya' || k === 'coconut') {
+    // A little tree: a trunk, a crown of long leaves, the fruit hanging under it.
+    const palm = k === 'coconut';
+    const h = palm ? 40 : 30;
+    line(
+      [
+        [0, 0],
+        [palm ? 3 : 0, -h / 2],
+        [palm ? 2 : 0, -h],
+      ],
+      palm ? 3 : 2.4,
+      palm ? '#8A6234' : '#9C8A6A',
+    );
+    for (const a of [-2.4, -1.6, -0.8, 0.8, 1.6, 2.4])
+      line(
+        [
+          [palm ? 2 : 0, -h],
+          [Math.sin(a) * 14, -h - Math.cos(a) * 6 + 4],
+        ],
+        1.8,
+        '#4E9A3E',
+      );
+    fruit(
+      [
+        [-3, -h + 4],
+        [4, -h + 5],
+        [0, -h + 8],
+      ],
+      palm ? 3.2 : 3,
+      palm ? '#7A5230' : '#F28C28',
+      '#8DBE5A',
+    );
+    return;
+  }
+  if (k === 'dragonfruit') {
+    // A climbing cactus, its flat arms, the pink fruit at their ends.
+    for (const pts of [
+      [
+        [0, 0],
+        [0, -22],
+      ],
+      [
+        [0, -10],
+        [-9, -16],
+        [-9, -24],
+      ],
+      [
+        [0, -14],
+        [9, -19],
+        [9, -27],
+      ],
+    ] as const)
+      line(pts, 3, '#5DAA55');
+    fruit(
+      [
+        [0, -24],
+        [-9, -26],
+        [9, -29],
+      ],
+      3.2,
+      '#E8508F',
+      '#A9D47F',
+    );
+    return;
+  }
+  if (k === 'lantern') {
+    // A curling vine and its gourds, glowing warm at night like the lanternfish.
+    line(
+      [
+        [-10, -2],
+        [-4, -10],
+        [4, -8],
+        [10, -16],
+      ],
+      1.6,
+      '#4E9A3E',
+    );
+    leaf(-6, -8, 4, 3, -0.4, '#5FAE4E');
+    leaf(7, -12, 4, 3, 0.4, '#5FAE4E');
+    if (f >= 1)
+      [
+        [-6, -4],
+        [3, -6],
+        [9, -12],
+      ].forEach(([dx, dy], j) => {
+        const on = j < ripe;
+        if (on && v.dark > 0.05)
+          ball(dx as number, dy as number, 8, `rgba(255,214,120,${0.35 * v.dark})`);
+        leaf(
+          dx as number,
+          dy as number,
+          on ? 4 : 2.4,
+          on ? 4.6 : 2.8,
+          0,
+          on ? '#F7A93B' : '#B7D98A',
+        );
+      });
+    return;
+  }
+  if (k === 'kraken') {
+    // A great purple squash, swelling as it grows, its vines curling like tentacles.
+    for (let j = 0; j < 4; j++) {
+      const a = (j / 4) * Math.PI * 2 + 0.4;
+      const w = Math.sin(T * 1.2 + j) * 3;
+      line(
+        [
+          [Math.cos(a) * 6, -2 + Math.sin(a) * 3],
+          [Math.cos(a) * 13 + w, -2 + Math.sin(a) * 6],
+          [Math.cos(a) * 17, -6 + Math.sin(a) * 7 - w],
+        ],
+        1.6,
+        j % 2 ? '#4E9A3E' : '#6A3A9A',
+      );
+    }
+    leaf(0, -6, 6 + 5 * f, 5 + 4 * f, 0, ripe ? '#7E4FB0' : '#8E6FB8');
+    leaf(-2, -8 - 2 * f, 3 * f, 2 * f, 0, 'rgba(255,255,255,.25)');
     return;
   }
   // Blueberry: a little round bush, berries in clusters, pale until ripe.
@@ -767,4 +1032,24 @@ export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: b
     });
   });
   return out;
+}
+
+/**
+ * The garden's lights in the night mask: the open stalls, a small light on each ripe bed so a player can find what to
+ * pick in the dark, and a wide warm one on each ripe lantern gourd, which glows like the lanternfish.
+ */
+export function gardenLights(v: DrawView, g: Garden, now: number): void {
+  if (!near(v, 1000)) return;
+  for (const s of [SEED_STALL, SELL_STAND]) {
+    const [x, y] = fromGarden(s.u, s.v);
+    v.light(x, y, 30, 120, 0.8);
+  }
+  g.beds?.forEach((b, i) => {
+    const at = BEDS[i];
+    if (!b || !at) return;
+    growBed(b, now);
+    if (b.ripe <= 0) return;
+    const [x, y] = fromGarden(at.u, at.v);
+    v.light(x, y, 10, b.crop === 'lantern' ? 110 : 50, b.crop === 'lantern' ? 0.9 : 0.5);
+  });
 }

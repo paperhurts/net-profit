@@ -200,8 +200,8 @@ import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { CRATES14, DOCK14, fromGarden, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt } from './world/garden';
-import { drawGardenFlat, drawGardenSea, gardenPlantSolids, gardenSolids } from './render/garden';
-import { bedAt as gardenBed, buySeeds, CROP_IDS, CROPS, pick as pickBed, plant as plantBed, seedsOf, sellBasket } from './data/garden';
+import { drawGardenFlat, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
+import { bedAt as gardenBed, buySeeds, CROP_IDS, CROPS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, stockToday } from './data/garden';
 import { bedOf, gardenAction, gardenLabel, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
@@ -2133,15 +2133,16 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
     coins += got.coins; earned += got.coins; sfx.sold(); hud(); save(); toast(`Sold ${got.n} fruit for ${got.coins} coins.`, 2400); return; }
   if (a === 'g-noseed'){ sfx.denied(); toasts.clear(); toast('No seeds to plant. The seed stall, up by the pier, sells them.', 2600); return; }
   if (a.startsWith('g-plant-')){ const k = gardenChoice(); if (k && plantBed(gardenIsle, i, k, now)){ sfx.hop(); gardenSeed = gardenChoice() ?? k; save();
-      if (!gardenTold.has('planted')){ gardenTold.add('planted'); toasts.clear(); toast(`Planted ${howMany(k, 1)}. ${CROPS[k].regrow ? 'It will keep fruiting once it is grown.' : 'It is picked once, when it is ripe.'} It grows even while the game is closed.`, 3600); } }
+      if (!gardenTold.has('planted')){ gardenTold.add('planted'); toasts.clear(); toast(`Planted a ${CROPS[k].name}. ${CROPS[k].regrow ? 'It will keep fruiting once it is grown.' : 'It is picked once, when it is ripe.'} It grows even while the game is closed.`, 3600); } }
     return; }
   if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, n = pickBed(gardenIsle, i, now); toasts.clear();
     if (!n){ sfx.denied(); toast('Your basket is full. Sell it at the stand.', 2400); return; }
     for (let j = 0; j < n; j++) sfx.sale(j, 0); save(); toast(`Picked ${howMany(k, n)}.`, 1600); return; }
   if (a.startsWith('g-wait-')){ toasts.clear(); toast(gardenLabel(gardenIsle, a, gardenSeed, now) + '.', 1800); } }
-// The seed stall's card: each seed, what it grows, and a button to buy one.
+// The seed stall's card: each seed, what it grows, and a button to buy one. Its stock comes in at each dawn, rolled the
+// first time the stall is opened on a new day and saved at once, so a reload cannot roll it again.
 let seedStallOpen = false;
-function openSeedStall(){ seedStallOpen = true; sfx.hop(); renderSeedStall(); $('gardenCard').hidden = false; }
+function openSeedStall(){ seedStallOpen = true; sfx.hop(); const fresh = gardenIsle.stock?.day !== day; stockToday(gardenIsle, day); if (fresh) save(); renderSeedStall(); $('gardenCard').hidden = false; }
 function closeSeedStall(){ seedStallOpen = false; $('gardenCard').hidden = true; sfx.click(); }
 function renderSeedStall(){ $('gardenShelf').innerHTML = seedShelfHtml(gardenIsle, coins); }
 $('gardenClose').addEventListener('click', closeSeedStall);
@@ -6709,6 +6710,7 @@ function drawNight(){
   light(boat.x, boat.y, 10, 240 + 40*bk(), 1);
   for (const sc of schools) if (SPECIES[sc.sp].glow && sc.vis) light(sc.cx, sc.cy, 0, sc.r+80, .55);
   scene.draw(drawView, 'mask');
+  gardenLights(drawView, gardenIsle, gardenNow());
   light(net.x, net.y, 0, 150, .8);
   light(IX+50, IY-90, 20, 280, .95);
   if (build >= 2) light(TX, TY, 60, 230, .95);

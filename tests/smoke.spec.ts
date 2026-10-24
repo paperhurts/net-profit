@@ -144,6 +144,7 @@ type Np = {
     beds?: ({ crop: string; ripe: number } | null)[];
     seeds?: Record<string, number>;
     basket?: Record<string, number>;
+    stock?: { day: number; n: Record<string, number> };
   };
   gardenSkew: number;
   gardenSeed: string | null;
@@ -13423,7 +13424,15 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   await expect(climb).toHaveText('Look at the seeds', { timeout: 4000 });
   await climb.dispatchEvent('click');
   await expect(page.locator('#gardenCard')).toBeVisible();
-  await expect(page.locator('#gardenShelf [data-seed]')).toHaveCount(3);
+  await expect(page.locator('#gardenShelf [data-seed]')).toHaveCount(12);
+  // Today's stock was rolled as the stall opened, and saved at once: a reload cannot roll it again.
+  const day = await page.evaluate(() => window.__np.gardenIsle.stock?.day);
+  expect(day).toBeGreaterThanOrEqual(1);
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('netprofit.v1') || '{}').garden.stock.day,
+    ),
+  ).toBe(day);
   await page.locator('[data-seed="carrot"]').dispatchEvent('click');
   await page.locator('[data-seed="carrot"]').dispatchEvent('click');
   await page.locator('[data-seed="strawberry"]').dispatchEvent('click');
