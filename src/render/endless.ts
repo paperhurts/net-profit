@@ -32,6 +32,7 @@ import {
   SIDES,
   type Side,
   TREES13,
+  WRECK_RING,
 } from '../world/endless';
 import { drawPalm7 } from './isle7';
 import type { Solid } from './layers';
@@ -189,7 +190,7 @@ export function drawEndlessFlat(v: DrawView): void {
   frameEllipse(v, 0, 0, SANDBAR.ru, SANDBAR.rv);
   ctx.fillStyle = '#EAD7A2';
   ctx.fill();
-  frameEllipse(v, 0, 0, BASE.r, BASE.r);
+  frameEllipse(v, 0, 0, WRECK_RING, WRECK_RING);
   ctx.setLineDash([6 * Z, 6 * Z]);
   ctx.strokeStyle = 'rgba(120,96,60,.6)';
   ctx.lineWidth = 2 * Z;

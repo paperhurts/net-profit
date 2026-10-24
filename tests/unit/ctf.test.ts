@@ -6,10 +6,19 @@ import {
   BADGE_MARKS,
   badgeOf,
   CTF,
+  FORTS,
   KITS,
   TEAM,
 } from '../../src/data/battle';
-import { Ctf, type Fighter, flagHome, gateSpot, graveSpot, inFort } from '../../src/entities/ctf';
+import {
+  Ctf,
+  type Fighter,
+  flagHome,
+  gateSpot,
+  graveSpot,
+  type Hold,
+  inFort,
+} from '../../src/entities/ctf';
 import { onHalf, SIDES } from '../../src/world/endless';
 import { distOf, flowTo, walkable } from '../../src/world/endlessnav';
 
@@ -644,6 +653,157 @@ describe('Badges II and III', () => {
       expect(wins.pirate / decided).toBeGreaterThan(0.3);
       expect(wins.pirate / decided).toBeLessThan(0.7);
       expect(caps / n).toBeGreaterThan(1.5);
+    }
+  }, 60000);
+});
+
+describe('Hold the Forts', () => {
+  /** A fighter stood at a point in its ring, the walker's way: where you stand is where you are put. */
+  const standIn = (g: Ctf, f: Fighter, key: 'battery' | 'wreck' | 'bell') => {
+    const h = g.hold(key);
+    const [u, v] = g.holdSpot(f, h);
+    f.u = u;
+    f.v = v;
+    return [u, v] as [number, number];
+  };
+
+  it('has three bases, nobody holding any, the two halves the mirror of each other, and the flags stay home', () => {
+    const g = new Ctf('pirate', 1, 1.12, 'damage', 1, 'forts');
+    expect(g.mode).toBe('forts');
+    expect(g.clock).toBe(FORTS.clock);
+    expect(g.holds.map((h) => [h.key, h.owner])).toEqual([
+      ['battery', null],
+      ['wreck', null],
+      ['bell', null],
+    ]);
+    const [bat, wreck, bell] = g.holds as [Hold, Hold, Hold];
+    expect([bat.u, bat.v]).toEqual([bell.u, -bell.v]);
+    expect([wreck.u, wreck.v]).toEqual([0, 0]);
+    // Every place a fighter stands in a ring is ground, on both halves, for every slot.
+    for (const f of g.fighters)
+      for (const h of g.holds) {
+        const [u, v] = g.holdSpot(f, h);
+        expect(walkable(u, v)).toBe(true);
+        expect(Math.hypot(u - h.u, v - h.v)).toBeLessThanOrEqual(h.r);
+      }
+    run(g, CTF.gates + 120);
+    expect(g.flags.pirate.at).toBe('home');
+    expect(g.flags.ninja.at).toBe('home');
+  });
+
+  it('is taken by standing in its ring alone for five seconds; with a foe in it too, nobody gets anywhere', () => {
+    const g = new Ctf('pirate', 2, 1.12, 'damage', 1, 'forts');
+    open(g);
+    const you = g.you as Fighter;
+    const foe = g.team('ninja').find((f) => f.role === 'damage') as Fighter;
+    only(g, [you, foe]);
+    foe.stunT = 9999;
+    foe.abCd = foe.abCd.map(() => 9999);
+    foe.cd = 9999;
+    foe.u = 0;
+    foe.v = -300;
+    const spot = standIn(g, you, 'battery');
+    run(g, FORTS.take - 0.5, 0.1, () => spot);
+    expect(g.hold('battery').owner).toBeNull();
+    expect(g.hold('battery').by).toBe('pirate');
+    // A foe walks in: it stops where it is.
+    standIn(g, foe, 'battery');
+    const t = g.hold('battery').t;
+    run(g, 3, 0.1, () => spot);
+    expect(g.hold('battery').contested).toBe(true);
+    expect(g.hold('battery').t).toBeCloseTo(t, 5);
+    // It goes: the rest of the five seconds, and the base is ours, counted to you.
+    foe.u = 0;
+    foe.v = -300;
+    g.events.length = 0;
+    run(g, 0.7, 0.1, () => spot);
+    expect(g.hold('battery').owner).toBe('pirate');
+    expect(
+      g.events.some(
+        (e) => e.k === 'take' && e.key === 'battery' && e.side === 'pirate' && e.fs.includes(you),
+      ),
+    ).toBe(true);
+    expect(you.stats.takes).toBe(1);
+  });
+
+  it('takes theirs back by first undoing what they had done of taking it; a taking left alone fades', () => {
+    const g = new Ctf('pirate', 3, 1.12, 'damage', 1, 'forts');
+    open(g);
+    const you = g.you as Fighter;
+    const foe = g.team('ninja').find((f) => f.role === 'damage') as Fighter;
+    only(g, [you, foe]);
+    foe.stunT = 9999;
+    foe.cd = 9999;
+    foe.abCd = foe.abCd.map(() => 9999);
+    you.u = 0;
+    you.v = 600;
+    standIn(g, foe, 'wreck');
+    run(g, 3, 0.1, () => [you.u, you.v]);
+    expect(g.hold('wreck').by).toBe('ninja');
+    // It leaves: what it had done fades at half the pace.
+    foe.u = -380;
+    foe.v = -600;
+    run(g, 2, 0.1, () => [you.u, you.v]);
+    expect(g.hold('wreck').t).toBeCloseTo(2, 1);
+    // You go in: two seconds to undo it, then five more to take it.
+    const spot = standIn(g, you, 'wreck');
+    run(g, 2.2, 0.1, () => spot);
+    expect(g.hold('wreck').by).toBe('pirate');
+    run(g, FORTS.take, 0.1, () => spot);
+    expect(g.hold('wreck').owner).toBe('pirate');
+  });
+
+  it('scores 1, 3 and 10 a second for one, two and three bases, and the first to the total wins', () => {
+    const g = new Ctf('pirate', 4, 1.12, 'damage', 1, 'forts');
+    open(g);
+    only(g, []);
+    const you = g.you as Fighter;
+    you.state = 'down';
+    for (const [n, rate] of [
+      [1, 1],
+      [2, 3],
+      [3, 10],
+    ] as const) {
+      g.holds.forEach((h, i) => {
+        h.owner = i < n ? 'pirate' : null;
+      });
+      const s = g.score.pirate;
+      run(g, 2, 0.1);
+      expect(g.score.pirate - s).toBeCloseTo(rate * 2, 1);
+      expect(g.score.ninja).toBe(0);
+    }
+    run(g, 60, 0.1);
+    expect(g.phase).toBe('over');
+    expect(g.winner).toBe('pirate');
+    expect(g.score.pirate).toBeGreaterThanOrEqual(FORTS.win);
+  });
+
+  it('stays even: bots alone take the bases back and forth, each side wins about as often, every battle ending', () => {
+    for (const badge of [1, 3] as const) {
+      const wins = { pirate: 0, ninja: 0, draw: 0 };
+      let takes = 0;
+      let len = 0;
+      const n = 30;
+      for (let s = 1; s <= n; s++) {
+        const g = new Ctf(null, s, 1, 'damage', badge, 'forts');
+        let t = 0;
+        for (; t < CTF.gates + FORTS.clock + 1 && g.phase !== 'over'; t += 0.1) {
+          g.update(0.1);
+          takes += g.events.filter((e) => e.k === 'take').length;
+          g.events.length = 0;
+        }
+        expect(g.phase).toBe('over');
+        wins[g.winner ?? 'draw']++;
+        len += t;
+      }
+      const decided = wins.pirate + wins.ninja;
+      expect(decided).toBeGreaterThan(n * 0.8);
+      expect(wins.pirate / decided).toBeGreaterThan(0.3);
+      expect(wins.pirate / decided).toBeLessThan(0.7);
+      expect(takes / n).toBeGreaterThan(4);
+      // About three to five minutes, the plan's.
+      expect(len / n).toBeGreaterThan(150);
+      expect(len / n).toBeLessThan(330);
     }
   }, 60000);
 });
