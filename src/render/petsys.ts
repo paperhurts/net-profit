@@ -7,6 +7,7 @@
 
 import { K as ISO_K } from '../core/iso';
 import { COLOURS, GRID, PEN, type Pt, type Rig, type Stroke } from '../data/doodle';
+import type { EggKind } from '../data/eggs';
 import type { PetKey } from '../data/petsys';
 import type { DrawView } from '../entities/entity';
 import { drawOtterSit } from '../entities/otter';
@@ -255,4 +256,91 @@ export function drawWalking(
     ctx.fill();
   }
   ctx.restore();
+}
+
+/** Each kind of egg's shell and its spots: cream and brown, sky and white, violet and gold. */
+export const EGG_LOOK: Readonly<Record<EggKind, { shell: string; spot: string }>> = {
+  common: { shell: '#F6EBD3', spot: '#B88A5A' },
+  rare: { shell: '#A9DDF2', spot: '#FFFFFF' },
+  mythic: { shell: '#9C7FD6', spot: '#FFD24A' },
+};
+
+/**
+ * An egg at screen x, y (its foot), r tall, leaning by `tilt` radians: its shell, its spots, and up to three cracks
+ * zigzagging round it, one more each time it cracks.
+ */
+export function drawEgg(
+  ctx: CanvasRenderingContext2D,
+  k: EggKind,
+  x: number,
+  y: number,
+  r: number,
+  tilt = 0,
+  cracks = 0,
+): void {
+  const look = EGG_LOOK[k];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  ctx.fillStyle = look.shell;
+  ctx.strokeStyle = 'rgba(18,48,58,.55)';
+  ctx.lineWidth = Math.max(1, r * 0.06);
+  ctx.beginPath();
+  ctx.ellipse(0, -r * 0.5, r * 0.38, r * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = look.spot;
+  for (const [sx, sy, sr] of [
+    [-0.15, -0.7, 0.07],
+    [0.14, -0.45, 0.06],
+    [-0.08, -0.28, 0.05],
+    [0.12, -0.78, 0.04],
+  ] as const) {
+    ctx.beginPath();
+    ctx.arc(sx * r, sy * r, sr * r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = '#12303A';
+  ctx.lineWidth = Math.max(1, r * 0.05);
+  for (let c = 0; c < Math.min(3, cracks); c++) {
+    const cy = -r * (0.62 - c * 0.12);
+    const w = r * 0.36;
+    ctx.beginPath();
+    for (let i = 0; i <= 6; i++) {
+      const px = -w + (i / 6) * 2 * w;
+      const py = cy + (i % 2 ? -1 : 1) * r * 0.05;
+      if (i) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** The nest crate aboard (data/eggs.ts) at world x, y, z: a little box of straw with its eggs, each wobbling now and then. */
+export function drawNestCrate(
+  v: DrawView,
+  x: number,
+  y: number,
+  z: number,
+  eggs: readonly { k: EggKind }[],
+): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, z);
+  ctx.fillStyle = 'rgba(0,0,0,.2)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 1 * Z, 9 * Z, 3.5 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  eggs.forEach((e, i) => {
+    const ex = sx + (i - (eggs.length - 1) / 2) * 5 * Z;
+    const wob = Math.sin(v.T * 9 + i * 2) * (Math.sin(v.T * 0.7 + i) > 0.8 ? 0.25 : 0);
+    drawEgg(ctx, e.k, ex, sy - 2 * Z, 9 * Z, wob);
+  });
+  // The box's front, in front of the eggs, with straw over its lip.
+  ctx.fillStyle = '#9A6B3E';
+  ctx.fillRect(sx - 9 * Z, sy - 4 * Z, 18 * Z, 5 * Z);
+  ctx.fillStyle = '#E9C76B';
+  for (let i = 0; i < 6; i++) ctx.fillRect(sx - 8 * Z + i * 3 * Z, sy - 5 * Z, 1.4 * Z, 1.6 * Z);
 }

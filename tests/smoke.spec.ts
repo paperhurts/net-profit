@@ -916,9 +916,12 @@ type Np = {
       nm: Record<string, string>;
       drawn: { id: number; nm: string; d: string; got: number }[];
       walk: string | null;
+      eggs: { k: string; sp: string; at: number; due: number }[];
+      hatched: { id: number; sp: string; nm: string; from: string }[];
     };
     open: boolean;
     padOpen: boolean;
+    hatching: unknown;
     walker: { on: boolean; ashore: boolean; x: number; y: number; love: number };
     walkAt: [number, number] | null;
     pad: { strokes: unknown[]; inkLeft: number };
@@ -14416,5 +14419,52 @@ test('the Garden Isle in a storm: out near it, the rain makes ripe fruit Wet and
     () => window.__np.gardenIsle.beds?.flatMap((b) => b?.mu ?? []) ?? [],
   );
   expect(again.filter((m) => m.includes('shocked'))).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test('eggs: one due hatches aboard with its reveal and a name, and one still waiting shows its time in the book', async ({
+  context,
+  page,
+}) => {
+  const now = Date.now();
+  // Out at sea, calm, with a frog's egg long since due and a rare one laid just now.
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2400, y: 2100, h: 0.6, clock: 0.3, hold: [] },
+    pets: {
+      eggs: [
+        { k: 'common', sp: 'frog', from: 'garden', at: now - 3_600_000, due: now - 3_000_000 },
+        { k: 'rare', sp: 'fox', from: 'garden', at: now, due: now + 3_600_000 },
+      ],
+    },
+  });
+  // It hatches a moment after all is calm: the egg shakes, cracks, and out it pops.
+  await expect(page.locator('#hatchCard')).toBeVisible({ timeout: 6000 });
+  expect(await page.evaluate(() => window.__np.pets.save.hatched.map((h) => h.sp))).toEqual([
+    'frog',
+  ]);
+  await expect(page.locator('#hatchWord')).toHaveText("It's a frog!", { timeout: 6000 });
+  await expect(page.locator('#hatchName')).toBeVisible({ timeout: 3000 });
+  await page.locator('#hatchNameIn').pressSequentially('Hoppy');
+  await page.locator('#hatchKeep').click();
+  await expect(page.locator('#hatchCard')).toBeHidden();
+  const p = await page.evaluate(() => window.__np.pets.save);
+  expect(p.hatched.map((h) => [h.id, h.sp, h.nm])).toEqual([[1, 'frog', 'Hoppy']]);
+  expect(p.eggs.map((e) => e.k)).toEqual(['rare']);
+  // In the book: the frog, walking on its card, and the rare egg with its wait.
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await expect(page.locator('[data-pet="h1"] b')).toHaveText('Hoppy');
+  await expect(page.locator('[data-pet="h1"] .was')).toContainText('Frog');
+  await expect(page.locator('#petBookList .egg')).toHaveCount(1);
+  await expect(page.locator('#petBookList .egg')).toContainText(/Hatches in (1 hour|59 minutes)/);
+  // It can walk with you, as a drawn one can.
+  await page.locator('[data-walk="h1"]').click();
+  expect(await page.evaluate(() => window.__np.pets.save.walk)).toBe('h1');
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.hatched.length === 1, null, {
+    timeout: 5000,
+  });
   expect(errors).toEqual([]);
 });

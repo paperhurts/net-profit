@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { decode } from '../../src/data/doodle';
+import { EGG_HATCH_MS, HATCHLING_ART, HATCHLING_NAMES, layEgg } from '../../src/data/eggs';
 import {
   addDrawn,
+  artOf,
   BOOK_KEYS,
   type BookFacts,
   type BookKey,
@@ -11,6 +14,7 @@ import {
   DRAWN_NAME,
   defaultName,
   drawnKey,
+  hatchEgg,
   letGo,
   NAME_MAX,
   nameOf,
@@ -155,5 +159,66 @@ describe('the pet book', () => {
     const got = parsePets({ drawn: [d(1), d(1), d(2, '!!'), d(3, ''), d(4), d(5), d(6), d(7)] });
     expect(got.drawn.map((x) => x.id)).toEqual([1, 4, 5, 6]);
     expect(parsePets({ drawn: [{ id: 2, d: 'BDEUe' }] }).drawn[0]?.nm).toBe(DRAWN_NAME);
+  });
+
+  it('hatches an egg when its time has come into a pet of your own, which can walk with you', () => {
+    const p = noPets();
+    const T = 1_761_300_000_000;
+    layEgg(p, 'common', 'garden', T, () => 0.5);
+    layEgg(p, 'rare', 'gift', T, () => 0);
+    expect(hatchEgg(p, T + 60_000)).toBeNull();
+    const out = hatchEgg(p, T + EGG_HATCH_MS.common);
+    expect(out?.pet).toEqual({
+      id: 1,
+      sp: 'frog',
+      nm: 'Frog',
+      got: T + EGG_HATCH_MS.common,
+      from: 'garden',
+    });
+    expect(p.eggs.map((e) => e.k)).toEqual(['rare']);
+    // On the Pets shelf after the drawn ones, looking as its kind does, and it can walk with you.
+    addDrawn(
+      p,
+      [
+        {
+          c: 0,
+          p: [
+            [1, 1],
+            [9, 9],
+          ],
+        },
+      ],
+      'Doodle',
+      T,
+    );
+    expect(bookEntries(p, facts([])).map((e) => e.key)).toEqual(['d1', 'h1']);
+    expect(artOf(p, 'h1')).toBe(HATCHLING_ART.frog);
+    expect(toggleWalk(p, 'h1')).toBe(true);
+    expect(rename(p, 'h1', 'Hoppy')).toBe(true);
+    const e = bookEntries(p, facts([])).find((x) => x.key === 'h1');
+    expect([e?.name, e?.was, e?.walking]).toEqual(['Hoppy', 'Frog', true]);
+    // Through the save and back; let go, and it walks no more.
+    expect(parsePets(JSON.parse(JSON.stringify(petsForSave(p))))).toEqual(p);
+    expect(letGo(p, 'h1')).toBe(true);
+    expect(p.walk).toBeNull();
+    // The gift egg, an hour on.
+    expect(hatchEgg(p, T + EGG_HATCH_MS.rare)?.pet).toMatchObject({
+      id: 1,
+      sp: 'hedgehog',
+      from: 'gift',
+    });
+  });
+
+  it('every kind that hatches has a name and a look that is a drawing', () => {
+    for (const sp of Object.keys(HATCHLING_NAMES))
+      expect(decode(HATCHLING_ART[sp]).length).toBeGreaterThan(2);
+    expect(
+      parsePets({
+        hatched: [
+          { id: 1, sp: 'dragon' },
+          { id: 2, sp: 'moth' },
+        ],
+      }).hatched,
+    ).toEqual([{ id: 2, sp: 'moth', nm: 'Lantern moth', got: 0, from: 'garden' }]);
   });
 });

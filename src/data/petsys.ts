@@ -14,7 +14,7 @@
  */
 
 import { decode, encode, type Stroke } from './doodle';
-import { type Egg, parseEggs } from './eggs';
+import { type Egg, type EggFrom, eggDue, HATCHLING_ART, HATCHLING_NAMES, parseEggs } from './eggs';
 import { COMPANION_NAMES, COMPANIONS, type Companion } from './stay';
 
 /** The pets, as the book has them. The crows and the muffins have one card each, however many there are. */
@@ -90,28 +90,45 @@ export type DrawnPet = { id: number; nm: string; d: string; got: number };
 export const DRAWN_MAX = 4;
 /** A drawn pet's place in the book: d and its number. */
 export type DrawnKey = `d${number}`;
-/** Anyone in the book: one of the pets and companions the game has, or one you drew. */
-export type EntryKey = BookKey | DrawnKey;
+/** A pet hatched from an egg (data/eggs.ts): its number, what it is, the name given it, when, and whose egg. */
+export type HatchedPet = { id: number; sp: string; nm: string; got: number; from: EggFrom };
+/** The most hatched pets kept, a cap for the save's sake only: eggs come three at a time. */
+export const HATCHED_MAX = 24;
+/** A hatched pet's place in the book: h and its number. */
+export type HatchedKey = `h${number}`;
+/** A pet of your own, drawn or hatched: these can walk with you and be let go. */
+export type OwnKey = DrawnKey | HatchedKey;
+/** Anyone in the book: one of the pets and companions the game has, or one of your own. */
+export type EntryKey = BookKey | OwnKey;
 
 export const drawnKey = (id: number): DrawnKey => `d${id}`;
+export const hatchedKey = (id: number): HatchedKey => `h${id}`;
 export function isDrawnKey(k: string): k is DrawnKey {
   return /^d\d+$/.test(k);
 }
+export function isHatchedKey(k: string): k is HatchedKey {
+  return /^h\d+$/.test(k);
+}
+export function isOwnKey(k: string): k is OwnKey {
+  return isDrawnKey(k) || isHatchedKey(k);
+}
 
-/** What the pet system keeps: the names given, the pets drawn, the one walking with you, and eggs. */
+/** What the pet system keeps: the names given, the pets drawn and hatched, the one walking with you, and eggs. */
 export type PetSave = {
   /** The names you have given, by who; one renamed back to nothing is dropped. */
   nm: Partial<Record<BookKey, string>>;
   /** The pets you drew, oldest first. */
   drawn: DrawnPet[];
-  /** The one pet that walks with you, ashore and aboard, if any: a pet you drew, for now. */
-  walk: EntryKey | null;
+  /** The one pet that walks with you, ashore and aboard, if any: one of your own. */
+  walk: OwnKey | null;
   /** Eggs waiting to hatch (data/eggs.ts), three at most. */
   eggs: Egg[];
+  /** The pets hatched from them, oldest first. */
+  hatched: HatchedPet[];
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [], walk: null, eggs: [] };
+  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [] };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -146,9 +163,27 @@ export function parsePets(v: unknown): PetSave {
       });
     }
   }
-  const walk = (v as { walk?: unknown }).walk;
-  if (typeof walk === 'string' && isDrawnKey(walk) && drawnOf(p, walk)) p.walk = walk;
   p.eggs = parseEggs((v as { eggs?: unknown }).eggs);
+  const hatched = (v as { hatched?: unknown }).hatched;
+  if (Array.isArray(hatched)) {
+    for (const o of hatched) {
+      if (p.hatched.length >= HATCHED_MAX) break;
+      if (!o || typeof o !== 'object') continue;
+      const r = o as Record<string, unknown>;
+      const sp = typeof r.sp === 'string' && HATCHLING_NAMES[r.sp] ? r.sp : '';
+      const id = whole(r.id);
+      if (!sp || p.hatched.some((q) => q.id === id)) continue;
+      p.hatched.push({
+        id,
+        sp,
+        nm: cleanName(r.nm) || (HATCHLING_NAMES[sp] ?? sp),
+        got: whole(r.got),
+        from: r.from === 'gift' ? 'gift' : 'garden',
+      });
+    }
+  }
+  const walk = (v as { walk?: unknown }).walk;
+  if (typeof walk === 'string' && isOwnKey(walk) && ownOf(p, walk)) p.walk = walk;
   return p;
 }
 
@@ -159,6 +194,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (p.drawn.length) out.drawn = p.drawn;
   if (p.walk) out.walk = p.walk;
   if (p.eggs.length) out.eggs = p.eggs;
+  if (p.hatched.length) out.hatched = p.hatched;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -168,21 +204,35 @@ export const DRAWN_NAME = 'Doodle';
 export function drawnOf(p: PetSave, k: EntryKey): DrawnPet | undefined {
   return isDrawnKey(k) ? p.drawn.find((d) => drawnKey(d.id) === k) : undefined;
 }
+export function hatchedOf(p: PetSave, k: EntryKey): HatchedPet | undefined {
+  return isHatchedKey(k) ? p.hatched.find((h) => hatchedKey(h.id) === k) : undefined;
+}
+/** One of your own, drawn or hatched. */
+export function ownOf(p: PetSave, k: EntryKey): DrawnPet | HatchedPet | undefined {
+  return drawnOf(p, k) ?? hatchedOf(p, k);
+}
+/** How one of your own looks: its drawing, or its kind's. */
+export function artOf(p: PetSave, k: EntryKey): string | undefined {
+  const d = drawnOf(p, k);
+  if (d) return d.d;
+  const h = hatchedOf(p, k);
+  return h ? HATCHLING_ART[h.sp] : undefined;
+}
 
 /** What it is called now: the name you gave it, or the one it came with. */
 export function nameOf(p: PetSave, k: EntryKey): string {
-  if (isDrawnKey(k)) return drawnOf(p, k)?.nm ?? DRAWN_NAME;
+  if (isOwnKey(k)) return ownOf(p, k)?.nm ?? DRAWN_NAME;
   return p.nm[k] ?? defaultName(k);
 }
 
 /**
- * Give it a name; an empty one gives it back the name it came with (a drawn pet keeps the one it has). Says whether
+ * Give it a name; an empty one gives it back the name it came with (one of your own keeps the one it has). Says whether
  * anything changed.
  */
 export function rename(p: PetSave, k: EntryKey, name: unknown): boolean {
   const n = cleanName(name);
-  if (isDrawnKey(k)) {
-    const d = drawnOf(p, k);
+  if (isOwnKey(k)) {
+    const d = ownOf(p, k);
     if (!d || !n || n === d.nm) return false;
     d.nm = n;
     return true;
@@ -217,17 +267,38 @@ export function addDrawn(
   return d;
 }
 
-/** A drawn pet let go, to live on the island. Says whether there was one. */
+/** One of your own let go, to live on the island. Says whether there was one. */
 export function letGo(p: PetSave, k: EntryKey): boolean {
-  const n = p.drawn.length;
+  const n = p.drawn.length + p.hatched.length;
   p.drawn = p.drawn.filter((d) => drawnKey(d.id) !== k);
+  p.hatched = p.hatched.filter((h) => hatchedKey(h.id) !== k);
   if (p.walk === k) p.walk = null;
-  return p.drawn.length < n;
+  return p.drawn.length + p.hatched.length < n;
+}
+
+/**
+ * The first egg that has hatched by now, out of the crate and a pet of your own, named for its kind; none if no egg
+ * is due or there is no room. The game plays its reveal.
+ */
+export function hatchEgg(p: PetSave, now: number): { egg: Egg; pet: HatchedPet } | null {
+  const i = p.eggs.findIndex((e) => eggDue(e, now));
+  const egg = p.eggs[i];
+  if (!egg || p.hatched.length >= HATCHED_MAX) return null;
+  p.eggs.splice(i, 1);
+  const pet: HatchedPet = {
+    id: p.hatched.reduce((m, q) => Math.max(m, q.id + 1), 1),
+    sp: egg.sp,
+    nm: HATCHLING_NAMES[egg.sp] ?? egg.sp,
+    got: Math.max(0, Math.floor(now)),
+    from: egg.from,
+  };
+  p.hatched.push(pet);
+  return { egg, pet };
 }
 
 /** Take a pet along, the one that walks with you; or, already walking, leave it in the book. Says whether it walks now. */
 export function toggleWalk(p: PetSave, k: EntryKey): boolean {
-  if (!isDrawnKey(k) || !drawnOf(p, k)) return false;
+  if (!isOwnKey(k) || !ownOf(p, k)) return false;
   p.walk = p.walk === k ? null : k;
   return p.walk === k;
 }
@@ -241,7 +312,7 @@ export type BookEntry = {
   was: string | null;
   from: string;
   where: string;
-  /** A drawn pet's drawing, as saved. */
+  /** One of your own's drawing, as saved, or its kind's. */
   doodle?: string;
   /** The one walking with you. */
   walking?: boolean;
@@ -264,7 +335,7 @@ const PET_WHERE: Readonly<Record<PetKey, (f: BookFacts) => string>> = {
   muffins: (f) => `Following you about: ${f.muffins} of 6, and a cloud of stink.`,
 };
 
-/** Everyone who is yours: the pets, then the pets you drew, then the companions in the order they join you. */
+/** Everyone who is yours: the pets, the pets you drew, those hatched, then the companions in the order they join you. */
 export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
   const fixed = BOOK_KEYS.filter((k) => f.has(k)).map((k): BookEntry => {
     const shelf = shelfOf(k);
@@ -299,6 +370,26 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       doodle: d.d,
     }),
   );
+  const hatched = p.hatched.map((h): BookEntry => {
+    const kind = HATCHLING_NAMES[h.sp] ?? h.sp;
+    return {
+      key: hatchedKey(h.id),
+      shelf: 'pets',
+      name: h.nm,
+      was: h.nm === kind ? null : kind,
+      from:
+        h.from === 'gift'
+          ? 'Hatched from a gift egg.'
+          : 'Hatched from an egg from the Garden Isle.',
+      where:
+        p.walk === hatchedKey(h.id)
+          ? 'Walks with you, ashore and aboard. Tap it to pet it.'
+          : 'In your pet book. Take it along and it walks with you.',
+      walking: p.walk === hatchedKey(h.id),
+      doodle: HATCHLING_ART[h.sp],
+    };
+  });
+  const own = [...drawn, ...hatched];
   const at = fixed.findIndex((e) => e.shelf === 'companions');
-  return at < 0 ? [...fixed, ...drawn] : [...fixed.slice(0, at), ...drawn, ...fixed.slice(at)];
+  return at < 0 ? [...fixed, ...own] : [...fixed.slice(0, at), ...own, ...fixed.slice(at)];
 }
