@@ -14,6 +14,18 @@ export const STAND_TALL = 16;
 
 /** A stand at (x, y) in the hall, its trophy on it, or an empty stand for null. */
 export function drawStand(v: DrawView, x: number, y: number, kind: TrophyKind | null): void {
+  drawStandWith(v, x, y, kind ? DRAW[kind] : null, kind ? GLOW[kind] : undefined);
+}
+
+/** A stand with what a draw puts on its top, or empty, and a glow round it if it has one. */
+function drawStandWith(
+  v: DrawView,
+  x: number,
+  y: number,
+  draw: ((c: Pen, T: number) => void) | null,
+  glow?: string,
+): void {
+  const kind = draw;
   const { ctx, px, py, zoom: Z } = v;
   ctx.fillStyle = 'rgba(0,0,0,.25)';
   v.isoEllipse(x, y, 11);
@@ -41,9 +53,138 @@ export function drawStand(v: DrawView, x: number, y: number, kind: TrophyKind | 
   ctx.save();
   ctx.translate(sx, sy);
   ctx.scale(Z * TROPHY_SCALE, Z * TROPHY_SCALE);
-  DRAW[kind](ctx, v.T);
+  kind(ctx, v.T);
   ctx.restore();
-  if (GLOW[kind]) v.glow(x, y, STAND_TALL + 10, 16, GLOW[kind]);
+  if (glow) v.glow(x, y, STAND_TALL + 10, 16, glow);
+}
+
+/**
+ * The Endless Isle's three in the hall (data/rewards.ts): Captain Cappy's gold-hilted cutlass and Master Sensei's
+ * katana on their rack, each on a stand like the bosses' trophies, and the golden mirror on a plinth of its own, taller,
+ * the hall's light sliding over its glass. Not yet won, an empty stand.
+ */
+export function drawHallPiece(
+  v: DrawView,
+  x: number,
+  y: number,
+  k: 'cutlass' | 'katana' | 'mirror',
+  won: boolean,
+): void {
+  if (!won) {
+    drawStandWith(v, x, y, null);
+    return;
+  }
+  if (k === 'cutlass') drawStandWith(v, x, y, cutlass, 'rgba(255,215,110,.35)');
+  else if (k === 'katana') drawStandWith(v, x, y, katana, 'rgba(200,215,255,.3)');
+  else drawMirror(v, x, y);
+}
+
+/** A cutlass stood on its point, its curved blade bright and its basket hilt gold. */
+function cutlass(c: Pen): void {
+  c.fillStyle = '#D9E0E6';
+  c.beginPath();
+  c.moveTo(0.5, 0);
+  c.quadraticCurveTo(-4.5, -9, -1.5, -19);
+  c.lineTo(2, -19);
+  c.quadraticCurveTo(-1.2, -9, 2.2, -1);
+  c.closePath();
+  c.fill();
+  line(c, '#A9B3BC', 0.6, [
+    [0, -2],
+    [-1.5, -10],
+    [0, -18],
+  ]);
+  line(c, '#E2B33C', 2, [
+    [-4, -19.5],
+    [5, -19.5],
+  ]);
+  c.strokeStyle = '#E2B33C';
+  c.lineWidth = 1.4;
+  c.beginPath();
+  c.arc(1.5, -22, 3.4, Math.PI * 0.05, Math.PI * 1.05);
+  c.stroke();
+  line(c, '#5A3A22', 2, [
+    [0.3, -20],
+    [0.3, -25],
+  ]);
+  dot(c, '#E2B33C', 0.3, -26, 1.6);
+}
+
+/** A katana across a little black lacquered rack: its slightly curved blade, its guard, its wrapped grip. */
+function katana(c: Pen): void {
+  for (const x of [-7, 6]) {
+    line(c, '#1E1C22', 1.8, [
+      [x, 0],
+      [x, -9],
+    ]);
+    line(c, '#1E1C22', 1.6, [
+      [x - 1.5, -9],
+      [x + 1.5, -9],
+    ]);
+  }
+  c.fillStyle = '#E2E8EE';
+  c.beginPath();
+  c.moveTo(-13, -10.5);
+  c.quadraticCurveTo(-4, -12.5, 3, -11.6);
+  c.lineTo(3, -10.2);
+  c.quadraticCurveTo(-4, -11, -12.5, -9.6);
+  c.closePath();
+  c.fill();
+  oval(c, '#8A7A45', 3.6, -10.9, 0.9, 2.2);
+  line(c, '#15151A', 2.2, [
+    [4.4, -11],
+    [11, -11.4],
+  ]);
+  for (const x of [5.6, 7.6, 9.6]) dot(c, '#E8E4D8', x, -11.2, 0.45);
+}
+
+/** The golden mirror: a tall oval in a gold frame on a stone plinth, its glass pale blue with the light sliding over. */
+function drawMirror(v: DrawView, x: number, y: number): void {
+  const { ctx, px, py, zoom: Z } = v;
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  v.isoEllipse(x, y, 12);
+  ctx.fill();
+  v.box(x - 7, y - 7, 14, 14, 0, 8, '#6E776C', '#8A9488');
+  const sx = px(x, y);
+  const sy = py(x, y, 8);
+  const k = Z * TROPHY_SCALE;
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale(k, k);
+  // The frame's foot, and the frame.
+  poly(ctx, '#B88A2A', [
+    [-4, 0],
+    [4, 0],
+    [2, -5],
+    [-2, -5],
+  ]);
+  oval(ctx, '#E2B33C', 0, -18, 8.5, 13);
+  oval(ctx, '#B88A2A', 0, -18, 7, 11.5);
+  // The glass, and a shine sliding up it.
+  oval(ctx, '#BFD8E6', 0, -18, 6, 10.5);
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, -18, 6, 10.5, 0, 0, Math.PI * 2);
+  ctx.clip();
+  const u = (v.T * 0.25) % 1;
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.beginPath();
+  ctx.moveTo(-8, -6 - u * 26);
+  ctx.lineTo(8, -14 - u * 26);
+  ctx.lineTo(8, -10 - u * 26);
+  ctx.lineTo(-8, -2 - u * 26);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  // A crest of gold at the top.
+  poly(ctx, '#E2B33C', [
+    [-3, -30],
+    [0, -35],
+    [3, -30],
+  ]);
+  dot(ctx, '#FFF2C4', 0, -31.5, 0.9);
+  ctx.restore();
+  v.glow(x, y, 30, 22, 'rgba(255,215,110,.35)');
 }
 
 /** Those that glow in the dark of the hall. */

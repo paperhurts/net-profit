@@ -97,6 +97,18 @@ export const LEADER_SAYS: Readonly<
   },
 };
 
+/** How each leader greets you once you have won a title (data/rewards.ts): his side's own, or the title for both. */
+export const LEADER_TITLED: Readonly<Record<Side, { own: string; both: string }>> = {
+  pirate: {
+    own: 'Ahoy, Pirate Lord!',
+    both: "Arr, it's the Master of the Endless Isle!",
+  },
+  ninja: {
+    own: 'Grand Master. You honour us.',
+    both: 'The Master of the Endless Isle. Even the pirates bow to you.',
+  },
+};
+
 /** What each leader says as you pick your place in his crew for a battle. */
 export const LEADER_PICK: Readonly<Record<Side, string>> = {
   pirate:
