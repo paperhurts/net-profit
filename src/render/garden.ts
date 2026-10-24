@@ -1038,6 +1038,48 @@ function drawPlant(
       });
     return;
   }
+  if (k === 'moonpetal') {
+    // The Moonkoi's gift: a silvery vine climbing a little hoop, its fruit pale crescent moons that glow blue at night.
+    ctx.strokeStyle = '#8A9AA8';
+    ctx.lineWidth = 1.4 * Z;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy - 10 * s, 9 * s, 10 * s, 0, Math.PI, 0);
+    ctx.stroke();
+    line(
+      [
+        [-9, -2],
+        [-8, -12],
+        [0, -20],
+        [8, -12],
+        [9, -2],
+      ],
+      1.6,
+      '#5E8C6A',
+    );
+    leaf(-8, -10, 3.4, 2.4, -0.6, '#7FB08A');
+    leaf(7, -14, 3.4, 2.4, 0.6, '#7FB08A');
+    leaf(0, -20, 3, 2.2, 0, '#9CC6A4');
+    if (f >= 1)
+      [
+        [-8, -14],
+        [2, -19],
+        [8, -9],
+      ].forEach(([dx, dy], j) => {
+        const on = j < ripe;
+        if (on && v.dark > 0.05)
+          ball(dx as number, dy as number, 7, `rgba(175,192,255,${0.45 * v.dark})`);
+        const r = (on ? 3.6 * sz(j) : 2) * s;
+        const x = sx + (dx as number) * s + sway;
+        const y = sy + (dy as number) * s;
+        ctx.fillStyle = on ? tint(j, '#EEF2FA') : '#C8D8C4';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0.6, Math.PI * 2 - 0.6);
+        ctx.arc(x + r * 0.55, y, r * 0.8, Math.PI * 2 - 0.9, 0.9, true);
+        ctx.closePath();
+        ctx.fill();
+      });
+    return;
+  }
   if (k === 'kraken') {
     // A great purple squash, swelling as it grows, its vines curling like tentacles.
     for (let j = 0; j < 4; j++) {
@@ -1167,6 +1209,12 @@ export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: b
       },
     });
   });
+  // The Moonkoi's mount on the gear shed's front wall, once one has been landed.
+  if ((g.koi?.n ?? 0) > 0) {
+    const [mx, my] = fromGarden(GEAR_SHED.u + 14, GEAR_SHED.v + GEAR_SHED.hv + 1);
+    if (v.onScreen(mx, my, 60 * v.zoom))
+      out.push({ d: mx + my + 2, f: () => drawKoiMount(v, mx, my, g.koi?.n ?? 0) });
+  }
   for (const s of g.spr ?? []) {
     if (s.to <= now) continue;
     const [x, y] = fromGarden(s.u, s.v);
@@ -1230,6 +1278,130 @@ function drawSprinkler(v: DrawView, s: Sprinkler, now: number, timers: boolean):
   ctx.arc(sx, cy, 4.6 * Z, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2);
   ctx.closePath();
   ctx.fill();
+}
+
+/**
+ * The Moonkoi (part nine), drawn at screen x, y: a long moon-pale koi with pale blue patches and trailing fins, facing
+ * ang, its tail swung by wag, and glowing softly in the dark (glow 0 to 1).
+ */
+export function drawMoonkoi(
+  v: DrawView,
+  x: number,
+  y: number,
+  len: number,
+  ang: number,
+  wag: number,
+  glow: number,
+  alpha = 1,
+): void {
+  const { ctx } = v;
+  const ca = Math.cos(ang);
+  const sa = Math.sin(ang);
+  ctx.globalAlpha = alpha;
+  if (glow > 0) {
+    ctx.fillStyle = `rgba(175,192,255,${0.3 * glow})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, len * 1.5, len * 0.8, ang, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Tail, then fins, then the body over them.
+  const tx = x - ca * len * 0.85;
+  const ty = y - sa * len * 0.85;
+  const ta = ang + wag;
+  ctx.fillStyle = 'rgba(230,238,255,.85)';
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.quadraticCurveTo(
+    tx - Math.cos(ta - 0.5) * len * 0.5,
+    ty - Math.sin(ta - 0.5) * len * 0.5,
+    tx - Math.cos(ta - 0.8) * len * 0.9,
+    ty - Math.sin(ta - 0.8) * len * 0.9,
+  );
+  ctx.lineTo(tx - Math.cos(ta + 0.8) * len * 0.9, ty - Math.sin(ta + 0.8) * len * 0.9);
+  ctx.quadraticCurveTo(
+    tx - Math.cos(ta + 0.5) * len * 0.5,
+    ty - Math.sin(ta + 0.5) * len * 0.5,
+    tx,
+    ty,
+  );
+  ctx.fill();
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(
+      x + ca * len * 0.2 - sa * side * len * 0.32,
+      y + sa * len * 0.2 + ca * side * len * 0.32,
+      len * 0.28,
+      len * 0.12,
+      ang + side * 0.9,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.fillStyle = '#EEF2FA';
+  ctx.beginPath();
+  ctx.ellipse(x, y, len, len * 0.34, ang, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8FB2F0';
+  for (const [k, r] of [
+    [0.45, 0.16],
+    [-0.1, 0.2],
+    [-0.55, 0.12],
+  ] as const) {
+    ctx.beginPath();
+    ctx.ellipse(x + ca * len * k, y + sa * len * k, len * r, len * r * 0.7, ang, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#1E2E4A';
+  ctx.beginPath();
+  ctx.arc(
+    x + ca * len * 0.78 - sa * len * 0.1,
+    y + sa * len * 0.78 + ca * len * 0.1,
+    Math.max(1, len * 0.05),
+    0,
+    Math.PI * 2,
+  );
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/** Under the lily pads after dark, until it has risen tonight: a long pale shape circling slowly, to say it is there. */
+export function drawKoiShadow(v: DrawView): void {
+  const p = LILY_POND;
+  if (!v.onScreen(p.x, p.y, (p.r + 20) * v.zoom)) return;
+  const a = v.T * 0.35;
+  const r = p.r * 0.5;
+  const x = p.x + Math.cos(a) * r;
+  const y = p.y + Math.sin(a) * r;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, 0);
+  // Facing along its circle, on the screen.
+  const ax = v.px(x - Math.sin(a), y + Math.cos(a)) - sx;
+  const ay = v.py(x - Math.sin(a), y + Math.cos(a), 0) - sy;
+  drawMoonkoi(v, sx, sy, 16 * v.zoom, Math.atan2(ay, ax), Math.sin(v.T * 2) * 0.3, 0.6, 0.45);
+}
+
+/** The Moonkoi's mount on the shed: a plank board with the fish on it, and how many have been landed. */
+function drawKoiMount(v: DrawView, x: number, y: number, n: number): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, 15);
+  ctx.fillStyle = '#5E3E26';
+  ctx.beginPath();
+  ctx.roundRect(sx - 14 * Z, sy - 6 * Z, 28 * Z, 12 * Z, 3 * Z);
+  ctx.fill();
+  ctx.fillStyle = '#7A5236';
+  ctx.beginPath();
+  ctx.roundRect(sx - 12.5 * Z, sy - 4.5 * Z, 25 * Z, 9 * Z, 2 * Z);
+  ctx.fill();
+  drawMoonkoi(v, sx + 1.5 * Z, sy, 7.5 * Z, 0, 0.2, 0);
+  if (n > 1) {
+    ctx.font = `800 ${Math.round(8 * Z)}px Grandstander, system-ui, sans-serif`;
+    ctx.fillStyle = '#FFE07A';
+    ctx.textAlign = 'center';
+    ctx.fillText(`\u00d7${n}`, sx + 12 * Z, sy - 9 * Z);
+  }
 }
 
 /** A watering: a can's spout of drops onto a bed, for the moment after (t from 1 down to 0). */

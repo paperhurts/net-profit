@@ -64,6 +64,8 @@ export const POND_SPS: readonly number[] = [23, 24, 25, 26];
 export const LAGOON_SPS: readonly number[] = [39, 40];
 /** The Garden Isle's lily pond's two, on a line with a fruit for bait. */
 export const LILY_SPS: readonly number[] = [41, 42];
+/** The lily pond's legendary, the Moonkoi. */
+export const KOI_SP = 43;
 
 /** One line per species, in the game's voice. */
 export const BLURBS: readonly string[] = [
@@ -110,6 +112,7 @@ export const BLURBS: readonly string[] = [
   'Silver with black bands. It spits a jet of water up at bugs on the leaves above, knocks them down into the water and gobbles them up. It hardly ever misses.',
   'Bronze, deep-bodied and patient. Carp snuffle along the muddy bottom with the whiskers by their mouths, and they will eat almost anything, fruit included.',
   "A carp with only a few scales, big and shiny, scattered over its side like coins. It's the same fish as a common carp, just dressed differently.",
+  'The lily pond keeps one secret. After dark it circles under the pads, long and pale as the moon, and it will only rise to a fruit the moon has touched. Old koi can live for a hundred years; nobody knows how old this one is.',
 ];
 
 /** The smallest boat whose range reaches a ring's near edge, by the orders' own rule. */
@@ -148,6 +151,8 @@ export function whereText(sp: number): string {
     return "In island 11's black lagoon, where no boat can go. Fish it with Caterman's drone and a jewel beetle on the line.";
   if (LILY_SPS.includes(sp))
     return "In the Garden Isle's lily pond. Stand at its edge with a fruit in your basket for bait, and cast.";
+  if (sp === KOI_SP)
+    return "In the Garden Isle's lily pond, after dark. It rises only to a Moonlit fruit of mythic tier or above: a coconut, a dragon fruit, a lantern gourd, a kraken squash or a moonpetal.";
   if (sp === ATTACK_NIBBLER)
     return 'Prowling the floor of the abyss, 1,000 metres down past the white buoys, hunting the gloomers and the nibblers. It takes three spears: each one sends it darting off.';
   if (sp === REMORO)
@@ -175,6 +180,8 @@ export function whenText(sp: number): string {
   if (LAGOON_SPS.includes(sp)) return 'Day and night: one jewel beetle each.';
   if (sp === LILY_SPS[0]) return 'Day and night: one fruit each cast. Three bites in four.';
   if (sp === LILY_SPS[1]) return 'Day and night: one fruit each cast. One bite in four.';
+  if (sp === KOI_SP)
+    return 'Night only, and once a night, landed or lost. Hold to pull while it sulks; let go when it shakes its head.';
   if (sp === ATTACK_NIBBLER)
     return 'One a day: land it, and the next is out hunting tomorrow. Its eye glints amber in the dark.';
   if (sp === REMORO)
