@@ -720,6 +720,7 @@ type Np = {
     face: string;
     honorGuard: boolean;
     hideArmour: boolean;
+    outfit: string;
   };
   charOpen: boolean;
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
@@ -8336,6 +8337,135 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   expect(await page.evaluate(() => window.__np.ski)).toBeNull();
   expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(fox);
   await expect(page.locator('#leave')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("the side rewards' outfits: a third pirate badge wins the captain's coat and tricorn, put straight on; the character card offers it, the ninja garb still to win; and gold on the last ski run wins the snow ninja's whites", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 2,
+        won: 1,
+        marks: {
+          pirate: { tank: 0, damage: 3, healer: 0 },
+          ninja: { tank: 0, damage: 0, healer: 0 },
+        },
+      },
+      slalom: { runs: 2, best: { bunny: 43, fox: 53 } },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const toCappy = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      const L = n.LEADER13.pirate;
+      n.walker.x = L.x + 16;
+      n.walker.y = L.y + 16;
+    });
+    await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+    await page.click('#climb');
+    await page.click('#endlessFight');
+  };
+  // Two pirate badges so far (Badge II as a Swashbuckler): the card names the next reward.
+  await toCappy();
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    "At 3 badges as a pirate, all three roles counted: the captain's coat and tricorn. You have 2.",
+  );
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('none');
+  // A first battle as a healer, lost at the bell: Badge I there, the third badge.
+  await page.click('#endlessRoles [data-role="healer"]');
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { clock: number };
+    c.score.ninja = 1;
+    c.clock = 0.01;
+  });
+  await expect(page.locator('#ctfResults')).toBeVisible({ timeout: 4000 });
+  await expect(page.locator('#ctfReward')).toContainText('3 badges as a pirate!');
+  await expect(page.locator('#ctfReward')).toContainText("the captain's coat and tricorn");
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('captain');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.look.outfit).toBe('captain');
+  await page.click('#ctfDone');
+  // The card at the leader says it is won.
+  await toCappy();
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    "You've won the captain's coat",
+  );
+  await page.click('#endlessClose');
+  // The character card: your own clothes, the coat on, the ninja garb still to win, and how.
+  await page.locator('#charBtn').dispatchEvent('click');
+  const outfit = (k: string) => page.locator(`#charOptions [data-key="outfit"][data-val="${k}"]`);
+  await expect(outfit('captain')).toHaveClass(/on/);
+  await expect(outfit('none')).toBeEnabled();
+  await expect(outfit('ninja')).toBeDisabled();
+  await expect(outfit('snow')).toBeDisabled();
+  await expect(page.locator('#charOptions')).toContainText(
+    'Ninja garb: win it with 3 ninja badges.',
+  );
+  await expect(page.locator('#charOptions')).toContainText(
+    'Snow ninja: win it with gold on all three ski runs.',
+  );
+  await outfit('none').click();
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('none');
+  // A preset keeps the outfit chosen.
+  await outfit('captain').click();
+  await page.click('#charPresets [data-preset="finn"]');
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('captain');
+  await page.click('#charClose');
+  // Gold on the Doom Drop, the last of the three: the snow ninja's whites, put straight on.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.LIFT13.x + 4;
+    n.walker.y = n.LIFT13.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
+  await page.click('#climb');
+  await page.click('#skiRuns [data-run="doom"]');
+  await page.waitForFunction(() => window.__np.ski?.run.name === 'Doom Drop');
+  await page.dispatchEvent('#skiTrick', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.z = s.run.len - 15;
+    s.x = 0;
+  });
+  await page.waitForFunction(() => !window.__np.ski, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('snow');
+  await expect(page.locator('#toast')).toContainText('A gold medal!');
+  await page.click('#toast');
+  await expect(page.locator('#toast')).toContainText('Gold on all three runs!', { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText("the snow ninja's whites");
   expect(errors).toEqual([]);
 });
 

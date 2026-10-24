@@ -8,6 +8,7 @@
  */
 
 import { clamp } from '../core/math';
+import { type OutfitLook, TRICORN } from '../data/look';
 import { clockOf, MEDAL_NAME, type Medal, medalOf } from '../data/slalom';
 import {
   BEAT,
@@ -37,8 +38,8 @@ const ROCK = '#7E838C';
 const ROCK_LIT = '#9CA1AA';
 const INK = '#2A2D33';
 
-/** Who skis: the figure's jacket (its shirt), hair and skin. */
-export type SkierLook = { shirt: string; hair: string; skin: string };
+/** Who skis: the figure's jacket (its shirt), hair and skin, and an outfit won on the Endless Isle, if one is worn. */
+export type SkierLook = { shirt: string; hair: string; skin: string; out?: OutfitLook | null };
 /** A word over the run for a moment: a gate missed, a trick landed, a lantern cut. */
 export type SkiPop = { text: string; colour: string; t: number };
 export const SKI_POP_T = 1.2;
@@ -534,7 +535,8 @@ export function drawSkier(
     ctx.fill();
   }
   // Legs, knees bent the more for a tuck.
-  ctx.strokeStyle = '#2B3346';
+  const out = look.out ?? null;
+  ctx.strokeStyle = out?.legs ?? '#2B3346';
   ctx.lineCap = 'round';
   ctx.lineWidth = 0.13 * m;
   const knee = hip * 0.5;
@@ -561,6 +563,11 @@ export function drawSkier(
   ctx.lineTo(-0.22 * m, -neck);
   ctx.closePath();
   ctx.fill();
+  // An outfit's trim at the waist: the ninjas' sash, the captain's gold hem.
+  if (out) {
+    ctx.fillStyle = out.trim;
+    ctx.fillRect(-0.19 * m, -hip - (out.hood ? 0.09 : 0) * m, 0.38 * m, 0.05 * m);
+  }
   ctx.strokeStyle = look.shirt;
   ctx.lineWidth = 0.1 * m;
   for (const side of [-1, 1]) {
@@ -599,13 +606,23 @@ export function drawSkier(
     ctx.lineTo(-0.27 * m, -neck - 0.28 * m);
     ctx.stroke();
   }
-  // The head: the back of it, hair and all, or the face, turned round in a spin.
+  // The head: the back of it, hair and all, or the face, turned round in a spin; in a ninja's hood, all hood but a
+  // slit for the eyes.
   const hy = -neck - 0.15 * m;
-  ctx.fillStyle = front ? look.skin : look.hair;
+  ctx.fillStyle = out?.hood ?? (front ? look.skin : look.hair);
   ctx.beginPath();
   ctx.arc(0, hy, 0.14 * m, 0, Math.PI * 2);
   ctx.fill();
+  if (out?.hood) {
+    ctx.strokeStyle = 'rgba(70,95,130,.45)';
+    ctx.lineWidth = 0.015 * m;
+    ctx.stroke();
+  }
   if (front) {
+    if (out?.hood) {
+      ctx.fillStyle = look.skin;
+      ctx.fillRect(-0.1 * m, hy - 0.025 * m, 0.2 * m, 0.07 * m);
+    }
     ctx.fillStyle = INK;
     for (const dx of [-0.05, 0.05]) {
       ctx.beginPath();
@@ -613,8 +630,14 @@ export function drawSkier(
       ctx.fill();
     }
   }
-  // The red headband, its tails flying out behind.
-  ctx.fillStyle = '#D23B2E';
+  // The captain wears his tricorn down the run, and no headband.
+  if (out && !out.hood) {
+    skiTricorn(ctx, hy, m);
+    ctx.restore();
+    return;
+  }
+  // The headband, red or the outfit's, its tails flying out behind.
+  ctx.fillStyle = out?.trim ?? '#D23B2E';
   ctx.fillRect(-0.145 * m, hy - 0.06 * m, 0.29 * m, 0.06 * m);
   const flap = Math.sin(o.T * 14) * 0.05;
   ctx.beginPath();
@@ -625,6 +648,25 @@ export function drawSkier(
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+}
+
+/** The tricorn on the skier's head, from behind: black felt, its brim turned up to a point either side, edged gold. */
+function skiTricorn(ctx: CanvasRenderingContext2D, hy: number, m: number): void {
+  const [felt, gold] = TRICORN;
+  ctx.fillStyle = felt;
+  ctx.beginPath();
+  ctx.ellipse(0, hy - 0.06 * m, 0.13 * m, 0.13 * m, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-0.27 * m, hy - 0.1 * m);
+  ctx.quadraticCurveTo(0, hy + 0.02 * m, 0.27 * m, hy - 0.1 * m);
+  ctx.quadraticCurveTo(0.12 * m, hy - 0.02 * m, 0, hy + 0.06 * m);
+  ctx.quadraticCurveTo(-0.12 * m, hy - 0.02 * m, -0.27 * m, hy - 0.1 * m);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 0.02 * m;
+  ctx.stroke();
 }
 
 /** The whole run on the screen; top is where the bars sit, clear of the phone's notch; best, the best time before. */

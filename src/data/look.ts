@@ -7,11 +7,15 @@
  *
  * Skipper is the figure as it has always been, in the yellow sou'wester, so a game from before this keeps its look.
  * And whatever is picked, the armour bought from the shipwright can be hidden, so the pick is what is seen.
+ *
+ * Outfits are won on the Endless Isle (data/rewards.ts) and worn over whoever is picked: a captain's coat and tricorn,
+ * ninja garb and mask, and a snow ninja's in white.
  */
 
 export type HatKind = 'souwester' | 'cap' | 'fishing' | 'cowboy' | 'none';
 export type HairKind = 'none' | 'short' | 'spiky' | 'long' | 'pigtails';
 export type FaceKind = 'dots' | 'smile' | 'grin' | 'freckles' | 'glasses';
+export type OutfitKind = 'none' | 'captain' | 'ninja' | 'snow';
 
 export type Look = {
   skin: number;
@@ -28,6 +32,8 @@ export type Look = {
    * stay. Not part of who a preset is: picking one keeps it as it was.
    */
   hideArmour: boolean;
+  /** An outfit won on the Endless Isle, over the look: like the armour shown or hidden, not part of who a preset is. */
+  outfit: OutfitKind;
 };
 
 export const SKINS = ['#F3CDA9', '#E2AE84', '#C68B5E', '#9A6440', '#6B4228'] as const;
@@ -70,6 +76,27 @@ export const FACES: readonly [FaceKind, string][] = [
   ['freckles', 'Freckles'],
   ['glasses', 'Glasses'],
 ];
+export const OUTFITS: readonly [OutfitKind, string][] = [
+  ['none', 'Your own clothes'],
+  ['captain', "Captain's coat"],
+  ['ninja', 'Ninja garb'],
+  ['snow', 'Snow ninja'],
+];
+/**
+ * What an outfit is made of: the coat or suit, the trousers, its trim (the coat's gold, the ninjas' sash), and the
+ * ninjas' hood, over the hair and all of the face but the eyes, with its headband; the captain wears a tricorn instead.
+ */
+export type OutfitLook = { coat: string; legs: string; trim: string; hood: string | null };
+export const OUTFIT_LOOK: Readonly<Record<Exclude<OutfitKind, 'none'>, OutfitLook>> = {
+  captain: { coat: '#A3262A', legs: '#2B2522', trim: '#E2B33C', hood: null },
+  ninja: { coat: '#262A33', legs: '#1C1F26', trim: '#C8352B', hood: '#262A33' },
+  snow: { coat: '#EEF3F8', legs: '#D5DFEA', trim: '#4F9FD8', hood: '#EEF3F8' },
+};
+/** The tricorn's black felt and gold edge. */
+export const TRICORN = ['#1F1B1C', '#E2B33C'] as const;
+export function outfitOf(l: Look): OutfitLook | null {
+  return l.outfit === 'none' ? null : OUTFIT_LOOK[l.outfit];
+}
 
 /** The figure as it has always been. */
 export const SKIPPER: Look = {
@@ -81,6 +108,7 @@ export const SKIPPER: Look = {
   face: 'dots',
   honorGuard: false,
   hideArmour: false,
+  outfit: 'none',
 };
 
 /** The people on the pick screen: the old figure first, then the kid's three, named by us. */
@@ -98,6 +126,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       face: 'grin',
       honorGuard: false,
       hideArmour: false,
+      outfit: 'none',
     },
   },
   {
@@ -112,6 +141,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       face: 'smile',
       honorGuard: false,
       hideArmour: false,
+      outfit: 'none',
     },
   },
   {
@@ -126,6 +156,7 @@ export const PRESETS: readonly { id: string; name: string; look: Look }[] = [
       face: 'smile',
       honorGuard: false,
       hideArmour: false,
+      outfit: 'none',
     },
   },
 ];
@@ -140,7 +171,7 @@ export function presetOf(l: Look): string | null {
     a.hatColour === b.hatColour &&
     a.face === b.face &&
     a.honorGuard === b.honorGuard;
-  // Whether the bought armour shows is not part of who a preset is.
+  // Whether the bought armour shows, and the outfit over it all, are not part of who a preset is.
   return PRESETS.find((p) => same(p.look, l))?.id ?? null;
 }
 
@@ -164,6 +195,7 @@ export function parseLook(o: unknown): Look {
     face: pick(r.face, FACES, SKIPPER.face),
     honorGuard: r.honorGuard === true,
     hideArmour: r.hideArmour === true,
+    outfit: pick(r.outfit, OUTFITS, SKIPPER.outfit),
   };
 }
 
