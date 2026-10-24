@@ -98,7 +98,7 @@ import { drawDrone, drawDroneFlight, drawDroneLagoon } from './render/dronefligh
 import { clockOf, GATE_MISS, LANTERN_COINS, RUNS, skied, TRICK_BONUS } from './data/slalom';
 import { Slalom } from './entities/slalom';
 import { drawSlalom, SKI_POP_T } from './render/slalom';
-import { BARREL_PLANKS, climbed, JUMP_COINS, SMASH_COINS } from './data/treehouse';
+import { climbed, JUMP_COINS, ROPE_COINS, SMASH_COINS, STAGES_UP, timed } from './data/treehouse';
 import { Climb } from './entities/treehouse';
 import { CLIMB_POP_T, climbFrame, drawClimb, PAD_ROOM } from './render/treehouse';
 import { drawFloe } from './render/icefloe';
@@ -1270,7 +1270,11 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   hud(); save(); refreshShop(); }
 // The Treehouse Climb (entities/treehouse.ts), part eight of the Endless Isle: in at the foot of the pirates' great tree,
 // and it turns side on, a stage a screen, the way Donkey Kong is. The figure waits at the foot meanwhile.
-let th = null, thT = 0, thEndT = 0, thTop = 64, thTold = false, thCam = 0, thRoom = PAD_ROOM, thBest;
+let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, thBest, thStage = 1, thPaid = 0, thUp = [];
+// The stages whose how it goes has been shown this session; and the stages above the ones built so far, for the card at
+// the top of the last one.
+const thTold = new Set();
+const TH_STILL = ['The Bucket Lifts above are still being built', 'The Crow\'s Nest at the top is still being built'];
 const thPops = [];
 function thPop(text, colour = '#FFF7E6'){ thPops.push({text, colour, t: 0}); if (thPops.length > 3) thPops.shift(); }
 // The arrows: one thumb on the pad, its way from the pad's middle in eight; up and to the right walks you onto a ladder.
@@ -1286,42 +1290,65 @@ const thArrows = () => thStick.id !== null ? [thStick.x, thStick.y] : joy.on ? j
 // The stage stops short of the arrows, however tall the phone's bottom edge is; on a wide screen they sit either side
 // of it instead.
 const thPadRoom = () => W > H*1.1 ? 24 : Math.max(PAD_ROOM, H - elThPad.getBoundingClientRect().top + 8);
+// In at the foot of the tree: straight up the Barrel Planks the first time; after that, a card to start at any stage
+// you have reached.
 function startTreehouse(){ audio(); if (th || ski || droneFly || droneFish || ctf) return;
-  th = new Climb(BARREL_PLANKS, (Math.random()*1e9) | 0); if (!thTold) th.showHowTo(); thT = 0; thEndT = 0; thCam = th.y; thPops.length = 0; thBest = endless.climbs?.best[1]; joy.on = false; toasts.clear(); sfx.bleep();
+  if ((endless.climbs?.top ?? 0) >= 1){ openTreeCard(); return; }
+  climbStage(1); }
+function climbStage(n){ const first = !th;
+  th = new Climb(STAGES_UP[n - 1], (Math.random()*1e9) | 0); thStage = n; if (!thTold.has(n)) th.showHowTo(); thTold.add(n);
+  thT = 0; thEndT = 0; thCam = th.y; thPops.length = 0; thBest = endless.climbs?.best[n]; joy.on = false; toasts.clear(); sfx.bleep();
+  if (first){ thPaid = 0; thUp = []; }
   th.onEvent = (what) => {
     if (what === 'go') sfx.ring();
-    else if (what === 'hop') sfx.hop();
+    else if (what === 'hop' || what === 'grab') sfx.hop();
     else if (what === 'jumped'){ sfx.rightAnswer(); thPop(`Over! +${JUMP_COINS}`, '#FFE066'); }
     else if (what === 'smash'){ sfx.clang(); sfx.poof(); thPop(`Smash! +${SMASH_COINS}`, '#FFE066'); }
+    else if (what === 'swing'){ sfx.rightAnswer(); thPop(`Wheee! +${ROPE_COINS}`, '#FFE066'); }
+    else if (what === 'splat') sfx.poof();
     else if (what === 'hit'){ sfx.whump(); thPop(th.tries ? `Bonk! ${th.tries} ${th.tries === 1 ? 'try' : 'tries'} left` : 'Out of tries!', '#FF9A8A'); }
     else if (what === 'again'){ sfx.phaseChange(); thPop('Back to the bottom', '#F2DDB4'); }
     else if (what === 'pin'){ sfx.tierUp(); thPop('A belaying pin! Smash them!', '#9BE7A0'); }
     else if (what === 'pinGone') sfx.click();
-    else if (what === 'top'){ thEndT = 4.4; sfx.orderFilled(); } };
+    // Up: the time kept at once, so climbing down from the top still counts it.
+    else if (what === 'top'){ thEndT = 4.4; sfx.orderFilled(); thUp.push(n); endless = {...endless, climbs: timed(endless.climbs, n, th.t)}; save(); } };
+  if (!first) return;
   document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false;
-  thTop = wayOutUp('Climb down', 'treehouse'); thRoom = thPadRoom();
-  thTold = true; }
+  thTop = wayOutUp('Climb down', 'treehouse'); thRoom = thPadRoom(); }
+// The card at the top of a stage: its last line, on up to the next, or what is still being built above.
+const thAfter = () => STAGES_UP[thStage] ? `On up to the ${STAGES_UP[thStage].name}!` : TH_STILL[thStage - STAGES_UP.length] ?? 'The very top of the tree!';
+// Which stage to start at: those got to, and the next one up; the ones above still to reach, or still being built.
+function openTreeCard(){ const top = endless.climbs?.top ?? 0, best = endless.climbs?.best ?? {};
+  const names = [...STAGES_UP.map((s) => s.name), 'Bucket Lifts', 'Crow\'s Nest'].slice(0, 4);
+  $('treeStages').innerHTML = names.map((name, i) => { const n = i + 1, built = n <= STAGES_UP.length, open = built && n <= top + 1;
+    const note = !built ? 'Still being built' : !open ? `Get up the ${names[i - 1]} first` : best[n] !== undefined ? `Your best: ${clockOf(best[n])}` : 'Not climbed yet';
+    return `<button class="answer" data-stage="${n}"${open ? '' : ' disabled'}>${n}. The ${name}<small>${note}</small></button>`; }).join('');
+  $('treeCard').hidden = false; sfx.click(); }
+function closeTreeCard(){ $('treeCard').hidden = true; }
+$('treeClose').addEventListener('click', () => { closeTreeCard(); sfx.click(); });
+$('treeStages').addEventListener('click', (e) => { const b = e.target.closest('[data-stage]'); if (!b || b.disabled) return; closeTreeCard(); climbStage(+b.dataset.stage); });
 function updateTreehouse(dt){ thT += dt; const c = th;
   for (const p of thPops) p.t += dt;
   while (thPops.length && thPops[0].t > CLIMB_POP_T) thPops.shift();
   const [sx, sy] = thArrows(); c.step(dt, sx, sy);
   // The view rides with where the climber stands, not with each jump.
   if (!c.air || c.phase !== 'climb') thCam += (c.y - thCam) * Math.min(1, 4*dt);
-  if (c.phase === 'clear'){ thEndT -= dt; if (thEndT <= 0) endTreehouse(); } }
+  // At the top, the card a moment, then in at the door and on up to the next stage, or down if it is the last built.
+  if (c.phase === 'clear'){ thEndT -= dt; if (thEndT <= 0){ if (STAGES_UP[thStage]){ thPaid += c.coins; climbStage(thStage + 1); } else endTreehouse(); } } }
 function pressJump(){ audio(); if (th) th.press(); }
 $('thJump').addEventListener('pointerdown', (e) => { e.preventDefault(); pressJump(); });
 addEventListener('resize', () => { if (th) thRoom = thPadRoom(); });
-// Down from the tree again: the coins, and the climb in the save, with its time if it got to the top.
+// Down from the tree again: the coins from every stage of the climb, and the climb in the save (each stage's time was
+// kept as it was got to the top of).
 function endTreehouse(quiet = false){ const c = th; if (!c) return; th = null;
   document.body.classList.remove('droning'); elThPad.hidden = true; $('thJump').hidden = true; thStick.id = null; thStick.x = thStick.y = 0; thPadLit(); climbShown = undefined; leaveShown = undefined;
   if (quiet) return;
-  const pay = c.coins; coins += pay; earned += pay;
-  const done = c.phase === 'clear', was = endless.climbs?.best[1];
-  if (done || c.t > 3 || c.restarts) endless = {...endless, climbs: climbed(endless.climbs, 1, done ? c.t : null)};
-  const best = done && was !== undefined && Math.round(c.t*10)/10 < was;
+  const pay = thPaid + c.coins; coins += pay; earned += pay;
+  if (thUp.length || c.t > 3 || c.restarts) endless = {...endless, climbs: climbed(endless.climbs, thStage, null)};
+  const up = thUp.map((n) => `the ${STAGES_UP[n - 1].name}`), lastBuilt = thUp.at(-1) === STAGES_UP.length;
   toasts.clear();
-  toast(done ? `Up the ${c.stage.name} in ${clockOf(c.t)}!${best ? ' Your best yet!' : ''}${pay ? ` ${pay} coins.` : ''} The Rope Swings above are still being built.`
-    : `Down from the great tree.${pay ? ` ${pay} coins from the barrels.` : ''}`, 4200, 1);
+  toast(up.length ? `Up ${up.join(' and ')}!${pay ? ` ${pay} coins.` : ''}${lastBuilt ? ` ${TH_STILL[0] ?? ''}.` : ''}`
+    : `Down from the great tree.${pay ? ` ${pay} coins.` : ''}`, 4200, 1);
   hud(); save(); refreshShop(); }
 // The trench from the surface: a patch of darker water with bubbles coming up.
 function drawTrenchMark(){ if (!onScreen(TRENCH.x, TRENCH.y, (TRENCH.r + 60)*Z)) return;
@@ -6925,7 +6952,7 @@ function draw(){
   if (droneFly){ drawDroneFlight(ctx, W, H, droneFly, droneColour(), droneT, droneTop); drawStick(); return; }
   if (droneFish){ drawDroneLagoon(ctx, W, H, droneFish, droneColour(), droneT, droneTop); drawStick(); return; }
   if (ski){ drawSlalom(ctx, W, H, ski, skierLook(), skiT, skiTop, skiPops, skiBest); drawStick(); return; }
-  if (th){ drawClimb(ctx, W, H, th, skierLook(), thT, {top: thTop, pops: thPops, best: thBest, cam: thCam, room: thRoom}); drawStick(); return; }
+  if (th){ drawClimb(ctx, W, H, th, skierLook(), thT, {top: thTop, pops: thPops, best: thBest, cam: thCam, room: thRoom, after: thAfter()}); drawStick(); return; }
   if (diving){ const P = PAINTS[paint]; drawDive(ctx, W, H, diveT, {diver, plants: trenchPl, shoals: trenchSh, hull: P.hull, trim: P.trim, bubbles: diveBubbles,
     here: (si, i) => fishHere(diveGone, si, i, diveT), spears: diveSpears, aim: diveAim, texts: diveTexts,
     ...(diveSite === 'wreck' ? {site: WRECK_SITE, plants: wreckPl, shoals: wreckSh, loot: [WRECK_CHEST], found: () => wreckChest, pearl: false,

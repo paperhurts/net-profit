@@ -7,15 +7,21 @@
  * up, smashes the barrels it meets for a few seconds, though you cannot climb or jump while you swing it. Up on the
  * ledge at the top, the stage is climbed.
  *
- * The stage's own frame: x across, y up, the climber's y their feet, a barrel's its middle.
+ * Higher up the tree (the Rope Swings) the planks have gaps, with ropes swinging over them: jump at one to grab it, slide
+ * up and down it with the arrows, and jump again to let go, flying on the way it swings. Rope bridges sag under you, and
+ * coconuts hang under the planks above, each wobbling a moment before it drops.
+ *
+ * The stage's own frame: x across, y up, the climber's y their feet, a barrel's and a coconut's their middles.
  */
 
 import { clamp, rng } from '../core/math';
 import {
   JUMP_COINS,
   type Ladder,
+  loadedY,
   type Plank,
   plankY,
+  ROPE_COINS,
   SMASH_COINS,
   type Stage,
   TOP_COINS,
@@ -67,9 +73,24 @@ export const READY_T = 1.6;
 export const HOWTO_T = 5;
 /** Out of tries: the tumble, before the stage starts again. */
 export const DOWN_T = 1.8;
+/** On a rope: hands this far over the feet, up over the head; grabbed within this of it, no higher up it than this much of its length;
+ * slid along it at this; let go of, a little hop up, and not to be grabbed again until you have landed. */
+export const HANDS = 19;
+export const ROPE_GRAB = 8;
+export const ROPE_TOP = 0.4;
+export const ROPE_SLIDE = 40;
+export const LET_GO = 70;
+/** How quickly your weight comes on to a rope bridge, and off it. */
+export const DIP_RATE = 4;
+/** A coconut: how big, how long it wobbles before it drops, and how fast it falls. */
+export const NUT_R = 5;
+export const WOBBLE_T = 0.9;
+export const NUT_FALL = 300;
 
 export type ClimbPhase = 'ready' | 'climb' | 'down' | 'clear';
-export type Pose = 'stand' | 'walk' | 'ladder' | 'jump' | 'stun';
+export type Pose = 'stand' | 'walk' | 'ladder' | 'jump' | 'stun' | 'rope';
+/** A coconut, wobbling where it hangs until it drops, then falling until it splats on a plank. */
+export type Nut = { x: number; y: number; vy: number; wobble: number };
 export type Barrel = {
   x: number;
   y: number;
@@ -101,6 +122,10 @@ export type ClimbEvent =
   | 'pin'
   | 'pinGone'
   | 'roll'
+  | 'swing'
+  | 'grab'
+  | 'nut'
+  | 'splat'
   | 'top';
 
 /** Which way a plank rolls a barrel: toward its low end. */
@@ -132,6 +157,19 @@ export class Climb {
   /** The time since the gorilla last rolled one, and till it rolls the next. */
   rolledT = 9;
   nextRoll = FIRST_ROLL;
+  /** The rope held (or -1), how far down it, and the one just let go of, not to be grabbed again before landing. */
+  rope = -1;
+  ropeD = 0;
+  ropeLeft = -1;
+  /** The ropes swung on this time up, for their coins. */
+  private ropesUsed = new Set<number>();
+  /** How far your weight is on the rope bridge you stand on, 0 to 1. */
+  dip = 0;
+  /** The coconuts hanging and falling, and how long till each bunch lets go of its next. */
+  nuts: Nut[] = [];
+  private nutNext: number[];
+  /** A clock that runs from the start, the beat before the go too: the ropes swing by it. */
+  clock = 0;
   private coyote = 0;
   private buffer = 0;
   barrels: Barrel[] = [];
@@ -140,6 +178,7 @@ export class Climb {
   coins = 0;
   jumped = 0;
   smashed = 0;
+  swung = 0;
   hits = 0;
   restarts = 0;
   onEvent: ((what: ClimbEvent, b?: Barrel) => void) | null = null;
@@ -154,6 +193,37 @@ export class Climb {
     this.plank = stage.start.plank;
     this.y = plankY(this.plankOf(this.plank), this.x);
     this.pins = stage.pins.map((p) => ({ ...p, taken: false }));
+    this.nutNext = (stage.nuts ?? []).map(() => this.nutGap() * (0.3 + this.R() * 0.7));
+  }
+
+  private nutGap(): number {
+    const lo = this.stage.nutMin ?? 3;
+    return lo + this.R() * ((this.stage.nutMax ?? lo) - lo);
+  }
+  /** A plank's height at x as it is now: a rope bridge dipping where you stand on it. */
+  surfaceY(i: number, x: number): number {
+    const p = this.plankOf(i);
+    return p.sag && i === this.plank && !this.air && !this.ladder
+      ? loadedY(p, x, this.x, this.dip)
+      : plankY(p, x);
+  }
+  /** How far round a rope has swung (radians from straight down, positive to the right), and how fast it is swinging. */
+  ropeAngle(i: number): number {
+    const r = this.stage.ropes?.[i];
+    return r ? r.amp * Math.sin((2 * Math.PI * this.clock) / r.period + r.phase) : 0;
+  }
+  ropeRate(i: number): number {
+    const r = this.stage.ropes?.[i];
+    if (!r) return 0;
+    const w = (2 * Math.PI) / r.period;
+    return r.amp * w * Math.cos(w * this.clock + r.phase);
+  }
+  /** The point d along a rope from where it is tied. */
+  ropeAt(i: number, d: number): [number, number] {
+    const r = this.stage.ropes?.[i];
+    if (!r) return [0, 0];
+    const a = this.ropeAngle(i);
+    return [r.x + d * Math.sin(a), r.y - d * Math.cos(a)];
   }
 
   private plankOf(i: number): Plank {
@@ -172,6 +242,7 @@ export class Climb {
   }
   get pose(): Pose {
     if (this.stunT > 0 || this.phase === 'down') return 'stun';
+    if (this.rope >= 0) return 'rope';
     if (this.ladder) return 'ladder';
     if (this.air) return 'jump';
     return Math.abs(this.vx) > 1 ? 'walk' : 'stand';
@@ -193,6 +264,7 @@ export class Climb {
   /** A step, the arrows at (sx, sy): right and down positive, as on the screen. */
   step(dt: number, sx: number, sy: number): void {
     this.rolledT += dt;
+    this.clock += dt;
     if (this.phase === 'ready') {
       this.readyT -= dt;
       if (this.readyT <= 0) {
@@ -205,12 +277,14 @@ export class Climb {
       this.downT -= dt;
       this.fall(dt);
       this.roll(dt);
+      this.drop(dt);
       if (this.downT <= 0) this.again();
       return;
     }
     if (this.phase === 'clear') {
       this.clearT += dt;
       this.roll(dt);
+      this.drop(dt);
       // In at the door.
       const d = this.stage.door - this.x;
       this.vx = Math.abs(d) > 1 ? Math.sign(d) * WALK * 0.6 : 0;
@@ -239,8 +313,11 @@ export class Climb {
       this.buffer = 0;
     }
     this.move(dt, sx, sy);
+    const onBridge = !this.air && !this.ladder && this.plank >= 0 && !!this.plankOf(this.plank).sag;
+    this.dip = clamp(this.dip + (onBridge ? 1 : -1) * DIP_RATE * dt, 0, 1);
     this.gorilla(dt);
     this.roll(dt);
+    this.drop(dt);
     this.meet();
     if (!this.air && !this.ladder && this.plank === this.topPlank) {
       this.phase = 'clear';
@@ -251,10 +328,14 @@ export class Climb {
 
   private move(dt: number, sx: number, sy: number): void {
     const want = Math.abs(sx) > 0.2 ? Math.sign(sx) * WALK : 0;
+    if (this.rope >= 0) {
+      this.swing(dt, sy);
+      return;
+    }
     if (this.ladder) {
       const L = this.ladder;
-      const lo = plankY(this.plankOf(L.lo), L.x);
-      const hi = plankY(this.plankOf(L.lo + 1), L.x);
+      const lo = this.surfaceY(L.lo, L.x);
+      const hi = this.surfaceY(L.lo + 1, L.x);
       const dy = Math.abs(sy) > 0.3 ? -Math.sign(sy) * CLIMB * dt : 0;
       this.y = clamp(this.y + dy, lo, hi);
       this.stride += Math.abs(dy);
@@ -291,7 +372,7 @@ export class Climb {
         this.vy = 0;
         this.plank = -1;
         this.coyote = COYOTE;
-      } else this.y = plankY(p, this.x);
+      } else this.y = this.surfaceY(this.plank, this.x);
     }
     if (canAct && this.buffer > 0 && (!this.air || this.coyote > 0)) {
       this.buffer = 0;
@@ -308,13 +389,76 @@ export class Climb {
     }
   }
 
-  /** Through the air, landing on the first plank under you. */
+  /** On a rope: carried round as it swings, sliding along it with the arrows, and let go of with the jump button,
+   * flying on the way it was swinging. */
+  private swing(dt: number, sy: number): void {
+    const i = this.rope;
+    const r = this.stage.ropes?.[i];
+    if (!r) {
+      this.rope = -1;
+      return;
+    }
+    if (Math.abs(sy) > 0.3)
+      this.ropeD = clamp(this.ropeD + Math.sign(sy) * ROPE_SLIDE * dt, r.len * ROPE_TOP, r.len);
+    const [hx, hy] = this.ropeAt(i, this.ropeD);
+    this.x = clamp(hx, WALL, this.stage.w - WALL);
+    this.y = hy - HANDS;
+    const w = this.ropeRate(i);
+    if (Math.abs(w) > 0.05) this.face = Math.sign(w);
+    if (this.buffer > 0 && this.pinT <= 0) {
+      const a = this.ropeAngle(i);
+      this.buffer = 0;
+      this.rope = -1;
+      this.ropeLeft = i;
+      this.air = true;
+      this.vx = w * this.ropeD * Math.cos(a);
+      this.vy = w * this.ropeD * Math.sin(a) + LET_GO;
+      this.onEvent?.('hop');
+    }
+  }
+
+  /** A rope within reach of your hands, in the air: grabbed. */
+  private grab(): boolean {
+    if (this.stunT > 0 || this.pinT > 0 || this.phase !== 'climb') return false;
+    const ropes = this.stage.ropes ?? [];
+    for (let i = 0; i < ropes.length; i++) {
+      const r = ropes[i] as (typeof ropes)[number];
+      if (i === this.ropeLeft) continue;
+      const [ex, ey] = this.ropeAt(i, r.len);
+      const ux = (ex - r.x) / r.len;
+      const uy = (ey - r.y) / r.len;
+      const hx = this.x - r.x;
+      const hy = this.y + HANDS - r.y;
+      const d = clamp(hx * ux + hy * uy, 0, r.len);
+      if (d < r.len * ROPE_TOP || Math.hypot(hx - ux * d, hy - uy * d) > ROPE_GRAB) continue;
+      this.rope = i;
+      this.ropeD = d;
+      this.air = false;
+      this.plank = -1;
+      this.vx = 0;
+      this.vy = 0;
+      const [gx, gy] = this.ropeAt(i, d);
+      this.x = clamp(gx, WALL, this.stage.w - WALL);
+      this.y = gy - HANDS;
+      if (!this.ropesUsed.has(i)) {
+        this.ropesUsed.add(i);
+        this.swung++;
+        this.coins += ROPE_COINS;
+        this.onEvent?.('swing');
+      } else this.onEvent?.('grab');
+      return true;
+    }
+    return false;
+  }
+
+  /** Through the air, catching a rope in reach, or landing on the first plank under you. */
   private fall(dt: number): void {
     if (!this.air) return;
     const was = this.y;
     this.x = clamp(this.x + this.vx * dt, WALL, this.stage.w - WALL);
     this.vy -= GRAVITY * dt;
     this.y += this.vy * dt;
+    if (this.grab()) return;
     if (this.vy > 0) return;
     let best = -1;
     let at = -Infinity;
@@ -335,16 +479,20 @@ export class Climb {
   private stand(i: number): void {
     this.plank = i;
     this.ladder = null;
+    this.rope = -1;
+    this.ropeLeft = -1;
     this.air = false;
     this.vy = 0;
-    this.y = plankY(this.plankOf(i), this.x);
+    this.dip = 0;
+    this.y = this.surfaceY(i, this.x);
   }
 
   /** The gorilla at the top, rolling the next barrel down. */
   private gorilla(dt: number): void {
+    const g = this.stage.gorilla;
+    if (!g) return;
     this.nextRoll -= dt;
     if (this.nextRoll > 0) return;
-    const g = this.stage.gorilla;
     const p = this.plankOf(g.plank);
     const dir = downhill(p);
     const x = g.x + dir * 14;
@@ -363,7 +511,8 @@ export class Climb {
       passed: [],
     });
     this.rolledT = 0;
-    this.nextRoll = this.stage.rollMin + this.R() * (this.stage.rollMax - this.stage.rollMin);
+    const lo = this.stage.rollMin ?? 3;
+    this.nextRoll = lo + this.R() * ((this.stage.rollMax ?? lo) - lo);
     this.onEvent?.('roll');
   }
 
@@ -426,6 +575,43 @@ export class Climb {
     this.barrels = this.barrels.filter((b) => b.y > -20 && b.x > -30 && b.x < this.stage.w + 30);
   }
 
+  /** The coconuts: each bunch letting one go every so often, which wobbles, then drops, and splats on the first plank
+   * it meets. */
+  private drop(dt: number): void {
+    const spots = this.stage.nuts ?? [];
+    if (this.phase === 'climb')
+      spots.forEach((n, i) => {
+        const left = (this.nutNext[i] ?? 0) - dt;
+        if (left > 0) {
+          this.nutNext[i] = left;
+          return;
+        }
+        this.nutNext[i] = this.nutGap();
+        this.nuts.push({ x: n.x, y: n.y - NUT_R, vy: 0, wobble: WOBBLE_T });
+        this.onEvent?.('nut');
+      });
+    for (const n of this.nuts) {
+      if (n.wobble > 0) {
+        n.wobble -= dt;
+        continue;
+      }
+      const was = n.y;
+      n.vy -= NUT_FALL * dt;
+      n.y += n.vy * dt;
+      for (let i = 0; i < this.stage.planks.length; i++) {
+        const p = this.plankOf(i);
+        if (n.x < p.x0 || n.x > p.x1) continue;
+        const s = this.surfaceY(i, n.x) + NUT_R;
+        if (was >= s - 0.01 && n.y <= s) {
+          n.y = -999;
+          this.onEvent?.('splat');
+          break;
+        }
+      }
+    }
+    this.nuts = this.nuts.filter((n) => n.y > -20);
+  }
+
   /** The climber and the barrels: smashed with a pin, jumped for coins, or a try lost. And a pin picked up. */
   private meet(): void {
     const top = this.y + BODY;
@@ -437,6 +623,14 @@ export class Climb {
         this.pinT = PIN_T;
         this.onEvent?.('pin');
       }
+    }
+    for (const n of [...this.nuts]) {
+      if (n.wobble > 0 || Math.abs(n.x - this.x) > HIT_X) continue;
+      if (n.y - NUT_R > top - 2 || n.y + NUT_R < this.y + 2) continue;
+      if (this.safeT > 0 || this.stunT > 0) continue;
+      this.nuts.splice(this.nuts.indexOf(n), 1);
+      this.hit();
+      if (this.phase !== 'climb') return;
     }
     for (const b of [...this.barrels]) {
       const dx = Math.abs(b.x - this.x);
@@ -477,7 +671,7 @@ export class Climb {
     }
   }
 
-  private hit(b: Barrel): void {
+  private hit(b?: Barrel): void {
     this.hits++;
     this.tries--;
     this.onEvent?.('hit', b);
@@ -486,6 +680,11 @@ export class Climb {
       this.downT = DOWN_T;
       this.ladder = null;
       this.pinT = 0;
+      if (this.rope >= 0) {
+        this.rope = -1;
+        this.air = true;
+        this.vy = 0;
+      }
       if (!this.air) {
         this.air = true;
         this.vy = 120;
@@ -517,6 +716,11 @@ export class Climb {
     this.barrels = [];
     this.nextRoll = FIRST_ROLL;
     for (const p of this.pins) p.taken = false;
+    this.rope = -1;
+    this.ropeLeft = -1;
+    this.ropesUsed.clear();
+    this.nuts = [];
+    this.nutNext = this.nutNext.map(() => this.nutGap() * (0.3 + this.R() * 0.7));
     this.restarts++;
     this.onEvent?.('again');
   }

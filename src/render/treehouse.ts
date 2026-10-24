@@ -11,7 +11,16 @@
 import { clamp } from '../core/math';
 import { clockOf } from '../data/slalom';
 import { type Plank, plankY } from '../data/treehouse';
-import { BARREL_R, type Barrel, type Climb, DOWN_T, PIN_T, PIN_Y } from '../entities/treehouse';
+import {
+  BARREL_R,
+  type Barrel,
+  type Climb,
+  DOWN_T,
+  HANDS,
+  NUT_R,
+  PIN_T,
+  PIN_Y,
+} from '../entities/treehouse';
 import type { SkierLook } from './slalom';
 
 /** A word over the climb for a moment: a barrel jumped, one smashed, a try lost. */
@@ -84,6 +93,8 @@ export type ClimbScreen = {
   best: number | undefined;
   cam: number;
   room: number;
+  /** The last line of the card at the top: on up to the next stage, or that it is still being built. */
+  after: string;
 };
 
 export function drawClimb(
@@ -111,12 +122,19 @@ export function drawClimb(
   ctx.clip();
   drawTree(ctx, W, f, s.w, s.h, T);
   for (const L of s.ladders)
-    drawLadder(ctx, f, L.x, plankY(plankOf(c, L.lo), L.x), plankY(plankOf(c, L.lo + 1), L.x));
-  for (const p of s.planks) drawPlank(ctx, f, p);
+    drawLadder(ctx, f, L.x, c.surfaceY(L.lo, L.x), c.surfaceY(L.lo + 1, L.x));
+  s.planks.forEach((p, i) => {
+    if (p.sag) drawBridge(ctx, f, c, i);
+    else drawPlank(ctx, f, p);
+  });
   const ledge = plankOf(c, s.planks.length - 1);
   drawHut(ctx, f, s.door, ledge.y0, c.phase === 'clear', T);
-  drawStack(ctx, f, s.gorilla.x - 18, plankY(plankOf(c, s.gorilla.plank), s.gorilla.x - 18));
-  drawGorilla(ctx, f, c, T);
+  if (s.gorilla) {
+    drawStack(ctx, f, s.gorilla.x - 18, plankY(plankOf(c, s.gorilla.plank), s.gorilla.x - 18));
+    drawGorilla(ctx, f, c, T);
+  }
+  drawRopes(ctx, f, c);
+  drawNuts(ctx, f, c, T);
   for (const p of c.pins) {
     if (p.taken) continue;
     const y = plankY(plankOf(c, p.plank), p.x) + PIN_Y + Math.sin(T * 3 + p.x) * 1.5;
@@ -134,7 +152,7 @@ export function drawClimb(
   drawPops(ctx, W, f, o.pops ?? []);
   if (c.howTo) drawHowTo(ctx, W, H, c);
   else if (c.phase === 'ready' || (c.phase === 'climb' && c.t < 0.8)) drawReady(ctx, W, f, c);
-  if (c.phase === 'clear' && c.clearT > 1.1) drawClear(ctx, W, H, c, o.best);
+  if (c.phase === 'clear' && c.clearT > 1.1) drawClear(ctx, W, H, c, o.best, o.after ?? '');
 }
 
 const plankOf = (c: Climb, i: number): Plank => c.stage.planks[i] as Plank;
@@ -324,6 +342,122 @@ function drawPlank(ctx: CanvasRenderingContext2D, f: ClimbFrame, p: Plank): void
   }
 }
 
+/** A rope bridge: slats on a rope, sagging, and dipping where you stand on it, a hand rope above on posts at its ends. */
+function drawBridge(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, i: number): void {
+  const { k, X, Y } = f;
+  const p = plankOf(c, i);
+  const pts: [number, number][] = [];
+  for (let x = p.x0; x <= p.x1 + 0.01; x += 5) pts.push([x, c.surfaceY(i, Math.min(x, p.x1))]);
+  // The posts at the ends.
+  ctx.fillStyle = PLANK_DARK;
+  for (const x of [p.x0, p.x1])
+    ctx.fillRect(X(x) - 1.6 * k, Y(c.surfaceY(i, x) + 16), 3.2 * k, 22 * k);
+  // The rope under the slats and the hand rope, with stringers between.
+  const hand = (x: number, y: number) => y + 14 + (plankY(p, x) - y) * 0.5;
+  ctx.strokeStyle = ROPE;
+  ctx.lineWidth = Math.max(1, 1.2 * k);
+  for (const up of [false, true]) {
+    ctx.beginPath();
+    pts.forEach(([x, y], j) => {
+      const yy = up ? hand(x, y) : y - 1.5;
+      if (j) ctx.lineTo(X(x), Y(yy));
+      else ctx.moveTo(X(x), Y(yy));
+    });
+    ctx.stroke();
+  }
+  ctx.lineWidth = Math.max(1, 0.8 * k);
+  for (let j = 2; j < pts.length - 1; j += 3) {
+    const [x, y] = pts[j] as [number, number];
+    ctx.beginPath();
+    ctx.moveTo(X(x), Y(y));
+    ctx.lineTo(X(x), Y(hand(x, y)));
+    ctx.stroke();
+  }
+  // The slats, each along the rope's slope.
+  for (let j = 0; j < pts.length - 1; j++) {
+    const [x0, y0] = pts[j] as [number, number];
+    const [x1, y1] = pts[j + 1] as [number, number];
+    ctx.fillStyle = j % 2 ? PLANK : PLANK_LIT;
+    ctx.beginPath();
+    ctx.moveTo(X(x0 + 0.4), Y(y0));
+    ctx.lineTo(X(x1 - 0.4), Y(y1));
+    ctx.lineTo(X(x1 - 0.4), Y(y1 - 3));
+    ctx.lineTo(X(x0 + 0.4), Y(y0 - 3));
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+/** The ropes, each hanging from a stub of branch, swinging. */
+function drawRopes(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb): void {
+  const { k, X, Y } = f;
+  (c.stage.ropes ?? []).forEach((r, i) => {
+    ctx.strokeStyle = BARK_DARK;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 6 * k;
+    ctx.beginPath();
+    ctx.moveTo(X(r.x - 16), Y(r.y + 5));
+    ctx.lineTo(X(r.x + 12), Y(r.y + 3));
+    ctx.stroke();
+    const [ex, ey] = c.ropeAt(i, r.len);
+    ctx.strokeStyle = ROPE;
+    ctx.lineWidth = Math.max(1.4, 2.2 * k);
+    ctx.beginPath();
+    ctx.moveTo(X(r.x), Y(r.y));
+    ctx.lineTo(X(ex), Y(ey));
+    ctx.stroke();
+    ctx.fillStyle = RUNG;
+    ctx.beginPath();
+    ctx.arc(X(ex), Y(ey), 2.2 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineCap = 'butt';
+  });
+}
+
+/** The coconut bunches, under their fronds; one wobbling where it hangs, about to drop; and those falling. */
+function drawNuts(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: number): void {
+  const { k, X, Y } = f;
+  const nut = (x: number, y: number) => {
+    ctx.fillStyle = '#7A4E26';
+    ctx.beginPath();
+    ctx.arc(X(x), Y(y), NUT_R * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.beginPath();
+    ctx.arc(X(x - 1.6), Y(y + 1.6), 1.6 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3A2410';
+    for (const dx of [-1.2, 0, 1.2]) {
+      ctx.beginPath();
+      ctx.arc(X(x + dx), Y(y - 1.8), 0.5 * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  for (const n of c.stage.nuts ?? []) {
+    ctx.strokeStyle = LEAVES[1];
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 2.2 * k;
+    for (const a of [-0.9, -0.3, 0.4, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(X(n.x), Y(n.y + 2));
+      ctx.quadraticCurveTo(
+        X(n.x + Math.sin(a) * 8),
+        Y(n.y + 6),
+        X(n.x + Math.sin(a) * 14),
+        Y(n.y - 2),
+      );
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    nut(n.x - 4, n.y - 4);
+    nut(n.x + 4, n.y - 5);
+  }
+  for (const n of c.nuts) {
+    const shake = n.wobble > 0 ? Math.sin(T * 50) * 1.4 : 0;
+    nut(n.x + shake, n.y);
+  }
+}
+
 /** The hut on the ledge at the top: plank walls, a red roof, the Jolly Roger, and the door, open once you are up. */
 function drawHut(
   ctx: CanvasRenderingContext2D,
@@ -495,6 +629,7 @@ function drawPin(
 function drawGorilla(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: number): void {
   const { k } = f;
   const g = c.stage.gorilla;
+  if (!g) return;
   const p = plankOf(c, g.plank);
   const dir = p.y1 < p.y0 ? 1 : -1;
   const sx = f.X(g.x);
@@ -606,6 +741,12 @@ function drawClimber(
     ctx.rotate(e * 7);
     ctx.translate(0, 8 * u);
   }
+  // On a rope, hanging from your hands along it as it swings.
+  if (pose === 'rope') {
+    ctx.translate(0, -HANDS * u);
+    ctx.rotate(-c.ropeAngle(c.rope));
+    ctx.translate(0, HANDS * u);
+  }
   ctx.scale(c.face, 1);
   const trousers = '#3A3F4A';
   const sw = Math.sin(c.stride * 0.32);
@@ -634,6 +775,17 @@ function drawClimber(
     hands = [
       [-2.6, sh - 3.6],
       [3, sh - 4.5],
+    ];
+  } else if (pose === 'rope') {
+    // Hands up together on the rope, legs hanging, a little kick as it swings.
+    const kick = Math.sin(T * 3) * 0.8;
+    legs = [
+      [0, -7, -0.6, -3.8, -0.8 + kick, -0.4],
+      [0, -7, 1, -3.6, 1.4 + kick, -0.6],
+    ];
+    hands = [
+      [-0.4, -HANDS + 1.4],
+      [0.6, -HANDS],
     ];
   } else if (pose === 'ladder') {
     // Up a ladder, seen from behind: hands up at the rungs in turn, and the feet with them.
@@ -853,13 +1005,7 @@ function drawHowTo(ctx: CanvasRenderingContext2D, W: number, H: number, c: Climb
   ctx.fillText(`The ${c.stage.name}`, W / 2, y + 26);
   ctx.font = `800 15px ${FONT}`;
   ctx.fillStyle = '#FFF7E6';
-  const lines = [
-    'Arrows walk you, and climb ladders',
-    'Jump the barrels for coins',
-    'Jump up for a pin, and smash them!',
-    'Get to the door at the top',
-  ];
-  lines.forEach((t, i) => {
+  c.stage.howTo.forEach((t, i) => {
     ctx.fillText(t, W / 2, y + 58 + i * 24);
   });
   ctx.fillStyle = '#F2DDB4';
@@ -892,6 +1038,7 @@ function drawClear(
   H: number,
   c: Climb,
   best: number | undefined,
+  after: string,
 ): void {
   const w = Math.min(300, W - 40);
   const x = (W - w) / 2;
@@ -920,6 +1067,9 @@ function drawClear(
   );
   ctx.fillStyle = '#F2DDB4';
   ctx.font = `800 13px ${FONT}`;
-  ctx.fillText(`Jumped ${c.jumped} · Smashed ${c.smashed} · ${c.coins} coins`, W / 2, y + 102);
-  ctx.fillText('The Rope Swings are still being built', W / 2, y + 124);
+  const did = c.stage.gorilla
+    ? `Jumped ${c.jumped} · Smashed ${c.smashed}`
+    : `Ropes swung ${c.swung}`;
+  ctx.fillText(`${did} · ${c.coins} coins`, W / 2, y + 102);
+  ctx.fillText(after, W / 2, y + 124);
 }

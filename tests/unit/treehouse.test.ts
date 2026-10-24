@@ -3,11 +3,16 @@ import {
   BARREL_PLANKS,
   climbed,
   JUMP_COINS,
+  loadedY,
   parseClimbs,
   plankY,
+  ROPE_COINS,
+  ROPE_SWINGS,
   SMASH_COINS,
+  STAGES_UP,
   TOP_COINS,
   TRIES,
+  timed,
 } from '../../src/data/treehouse';
 import {
   BARREL_R,
@@ -17,18 +22,23 @@ import {
   DOWN_T,
   downhill,
   GRAVITY,
+  HANDS,
   HOWTO_T,
   JUMP_V,
+  NUT_R,
   PIN_T,
   PIN_Y,
   READY_T,
+  ROPE_TOP,
   SAFE_T,
   STUN_T,
   WALK,
+  WOBBLE_T,
 } from '../../src/entities/treehouse';
 
 const DT = 1 / 60;
 const S = BARREL_PLANKS;
+const G = S.gorilla as NonNullable<typeof S.gorilla>;
 const plank = (i: number) => S.planks[i] as (typeof S.planks)[number];
 
 /** A climb past the beat, nothing rolling yet. */
@@ -121,7 +131,7 @@ describe('the Treehouse Climb', () => {
       expect(end).toBeLessThan(q.x1);
     }
     // The gorilla's plank rolls them away from it, and the bottom one out of the tree.
-    expect(downhill(plank(S.gorilla.plank))).toBe(S.gorilla.x < S.w / 2 ? 1 : -1);
+    expect(downhill(plank(G.plank))).toBe(G.x < S.w / 2 ? 1 : -1);
     expect(plank(0).x0).toBe(0);
     for (const p of S.pins) expect(p.x).toBeGreaterThan(plank(p.plank).x0);
   });
@@ -269,14 +279,14 @@ describe('the Treehouse Climb', () => {
     );
     expect(rolled).toBeGreaterThan(20);
     for (const ps of seen.values()) {
-      expect(ps[0]).toBe(S.gorilla.plank);
+      expect(ps[0]).toBe(G.plank);
       for (let i = 1; i < ps.length; i++) expect(ps[i]).toBeLessThan(ps[i - 1] as number);
     }
     const out = [...seen.keys()].filter((b) => !c.barrels.includes(b));
     expect(out.length).toBeGreaterThan(10);
     for (const b of out) expect(seen.get(b)?.at(-1)).toBe(0);
     // Some come down a ladder, missing out a plank's zigzag.
-    expect([...seen.values()].some((ps) => ps.length < S.gorilla.plank + 1)).toBe(true);
+    expect([...seen.values()].some((ps) => ps.length < G.plank + 1)).toBe(true);
     expect(most).toBeLessThanOrEqual(10);
   });
 
@@ -463,5 +473,224 @@ describe('the Treehouse Climb', () => {
         best: { 4: 12.3 },
       },
     );
+  });
+});
+
+describe('the Rope Swings', () => {
+  const R = ROPE_SWINGS;
+  const ropes = R.ropes ?? [];
+  const rp = (i: number) => R.planks[i] as (typeof R.planks)[number];
+  const amp = (i: number) => ropes[i]?.amp ?? 0;
+  /** A climb of the Rope Swings past the beat. */
+  function swings(seed = 1): Climb {
+    const c = new Climb(R, seed);
+    c.step(READY_T + DT, 0, 0);
+    return c;
+  }
+  /** Stood on a plank at x. */
+  function at(c: Climb, p: number, x: number): void {
+    c.x = x;
+    c.plank = p;
+    c.air = false;
+    c.ladder = null;
+    c.rope = -1;
+    c.y = plankY(rp(p), x);
+  }
+  // The way up: on each plank where to go, and the rope to be caught there.
+  const PLAN: Record<number, { to: number; rope?: number }> = {
+    0: { to: 210 },
+    1: { to: 144, rope: 0 },
+    2: { to: 30 },
+    3: { to: 215 },
+    4: { to: 154, rope: 1 },
+    5: { to: 24 },
+    6: { to: 216 },
+  };
+  /** A careful kid: to each ladder, the rope caught at the near end of its swing and let go at the far end, and a
+   * wait for a coconut just ahead. */
+  const swinger = (c: Climb): [number, number, boolean] => {
+    if (c.rope >= 0) return [0, 1, c.ropeAngle(c.rope) < -amp(c.rope) * 0.9];
+    if (c.ladder) return [0, -1, false];
+    if (c.air) return [0, 0, false];
+    const p = PLAN[c.plank];
+    if (!p) return [0, 0, false];
+    const dx = p.to - c.x;
+    const ahead = Math.sign(dx);
+    if (c.nuts.some((n) => n.y > c.y && Math.abs(n.x - (c.x + ahead * 12)) < 16))
+      return [0, 0, false];
+    if (Math.abs(dx) > 2) return [ahead, 0, false];
+    if (p.rope !== undefined) return [0, 0, c.ropeAngle(p.rope) > amp(p.rope) * 0.88];
+    return [0, -1, false];
+  };
+  /** Up to the rope off plank 1 and caught. */
+  const catchFirst = (c: Climb) => {
+    at(c, 1, 144);
+    run(
+      c,
+      6,
+      (c) => [0, 0, c.ropeAngle(0) > amp(0) * 0.88],
+      (c) => c.rope >= 0,
+    );
+  };
+
+  it('has a rope over each gap reaching both sides, and gaps too wide to jump', () => {
+    const gaps: [number, number, number][] = [
+      [2, 1, 0],
+      [5, 4, 1],
+    ];
+    for (const [left, right, i] of gaps) {
+      const r = ropes[i] as (typeof ropes)[number];
+      const reach = r.len * Math.sin(r.amp);
+      expect(r.x - reach).toBeLessThan(rp(left).x1 - 2);
+      expect(r.x + reach).toBeGreaterThan(rp(right).x0 + 2);
+      // A running jump covers this much: not enough.
+      expect(rp(right).x0 - rp(left).x1).toBeGreaterThan(WALK * ((2 * JUMP_V) / GRAVITY));
+    }
+    for (const L of R.ladders) {
+      for (const p of [rp(L.lo), rp(L.lo + 1)]) {
+        expect(L.x).toBeGreaterThan(p.x0 + 4);
+        expect(L.x).toBeLessThan(p.x1 - 4);
+      }
+    }
+    expect(STAGES_UP).toEqual([BARREL_PLANKS, ROPE_SWINGS]);
+  });
+
+  it('a rope jumped at is caught for coins, slid along with the arrows, and let go of, flying on with its swing', () => {
+    const c = swings();
+    const ev = events(c);
+    catchFirst(c);
+    expect(c.rope).toBe(0);
+    expect(ev).toContain('swing');
+    expect(c.coins).toBe(ROPE_COINS);
+    expect(c.pose).toBe('rope');
+    // Hands on the rope.
+    const [hx, hy] = c.ropeAt(0, c.ropeD);
+    expect(Math.hypot(c.x - hx, c.y + HANDS - hy)).toBeLessThan(0.5);
+    // Up the rope only so far; down to its end.
+    run(c, 3, () => [0, -1]);
+    expect(c.ropeD).toBeCloseTo((ropes[0]?.len ?? 0) * ROPE_TOP, 5);
+    run(c, 3, () => [0, 1]);
+    expect(c.ropeD).toBeCloseTo(ropes[0]?.len ?? 0, 5);
+    // Let go at the far end of the swing: over the left platform, and down onto it.
+    run(
+      c,
+      6,
+      (c) => [0, 0, c.ropeAngle(0) < -amp(0) * 0.9],
+      (c) => c.rope < 0,
+    );
+    run(
+      c,
+      2,
+      () => [0, 0],
+      (c) => !c.air,
+    );
+    expect(c.plank).toBe(2);
+    // The same rope again pays nothing more.
+    catchFirst(c);
+    expect(c.rope).toBe(0);
+    expect(c.coins).toBe(ROPE_COINS);
+    expect(ev.filter((w) => w === 'swing').length).toBe(1);
+  });
+
+  it('let go of over a gap, you fall to the level below, not out of the climb', () => {
+    const c = swings();
+    catchFirst(c);
+    run(
+      c,
+      6,
+      (c) => [0, 0, Math.abs(c.ropeAngle(0)) < 0.05],
+      (c) => c.rope < 0,
+    );
+    run(
+      c,
+      3,
+      () => [0, 0],
+      (c) => !c.air,
+    );
+    expect(c.plank).toBe(0);
+    expect(c.tries).toBe(TRIES);
+    expect(c.phase).toBe('climb');
+  });
+
+  it('a rope bridge dips where you stand, most in the middle, and hangs back when you are gone', () => {
+    const c = swings();
+    const b = rp(3);
+    const mid = (b.x0 + b.x1) / 2;
+    expect(plankY(b, mid)).toBeCloseTo(b.y0 - (b.sag ?? 0), 5);
+    expect(loadedY(b, b.x0, mid, 1)).toBeCloseTo(b.y0, 5);
+    expect(loadedY(b, mid, mid, 1)).toBeLessThan(plankY(b, mid) - 3);
+    const near = b.x0 + 20;
+    expect(plankY(b, mid) - loadedY(b, mid, mid, 1)).toBeGreaterThan(
+      plankY(b, near) - loadedY(b, near, near, 1),
+    );
+    at(c, 3, mid);
+    run(c, 1, () => [0, 0]);
+    expect(c.dip).toBe(1);
+    expect(c.y).toBeCloseTo(loadedY(b, mid, mid, 1), 5);
+    // Walking along it, the dip goes with you.
+    run(c, 0.5, () => [1, 0]);
+    expect(c.y).toBeCloseTo(loadedY(b, c.x, c.x, 1), 5);
+    at(c, 4, 200);
+    run(c, 1, () => [0, 0]);
+    expect(c.dip).toBe(0);
+    expect(c.surfaceY(3, mid)).toBeCloseTo(plankY(b, mid), 5);
+  });
+
+  it('a coconut wobbles a moment, drops, and costs a try if it lands on you; otherwise it splats on the plank', () => {
+    const c = swings();
+    const ev = events(c);
+    const n = R.nuts?.[0] as { x: number; y: number };
+    at(c, 3, n.x);
+    c.nuts.push({ x: n.x, y: n.y - NUT_R, vy: 0, wobble: WOBBLE_T });
+    run(c, WOBBLE_T * 0.9, () => [0, 0]);
+    expect(c.tries).toBe(TRIES);
+    run(
+      c,
+      2,
+      () => [0, 0],
+      (c) => c.tries < TRIES,
+    );
+    expect(c.tries).toBe(TRIES - 1);
+    expect(ev).toContain('hit');
+    // Out of the way, the next one splats.
+    at(c, 3, n.x + 40);
+    c.safeT = 0;
+    c.stunT = 0;
+    c.nuts.length = 0;
+    c.nuts.push({ x: n.x, y: n.y - NUT_R, vy: 0, wobble: WOBBLE_T });
+    run(
+      c,
+      3,
+      () => [0, 0],
+      (c) => !c.nuts.some((m) => m.x === n.x && m.y < n.y),
+    );
+    expect(ev).toContain('splat');
+    expect(c.tries).toBe(TRIES - 1);
+  });
+
+  it('can be climbed by swinging over the gaps and waiting for the coconuts', () => {
+    let tops = 0;
+    let time = 0;
+    let swung = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const c = swings(seed);
+      run(c, 240, swinger, (c) => c.phase === 'clear');
+      if (c.phase === 'clear') {
+        tops++;
+        time += c.t;
+        swung += c.swung;
+        expect(c.coins).toBe(TOP_COINS + ROPE_COINS * c.swung);
+      }
+    }
+    expect(tops).toBeGreaterThanOrEqual(18);
+    expect(time / tops).toBeLessThan(120);
+    expect(swung / tops).toBeGreaterThanOrEqual(ropes.length);
+  });
+
+  it('keeps a stage got to on the way up without counting another climb', () => {
+    const c = climbed(undefined, 1, 40);
+    const t = timed(c, 2, 63.27);
+    expect(t).toEqual({ climbs: 1, top: 2, best: { 1: 40, 2: 63.3 } });
+    expect(timed(t, 2, null)).toEqual(t);
   });
 });
