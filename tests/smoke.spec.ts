@@ -59,6 +59,9 @@ type Ski = {
   tricks: number;
   bonus: number;
   lanterns: number;
+  yetiZ: number;
+  yetiRoar: number;
+  swiped: number;
 };
 /** The Treehouse Climb, as far as the smoke test looks at it. */
 type Climb = {
@@ -118,7 +121,7 @@ type Np = {
     seen: boolean;
     pirate: boolean;
     ninja: boolean;
-    slalom?: { runs: number; best: { bunny?: number } };
+    slalom?: { runs: number; best: { bunny?: number; fox?: number; doom?: number } };
     climbs?: { climbs: number; top: number; best: Record<number, number> };
   };
   ctf: Ctf | null;
@@ -8186,7 +8189,7 @@ test('Hold the Forts: the leader offers it, the three bases neutral, the Cannon 
   expect(errors).toEqual([]);
 });
 
-test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time, its medal and coins, opening the Fox Run; then the run card, the Fox Run, stopped early, its time not kept', async ({
+test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time, its medal and coins, opening the Fox Run; then the run card, down the Fox Run, opening the Doom Drop; down it, the yeti after you and swiping you once, stopped early, its time not kept', async ({
   context,
   page,
 }) => {
@@ -8283,13 +8286,14 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   await expect(page.locator('#skiTrick')).toBeHidden();
   await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
-  // Again: now a card of the runs, the Doom Drop still being groomed; down the Fox Run, with no how it goes this
-  // time, and stopped partway, the run is not kept.
+  // Again: now a card of the runs, the Doom Drop shut till the Fox Run is done; down the Fox Run, with no how it goes
+  // this time, to its end, and that opens the Doom Drop.
   await page.click('#climb');
   await expect(page.locator('#skiCard')).toBeVisible();
   await expect(page.locator('#skiRuns [data-run="bunny"]')).toContainText('Gold');
   await expect(page.locator('#skiRuns [data-run="fox"]')).toBeEnabled();
-  await expect(page.locator('#skiRuns button').nth(2)).toBeDisabled();
+  await expect(page.locator('#skiRuns [data-run="doom"]')).toBeDisabled();
+  await expect(page.locator('#skiRuns [data-run="doom"]')).toContainText('Ski the Fox Run');
   await page.click('#skiRuns [data-run="fox"]');
   await expect(page.locator('#skiCard')).toBeHidden();
   await page.waitForFunction(() => window.__np.ski?.run.name === 'Fox Run');
@@ -8297,9 +8301,40 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
     timeout: 4000,
   });
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.z = s.run.len - 15;
+    s.x = 0;
+  });
+  await page.waitForFunction(() => !window.__np.ski, null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('The Doom Drop is open');
+  const fox = await page.evaluate(() => window.__np.endless.slalom);
+  expect(fox?.runs).toBe(2);
+  expect(fox?.best.fox).toBeGreaterThan(0);
+  // Down the Doom Drop: the yeti roars at the go and sets off after you; caught, a swipe into a tumble.
+  await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
+  await page.click('#climb');
+  await expect(page.locator('#skiRuns [data-run="doom"]')).toBeEnabled();
+  await page.click('#skiRuns [data-run="doom"]');
+  await page.waitForFunction(() => window.__np.ski?.run.name === 'Doom Drop');
+  await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
+    timeout: 4000,
+  });
+  await page.waitForFunction(() => (window.__np.ski as Ski).yetiRoar <= 0, null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.yetiZ = s.z - 0.5;
+  });
+  await page.waitForFunction(() => (window.__np.ski as Ski).swiped === 1, null, {
+    timeout: 4000,
+  });
+  expect(await page.evaluate(() => (window.__np.ski as Ski).state)).toBe('tumble');
+  // Stopped partway, the run is not kept.
   await page.click('#leave');
   expect(await page.evaluate(() => window.__np.ski)).toBeNull();
-  expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(after.slalom);
+  expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(fox);
   await expect(page.locator('#leave')).toBeHidden();
   expect(errors).toEqual([]);
 });

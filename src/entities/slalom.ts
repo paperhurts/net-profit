@@ -6,7 +6,9 @@
  * Gates to go through between their two poles (round one instead costs time), pines, rocks and snowmen to miss, ice
  * that carries you on sideways, moguls that slow you, ramps that throw you into the air, where a tap turns a flip or a
  * spin for time off if it is landed, and paper lanterns, sliced by the skier's sword on the way past if you pass close.
- * A crash is a tumble in a puff of snow and two seconds or so lost, never the end of the run.
+ * A crash is a tumble in a puff of snow and two seconds or so lost, never the end of the run. On the black run a yeti
+ * comes down after you: a little slower than a clean run, so you pull away, but it gains on every tumble, and quicker
+ * the further back it is, so it is never far. If it catches you it swipes you into a tumble, and stops to roar.
  *
  * The course is a strip along z (metres down the run), x across it (0 down its middle) and y up off the snow. It is laid
  * out from the run's seed, so it is the same every time, and it leaves a line through every gate clear of what stands
@@ -56,6 +58,17 @@ export const LANTERN_Y = 1.5;
 export const RAMP_Y = 0.9;
 export const RAMP_LEN = 3;
 const TALL = { pine: 5, rock: 0.8, snowman: 1.7 } as const;
+/** The yeti: how far behind it starts, and how long it roars at the go before it sets off; how fast it comes, as a share
+ * of the run's cruise, close behind you and from this far back on; how close it must get to swipe; how long it stops to
+ * roar after a swipe; and how near it must come to growl. */
+export const YETI_START = 14;
+export const YETI_WAIT = 1.2;
+export const YETI_NEAR = 0.86;
+export const YETI_FAR = 1.08;
+export const YETI_FAR_AT = 60;
+export const YETI_REACH = 1.2;
+export const YETI_ROAR_T = 2.2;
+export const YETI_GROWL = 12;
 
 export type Hazard = 'pine' | 'rock' | 'snowman';
 export type Feature =
@@ -167,6 +180,8 @@ export type SkiEvent =
   | 'jump'
   | 'trick'
   | 'landed'
+  | 'growl'
+  | 'yeti'
   | 'finish';
 
 export class Slalom {
@@ -195,6 +210,11 @@ export class Slalom {
   /** On ice, or in moguls, now. */
   onIce = false;
   inMoguls = false;
+  /** The yeti, on the black run: how far down it is, how long it is stopped roaring, how many times it has swiped you. */
+  yetiZ = -YETI_START;
+  yetiRoar = YETI_WAIT;
+  swiped = 0;
+  private growled = false;
   gatesMade = 0;
   gatesMissed = 0;
   lanterns = 0;
@@ -217,6 +237,10 @@ export class Slalom {
   }
   get lanternsOut(): number {
     return this.course.filter((f) => f.kind === 'lantern').length;
+  }
+  /** How far behind the yeti is, metres. */
+  get yetiGap(): number {
+    return this.z - this.yetiZ;
   }
   /** How far down, 0 to 1. */
   get progress(): number {
@@ -309,6 +333,7 @@ export class Slalom {
       if (o.z <= was || o.z > this.z) continue;
       this.pass(o);
     }
+    if (this.run.yeti) this.chase(dt);
     if (this.z >= this.run.len) {
       this.state = 'done';
       this.air = false;
@@ -324,6 +349,29 @@ export class Slalom {
     this.v *= Math.exp(-2.5 * dt);
     this.vx *= Math.exp(-3 * dt);
     this.z += this.v * dt;
+  }
+
+  /** The yeti coming down after you: catching you on the snow, it swipes you into a tumble and stops to roar; catching
+   * you already tumbling, or in the air, it only roars. */
+  private chase(dt: number): void {
+    if (this.yetiRoar > 0) {
+      this.yetiRoar -= dt;
+      return;
+    }
+    const gap = this.z - this.yetiZ;
+    const k = YETI_NEAR + (YETI_FAR - YETI_NEAR) * clamp((gap - 10) / (YETI_FAR_AT - 10), 0, 1);
+    this.yetiZ += CRUISE * this.run.steep * k * dt;
+    if (!this.growled && gap < YETI_GROWL) {
+      this.growled = true;
+      this.onEvent?.('growl');
+    } else if (gap > YETI_GROWL * 2) this.growled = false;
+    if (this.z - this.yetiZ > YETI_REACH) return;
+    this.yetiZ = this.z - YETI_REACH;
+    this.yetiRoar = YETI_ROAR_T;
+    if (this.state !== 'ski' || this.air) return;
+    this.swiped++;
+    this.crash(undefined, 'yeti');
+    this.vx = 0;
   }
 
   /** Whether the skier is over a patch of this, now. */
@@ -386,8 +434,8 @@ export class Slalom {
     this.trick = null;
   }
 
-  /** A tumble, knocked clear of what was hit. */
-  private crash(o?: Feature): void {
+  /** A tumble, knocked clear of what was hit, or swiped into by the yeti. */
+  private crash(o?: Feature, what: SkiEvent = 'crash'): void {
     this.state = 'tumble';
     this.tumbleT = TUMBLE_T;
     this.crashes++;
@@ -396,6 +444,6 @@ export class Slalom {
     this.y = 0;
     this.vy = 0;
     if (o && 'r' in o) this.vx = Math.sign(this.x - o.x || 1) * SIDE * this.run.steep * 0.5;
-    this.onEvent?.('crash', o);
+    this.onEvent?.(what, o);
   }
 }

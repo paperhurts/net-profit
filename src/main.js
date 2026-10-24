@@ -1239,7 +1239,9 @@ function startSlalom(key){ audio(); if (ski || droneFly || droneFish || ctf) ret
   if (!key){ if (endless.slalom?.best.bunny !== undefined){ openSkiCard(); return; } key = 'bunny'; }
   skiKey = key; ski = new Slalom(RUNS[key]); if (!skiTold) ski.showHowTo(); skiT = 0; skiEndT = 0; skiCoins = 0; skiBeat = ski.howTo ? 0 : ski.count; skiPops.length = 0; skiBest = endless.slalom?.best[key]; joy.on = false; toasts.clear(); sfx.bleep();
   ski.onEvent = (what) => {
-    if (what === 'go') sfx.ring();
+    if (what === 'go'){ sfx.ring(); if (ski.run.yeti){ sfx.reaperRoar(); skiPop('Go! The yeti is after you!', '#CFE2F5'); } }
+    else if (what === 'growl') sfx.grr();
+    else if (what === 'yeti'){ sfx.reaperRoar(); sfx.whump(); sfx.poof(); skiPop('The yeti got you!', '#FF9A8A'); }
     else if (what === 'miss'){ sfx.denied(); skiPop(`Missed a gate! +${GATE_MISS}s`, '#FF9A8A'); }
     else if (what === 'crash'){ sfx.whump(); sfx.poof(); skiPop('Tumble!', '#CFE2F5'); }
     else if (what === 'up' || what === 'jump') sfx.hop();
@@ -1258,13 +1260,12 @@ function updateSlalom(dt){ skiT += dt; const s = ski;
   else { s.drift(dt); skiEndT -= dt; if (skiEndT <= 0){ endSlalom(); return; } }
   $('skiTrick').classList.toggle('bite', s.air && !s.trick); }
 // The top of the chairlift: each run with its mark, its best time and medal; one opens once the one before it has been
-// skied to the end, and the Doom Drop is still being groomed.
+// skied to the end.
 function openSkiCard(){ const best = endless.slalom?.best ?? {};
   const chip = (t, r) => { const m = t === undefined ? null : medalOf(r, t); return m ? ` · <i class="medal md-${m}"></i>${MEDAL_NAME[m]}` : ''; };
   $('skiRuns').innerHTML = RUN_ORDER.map((k, i) => { const r = RUNS[k], prev = RUN_ORDER[i - 1], open = !prev || best[prev] !== undefined, t = best[k];
     const note = !open ? `Ski the ${RUNS[prev].name} to the end first` : t === undefined ? `Not skied yet. Gold is under ${clockOf(r.medals[0])}` : `Your best: ${clockOf(t)}${chip(t, r)}`;
-    return `<button class="answer" data-run="${k}"${open ? '' : ' disabled'}><i class="mark m-${r.mark}"></i>${r.name}<small>${note}</small></button>`; }).join('')
-    + '<button class="answer" disabled><i class="mark m-black"></i>Doom Drop<small>Still being groomed</small></button>';
+    return `<button class="answer" data-run="${k}"${open ? '' : ' disabled'}><i class="mark m-${r.mark}"></i>${r.name}<small>${note}</small></button>`; }).join('');
   $('skiCard').hidden = false; sfx.click(); }
 function closeSkiCard(){ $('skiCard').hidden = true; }
 $('skiClose').addEventListener('click', () => { closeSkiCard(); sfx.click(); });
@@ -1283,7 +1284,7 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   const m = done ? medalOf(s.run, s.time) : null, won = medalBetter(m, was === undefined ? null : medalOf(s.run, was));
   const next = RUN_ORDER[RUN_ORDER.indexOf(skiKey) + 1], opened = done && was === undefined && next;
   toasts.clear();
-  toast(done ? `Down the ${s.run.name} in ${clockOf(s.time)}!${won ? ` A ${MEDAL_NAME[m].toLowerCase()} medal!` : ''}${best && was !== undefined && !won ? ' Your best yet!' : ''} ${s.gatesMade} of ${s.gatesOut} gates${pay ? `, ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins` : ''}.${opened ? ` The ${RUNS[next].name} is open: up the chairlift again!` : ''}`
+  toast(done ? `Down the ${s.run.name} in ${clockOf(s.time)}!${won ? ` A ${MEDAL_NAME[m].toLowerCase()} medal!` : ''}${best && was !== undefined && !won ? ' Your best yet!' : ''} ${s.gatesMade} of ${s.gatesOut} gates${pay ? `, ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins` : ''}.${s.run.yeti ? (s.swiped ? ` The yeti caught you ${s.swiped === 1 ? 'once' : `${s.swiped} times`}.` : ' You outran the yeti!') : ''}${opened ? ` The ${RUNS[next].name} is open: up the chairlift again!` : ''}`
     : `Off the run, back at the chairlift.${pay ? ` ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins.` : ''}`, 4200, 1);
   hud(); save(); refreshShop(); }
 // The Treehouse Climb (entities/treehouse.ts), part eight of the Endless Isle: in at the foot of the pirates' great tree,

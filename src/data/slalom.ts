@@ -1,12 +1,12 @@
 /**
  * The Ninja Slalom, the Endless Isle's ski run down the ninjas' snow peak, part five of the owner's plan (2026-10-23:
  * "All your picks"): up the chairlift, then down a run seen from just behind the skier (entities/slalom.ts). Here: the
- * runs, what they are like, and what the run gives and takes. The Bunny Slope (part five) and the Fox Run (part ten),
- * each with bronze, silver and gold times; the Doom Drop and its snow monster come next.
+ * runs, what they are like, and what the run gives and takes. The Bunny Slope (part five), and the Fox Run and the Doom
+ * Drop (part ten), where a yeti chases you down; each with bronze, silver and gold times.
  */
 
 /** The runs, each marked as ski runs are, green the easiest. */
-export type RunKey = 'bunny' | 'fox';
+export type RunKey = 'bunny' | 'fox' | 'doom';
 export type Run = {
   name: string;
   mark: 'green' | 'blue' | 'black';
@@ -36,6 +36,8 @@ export type Run = {
   medals: readonly [number, number, number];
   /** The sky at the top, and the haze it fades to, at the horizon and far down the run. */
   sky: readonly [string, string];
+  /** A yeti after you, all the way down. */
+  yeti?: boolean;
 };
 export const RUNS: Readonly<Record<RunKey, Run>> = {
   bunny: {
@@ -76,9 +78,29 @@ export const RUNS: Readonly<Record<RunKey, Run>> = {
     medals: [54, 62, 76],
     sky: ['#E9A86A', '#F6E4CF'],
   },
+  doom: {
+    name: 'Doom Drop',
+    mark: 'black',
+    seed: 3313,
+    len: 1000,
+    half: 6.5,
+    gateW: 4,
+    gapMin: 25,
+    gapMax: 31,
+    swing: 3.5,
+    jumps: 5,
+    rampW: 4.2,
+    steep: 1.25,
+    hazard: 0.42,
+    ice: 0.22,
+    moguls: 0.18,
+    medals: [62, 70, 86],
+    sky: ['#4E5A7C', '#C6CCDA'],
+    yeti: true,
+  },
 };
 /** The runs, top to bottom of the card, each opening once the one before it has been skied to the end. */
-export const RUN_ORDER: readonly RunKey[] = ['bunny', 'fox'];
+export const RUN_ORDER: readonly RunKey[] = ['bunny', 'fox', 'doom'];
 
 export type Medal = 'gold' | 'silver' | 'bronze';
 export const MEDAL_NAME: Readonly<Record<Medal, string>> = {
