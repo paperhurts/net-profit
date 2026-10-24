@@ -15,7 +15,19 @@
 
 import { decode, encode, type Stroke } from './doodle';
 import { type Egg, type EggFrom, eggDue, HATCHLING_ART, HATCHLING_NAMES, parseEggs } from './eggs';
-import { BUILDS, type Build, KIND_FIGHT, SPECIALS, type Special, TRAINERS } from './petfight';
+import {
+  BUILDS,
+  type Build,
+  FRIEND_ART,
+  FRIEND_FIGHT,
+  FRIEND_KEYS,
+  type FriendKey,
+  isFriendKey,
+  KIND_FIGHT,
+  SPECIALS,
+  type Special,
+  TRAINERS,
+} from './petfight';
 import { COMPANION_NAMES, COMPANIONS, type Companion } from './stay';
 import { cleanXp, type Level, levelOf } from './training';
 
@@ -152,10 +164,22 @@ export type PetSave = {
   tr: number;
   /** The trainers beaten at the pet house's ring (data/petfight.ts), each once. */
   won: string[];
+  /** The friends you won (the dog, the otter, Neil, the crows), their experience from battles. */
+  oxp: Partial<Record<FriendKey, number>>;
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [], house: false, tr: 0, won: [] };
+  return {
+    nm: {},
+    drawn: [],
+    walk: null,
+    eggs: [],
+    hatched: [],
+    house: false,
+    tr: 0,
+    won: [],
+    oxp: {},
+  };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -223,6 +247,12 @@ export function parsePets(v: unknown): PetSave {
   if (typeof walk === 'string' && isOwnKey(walk) && ownOf(p, walk)) p.walk = walk;
   p.house = (v as { house?: unknown }).house === true;
   if (p.house) p.tr = whole((v as { tr?: unknown }).tr);
+  const oxp = (v as { oxp?: unknown }).oxp;
+  if (oxp && typeof oxp === 'object' && !Array.isArray(oxp))
+    for (const k of FRIEND_KEYS) {
+      const xp = cleanXp((oxp as Record<string, unknown>)[k]);
+      if (xp) p.oxp[k] = xp;
+    }
   const won = (v as { won?: unknown }).won;
   if (Array.isArray(won)) p.won = TRAINERS.map((t) => t.id).filter((id) => won.includes(id));
   return p;
@@ -239,6 +269,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (p.house) out.house = true;
   if (p.house && p.tr) out.tr = p.tr;
   if (p.won.length) out.won = p.won;
+  if (Object.keys(p.oxp).length) out.oxp = p.oxp;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -255,8 +286,9 @@ export function hatchedOf(p: PetSave, k: EntryKey): HatchedPet | undefined {
 export function ownOf(p: PetSave, k: EntryKey): DrawnPet | HatchedPet | undefined {
   return drawnOf(p, k) ?? hatchedOf(p, k);
 }
-/** How one of your own looks: its drawing, or its kind's. */
+/** How one of your own looks: its drawing, or its kind's; a friend you won, as it is drawn for battles. */
 export function artOf(p: PetSave, k: EntryKey): string | undefined {
+  if (isFriendKey(k)) return FRIEND_ART[k];
   const d = drawnOf(p, k);
   if (d) return d.d;
   const h = hatchedOf(p, k);
@@ -355,11 +387,26 @@ export function fightOf(
   p: PetSave,
   k: EntryKey,
 ): { build: Build; special: Special; name?: string } | null {
+  if (isFriendKey(k)) return FRIEND_FIGHT[k];
   const d = drawnOf(p, k);
   if (d) return d.fb && d.fs ? { build: d.fb, special: d.fs } : null;
   const h = hatchedOf(p, k);
   const kf = h ? KIND_FIGHT[h.sp] : undefined;
   return kf ? { build: kf.build, special: kf.special, name: kf.name } : null;
+}
+
+/** The experience of anyone who battles: one of your own, or a friend you won. */
+export function xpOf(p: PetSave, k: EntryKey): number {
+  return isFriendKey(k) ? (p.oxp[k] ?? 0) : (ownOf(p, k)?.xp ?? 0);
+}
+
+/** Experience earned in the ring, up to the most there is. */
+export function addXp(p: PetSave, k: EntryKey, n: number): void {
+  if (isFriendKey(k)) p.oxp[k] = cleanXp((p.oxp[k] ?? 0) + n);
+  else {
+    const o = ownOf(p, k);
+    if (o) o.xp = cleanXp((o.xp ?? 0) + n);
+  }
 }
 
 /** A drawn pet's way of fighting, picked once. Says whether it was picked now. */
@@ -444,6 +491,7 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       was: name === defaultName(k) ? null : defaultName(k),
       from: BOOK_FROM[k],
       where,
+      ...(isFriendKey(k) ? { level: levelOf(p.oxp[k] ?? 0) } : {}),
     };
   });
   const drawn = p.drawn.map(

@@ -256,7 +256,11 @@ export class Pets implements Entity {
     return walkerDepth(d.x, d.y, this.build, this.pierD, null);
   }
 
+  /** Away in the pet house's ring (entities/petfight.ts), where the battle draws it: not drawn here meanwhile. */
+  inRing = false;
+
   draw(v: DrawView, layer: Layer): void {
+    if (this.inRing) return;
     if (layer === 'air') {
       this.drawHearts(v);
       return;

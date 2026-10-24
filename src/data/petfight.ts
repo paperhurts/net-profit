@@ -62,6 +62,32 @@ export const KIND_FIGHT: Readonly<
   moth: { build: 'strong', special: 'roar', name: 'Dazzle' },
 };
 
+/**
+ * The friends you won, who battle too (the plan's call: anything on the Pets shelf, the muffins aside): each fights in
+ * its own way, and since the battle draws a pet as the pad does, each has a drawing in the pad's strokes. Stand-ins
+ * until the kid's own (the pad can redraw the dog and the otter, the plan says).
+ */
+export const FRIEND_KEYS = ['dog', 'otter', 'neil', 'crows'] as const;
+export type FriendKey = (typeof FRIEND_KEYS)[number];
+export function isFriendKey(k: string): k is FriendKey {
+  return (FRIEND_KEYS as readonly string[]).includes(k);
+}
+export const FRIEND_FIGHT: Readonly<
+  Record<FriendKey, { build: Build; special: Special; name: string }>
+> = {
+  dog: { build: 'strong', special: 'roar', name: 'Bark' },
+  otter: { build: 'speedy', special: 'spit', name: 'Splash' },
+  neil: { build: 'tough', special: 'curl', name: 'Blubber' },
+  crows: { build: 'speedy', special: 'pounce', name: 'Peck' },
+};
+/** The charcoal dog with its red collar, the otter, Neil the seal, a crow with its yellow beak: all facing right. */
+export const FRIEND_ART: Readonly<Record<FriendKey, string>> = {
+  dog: 'AWeocsgqmYnUjWe.AocsUyT2X1bud.AtUrPvS.A2X3Y.FxW.Bqbrg.AVfQa.AZnZu.Adndu.Alnlu.Apmpu',
+  otter: 'BQiefsfyhwmenSnQi.Bufya4b5f0i.A4e9d.A0c.BQiJeLc.BWnWs.Bcncs.Bmnms.Bsmss',
+  neil: 'EOoYeocyg0moqUqOo.EueyW4X5c0g.A0Z.A5a.Eoqsvmu.EOoIs',
+  crows: 'AYakWsaqiekWgYa.AoWsQyRzWuZ.CzT5UzW.CvT.Acamceg.AWeOcQgWg.Cgkgs.Cljls',
+};
+
 /** Half hearts. */
 export const HEART = 2;
 export const BASE_HEARTS = 5;

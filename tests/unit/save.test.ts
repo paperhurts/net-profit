@@ -1361,6 +1361,7 @@ describe('the pet system', () => {
       house: false,
       tr: 0,
       won: [],
+      oxp: {},
     });
     expect(JSON.parse(serializeSave(s))).not.toHaveProperty('pets');
     s.pets = {
@@ -1372,6 +1373,7 @@ describe('the pet system', () => {
       house: false,
       tr: 0,
       won: [],
+      oxp: {},
     };
     expect(parseSave(serializeSave(s), bounds).pets).toEqual(s.pets);
     const odd = {
@@ -1387,6 +1389,7 @@ describe('the pet system', () => {
       house: false,
       tr: 0,
       won: [],
+      oxp: {},
     });
     expect(parseSave(JSON.stringify({ ...odd, pets: 'yes' }), bounds).pets).toEqual({
       nm: {},
@@ -1397,6 +1400,7 @@ describe('the pet system', () => {
       house: false,
       tr: 0,
       won: [],
+      oxp: {},
     });
     // A drawn pet travels as its strokes.
     s.pets = {
@@ -1408,6 +1412,7 @@ describe('the pet system', () => {
       house: false,
       tr: 0,
       won: [],
+      oxp: {},
     };
     expect(JSON.parse(serializeSave(s)).pets).toEqual({ drawn: s.pets.drawn, walk: 'd1' });
     expect(parseSave(serializeSave(s), bounds).pets).toEqual(s.pets);

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { decode } from '../../src/data/doodle';
+import { decode, rig } from '../../src/data/doodle';
 import { EGG_HATCH_MS, HATCHLING_ART, HATCHLING_NAMES, layEgg } from '../../src/data/eggs';
+import { FRIEND_KEYS } from '../../src/data/petfight';
 import {
   addDrawn,
+  addXp,
   artOf,
   BOOK_KEYS,
   type BookFacts,
@@ -14,6 +16,7 @@ import {
   DRAWN_NAME,
   defaultName,
   drawnKey,
+  fightOf,
   hatchEgg,
   letGo,
   NAME_MAX,
@@ -24,6 +27,7 @@ import {
   rename,
   shelfOf,
   toggleWalk,
+  xpOf,
 } from '../../src/data/petsys';
 import { COMPANIONS } from '../../src/data/stay';
 import { bookHtml, esc } from '../../src/ui/petbook';
@@ -261,5 +265,26 @@ describe('the pet book', () => {
     expect(html).toContain('Training');
     expect(html).toContain('<span class="lv">Level 10</span>, the most there is.');
     expect(bookEntries(p, facts([]))[1]?.where).toContain('Leave it at the pet house to train.');
+  });
+
+  it('lets the friends you won battle: each its own way, drawn for the ring, with experience kept and a level shown', () => {
+    const p = noPets();
+    expect(fightOf(p, 'dog')).toEqual({ build: 'strong', special: 'roar', name: 'Bark' });
+    expect(fightOf(p, 'muffins')).toBeNull();
+    const legs = { dog: 4, otter: 4, neil: 2, crows: 2 } as const;
+    for (const k of FRIEND_KEYS) {
+      const art = artOf(p, k);
+      expect(art).toBeTruthy();
+      expect(rig(decode(art)).legs.size).toBe(legs[k]);
+    }
+    expect(xpOf(p, 'dog')).toBe(0);
+    addXp(p, 'dog', 150);
+    expect(xpOf(p, 'dog')).toBe(150);
+    expect(bookEntries(p, facts(['dog']))[0]?.level?.lv).toBe(2);
+    const back = parsePets(JSON.parse(JSON.stringify(petsForSave(p))));
+    expect(back.oxp).toEqual({ dog: 150 });
+    expect(parsePets({ oxp: { dog: 'lots', muffins: 40, otter: 1e9 } }).oxp).toEqual({
+      otter: 4500,
+    });
   });
 });
