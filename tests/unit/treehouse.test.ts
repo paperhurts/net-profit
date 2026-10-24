@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   BARREL_PLANKS,
+  BUCKET_LIFTS,
   climbed,
   JUMP_COINS,
+  LEVER_COINS,
+  LOWER_T,
   loadedY,
   parseClimbs,
   plankY,
@@ -552,7 +555,7 @@ describe('the Rope Swings', () => {
         expect(L.x).toBeLessThan(p.x1 - 4);
       }
     }
-    expect(STAGES_UP).toEqual([BARREL_PLANKS, ROPE_SWINGS]);
+    expect(STAGES_UP.slice(0, 2)).toEqual([BARREL_PLANKS, ROPE_SWINGS]);
   });
 
   it('a rope jumped at is caught for coins, slid along with the arrows, and let go of, flying on with its swing', () => {
@@ -692,5 +695,195 @@ describe('the Rope Swings', () => {
     const t = timed(c, 2, 63.27);
     expect(t).toEqual({ climbs: 1, top: 2, best: { 1: 40, 2: 63.3 } });
     expect(timed(t, 2, null)).toEqual(t);
+  });
+});
+
+describe('the Bucket Lifts', () => {
+  const B = BUCKET_LIFTS;
+  const bp = (i: number) => B.planks[i] as (typeof B.planks)[number];
+  const lifts = B.lifts ?? [];
+  function lifts1(seed = 1): Climb {
+    const c = new Climb(B, seed);
+    c.step(READY_T + DT, 0, 0);
+    return c;
+  }
+  function at(c: Climb, p: number, x: number): void {
+    c.x = x;
+    c.plank = p;
+    c.air = false;
+    c.ladder = null;
+    c.bucket = null;
+    c.y = plankY(bp(p), x);
+  }
+  /** A kid who knows the way: up the left lift to the first lever, over its bridge and up the ladder to the second,
+   * down the right lift, up the left one to the top, and over; waiting for a coconut just ahead. */
+  const lifter = (c: Climb): [number, number, boolean] => {
+    if (c.ladder) return [0, -1, false];
+    if (c.air) return [0, 0, false];
+    if (c.bucket) {
+      if (c.bucket.lift !== 0) return [0, 0, false];
+      if (!c.pulled[0] && c.y >= 121) return [1, 0, false];
+      if (c.pulled[1] && c.y >= 292) return [1, 0, false];
+      return [0, 0, false];
+    }
+    const go = (to: number): [number, number, boolean] => {
+      const d = to - c.x;
+      if (Math.abs(d) < 2) return [0, 0, false];
+      const ahead = c.nuts.some((n) => n.y > c.y && Math.abs(n.x - (c.x + Math.sign(d) * 12)) < 14);
+      return ahead ? [0, 0, false] : [Math.sign(d), 0, false];
+    };
+    switch (c.plank) {
+      case 0:
+        return go(36);
+      case 1:
+        if (!c.pulled[0]) return go(94);
+        return (c.lowered[0] ?? 0) < 1 ? [0, 0, false] : go(200);
+      case 2:
+        return go(200);
+      case 3: {
+        const g = go(176);
+        return g[0] ? g : [0, -1, false];
+      }
+      case 4: {
+        if (!c.pulled[1]) return go(130);
+        if (c.x < 184) return go(187);
+        const near = [0, 1, 2, 3, 4].some((k) => {
+          const r = c.rimY(1, k);
+          return r !== null && r < 200 && r > 186;
+        });
+        return near ? [1, 0, false] : [0, 0, false];
+      }
+      default:
+        return go(170);
+    }
+  };
+
+  it('has a lift up and a lift down, and two drawbridges up until their levers are pulled', () => {
+    expect(lifts.map((L) => L.up)).toEqual([true, false]);
+    const bridges = B.planks.map((p, i) => [p, i] as const).filter(([p]) => p.lever !== undefined);
+    expect(bridges.map(([p]) => p.lever)).toEqual([0, 1]);
+    const c = lifts1();
+    for (const [, i] of bridges) expect(c.standable(i)).toBe(false);
+    // The door's ledge is only reached over the second bridge.
+    expect(bp(B.planks.length - 1).x0).toBe(bp(6).x1);
+    // Up, each bridge leaves a gap a running jump does not cover.
+    for (const [, i] of bridges)
+      expect(bp(i + 1).x0 - bp(i - 1).x1).toBeGreaterThan(WALK * ((2 * JUMP_V) / GRAVITY));
+  });
+
+  it('a bucket coming up out of the ground scoops you up; step off onto a ledge; ride on and you are tipped out', () => {
+    const c = lifts1();
+    const ev = events(c);
+    at(c, 0, lifts[0]?.x ?? 0);
+    run(
+      c,
+      6,
+      () => [0, 0],
+      (c) => !!c.bucket,
+    );
+    expect(c.bucket?.lift).toBe(0);
+    expect(ev).toContain('ride');
+    run(
+      c,
+      10,
+      () => [0, 0],
+      (c) => c.y >= 125,
+    );
+    run(
+      c,
+      1,
+      () => [1, 0],
+      (c) => c.plank === 1,
+    );
+    expect(c.plank).toBe(1);
+    // Again, all the way up: over the wheel, and out.
+    at(c, 0, lifts[0]?.x ?? 0);
+    run(
+      c,
+      6,
+      () => [0, 0],
+      (c) => !!c.bucket,
+    );
+    run(
+      c,
+      30,
+      () => [0, 0],
+      () => ev.includes('tipped'),
+    );
+    expect(ev).toContain('tipped');
+    expect(c.bucket).toBe(null);
+  });
+
+  it('a lever walked into is pulled for coins, and its bridge comes down to walk on', () => {
+    const c = lifts1();
+    const ev = events(c);
+    const v = B.levers?.[0] as { x: number; plank: number };
+    at(c, 1, v.x - 20);
+    run(
+      c,
+      1,
+      () => [1, 0],
+      (c) => c.pulled[0] === true,
+    );
+    expect(ev).toContain('lever');
+    expect(c.coins).toBe(LEVER_COINS);
+    expect(c.standable(2)).toBe(false);
+    run(c, LOWER_T + 0.1, () => [0, 0]);
+    expect(c.standable(2)).toBe(true);
+    run(
+      c,
+      2,
+      () => [1, 0],
+      (c) => c.plank === 3,
+    );
+    expect(c.plank).toBe(3);
+    // Pulled once only.
+    expect(ev.filter((w) => w === 'lever').length).toBe(1);
+  });
+
+  it('a raised drawbridge is no floor: walk off its hinge and you drop', () => {
+    const c = lifts1();
+    at(c, 1, 100);
+    c.pulled[0] = false;
+    run(
+      c,
+      2,
+      () => [1, 0],
+      (c) => c.plank === 0,
+    );
+    expect(c.plank).toBe(0);
+  });
+
+  it('can be climbed by the way up the levers make, the lifts ridden both ways', () => {
+    let tops = 0;
+    let time = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const c = lifts1(seed);
+      run(c, 240, lifter, (c) => c.phase === 'clear');
+      if (c.phase === 'clear') {
+        tops++;
+        time += c.t;
+        expect(c.pulled).toEqual([true, true]);
+      }
+    }
+    expect(tops).toBeGreaterThanOrEqual(19);
+    expect(time / tops).toBeLessThan(90);
+  });
+
+  it('out of tries, the levers are back as they were', () => {
+    const c = lifts1();
+    c.pulled[0] = true;
+    c.lowered[0] = 1;
+    c.tries = 1;
+    at(c, 1, 76);
+    c.nuts.push({ x: 76, y: 160, vy: 0, wobble: 0 });
+    run(
+      c,
+      DOWN_T + 1,
+      () => [0, 0],
+      (c) => c.phase === 'ready',
+    );
+    expect(c.pulled).toEqual([false, false]);
+    expect(c.lowered).toEqual([0, 0]);
   });
 });

@@ -99,7 +99,7 @@ import { drawDrone, drawDroneFlight, drawDroneLagoon } from './render/dronefligh
 import { clockOf, GATE_MISS, LANTERN_COINS, RUNS, skied, TRICK_BONUS } from './data/slalom';
 import { Slalom } from './entities/slalom';
 import { drawSlalom, SKI_POP_T } from './render/slalom';
-import { climbed, JUMP_COINS, ROPE_COINS, SMASH_COINS, STAGES_UP, timed } from './data/treehouse';
+import { climbed, JUMP_COINS, LEVER_COINS, ROPE_COINS, SMASH_COINS, STAGES_UP, timed } from './data/treehouse';
 import { Climb } from './entities/treehouse';
 import { CLIMB_POP_T, climbFrame, drawClimb, PAD_ROOM } from './render/treehouse';
 import { drawFloe } from './render/icefloe';
@@ -1275,7 +1275,8 @@ let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, th
 // The stages whose how it goes has been shown this session; and the stages above the ones built so far, for the card at
 // the top of the last one.
 const thTold = new Set();
-const TH_STILL = ['The Bucket Lifts above are still being built', 'The Crow\'s Nest at the top is still being built'];
+const TH_NAMES = ['Barrel Planks', 'Rope Swings', 'Bucket Lifts', 'Crow\'s Nest'];
+const TH_STILL = n => n < TH_NAMES.length ? `The ${TH_NAMES[n]} above ${n === 3 ? 'is' : 'are'} still being built` : 'The very top of the tree!';
 const thPops = [];
 function thPop(text, colour = '#FFF7E6'){ thPops.push({text, colour, t: 0}); if (thPops.length > 3) thPops.shift(); }
 // The arrows: one thumb on the pad, its way from the pad's middle in eight; up and to the right walks you onto a ladder.
@@ -1306,6 +1307,9 @@ function climbStage(n){ const first = !th;
     else if (what === 'jumped'){ sfx.rightAnswer(); thPop(`Over! +${JUMP_COINS}`, '#FFE066'); }
     else if (what === 'smash'){ sfx.clang(); sfx.poof(); thPop(`Smash! +${SMASH_COINS}`, '#FFE066'); }
     else if (what === 'swing'){ sfx.rightAnswer(); thPop(`Wheee! +${ROPE_COINS}`, '#FFE066'); }
+    else if (what === 'lever'){ sfx.clang(); thPop(`Bridge down! +${LEVER_COINS}`, '#FFE066'); }
+    else if (what === 'ride') sfx.click();
+    else if (what === 'tipped'){ sfx.whump(); thPop('Tipped out!', '#F2DDB4'); }
     else if (what === 'splat') sfx.poof();
     else if (what === 'hit'){ sfx.whump(); thPop(th.tries ? `Bonk! ${th.tries} ${th.tries === 1 ? 'try' : 'tries'} left` : 'Out of tries!', '#FF9A8A'); }
     else if (what === 'again'){ sfx.phaseChange(); thPop('Back to the bottom', '#F2DDB4'); }
@@ -1317,10 +1321,10 @@ function climbStage(n){ const first = !th;
   document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false;
   thTop = wayOutUp('Climb down', 'treehouse'); thRoom = thPadRoom(); }
 // The card at the top of a stage: its last line, on up to the next, or what is still being built above.
-const thAfter = () => STAGES_UP[thStage] ? `On up to the ${STAGES_UP[thStage].name}!` : TH_STILL[thStage - STAGES_UP.length] ?? 'The very top of the tree!';
+const thAfter = () => STAGES_UP[thStage] ? `On up to the ${STAGES_UP[thStage].name}!` : TH_STILL(thStage);
 // Which stage to start at: those got to, and the next one up; the ones above still to reach, or still being built.
 function openTreeCard(){ const top = endless.climbs?.top ?? 0, best = endless.climbs?.best ?? {};
-  const names = [...STAGES_UP.map((s) => s.name), 'Bucket Lifts', 'Crow\'s Nest'].slice(0, 4);
+  const names = TH_NAMES;
   $('treeStages').innerHTML = names.map((name, i) => { const n = i + 1, built = n <= STAGES_UP.length, open = built && n <= top + 1;
     const note = !built ? 'Still being built' : !open ? `Get up the ${names[i - 1]} first` : best[n] !== undefined ? `Your best: ${clockOf(best[n])}` : 'Not climbed yet';
     return `<button class="answer" data-stage="${n}"${open ? '' : ' disabled'}>${n}. The ${name}<small>${note}</small></button>`; }).join('');
@@ -1348,7 +1352,7 @@ function endTreehouse(quiet = false){ const c = th; if (!c) return; th = null;
   if (thUp.length || c.t > 3 || c.restarts) endless = {...endless, climbs: climbed(endless.climbs, thStage, null)};
   const up = thUp.map((n) => `the ${STAGES_UP[n - 1].name}`), lastBuilt = thUp.at(-1) === STAGES_UP.length;
   toasts.clear();
-  toast(up.length ? `Up ${up.join(' and ')}!${pay ? ` ${pay} coins.` : ''}${lastBuilt ? ` ${TH_STILL[0] ?? ''}.` : ''}`
+  toast(up.length ? `Up ${up.join(' and ')}!${pay ? ` ${pay} coins.` : ''}${lastBuilt ? ` ${TH_STILL(STAGES_UP.length)}.` : ''}`
     : `Down from the great tree.${pay ? ` ${pay} coins.` : ''}`, 4200, 1);
   hud(); save(); refreshShop(); }
 // The trench from the surface: a patch of darker water with bubbles coming up.

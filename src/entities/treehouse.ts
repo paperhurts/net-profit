@@ -9,15 +9,21 @@
  *
  * Higher up the tree (the Rope Swings) the planks have gaps, with ropes swinging over them: jump at one to grab it, slide
  * up and down it with the arrows, and jump again to let go, flying on the way it swings. Rope bridges sag under you, and
- * coconuts hang under the planks above, each wobbling a moment before it drops.
+ * coconuts hang under the planks above, each wobbling a moment before it drops. Higher still (the Bucket Lifts) buckets
+ * on pulley ropes go up one side of the tree and down the other, to be ridden and stepped off, and levers walked into
+ * let down drawbridges.
  *
  * The stage's own frame: x across, y up, the climber's y their feet, a barrel's and a coconut's their middles.
  */
 
 import { clamp, rng } from '../core/math';
 import {
+  BUCKET_W,
   JUMP_COINS,
   type Ladder,
+  LEVER_COINS,
+  type Lift,
+  LOWER_T,
   loadedY,
   type Plank,
   plankY,
@@ -124,6 +130,9 @@ export type ClimbEvent =
   | 'roll'
   | 'swing'
   | 'grab'
+  | 'lever'
+  | 'ride'
+  | 'tipped'
   | 'nut'
   | 'splat'
   | 'top';
@@ -168,8 +177,13 @@ export class Climb {
   /** The coconuts hanging and falling, and how long till each bunch lets go of its next. */
   nuts: Nut[] = [];
   private nutNext: number[];
-  /** A clock that runs from the start, the beat before the go too: the ropes swing by it. */
+  /** A clock that runs from the start, the beat before the go too: the ropes swing by it, and the lifts run. */
   clock = 0;
+  /** The bucket ridden: which lift, and which of its buckets. */
+  bucket: { lift: number; k: number } | null = null;
+  /** Each lever pulled, and how far down its drawbridge has come, 0 to 1. */
+  pulled: boolean[];
+  lowered: number[];
   private coyote = 0;
   private buffer = 0;
   barrels: Barrel[] = [];
@@ -193,12 +207,37 @@ export class Climb {
     this.plank = stage.start.plank;
     this.y = plankY(this.plankOf(this.plank), this.x);
     this.pins = stage.pins.map((p) => ({ ...p, taken: false }));
+    this.pulled = (stage.levers ?? []).map(() => false);
+    this.lowered = (stage.levers ?? []).map(() => 0);
     this.nutNext = (stage.nuts ?? []).map(() => this.nutGap() * (0.3 + this.R() * 0.7));
   }
 
   private nutGap(): number {
     const lo = this.stage.nutMin ?? 3;
     return lo + this.R() * ((this.stage.nutMax ?? lo) - lo);
+  }
+  /** Whether a plank can be stood on: a drawbridge only once it is all the way down. */
+  standable(i: number): boolean {
+    const p = this.plankOf(i);
+    return p.lever === undefined || (this.lowered[p.lever] ?? 0) >= 1;
+  }
+  /** How many buckets a lift has, round its whole rope. */
+  buckets(L: Lift): number {
+    return Math.ceil((L.y1 - L.y0) / L.gap);
+  }
+  /** Where a lift's bucket is round its rope, at a time: how far along its run, or null while it is round the back. */
+  private along(L: Lift, k: number, at: number): number | null {
+    const loop = this.buckets(L) * L.gap;
+    const d = (((at * L.speed + k * L.gap) % loop) + loop) % loop;
+    return d <= L.y1 - L.y0 ? d : null;
+  }
+  /** A bucket's rim, the height you stand at in it, now (or a moment ago); null while it is round the back. */
+  rimY(i: number, k: number, ago = 0): number | null {
+    const L = this.stage.lifts?.[i];
+    if (!L) return null;
+    const d = this.along(L, k, this.clock - ago);
+    if (d === null) return null;
+    return L.up ? L.y0 + d : L.y1 - d;
   }
   /** A plank's height at x as it is now: a rope bridge dipping where you stand on it. */
   surfaceY(i: number, x: number): number {
@@ -312,6 +351,7 @@ export class Climb {
       sy = 0;
       this.buffer = 0;
     }
+    this.lowered = this.lowered.map((l, i) => (this.pulled[i] ? Math.min(1, l + dt / LOWER_T) : l));
     this.move(dt, sx, sy);
     const onBridge = !this.air && !this.ladder && this.plank >= 0 && !!this.plankOf(this.plank).sag;
     this.dip = clamp(this.dip + (onBridge ? 1 : -1) * DIP_RATE * dt, 0, 1);
@@ -344,7 +384,8 @@ export class Climb {
       return;
     }
     const canAct = this.pinT <= 0;
-    if (!this.air) {
+    if (this.bucket) this.inBucket(dt, want);
+    else if (!this.air) {
       // Up or down a ladder, if one is in reach (not with a pin in hand).
       if (canAct && Math.abs(sy) > 0.5) {
         const L =
@@ -367,18 +408,22 @@ export class Climb {
       this.stride += Math.abs(this.vx) * dt;
       const p = this.plankOf(this.plank);
       if (this.x < p.x0 || this.x > p.x1) {
-        // Off the end: down to the plank below, unhurt.
+        // Off the end: down to the plank below, unhurt (or straight on, onto the next, end to end).
         this.air = true;
         this.vy = 0;
         this.plank = -1;
         this.coyote = COYOTE;
-      } else this.y = this.surfaceY(this.plank, this.x);
+      } else {
+        this.y = this.surfaceY(this.plank, this.x);
+        this.scoop(dt);
+      }
     }
     if (canAct && this.buffer > 0 && (!this.air || this.coyote > 0)) {
       this.buffer = 0;
       this.coyote = 0;
       this.air = true;
       this.plank = -1;
+      this.bucket = null;
       this.vy = JUMP_V;
       this.onEvent?.('hop');
     }
@@ -387,6 +432,57 @@ export class Climb {
       if (want) this.face = Math.sign(want);
       this.fall(dt);
     }
+  }
+
+  /** Stood where a lift's bucket comes up out of the ground: scooped up in it. */
+  private scoop(dt: number): void {
+    (this.stage.lifts ?? []).forEach((L, i) => {
+      if (this.bucket || Math.abs(this.x - L.x) > BUCKET_W / 2) return;
+      for (let k = 0; k < this.buckets(L); k++) {
+        const now = this.rimY(i, k);
+        // One just come round the wheel at the bottom was at the bottom a moment ago.
+        const then = this.rimY(i, k, dt) ?? (L.up ? L.y0 - 1 : null);
+        if (now === null || then === null || then > this.y + 0.5 || now < this.y) continue;
+        this.bucket = { lift: i, k };
+        this.plank = -1;
+        this.y = now;
+        this.onEvent?.('ride');
+        return;
+      }
+    });
+  }
+
+  /** In a bucket: carried with it, walking about in it and off its edge; tipped out at the end of its run. */
+  private inBucket(dt: number, want: number): void {
+    const b = this.bucket;
+    const L = b && this.stage.lifts?.[b.lift];
+    if (!b || !L) {
+      this.bucket = null;
+      this.air = true;
+      return;
+    }
+    const y = this.rimY(b.lift, b.k);
+    const was = this.rimY(b.lift, b.k, dt);
+    // Over the wheel at the end of its run: out you come.
+    if (y === null || was === null || (L.up ? y < was : y > was)) {
+      this.bucket = null;
+      this.air = true;
+      this.vy = 0;
+      this.onEvent?.('tipped');
+      return;
+    }
+    this.vx = want;
+    if (want) this.face = Math.sign(want);
+    this.x = clamp(this.x + this.vx * dt, WALL, this.stage.w - WALL);
+    this.stride += Math.abs(this.vx) * dt;
+    if (Math.abs(this.x - L.x) > BUCKET_W / 2) {
+      this.bucket = null;
+      this.air = true;
+      this.vy = 0;
+      this.coyote = COYOTE;
+      return;
+    }
+    this.y = y;
   }
 
   /** On a rope: carried round as it swings, sliding along it with the arrows, and let go of with the jump button,
@@ -463,13 +559,36 @@ export class Climb {
     let best = -1;
     let at = -Infinity;
     this.stage.planks.forEach((p, i) => {
-      if (this.x < p.x0 || this.x > p.x1) return;
+      if (this.x < p.x0 || this.x > p.x1 || !this.standable(i)) return;
       const s = plankY(p, this.x);
       if (was >= s - 0.01 && this.y <= s && s > at) {
         best = i;
         at = s;
       }
     });
+    // Into a bucket going by, the rim crossed between then and now.
+    let into: { lift: number; k: number } | null = null;
+    (this.stage.lifts ?? []).forEach((L, i) => {
+      if (Math.abs(this.x - L.x) > BUCKET_W / 2) return;
+      for (let k = 0; k < this.buckets(L); k++) {
+        const now = this.rimY(i, k);
+        const then = this.rimY(i, k, dt);
+        if (now === null || then === null) continue;
+        if (was >= then - 0.01 && this.y <= now + 0.01 && now > at) {
+          into = { lift: i, k };
+          at = now;
+        }
+      }
+    });
+    if (into) {
+      this.bucket = into;
+      this.plank = -1;
+      this.air = false;
+      this.vy = 0;
+      this.y = at;
+      this.onEvent?.('ride');
+      return;
+    }
     if (best >= 0) {
       this.stand(best);
       if (this.phase === 'climb') this.onEvent?.('landed');
@@ -478,6 +597,7 @@ export class Climb {
 
   private stand(i: number): void {
     this.plank = i;
+    this.bucket = null;
     this.ladder = null;
     this.rope = -1;
     this.ropeLeft = -1;
@@ -600,7 +720,7 @@ export class Climb {
       n.y += n.vy * dt;
       for (let i = 0; i < this.stage.planks.length; i++) {
         const p = this.plankOf(i);
-        if (n.x < p.x0 || n.x > p.x1) continue;
+        if (n.x < p.x0 || n.x > p.x1 || !this.standable(i)) continue;
         const s = this.surfaceY(i, n.x) + NUT_R;
         if (was >= s - 0.01 && n.y <= s) {
           n.y = -999;
@@ -615,6 +735,13 @@ export class Climb {
   /** The climber and the barrels: smashed with a pin, jumped for coins, or a try lost. And a pin picked up. */
   private meet(): void {
     const top = this.y + BODY;
+    (this.stage.levers ?? []).forEach((v, i) => {
+      if (this.pulled[i] || this.air || this.plank !== v.plank || Math.abs(this.x - v.x) > 8)
+        return;
+      this.pulled[i] = true;
+      this.coins += LEVER_COINS;
+      this.onEvent?.('lever');
+    });
     for (const p of this.pins) {
       if (p.taken || this.pinT > 0 || this.ladder) continue;
       const py = plankY(this.plankOf(p.plank), p.x) + PIN_Y;
@@ -680,6 +807,7 @@ export class Climb {
       this.downT = DOWN_T;
       this.ladder = null;
       this.pinT = 0;
+      this.bucket = null;
       if (this.rope >= 0) {
         this.rope = -1;
         this.air = true;
@@ -719,6 +847,9 @@ export class Climb {
     this.rope = -1;
     this.ropeLeft = -1;
     this.ropesUsed.clear();
+    this.bucket = null;
+    this.pulled = this.pulled.map(() => false);
+    this.lowered = this.lowered.map(() => 0);
     this.nuts = [];
     this.nutNext = this.nutNext.map(() => this.nutGap() * (0.3 + this.R() * 0.7));
     this.restarts++;
