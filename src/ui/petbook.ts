@@ -5,11 +5,12 @@
  * puts the HTML in the card and wires the taps. A name is the player's own text, so everything shown is escaped.
  */
 
+import type { EggKind } from '../data/eggs';
 import {
   type BookEntry,
   DRAWN_MAX,
   type EntryKey,
-  isDrawnKey,
+  isOwnKey,
   NAME_MAX,
   nameable,
   type Shelf,
@@ -31,8 +32,47 @@ export function esc(s: string): string {
   );
 }
 
-/** What is going on in the book: a name being typed, or a drawn pet about to be let go. */
-export type BookState = { editing: EntryKey | null; letting: EntryKey | null; drawn: number };
+/** An egg in the nest crate, as the book shows it: its kind, and how long it has left (0 when it is ready). */
+export type EggRow = { k: EggKind; left: number };
+
+/** What is going on in the book: a name being typed, a pet about to be let go, how many drawn, and the eggs. */
+export type BookState = {
+  editing: EntryKey | null;
+  letting: EntryKey | null;
+  drawn: number;
+  eggs?: readonly EggRow[];
+};
+
+const EGG_NAMES: Readonly<Record<EggKind, string>> = {
+  common: 'A common egg',
+  rare: 'A rare egg',
+  mythic: 'A mythic egg',
+};
+
+/** Time left on an egg, in words: under a minute, minutes, or hours and minutes. */
+export function eggWait(ms: number): string {
+  const m = Math.ceil(ms / 60_000);
+  if (m <= 1) return 'in under a minute';
+  if (m < 60) return `in ${m} minutes`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return `in ${h} hour${h > 1 ? 's' : ''}${r ? ` ${r} minutes` : ''}`;
+}
+
+/** The nest crate's eggs, each with its wait: hatching goes on with the game closed. */
+function eggRows(eggs: readonly EggRow[]): string {
+  if (!eggs.length) return '';
+  return (
+    `<div class="eggs"><b>In your nest crate</b>` +
+    eggs
+      .map(
+        (e) =>
+          `<div class="egg"><span class="eggpic e-${e.k}" aria-hidden="true"></span><span><b>${EGG_NAMES[e.k]}</b><small>${e.left > 0 ? `Hatches ${eggWait(e.left)}, even with the game closed.` : 'Ready. It hatches next time you are aboard and all is calm.'}</small></span></div>`,
+      )
+      .join('') +
+    '</div>'
+  );
+}
 
 function card(e: BookEntry, st: BookState): string {
   const named = e.was ? `<small class="was">Was ${esc(e.was)}</small>` : '';
@@ -48,7 +88,7 @@ function card(e: BookEntry, st: BookState): string {
   else if (nameable(e.key))
     act =
       `<div class="pname"><button class="rchip" data-rename="${e.key}">Rename</button>` +
-      (isDrawnKey(e.key)
+      (isOwnKey(e.key)
         ? `<button class="rchip${e.walking ? ' on' : ''}" data-walk="${e.key}">${e.walking ? 'Walking with you' : 'Take it along'}</button>` +
           `<button class="rchip" data-letgo="${e.key}">Let go</button>`
         : '') +
@@ -76,6 +116,8 @@ export function bookHtml(entries: readonly BookEntry[], st: BookState): string {
     if (shelf === 'companions' && !on.length) return '';
     const head = `<h3 class="shelf">${title} <small>${on.length}</small></h3><p class="tnote">${note}</p>`;
     const cards = on.map((e) => card(e, st)).join('');
-    return shelf === 'pets' ? head + cards + drawButton(st.drawn) : head + cards;
+    return shelf === 'pets'
+      ? head + cards + eggRows(st.eggs ?? []) + drawButton(st.drawn)
+      : head + cards;
   }).join('');
 }

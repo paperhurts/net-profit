@@ -29,6 +29,31 @@ export const EGG_HATCHES: Readonly<Record<EggKind, readonly string[]>> = {
   mythic: ['moth'],
 };
 
+/** Each hatchling's name, as the book first calls it. */
+export const HATCHLING_NAMES: Readonly<Record<string, string>> = {
+  bunny: 'Bunny',
+  frog: 'Frog',
+  ladybird: 'Ladybird',
+  hedgehog: 'Hedgehog',
+  fox: 'Fox',
+  moth: 'Lantern moth',
+};
+
+/**
+ * Each hatchling's look: a drawing in the pad's own strokes (data/doodle.ts), so it walks as a drawn pet does, on its
+ * legs. Stand-ins of the plan's, drawn the way a kid might; the kid's own, drawn on the pad, can take their place.
+ */
+export const HATCHLING_ART: Readonly<Record<string, string>> = {
+  bunny:
+    'AroqshxbxWvSsRoSkbfhfmhqkro.AxewiskokkijekaoYsYwaxe.AnZlMpNqY.AsZuMxOuZ.Asdtd.Fwgxh.AUmTpQpOmPjTjUm.AYwX3.Aexe4.Akwl3',
+  frog: 'DvquujzdzXxSuRqSmdhjhpjumvq.DdfciZjWiVfWcZbccdf.Drfqinjkijfkcnbqcrf.AZfaf.Anfof.Bbsgvls.DUxQ4M4.Dbza4.Dlzm4.Dsxw404',
+  ladybird:
+    'BvoutpxjzdzXxStRoSjXfddjdpfujvo.Agdgz.AnbmeigegaeZbaYeWiWmYnb.Aambm.Ammnm.Abucu.Alumu.AdWaQ.AjWmQ.AVwR3.Agzg5.Arwv3',
+  hedgehog: 'AOqOnRiaemfriunuq.AQkMcUgUWaeeUhenWogucuk.Aum2quu.A2q3q.Avowo.AWxW3.Aeye4.Amxm3',
+  fox: 'BroqrhwbwWuSrRoSlbghgmiqlro.Boiyesmoi.BqgqWuc.BueyWye.Augvg.Azf0f.BSmIeGoRq.CIeGi.BXvW3.Bcwc4.Biwj4.Bnup2',
+  moth: 'Ekmjshwfwcmdgfchckm.FdgMUIico.Fjg0U4iko.CcqQwY2eu.Ckqwwo2iu.AecaS.AicmS.Aefff.Aifjf',
+};
+
 /** The most eggs kept at once: the nest crate aboard holds three. */
 export const EGG_ROOM = 3;
 

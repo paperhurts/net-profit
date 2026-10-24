@@ -662,6 +662,23 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 #petBook .ask{margin:6px 0 0;font-size:13px;font-weight:800}
 #petBook .rchip.warn{background:var(--buoy);border-color:var(--buoy);color:var(--buoy-fg)}
 #petBook .drawrow .build{margin-top:0}
+#petBook .eggs{margin:0 0 8px;padding:10px;border-radius:11px;background:var(--card);color:var(--card-fg);box-shadow:0 3px 0 rgba(0,0,0,.22);display:flex;flex-direction:column;gap:8px}
+#petBook .eggs > b{font-size:15px;font-weight:800}
+#petBook .egg{display:flex;gap:10px;align-items:center}
+#petBook .egg b{display:block;font-size:14px;font-weight:800}
+#petBook .egg small{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+#petBook .eggpic{flex:none;width:22px;height:28px;border-radius:50% 50% 46% 46%/58% 58% 42% 42%;box-shadow:inset 0 0 0 2px rgba(18,48,58,.45)}
+#petBook .e-common{background:radial-gradient(circle at 35% 30%,#B88A5A 0 2px,transparent 3px),radial-gradient(circle at 62% 62%,#B88A5A 0 2px,transparent 3px),#F6EBD3}
+#petBook .e-rare{background:radial-gradient(circle at 35% 30%,#fff 0 2px,transparent 3px),radial-gradient(circle at 62% 62%,#fff 0 2px,transparent 3px),#A9DDF2}
+#petBook .e-mythic{background:radial-gradient(circle at 35% 30%,#FFD24A 0 2px,transparent 3px),radial-gradient(circle at 62% 62%,#FFD24A 0 2px,transparent 3px),#9C7FD6}
+/* An egg hatching (data/eggs.ts): the egg shakes and cracks, out it pops, and it gets a name. */
+#hatchCard{position:fixed;inset:0;z-index:7;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.72);display:flex;align-items:center}
+#hatchCard[hidden],#hatchName[hidden]{display:none}
+#hatchCard .planks{max-width:380px;width:100%;margin:0 auto;padding:12px;text-align:center}
+#hatchCanvas{position:static;inset:auto;display:block;margin:0 auto;width:min(100%,300px);aspect-ratio:1;height:auto;border-radius:16px;background:radial-gradient(circle at 50% 70%,#F3E3B8 0,#E6CF94 40%,#7FC8C4 41%,#5FB3B0 100%);touch-action:manipulation}
+#hatchWord{margin:10px 0 4px;font-size:22px;font-weight:800;min-height:1.3em}
+#hatchCard input{display:block;width:min(100%,260px);margin:8px auto 0;height:42px;padding:0 12px;border-radius:10px;border:2px solid var(--muted);background:#fff;color:#12303A;font:800 18px var(--font);text-align:center}
+#hatchCard .go{margin-top:10px;height:46px;padding:0 28px;border-radius:12px;background:var(--buoy);color:var(--buoy-fg);font:800 18px var(--font);box-shadow:0 4px 0 rgba(0,0,0,.25)}
 /* The drawing pad (data/doodle.ts): a square to draw on with a finger, the colours, the ink pot, Undo, Clear and Done. */
 #petPad{position:fixed;inset:0;z-index:6;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.7)}
 #petPad[hidden],#padDraw[hidden],#padName[hidden]{display:none}
@@ -892,6 +909,18 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
       <p class="tnote" style="text-align:center">What's its name?</p>
       <input id="padNameIn" type="text" maxlength="32" placeholder="Doodle" aria-label="Your pet's name" autocomplete="off" enterkeyhint="done">
       <div class="prow"><button class="rchip" id="padBack">Back to drawing</button><button class="go" id="padKeep">Keep it</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="hatchCard" hidden aria-label="An egg is hatching">
+  <div class="planks">
+    <canvas id="hatchCanvas" aria-hidden="true"></canvas>
+    <p id="hatchWord" aria-live="polite"></p>
+    <div id="hatchName" hidden>
+      <p class="tnote">What's its name?</p>
+      <input id="hatchNameIn" type="text" maxlength="32" aria-label="Its name" autocomplete="off" enterkeyhint="done">
+      <button class="go" id="hatchKeep">Keep it</button>
     </div>
   </div>
 </section>
