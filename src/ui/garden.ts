@@ -20,6 +20,7 @@ import {
   canWater,
   FISH_CLASSES,
   type FishClass,
+  fruitKg,
   type Garden,
   GEAR,
   GEAR_IDS,
@@ -29,6 +30,7 @@ import {
   gearRoom,
   growBed,
   inStock,
+  journalOf,
   nextDig,
   SEEDS_MAX,
   SPRINKLERS,
@@ -315,6 +317,58 @@ export function binShelfHtml(g: Garden): string {
     const keep = !!g.binKeep?.[k];
     return `<button class="item" data-keep="${k}" aria-pressed="${keep}">${FISH_SVG[k]}<span><b>${FISH_WORDS[k].many}</b><small>${FISH_WORDS[k].does} In the bin: ${binOf(g, k)}.</small></span><span class="buy${keep ? '' : ' off'}">${keep ? 'Keeping' : 'Not keeping'}</span></button>`;
   }).join('');
+}
+
+/** One line for each crop in the garden journal (part twelve), in the game's voice. */
+export const CROP_LINES: Record<CropId, string> = {
+  carrot: 'The first thing anyone grows. Ready in a minute, and pulled up whole.',
+  strawberry: 'Small, sweet and never done: it keeps putting out berries, four at a time.',
+  blueberry: 'A little bush that fruits in clusters. Pale until it is ripe, then deep blue.',
+  sweetpotato: 'It grows under the soil, so you never quite know how big it is until it comes up.',
+  tomato: 'A tall vine, staked up. Picked red, three at a time, again and again.',
+  sweetcorn: 'Grows taller than the scarecrow. Each cob wrapped in green until it is ready.',
+  pineapple: 'One fruit a plant, sitting in its crown of spiky leaves. Worth the wait.',
+  papaya: 'A slim tree with its fruit tucked right up under the leaves.',
+  coconut: 'A palm grown from a seed, somehow, in a bed. Best not to ask how.',
+  dragonfruit: 'Bright pink with green flames, on a cactus that climbs. Rarer than most.',
+  lantern: 'A curling vine of gourds that glow warm after dark, like the lanternfish.',
+  kraken: 'A great purple squash, its vines curling like tentacles. Worth a fortune, once.',
+  moonpetal:
+    "The Moonkoi's gift: a silvery vine whose fruit are little crescent moons, glowing blue at night.",
+};
+
+/** Where to find a crop's seed, for a page not yet filled in. */
+function seedHint(k: CropId): string {
+  const c = CROPS[k];
+  if (!c.odds) return 'Its seed only comes from the Moonkoi.';
+  return c.odds === 1
+    ? 'The seed stall always has it.'
+    : `The seed stall has it about one day in ${c.odds}.`;
+}
+
+/**
+ * The garden journal: a heading with how many crops have been picked, then a page for each, filled in as its fruit
+ * are picked (how many, the biggest, Gold and Rainbow, the day of the first), the rest saying where the seed is.
+ */
+export function journalPagesHtml(g: Garden): string {
+  const picked = ALL_CROP_IDS.filter((k) => journalOf(g, k)).length;
+  const head = `<h3 class="jhead">Garden journal <small>${picked} of ${ALL_CROP_IDS.length} picked</small></h3>`;
+  const pages = ALL_CROP_IDS.map((k) => {
+    const c = CROPS[k];
+    const e = journalOf(g, k);
+    const name = `${c.name[0]?.toUpperCase()}${c.name.slice(1)}`;
+    if (!e)
+      return `<article class="page unk">${CROP_SVG[k]}<b>${name}</b><small>Not picked yet. ${seedHint(k)}</small><div class="facts"><span>${c.tier[0]?.toUpperCase()}${c.tier.slice(1)}</span><span>Sells for ${c.sell.toLocaleString('en-GB')}</span></div></article>`;
+    const facts = [
+      e.n === 1 ? 'Picked once' : `Picked ${e.n.toLocaleString('en-GB')}`,
+      `Biggest ${fruitKg(k, e.best)} kg`,
+      e.gold ? `Gold ${e.gold}` : '',
+      e.rainbow ? `Rainbow ${e.rainbow}` : '',
+      e.first !== undefined ? `First on day ${e.first}` : '',
+    ].filter(Boolean);
+    return `<article class="page${e.gold || e.rainbow ? ' gold' : ''}">${CROP_SVG[k]}<b>${name}</b><small>${CROP_LINES[k]}</small><div class="facts">${facts.map((f) => `<span>${f}</span>`).join('')}</div></article>`;
+  }).join('');
+  return head + pages;
 }
 
 const BASKET_SVG =

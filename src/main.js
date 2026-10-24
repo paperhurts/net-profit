@@ -215,7 +215,7 @@ import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from '
 import { bedsInReach, COMPOST_BIN, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
 import { drawGardenBolt, drawGardenFlat, drawGardenSplash, drawKoiShadow, drawMoonkoi, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
 import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin, bedsOpen, buyBasket, digBeds, nextDig } from './data/garden';
-import { bedOf, binShelfHtml, FISH_WORDS, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
+import { bedOf, binShelfHtml, FISH_WORDS, journalPagesHtml, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
 import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, FORTS, GOLD_MARKS, HOLD_NAME, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
@@ -2291,7 +2291,7 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
       if (fish && had > 0){ if (!binOf(gardenIsle, fish)) gardenTool = null; toasts.clear(); toast(`Planted a ${CROPS[k].name} over a ${FISH_WORDS[fish].one}: ${fish === 'common' ? 'it grows a quarter faster to its first fruit' : fish === 'rare' ? 'its first fruit are Gold one time in 50' : 'its first fruit grow a tenth bigger'}.`, 3200); return; }
       if (!gardenTold.has('planted')){ gardenTold.add('planted'); toasts.clear(); toast(`Planted a ${CROPS[k].name}. ${CROPS[k].regrow ? 'It will keep fruiting once it is grown.' : 'It is picked once, when it is ripe.'} It grows even while the game is closed.`, 3600); } }
     return; }
-  if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, got = pickBed(gardenIsle, i, now); toasts.clear();
+  if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, got = pickBed(gardenIsle, i, now, day); toasts.clear();
     if (!got.length){ sfx.denied(); toast('Your basket is full. Sell it at the stand.', 2400); return; }
     got.forEach((f, j) => sfx.sale(j, 0)); save();
     // Rainbow, Gold, the weather's marks and giants make a rare catch: its own fanfare, and what it is and is worth. Of
@@ -5314,6 +5314,8 @@ function renderGuide(){
     : 'Not landed yet. Something big holds in the shadow of the bridge when the light goes. A net will not take it.'}</small><div class="facts"><span>By line only: tie up south of the bridge and cast, ${TOLL} coins</span><span>Dusk, night and dawn</span>`
     + `<span>${snook.casts} casts. Landed ${snook.landed}, kept ${snook.kept}${snook.best ? ', best ' + snook.best + ' inches' : ''}${snook.firstDay ? ', first on day ' + snook.firstDay : ''}</span></div></article>`);
   if (snook.giant) pages.push(`<article class="page gold">${FISH_SVG('#F0C544')}<b>Grampy's Snook</b><small>Over forty inches, which is over the slot, so back she went. The photo is on the wall.</small><div class="facts"><span>Landed ${snook.giant}</span><span>One keeper in five, they say</span></div></article>`);
+  // The Garden Isle's crops, once it has been found (part twelve).
+  if (gardenIsle.seen) pages.push(journalPagesHtml(gardenIsle));
   $('pages').innerHTML = pages.join('');
 }
 function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
