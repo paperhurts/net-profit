@@ -12,41 +12,67 @@ import {
   CROP_IDS,
   CROPS,
   type CropId,
+  canWater,
   type Garden,
+  GEAR,
+  GEAR_IDS,
+  type GearId,
+  gearInStock,
+  gearOf,
+  gearRoom,
   growBed,
   inStock,
   SEEDS_MAX,
+  SPRINKLERS,
   secondsLeft,
   seedsOf,
+  WATER,
 } from '../data/garden';
-import { BEDS_START, bedUnder, GEAR_SHED, SEED_STALL, SELL_STAND, stallAt } from '../world/garden';
+import {
+  BEDS_START,
+  bedUnder,
+  GEAR_SHED,
+  inPlot14,
+  SEED_STALL,
+  SELL_STAND,
+  stallAt,
+} from '../world/garden';
 
 /**
- * What the action button does where the figure stands: open the seed stall, sell the basket, plant, pick, or say how long
- * a bed has to go. Codes start with g- so the game knows they are the garden's; a bed's carries its index.
+ * What the action button does where the figure stands: open the seed stall or the gear shed, sell the basket, plant,
+ * pick, use the gear in hand (water a bed, dig it up, set a sprinkler down), or say how long a bed has to go. Ripe fruit
+ * is always picked first, whatever is in hand, and an empty bed is planted with the seed chosen. Codes start with g- so
+ * the game knows they are the garden's; a bed's carries its index.
  */
 export function gardenAction(
   g: Garden,
   x: number,
   y: number,
-  selected: CropId | null,
+  seed: CropId | null,
   now: number,
+  tool: GearId | null = null,
 ): string | null {
   const st = stallAt(x, y);
   if (st === SEED_STALL) return 'g-seeds';
   if (st === SELL_STAND) return 'g-sell';
-  if (st === GEAR_SHED) return null;
+  if (st === GEAR_SHED) return 'g-gear';
   const i = bedUnder(x, y);
+  const b = i >= 0 && i < BEDS_START ? bedAt(g, i) : null;
+  if (b) growBed(b, now);
+  if (b && b.ripe > 0) return `g-pick-${i}`;
+  if (i >= 0 && !b && seed && seedsOf(g, seed) > 0) return `g-plant-${i}`;
+  const sprinkler = (tool === 'sprinkler' || tool === 'goldsprinkler') && gearOf(g, tool) > 0;
+  if (sprinkler && inPlot14(x, y)) return 'g-spr';
   if (i < 0 || i >= BEDS_START) return null;
-  const b = bedAt(g, i);
-  if (!b) return selected && seedsOf(g, selected) > 0 ? `g-plant-${i}` : 'g-noseed';
-  growBed(b, now);
-  return b.ripe > 0 ? `g-pick-${i}` : `g-wait-${i}`;
+  if (!b) return 'g-noseed';
+  if (tool === 'can' && canWater(g, i)) return `g-water-${i}`;
+  if (tool === 'shovel' && gearOf(g, 'shovel') > 0) return `g-dig-${i}`;
+  return `g-wait-${i}`;
 }
 
 /** The bed's index in a garden action's code, or -1. */
 export function bedOf(code: string): number {
-  const m = /^g-(?:plant|pick|wait)-(\d+)$/.exec(code);
+  const m = /^g-(?:plant|pick|wait|water|dig)-(\d+)$/.exec(code);
   return m ? Number(m[1]) : -1;
 }
 
@@ -65,8 +91,17 @@ export function howMany(k: CropId, n: number): string {
 }
 
 /** What the action button says for a garden action. */
-export function gardenLabel(g: Garden, code: string, selected: CropId | null, now: number): string {
+export function gardenLabel(
+  g: Garden,
+  code: string,
+  selected: CropId | null,
+  now: number,
+  tool: GearId | null = null,
+): string {
   if (code === 'g-seeds') return 'Look at the seeds';
+  if (code === 'g-gear') return 'Look at the gear';
+  if (code === 'g-spr')
+    return `Set your ${tool === 'goldsprinkler' ? 'gold sprinkler' : 'sprinkler'} down here`;
   if (code === 'g-sell') {
     const n = basketCount(g);
     return n ? `Sell your basket for ${basketValue(g)}` : 'Your basket is empty';
@@ -81,6 +116,9 @@ export function gardenLabel(g: Garden, code: string, selected: CropId | null, no
     return room ? `Pick ${howMany(b.crop, Math.min(b.ripe, room))}` : 'Your basket is full';
   }
   const c = CROPS[b.crop];
+  if (code.startsWith('g-water-'))
+    return `Water the ${c.name}: ripe in ${clockText(secondsLeft(b, now))}`;
+  if (code.startsWith('g-dig-')) return `Dig up the ${c.name}`;
   return `${c.name[0]?.toUpperCase()}${c.name.slice(1)}: ripe in ${clockText(secondsLeft(b, now))}`;
 }
 
@@ -138,15 +176,67 @@ export function seedShelfHtml(g: Garden, coins: number): string {
   }).join('');
 }
 
-/** The seed tray: a button for each seed held, the one chosen marked, and the basket at the end. */
-export function seedTrayHtml(g: Garden, selected: CropId | null): string {
+/** The gear, drawn small, for the shed's shelf and the tray. */
+export const GEAR_SVG: Record<GearId, string> = {
+  can: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M8 12h12v12H8z" fill="#7FA7B8"/><path d="M8 12h12v3H8z" fill="#9CC2D2"/><path d="M20 15l7-6" stroke="#7FA7B8" stroke-width="2.6" stroke-linecap="round"/><path d="M26 7l2 3" stroke="#5C8494" stroke-width="2.6" stroke-linecap="round"/><path d="M10 12c0-5 8-5 8 0" fill="none" stroke="#5C8494" stroke-width="2"/></svg>',
+  sprinkler:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M14 27V14h2v13z" fill="#6E7F86"/><ellipse cx="15" cy="27" rx="6" ry="2" fill="#5C6B70"/><circle cx="15" cy="13" r="3.4" fill="#4FA3D9"/><g fill="#8FD0F5"><circle cx="7" cy="9" r="1.4"/><circle cx="23" cy="9" r="1.4"/><circle cx="10" cy="5" r="1.2"/><circle cx="20" cy="5" r="1.2"/><circle cx="15" cy="4" r="1.2"/><circle cx="5" cy="14" r="1.2"/><circle cx="25" cy="14" r="1.2"/></g></svg>',
+  goldsprinkler:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M14 27V14h2v13z" fill="#C9962B"/><ellipse cx="15" cy="27" rx="6" ry="2" fill="#A97C1E"/><circle cx="15" cy="13" r="3.6" fill="#FFC53D"/><circle cx="14" cy="12" r="1.2" fill="#FFF3B8"/><g fill="#8FD0F5"><circle cx="7" cy="9" r="1.4"/><circle cx="23" cy="9" r="1.4"/><circle cx="10" cy="5" r="1.2"/><circle cx="20" cy="5" r="1.2"/><circle cx="15" cy="4" r="1.2"/><circle cx="5" cy="14" r="1.2"/><circle cx="25" cy="14" r="1.2"/></g></svg>',
+  shovel:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3v15" stroke="#9A6A3C" stroke-width="2.6" stroke-linecap="round"/><path d="M11 3h8" stroke="#9A6A3C" stroke-width="2.6" stroke-linecap="round"/><path d="M10 18h10v4c0 3-2 5-5 6-3-1-5-3-5-6z" fill="#9AA9B0"/><path d="M12 19v3" stroke="#C8D3D8" stroke-width="1.4" stroke-linecap="round"/></svg>',
+};
+
+/** What a piece of gear does, for the shed's shelf. */
+export function gearBlurb(k: GearId): string {
+  const min = (ms: number) => `${ms / 60000} minutes`;
+  if (k === 'can')
+    return `${WATER.per} waterings. Each takes ${WATER.ms / 1000} seconds off a bed's wait.`;
+  if (k === 'shovel') return 'Digs a plant up, to free its bed. Yours for good.';
+  const s = SPRINKLERS[k];
+  return k === 'sprinkler'
+    ? `Waters the beds round it for ${min(s.ms)}: they grow half as fast again.`
+    : `Waters the beds round it for ${min(s.ms)}: they grow twice as fast, and one fruit in ${s.wet} ripens Wet.`;
+}
+
+/** The gear shed's shelf: each piece of gear, how much you hold, and a button to buy one. */
+export function gearShelfHtml(g: Garden, coins: number): string {
+  return GEAR_IDS.map((k) => {
+    const c = GEAR[k];
+    const have = gearOf(g, k);
+    const left = gearInStock(g, k);
+    const no = coins < c.price || !gearRoom(g, k) || left <= 0;
+    const note =
+      k === 'shovel' && have
+        ? ' You have one.'
+        : `${left > 0 ? ` ${left} left today.` : g.gearStock?.n[k] === 0 ? ' Sold out today.' : ' Not in today.'}${have ? ` You have ${have}${k === 'can' ? ' waterings' : ''}.` : ''}`;
+    return `<button class="item${left > 0 ? '' : ' out'}" data-gear="${k}" aria-disabled="${no ? 'true' : 'false'}">${GEAR_SVG[k]}<span><b>${c.name[0]?.toUpperCase()}${c.name.slice(1)}</b><small>${gearBlurb(k)}${note}</small></span><span class="buy">${left > 0 ? c.price.toLocaleString('en-GB') : '–'}</span></button>`;
+  }).join('');
+}
+
+/**
+ * The seed tray: a button for each seed held and each piece of gear, the one in hand marked (the gear, or else the seed
+ * chosen), and the basket.
+ */
+export function seedTrayHtml(
+  g: Garden,
+  selected: CropId | null,
+  tool: GearId | null = null,
+): string {
   const seeds = CROP_IDS.filter((k) => seedsOf(g, k) > 0)
-    .map(
-      (k) =>
-        `<button class="seed${k === selected ? ' on' : ''}" data-pick="${k}" aria-pressed="${k === selected}" aria-label="${CROPS[k].name} seeds, ${seedsOf(g, k)}">${CROP_SVG[k]}<span>${seedsOf(g, k)}</span></button>`,
-    )
+    .map((k) => {
+      const on = k === selected && !tool;
+      return `<button class="seed${on ? ' on' : ''}" data-pick="${k}" aria-pressed="${on}" aria-label="${CROPS[k].name} seeds, ${seedsOf(g, k)}">${CROP_SVG[k]}<span>${seedsOf(g, k)}</span></button>`;
+    })
     .join('');
-  return `${seeds}<span class="basket" aria-label="Basket">${BASKET_SVG}<span>${basketCount(g)}/${BASKET_MAX}</span></span>`;
+  const gear = GEAR_IDS.filter((k) => gearOf(g, k) > 0)
+    .map((k) => {
+      const on = k === tool;
+      const n = k === 'shovel' ? '' : String(gearOf(g, k));
+      return `<button class="seed gear${on ? ' on' : ''}" data-tool="${k}" aria-pressed="${on}" aria-label="${GEAR[k].name}${n ? `, ${n}` : ''}">${GEAR_SVG[k]}<span>${n}</span></button>`;
+    })
+    .join('');
+  return `${seeds}${gear}<span class="basket" aria-label="Basket">${BASKET_SVG}<span>${basketCount(g)}/${BASKET_MAX}</span></span>`;
 }
 
 const BASKET_SVG =

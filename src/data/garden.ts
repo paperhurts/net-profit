@@ -410,6 +410,14 @@ export type Garden = {
   bag?: Fruit[];
   /** The seed stall's stock, and the day it came in. */
   stock?: Stock;
+  /** Gear held (part seven): waterings left in the can, sprinklers of each kind, and the shovel (1 once bought). */
+  gear?: Partial<Record<GearId, number>>;
+  /** The gear shed's stock, and the day it came in. */
+  gearStock?: { day: number; n: Partial<Record<GearId, number>> };
+  /** The sprinklers set down in the plot, running. */
+  spr?: Sprinkler[];
+  /** When the beds were last brought up to now, while a sprinkler runs, so its growing is counted once. */
+  at?: number;
 };
 
 /** What the seed stall has, rolled at a dawn: the game's day it came in, and seeds left of each crop. */
@@ -433,6 +441,153 @@ export function stockToday(g: Garden, day: number, rnd: () => number = Math.rand
   return g.stock;
 }
 
+/**
+ * The gear shed (part seven), Grow a Garden's gear shop, on the same dawn restock as the seed stall. The watering can
+ * comes with ten waterings, each taking half a minute off a bed's wait. A sprinkler set down in the plot waters the beds
+ * in its reach for five minutes, so they grow half as fast again; a gold sprinkler runs for ten, they grow twice as fast,
+ * and a fruit ripening in its spray is Wet one time in four. The shovel digs a plant up, to free its bed: bought once,
+ * kept for good.
+ *
+ * On a crop that keeps fruiting, gear about pays for itself and no more; it is worth it on a big one picked once (a
+ * pineapple, a kraken squash). The owner's guardrails hold with all the gear the shed has in a day put to use (a test,
+ * tests/unit/gardengear.test.ts, checks them).
+ */
+export type GearId = 'can' | 'sprinkler' | 'goldsprinkler' | 'shovel';
+export type Gear = {
+  id: GearId;
+  name: string;
+  price: number;
+  /** In one day in odds, and how many when it is in. */
+  odds: number;
+  stock: readonly [number, number];
+};
+export const GEAR: Record<GearId, Gear> = {
+  can: { id: 'can', name: 'watering can', price: 400, odds: 1, stock: [1, 3] },
+  sprinkler: { id: 'sprinkler', name: 'sprinkler', price: 900, odds: 2, stock: [1, 3] },
+  goldsprinkler: {
+    id: 'goldsprinkler',
+    name: 'gold sprinkler',
+    price: 6000,
+    odds: 6,
+    stock: [1, 1],
+  },
+  shovel: { id: 'shovel', name: 'shovel', price: 100, odds: 1, stock: [1, 1] },
+};
+export const GEAR_IDS: readonly GearId[] = Object.keys(GEAR) as GearId[];
+export function isGear(k: unknown): k is GearId {
+  return typeof k === 'string' && k in GEAR;
+}
+/** A can's waterings, how much each takes off a bed's wait, and the most the can holds. */
+export const WATER = { per: 10, ms: 30 * 1000, max: 99 } as const;
+/** Sprinklers of a kind held, at most. */
+export const GEAR_MAX = 9;
+export type SprinklerId = 'sprinkler' | 'goldsprinkler';
+/** How much faster the beds in its reach grow, for how long, and the odds of Wet in a gold one's spray. */
+export const SPRINKLERS: Record<SprinklerId, { speed: number; ms: number; wet: number }> = {
+  sprinkler: { speed: 1.5, ms: 5 * 60 * 1000, wet: 0 },
+  goldsprinkler: { speed: 2, ms: 10 * 60 * 1000, wet: 4 },
+};
+/** Sprinklers running in the plot at once, at most. */
+export const SPRINKLERS_MAX = 6;
+/** A sprinkler set down: its kind, where in the isle's frame, the beds in its reach, and when it runs from and to. */
+export type Sprinkler = {
+  k: SprinklerId;
+  u: number;
+  v: number;
+  beds: number[];
+  from: number;
+  to: number;
+};
+
+/** A day's gear: each in on its odds, with so many. */
+export function rollGear(day: number, rnd: () => number = Math.random): Garden['gearStock'] & {} {
+  const n: Partial<Record<GearId, number>> = {};
+  for (const k of GEAR_IDS) {
+    const c = GEAR[k];
+    if (c.odds > 1 && rnd() * c.odds >= 1) continue;
+    const [lo, hi] = c.stock;
+    n[k] = lo + Math.floor(rnd() * (hi - lo + 1));
+  }
+  return { day, n };
+}
+
+/** The shed's stock today, rolled fresh the first time it is asked for on a new day. */
+export function gearToday(
+  g: Garden,
+  day: number,
+  rnd: () => number = Math.random,
+): Garden['gearStock'] & {} {
+  if (!g.gearStock || g.gearStock.day !== day) g.gearStock = rollGear(day, rnd);
+  return g.gearStock;
+}
+
+/** Gear held: waterings left, sprinklers of a kind, or 1 for the shovel. */
+export function gearOf(g: Garden, k: GearId): number {
+  return g.gear?.[k] ?? 0;
+}
+
+/** Of a piece of gear, left in the shed today. */
+export function gearInStock(g: Garden, k: GearId): number {
+  return g.gearStock?.n[k] ?? 0;
+}
+
+/** Whether one more can be bought, stock and money aside: room in the can, a sprinkler's place, no shovel yet. */
+export function gearRoom(g: Garden, k: GearId): boolean {
+  if (k === 'can') return gearOf(g, k) + WATER.per <= WATER.max;
+  if (k === 'shovel') return gearOf(g, k) === 0;
+  return gearOf(g, k) < GEAR_MAX;
+}
+
+/** Buy one from today's stock with the coins held: what it costs, or 0 when it cannot be bought. */
+export function buyGear(g: Garden, k: GearId, coins: number): number {
+  const c = GEAR[k];
+  if (gearInStock(g, k) <= 0 || !gearRoom(g, k) || c.price > coins || !g.gearStock) return 0;
+  g.gear = { ...g.gear, [k]: gearOf(g, k) + (k === 'can' ? WATER.per : 1) };
+  g.gearStock = { ...g.gearStock, n: { ...g.gearStock.n, [k]: gearInStock(g, k) - 1 } };
+  return c.price;
+}
+
+/** Whether a bed can be watered: planted, and growing toward its next fruit (not waiting full). */
+export function canWater(g: Garden, i: number): boolean {
+  const b = bedAt(g, i);
+  return !!b && b.next > 0 && gearOf(g, 'can') > 0;
+}
+
+/** Water bed i: half a minute off its wait, never earlier than now. */
+export function water(g: Garden, i: number, now: number): boolean {
+  const b = bedAt(g, i);
+  if (!b || !canWater(g, i)) return false;
+  b.next = Math.max(now, b.next - WATER.ms);
+  g.gear = { ...g.gear, can: gearOf(g, 'can') - 1 };
+  return true;
+}
+
+/** Set a sprinkler down at (u, v), watering the beds given (the plot's layout is world/garden.ts's to know). */
+export function setSprinkler(
+  g: Garden,
+  k: SprinklerId,
+  u: number,
+  v: number,
+  beds: number[],
+  now: number,
+): boolean {
+  const spr = g.spr ?? [];
+  if (gearOf(g, k) <= 0 || spr.length >= SPRINKLERS_MAX) return false;
+  // Bring the beds up to now first, so its growing counts from now.
+  growAll(g, now);
+  g.spr = [...(g.spr ?? []), { k, u, v, beds, from: now, to: now + SPRINKLERS[k].ms }];
+  g.at = now;
+  g.gear = { ...g.gear, [k]: gearOf(g, k) - 1 };
+  return true;
+}
+
+/** Dig up what is in bed i with the shovel, ripe fruit and all: the bed is empty again. */
+export function dig(g: Garden, i: number): boolean {
+  if (!bedAt(g, i) || gearOf(g, 'shovel') <= 0 || !g.beds) return false;
+  g.beds[i] = null;
+  return true;
+}
+
 /** A game that has never been near it. */
 export function noGarden(): Garden {
   return { seen: false };
@@ -449,7 +604,7 @@ export function bedAt(g: Garden, i: number): Bed | null {
  * Bring a bed up to now: each fruit that has come due ripens, up to what the plant holds, and then it waits. A clock
  * that has gone backwards (a phone's time set back) never makes a fruit take longer than its full growing time.
  */
-export function growBed(b: Bed, now: number, sky?: Sky): void {
+export function growBed(b: Bed, now: number, sky?: Sky, wetAt?: (t: number) => boolean): void {
   const c = CROPS[b.crop];
   if (b.ripe >= c.holds) {
     b.next = 0;
@@ -469,6 +624,9 @@ export function growBed(b: Bed, now: number, sky?: Sky): void {
     // Ripening now, with the game open, the time of day may mark it.
     const mu = mutationsOn(b);
     const marks: Mutation[] = [];
+    // Ripening under a gold sprinkler's spray, it may come up Wet, open or closed.
+    if (wetAt?.(b.next) && hash01(b.planted + 29, n * 11 + 5) < 1 / SPRINKLERS.goldsprinkler.wet)
+      marks.push('wet');
     if (sky && now - b.next < LIVE_MS) {
       const r = hash01(b.planted + 13, n * 7 + 1);
       if (sky.phase === 'Night' && r < 1 / WEATHER_ODDS.moonlit) marks.push('moonlit');
@@ -504,9 +662,37 @@ export function mutationsOn(b: Bed): Mutation[][] {
   return mu;
 }
 
-/** Every bed brought up to now; with the time of day when the game is being played. */
+/**
+ * Every bed brought up to now; with the time of day when the game is being played. A bed in a sprinkler's reach gains
+ * the extra growing it gave since the garden was last brought up, open or closed (g.at is saved with the beds), and the
+ * sprinklers that have run out are taken up.
+ */
 export function growAll(g: Garden, now: number, sky?: Sky): void {
-  for (const b of g.beds ?? []) if (b) growBed(b, now, sky);
+  const from = Math.min(g.at ?? now, now);
+  const spr = g.spr ?? [];
+  (g.beds ?? []).forEach((b, i) => {
+    if (!b) return;
+    const over = spr.filter((s) => s.beds.includes(i));
+    if (b.next > 0) {
+      let extra = 0;
+      for (const s of over)
+        extra +=
+          Math.max(0, Math.min(now, s.to) - Math.max(from, s.from)) * (SPRINKLERS[s.k].speed - 1);
+      b.next -= extra;
+    }
+    const gold = over.filter((s) => s.k === 'goldsprinkler');
+    growBed(
+      b,
+      now,
+      sky,
+      gold.length ? (t) => gold.some((s) => t >= s.from && t <= s.to) : undefined,
+    );
+  });
+  // Only while a sprinkler runs is it worth keeping when they were last grown.
+  const left = spr.filter((s) => s.to > now);
+  if (left.length < spr.length) g.spr = left;
+  if (left.length) g.at = now;
+  else delete g.at;
 }
 
 /** A storm's rain over the isle: each ripe fruit not yet Wet, one in four, gets Wet. How many did. */
@@ -632,9 +818,11 @@ export function secondsLeft(b: Bed, now: number): number {
   return Math.max(0, Math.ceil((b.next - now) / S));
 }
 
-/** How far a bed's plant has grown, 0 just planted to 1 full grown. */
+/** How far a bed's plant has grown, 0 just planted to 1 full grown: from when its first fruit is due, so watering and
+ * sprinklers grow it on. */
 export function grownOf(b: Bed, now: number): number {
-  return Math.max(0, Math.min(1, (now - b.planted) / (CROPS[b.crop].grow * S)));
+  if (b.ripe > 0 || (b.born ?? 0) > 0 || b.next === 0) return 1;
+  return Math.max(0, Math.min(1, 1 - (b.next - now) / (CROPS[b.crop].grow * S)));
 }
 
 /** A count from the save: a whole number from 0 to max, or 0. */
@@ -726,6 +914,46 @@ export function parseGarden(raw: unknown): Garden {
         if (mu.length) fruit.mu = mu;
         bag.push(fruit);
       }
+  if (k.gear && typeof k.gear === 'object') {
+    const gear: Partial<Record<GearId, number>> = {};
+    for (const id of GEAR_IDS) {
+      const n = count(
+        (k.gear as Record<string, unknown>)[id],
+        id === 'can' ? WATER.max : id === 'shovel' ? 1 : GEAR_MAX,
+      );
+      if (n) gear[id] = n;
+    }
+    if (Object.keys(gear).length) g.gear = gear;
+  }
+  if (k.gearStock && typeof k.gearStock === 'object') {
+    const st = k.gearStock as Record<string, unknown>;
+    if (typeof st.day === 'number' && Number.isFinite(st.day) && st.day >= 0) {
+      const n: Partial<Record<GearId, number>> = {};
+      const raw = st.n && typeof st.n === 'object' ? (st.n as Record<string, unknown>) : {};
+      for (const c of GEAR_IDS) if (c in raw) n[c] = count(raw[c], GEAR_MAX);
+      g.gearStock = { day: Math.floor(st.day), n };
+    }
+  }
+  if (Array.isArray(k.spr)) {
+    const spr: Sprinkler[] = [];
+    for (const s of k.spr.slice(0, SPRINKLERS_MAX)) {
+      if (!s || typeof s !== 'object') continue;
+      const r = s as Record<string, unknown>;
+      const from = time(r.from);
+      const to = time(r.to);
+      if (r.k !== 'sprinkler' && r.k !== 'goldsprinkler') continue;
+      if (from === null || to === null || to < from || to - from > SPRINKLERS[r.k].ms) continue;
+      if (typeof r.u !== 'number' || typeof r.v !== 'number' || !Array.isArray(r.beds)) continue;
+      if (!Number.isFinite(r.u) || !Number.isFinite(r.v)) continue;
+      const beds = r.beds.filter(
+        (i): i is number => Number.isInteger(i) && (i as number) >= 0 && (i as number) < BEDS_ALL,
+      );
+      spr.push({ k: r.k, u: r.u, v: r.v, beds, from, to });
+    }
+    if (spr.length) g.spr = spr;
+  }
+  const at = time(k.at);
+  if (at !== null) g.at = at;
   const old = parseCounts(k.basket, BASKET_MAX);
   for (const c of CROP_IDS) for (let n = old?.[c] ?? 0; n > 0; n--) bag.push({ c, m: 1 });
   if (bag.length) g.bag = bag.slice(0, BASKET_MAX);
@@ -734,5 +962,14 @@ export function parseGarden(raw: unknown): Garden {
 
 /** Nothing about it worth keeping, so the save can leave it out and the copy-my-game link stays short. */
 export function untouchedGarden(g: Garden): boolean {
-  return !g.seen && !g.beds?.some((b) => b) && !g.seeds && !g.bag?.length && !g.stock;
+  return (
+    !g.seen &&
+    !g.beds?.some((b) => b) &&
+    !g.seeds &&
+    !g.bag?.length &&
+    !g.stock &&
+    !g.gear &&
+    !g.gearStock &&
+    !g.spr?.length
+  );
 }
