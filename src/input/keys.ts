@@ -32,16 +32,35 @@ export function keyVector(keys: Keys): [number, number] {
   return d ? [kx / d, ky / d] : [0, 0];
 }
 
-/** What the binding needs from a keyboard event. */
-export type KeyLike = { key: string; preventDefault(): void };
+/** What the binding needs from a keyboard event: its key, and where it was typed. */
+export type KeyLike = { key: string; preventDefault(): void; target?: unknown };
+
+/**
+ * Whether a key went into a box for text (a save code pasted in, a pet's name), where W, A, S and D are letters, not
+ * steering. Found building the pet book (2026-10-24): typing a code into the Play on another device card turned the boat.
+ */
+export function typing(target: unknown): boolean {
+  if (!target || typeof target !== 'object') return false;
+  const t = target as { tagName?: unknown; isContentEditable?: unknown };
+  return (
+    t.tagName === 'INPUT' ||
+    t.tagName === 'TEXTAREA' ||
+    t.tagName === 'SELECT' ||
+    t.isContentEditable === true
+  );
+}
 
 export type KeyTarget = {
   addEventListener(type: string, listener: (e: KeyLike) => void): void;
 };
 
-/** Wire keydown and keyup on the window into the key set. onInput runs on every steering press. */
+/**
+ * Wire keydown and keyup on the window into the key set. onInput runs on every steering press. A key typed into a text
+ * box steers nothing; a key let go anywhere is let go.
+ */
 export function bindKeys(target: KeyTarget, keys: Keys, onInput: () => void): void {
   target.addEventListener('keydown', (e) => {
+    if (typing(e.target)) return;
     const k = e.key.toLowerCase();
     if ((STEER_KEYS as readonly string[]).includes(k)) {
       keys.add(k);

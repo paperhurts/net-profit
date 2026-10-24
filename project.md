@@ -763,3 +763,4 @@ The kid's world, as he tells it, collected here as it comes. The game says it wh
 - A global `canvas{position:fixed;inset:0}` pins every canvas to the top left. A second canvas, as the radar is, needs `top:auto;left:auto`.
 - A new game starts just off the dock ring, not in it. A test that means "docked" puts the boat on `DOCK`.
 
+- A key typed into a text box bubbles up to the window like any other. The game's steering listened on the window, so typing a save code into Play on another device turned the boat (found building the pet book's name box, 2026-10-24; four words from the game's world are full of W, A, S and D). Steering now ignores keys typed into an input, a textarea, a select or anything editable (`input/keys.ts` typing), and lets go of a held key wherever it is let go.
