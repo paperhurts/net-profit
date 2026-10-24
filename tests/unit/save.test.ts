@@ -1324,3 +1324,19 @@ describe('the tar kraken, round two', () => {
     expect(parseSave(serializeSave(s), bounds).krakenFoot).toBe(true);
   });
 });
+
+describe('the Garden Isle', () => {
+  it('an old save has not sighted it; sighted, it keeps it, and an unsighted one is left out of the save', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.garden).toEqual({ seen: false });
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('garden');
+    s.garden = { seen: true };
+    expect(parseSave(serializeSave(s), bounds).garden).toEqual({ seen: true });
+    // Anything odd under its key reads as not seen, and the rest of the save loads as before.
+    for (const odd of ['yes', 1, null, [], { seen: 'yes' }, { seen: 1 }]) {
+      const got = parseSave(JSON.stringify({ ...s, garden: odd }), bounds);
+      expect(got.garden).toEqual({ seen: false });
+      expect(got.coins).toBe(s.coins);
+    }
+  });
+});

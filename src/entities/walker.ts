@@ -36,6 +36,7 @@ import {
   LANDING13,
   onEndless,
 } from '../world/endless';
+import { berth14, CRATES14, DOCK14, groundZ14, LANDING14, onIsle14 } from '../world/garden';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
 import {
   BEACH,
@@ -289,6 +290,14 @@ export const ENDLESS_N_DOCK: Dock = {
   berth: (k) => berth13('ninja', k),
   landing: LANDING13.ninja,
 };
+/** The Garden Isle's dock, past the end of its pier toward home. */
+export const GARDEN_DOCK: Dock = {
+  x: DOCK14.x,
+  y: DOCK14.y,
+  r: DOCK14.r,
+  berth: berth14,
+  landing: LANDING14,
+};
 export const DOCKS: readonly Dock[] = [
   HOME_DOCK,
   ISLE2_DOCK,
@@ -301,6 +310,7 @@ export const DOCKS: readonly Dock[] = [
   ISLE12_DOCK,
   ENDLESS_P_DOCK,
   ENDLESS_N_DOCK,
+  GARDEN_DOCK,
 ];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
@@ -374,8 +384,8 @@ export function setWalkLand(l: WalkLand | null): void {
  * beach, island 2, island 3's planks and seaweed, island 4 and its tar, which only a suited figure
  * gets into, island 6 and its pier, island 7, islands 8 and 9 with the sandbar between, island 10 and its
  * pier, round its pond and pools, island 11 and its pier, round its black lagoon, Skull Island and its pier, round
- * its eye sockets, nose and teeth, the Endless Isle's two halves, piers, bridges, sandbar and shallows, and whatever land
- * comes and goes.
+ * its eye sockets, nose and teeth, the Endless Isle's two halves, piers, bridges, sandbar and shallows, the Garden Isle
+ * and its pier, and whatever land comes and goes.
  */
 export function onLand(x: number, y: number): boolean {
   if (walkLand?.on(x, y)) return true;
@@ -390,6 +400,7 @@ export function onLand(x: number, y: number): boolean {
   if (onIsle11(x, y)) return true;
   if (onIsle12(x, y)) return true;
   if (onEndless(x, y)) return true;
+  if (onIsle14(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
@@ -409,6 +420,7 @@ export function groundZ(x: number, y: number): number {
   if (onIsle11(x, y)) return groundZ11(x, y);
   if (onIsle12(x, y)) return groundZ12(x, y);
   if (onEndless(x, y)) return groundZ13(x, y);
+  if (onIsle14(x, y)) return groundZ14(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -602,6 +614,14 @@ export const PROPS: readonly Prop[] = [
     CRATES12.x + 19,
     CRATES12.y + 15,
     CRATES12.x + CRATES12.y + 10,
+  ),
+  // The Garden Isle's crates, beside its pier's root.
+  prop(
+    CRATES14.x - 10,
+    CRATES14.y - 8,
+    CRATES14.x + 19,
+    CRATES14.y + 15,
+    CRATES14.x + CRATES14.y + 10,
   ),
   // Caterman's workshop, at the back of the Heron's brother's clearing.
   prop(WORKSHOP11.x0, WORKSHOP11.y0, WORKSHOP11.x1, WORKSHOP11.y1, WORKSHOP11.x1 + WORKSHOP11.y1),
