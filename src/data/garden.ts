@@ -59,10 +59,27 @@ export type Crop = {
   holds: number;
   /** In stock at a dawn one time in this many (1: always), and how many seeds come in, least and most. */
   odds: number;
+  /** What a normal-sized fruit weighs, in kilos. */
+  kg: number;
   stock: readonly [number, number];
 };
 
 const M = 60;
+/** What a normal-sized fruit of each crop weighs, in kilos. */
+const KG: Record<CropId, number> = {
+  carrot: 0.2,
+  strawberry: 0.03,
+  blueberry: 0.01,
+  sweetpotato: 0.4,
+  tomato: 0.2,
+  sweetcorn: 0.35,
+  pineapple: 1.5,
+  papaya: 1,
+  coconut: 1.4,
+  dragonfruit: 0.5,
+  lantern: 2.5,
+  kraken: 9,
+};
 /** Where one fruit is not called what its plant is. */
 const FRUIT: Partial<Record<CropId, string>> = {
   sweetcorn: 'cob of sweetcorn',
@@ -95,6 +112,7 @@ function crop(
     ...(regrow ? { regrow } : {}),
     holds,
     odds,
+    kg: KG[id],
     stock,
   };
 }
@@ -247,7 +265,75 @@ export const BEDS_OPEN = 6;
  * A planted bed: what is in it, when it was planted, how many fruit are ripe on it, and when the next one ripens (0
  * while it holds all it can and waits to be picked).
  */
-export type Bed = { crop: CropId; planted: number; ripe: number; next: number };
+export type Bed = {
+  crop: CropId;
+  planted: number;
+  ripe: number;
+  next: number;
+  /** The size of each ripe fruit on it (1 is normal), and how many it has ripened in all. Missing in saves from before
+   * sizes: their ripe fruit are normal-sized. */
+  w?: number[];
+  born?: number;
+};
+
+/**
+ * Fruit size (part four): each fruit, as it ripens, is somewhere between 0.8 and 1.2 of normal, and one in 200 is a
+ * giant, three to four times normal. What it sells for goes with the square of its size, as in Grow a Garden, never
+ * under 0.9 squared. Grow a Garden's sizes run 0.7 to 1.4; ours are narrower so that size adds about a tenth to what a
+ * plot earns and the owner's guardrails still hold (a test checks them with sizes in).
+ */
+export const SIZE = {
+  min: 0.8,
+  max: 1.2,
+  floor: 0.9,
+  giant: 200,
+  giantMin: 3,
+  giantMax: 4,
+} as const;
+
+/** A number from 0 to 1 that is always the same for the same two numbers. */
+function hash01(a: number, b: number): number {
+  let h =
+    Math.imul((a % 2147483647) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x7feb352d);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x846ca68b);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/** The size of the n-th fruit a plant planted at this time ripens: the same every time it is worked out. */
+export function sizeOf(planted: number, n: number): number {
+  const m = SIZE.min + (SIZE.max - SIZE.min) * hash01(planted, n * 3);
+  if (hash01(planted, n * 3 + 1) * SIZE.giant >= 1) return m;
+  return m * (SIZE.giantMin + (SIZE.giantMax - SIZE.giantMin) * hash01(planted, n * 3 + 2));
+}
+
+/** Is this size a giant's. */
+export function isGiant(m: number): boolean {
+  return m >= SIZE.giantMin * SIZE.min;
+}
+
+/**
+ * The most one fruit sells for, twice the dearest seed: without it a giant kraken squash, 60,000 by up to 23 for its
+ * size, would pay more than a million and make every price in the game nothing.
+ */
+export const FRUIT_MAX = 100000;
+
+/** What a fruit of a crop, this size, sells for. */
+export function fruitValue(k: CropId, m: number): number {
+  return Math.min(FRUIT_MAX, Math.round(CROPS[k].sell * Math.max(SIZE.floor, m) ** 2));
+}
+
+/** What a fruit of a crop, this size, weighs, in kilos, to two places (three for the smallest). */
+export function fruitKg(k: CropId, m: number): string {
+  const kg = CROPS[k].kg * m;
+  return kg < 0.1 ? kg.toFixed(3) : kg.toFixed(2);
+}
+
+/** A fruit in the basket: its crop and its size. */
+export type Fruit = { c: CropId; m: number };
 
 /** The garden's part of the save. Everything past seen is optional, so saves made before it still load. */
 export type Garden = {
@@ -257,8 +343,8 @@ export type Garden = {
   beds?: (Bed | null)[];
   /** Seeds held, by crop. */
   seeds?: Partial<Record<CropId, number>>;
-  /** Fruit in the basket, by crop. */
-  basket?: Partial<Record<CropId, number>>;
+  /** The fruit in the basket, each with its size. */
+  bag?: Fruit[];
   /** The seed stall's stock, and the day it came in. */
   stock?: Stock;
 };
@@ -310,9 +396,21 @@ export function growBed(b: Bed, now: number): void {
   if (b.next > now + c.grow * S) b.next = now + c.grow * S;
   if (b.planted > now) b.planted = now;
   while (b.next > 0 && b.next <= now && b.ripe < c.holds) {
+    const w = sizesOn(b);
+    const n = b.born ?? b.ripe;
+    w.push(sizeOf(b.planted, n));
+    b.w = w;
+    b.born = n + 1;
     b.ripe++;
     b.next = b.ripe < c.holds && c.regrow ? b.next + c.regrow * S : 0;
   }
+}
+
+/** The sizes of the fruit ripe on a bed, one for each (a save from before sizes has its ripe fruit at 1). */
+export function sizesOn(b: Bed): number[] {
+  const w = (b.w ?? []).slice(0, b.ripe);
+  while (w.length < b.ripe) w.push(1);
+  return w;
 }
 
 /** Every bed brought up to now. */
@@ -327,12 +425,12 @@ export function seedsOf(g: Garden, k: CropId): number {
 
 /** Fruit in the basket, in all. */
 export function basketCount(g: Garden): number {
-  return CROP_IDS.reduce((n, k) => n + (g.basket?.[k] ?? 0), 0);
+  return g.bag?.length ?? 0;
 }
 
 /** What the basket would sell for at the stand. */
 export function basketValue(g: Garden): number {
-  return CROP_IDS.reduce((n, k) => n + (g.basket?.[k] ?? 0) * CROPS[k].sell, 0);
+  return (g.bag ?? []).reduce((n, f) => n + fruitValue(f.c, f.m), 0);
 }
 
 /** Seeds of a crop left at the stall today. */
@@ -366,25 +464,28 @@ export function plant(g: Garden, i: number, k: CropId, now: number): boolean {
  * Pick what is ripe on bed i into the basket, as much as it has room for: how many were picked. A crop picked once
  * leaves the bed empty; one that keeps fruiting starts its next fruit if it had been waiting, full.
  */
-export function pick(g: Garden, i: number, now: number): number {
+export function pick(g: Garden, i: number, now: number): Fruit[] {
   const b = bedAt(g, i);
-  if (!b) return 0;
+  if (!b) return [];
   growBed(b, now);
   const n = Math.min(b.ripe, BASKET_MAX - basketCount(g));
-  if (n <= 0) return 0;
+  if (n <= 0) return [];
   const c = CROPS[b.crop];
-  g.basket = { ...g.basket, [b.crop]: (g.basket?.[b.crop] ?? 0) + n };
+  const w = sizesOn(b);
+  const got = w.slice(0, n).map((m) => ({ c: b.crop, m }));
+  g.bag = [...(g.bag ?? []), ...got];
+  b.w = w.slice(n);
   b.ripe -= n;
   if (!c.regrow) {
     if (b.ripe === 0 && g.beds) g.beds[i] = null;
   } else if (b.next === 0) b.next = now + c.regrow * S;
-  return n;
+  return got;
 }
 
 /** Sell the whole basket at the stand: the coins, and how many fruit. */
 export function sellBasket(g: Garden): { coins: number; n: number } {
   const out = { coins: basketValue(g), n: basketCount(g) };
-  g.basket = {};
+  g.bag = [];
   return out;
 }
 
@@ -406,6 +507,11 @@ function count(v: unknown, max: number): number {
     : 0;
 }
 
+/** A size from the save: a finite number from 0.5 to 5, or 1. */
+function size(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.max(0.5, Math.min(5, v)) : 1;
+}
+
 /** A time from the save: a finite number of milliseconds from 0, or null. */
 function time(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
@@ -418,7 +524,11 @@ function parseBed(v: unknown): Bed | null {
   const planted = time(k.planted);
   const next = time(k.next);
   if (planted === null || next === null) return null;
-  return { crop: k.crop, planted, ripe: count(k.ripe, CROPS[k.crop].holds), next };
+  const b: Bed = { crop: k.crop, planted, ripe: count(k.ripe, CROPS[k.crop].holds), next };
+  if (Array.isArray(k.w)) b.w = k.w.slice(0, b.ripe).map(size);
+  if (typeof k.born === 'number' && Number.isFinite(k.born) && k.born >= b.ripe)
+    b.born = Math.floor(k.born);
+  return b;
 }
 
 function parseCounts(v: unknown, max: number): Partial<Record<CropId, number>> | undefined {
@@ -453,22 +563,20 @@ export function parseGarden(raw: unknown): Garden {
       g.stock = { day: Math.floor(st.day), n };
     }
   }
-  const basket = parseCounts(k.basket, BASKET_MAX);
-  if (basket) {
-    // Never more than the basket carries, whatever the save says.
-    let room = BASKET_MAX;
-    for (const c of CROP_IDS) {
-      const n = Math.min(basket[c] ?? 0, room);
-      room -= n;
-      if (n) basket[c] = n;
-      else delete basket[c];
-    }
-    g.basket = basket;
-  }
+  // The fruit in the basket, each with its size, never more than it carries. A save from before sizes has its basket
+  // as a count of each crop: those come in normal-sized.
+  const bag: Fruit[] = [];
+  if (Array.isArray(k.bag))
+    for (const f of k.bag)
+      if (f && typeof f === 'object' && isCrop((f as Fruit).c))
+        bag.push({ c: (f as Fruit).c, m: size((f as Fruit).m) });
+  const old = parseCounts(k.basket, BASKET_MAX);
+  for (const c of CROP_IDS) for (let n = old?.[c] ?? 0; n > 0; n--) bag.push({ c, m: 1 });
+  if (bag.length) g.bag = bag.slice(0, BASKET_MAX);
   return g;
 }
 
 /** Nothing about it worth keeping, so the save can leave it out and the copy-my-game link stays short. */
 export function untouchedGarden(g: Garden): boolean {
-  return !g.seen && !g.beds?.some((b) => b) && !g.seeds && !g.basket && !g.stock;
+  return !g.seen && !g.beds?.some((b) => b) && !g.seeds && !g.bag?.length && !g.stock;
 }

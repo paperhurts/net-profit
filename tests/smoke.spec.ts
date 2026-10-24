@@ -167,7 +167,7 @@ type Np = {
     seen: boolean;
     beds?: ({ crop: string; ripe: number } | null)[];
     seeds?: Record<string, number>;
-    basket?: Record<string, number>;
+    bag?: { c: string; m: number }[];
     stock?: { day: number; n: Record<string, number> };
   };
   gardenSkew: number;
@@ -13731,13 +13731,18 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   await standAt(172, 30);
   await expect(climb).toHaveText('Pick a carrot', { timeout: 4000 });
   await climb.dispatchEvent('click');
-  expect(await page.evaluate(() => window.__np.gardenIsle.basket)).toEqual({ carrot: 1 });
+  expect(await page.evaluate(() => window.__np.gardenIsle.bag?.map((f) => f.c))).toEqual([
+    'carrot',
+  ]);
+  // Its size is its own, so is its price: a carrot's 16, by the square of its size.
+  const m = await page.evaluate(() => window.__np.gardenIsle.bag?.[0]?.m ?? 0);
+  const worth = Math.round(16 * Math.max(0.9, m) ** 2);
   await expect(page.locator('#seedTray .basket')).toContainText('1/50');
   // Sold at the stand.
   await standAt(222, 86);
-  await expect(climb).toHaveText('Sell your basket for 16', { timeout: 4000 });
+  await expect(climb).toHaveText(`Sell your basket for ${worth}`, { timeout: 4000 });
   await climb.dispatchEvent('click');
-  await page.waitForFunction(() => window.__np.coins === 440 + 16, null, { timeout: 3000 });
+  await page.waitForFunction((w) => window.__np.coins === 440 + w, worth, { timeout: 3000 });
   // The strawberry plant is kept through a reload, and has grown on.
   await page.waitForTimeout(300);
   await page.reload();

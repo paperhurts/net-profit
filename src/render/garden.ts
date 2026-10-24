@@ -6,7 +6,7 @@
  * their plants (gardenPlantSolids), from a sprout to a full plant with its fruit on it. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
  */
 
-import { type CropId, type Garden, growBed, grownOf, secondsLeft } from '../data/garden';
+import { type CropId, type Garden, growBed, grownOf, secondsLeft, sizesOn } from '../data/garden';
 import type { DrawView } from '../entities/entity';
 import { clockText } from '../ui/garden';
 import {
@@ -623,12 +623,15 @@ function drawPlant(
   sy: number,
   f: number,
   ripe: number,
+  w: readonly number[],
   T: number,
   i: number,
 ): void {
   const { ctx } = v;
   const Z = v.zoom;
   const sway = Math.sin(T * 1.6 + i * 1.3) * 1.2 * Z;
+  // Each ripe fruit drawn at its own size; a giant bigger, but kept to its bed.
+  const sz = (j: number) => Math.min(2.2, w[j] ?? 1);
   // The low crops a little larger than life, so they read on a phone; the tall ones as they are, so they keep to their beds.
   const s = (0.35 + 0.65 * f) * (TALL.has(k) ? 1 : 1.4) * Z;
   const leaf = (dx: number, dy: number, rx: number, ry: number, a: number, c: string) => {
@@ -642,7 +645,7 @@ function drawPlant(
     if (ripe) {
       ctx.fillStyle = '#F28C28';
       ctx.beginPath();
-      ctx.ellipse(sx, sy - 1 * Z, 5 * Z, 3 * Z, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy - 1 * Z, 5 * Z * sz(0), 3 * Z * sz(0), 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.strokeStyle = '#4E9A3E';
@@ -682,7 +685,7 @@ function drawPlant(
       spots.forEach(([dx, dy], j) => {
         ctx.fillStyle = j < ripe ? '#E4413A' : '#CFE7A5';
         ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, (j < ripe ? 2.8 : 1.8) * s, 0, Math.PI * 2);
+        ctx.arc(sx + dx * s, sy + dy * s, (j < ripe ? 2.8 * sz(j) : 1.8) * s, 0, Math.PI * 2);
         ctx.fill();
       });
     }
@@ -717,12 +720,12 @@ function drawPlant(
   ) => {
     if (f < 1) return;
     spots.forEach(([dx, dy], j) => {
-      ball(dx, dy, j < ripe ? r : r * 0.6, j < ripe ? on : off);
+      ball(dx, dy, j < ripe ? r * sz(j) : r * 0.6, j < ripe ? on : off);
     });
   };
   if (k === 'sweetpotato') {
     // A low spreading vine, heart-shaped leaves; ripe, a purple tuber shows at the soil.
-    if (ripe) ball(0, 0, 5, '#B4566B');
+    if (ripe) ball(0, 0, 5 * sz(0), '#B4566B');
     for (const [dx, dy, a] of [
       [-8, -3, -0.6],
       [8, -3, 0.6],
@@ -790,7 +793,14 @@ function drawPlant(
         [-3, -24],
         [3, -29],
       ].forEach(([dx, dy], j) => {
-        leaf(dx as number, dy as number, 2.4, 5, 0.2, j < ripe ? '#F2C94C' : '#B7D98A');
+        leaf(
+          dx as number,
+          dy as number,
+          2.4 * (j < ripe ? sz(j) : 1),
+          5 * (j < ripe ? sz(j) : 1),
+          0.2,
+          j < ripe ? '#F2C94C' : '#B7D98A',
+        );
       });
     return;
   }
@@ -806,7 +816,7 @@ function drawPlant(
         '#4E8F4A',
       );
     if (f >= 1) {
-      leaf(0, -9, 5, 7, 0, ripe ? '#F2B33D' : '#8DBE5A');
+      leaf(0, -9, 5 * (ripe ? sz(0) : 1), 7 * (ripe ? sz(0) : 1), 0, ripe ? '#F2B33D' : '#8DBE5A');
       line(
         [
           [0, -16],
@@ -917,8 +927,8 @@ function drawPlant(
         leaf(
           dx as number,
           dy as number,
-          on ? 4 : 2.4,
-          on ? 4.6 : 2.8,
+          on ? 4 * sz(j) : 2.4,
+          on ? 4.6 * sz(j) : 2.8,
           0,
           on ? '#F7A93B' : '#B7D98A',
         );
@@ -940,7 +950,14 @@ function drawPlant(
         j % 2 ? '#4E9A3E' : '#6A3A9A',
       );
     }
-    leaf(0, -6, 6 + 5 * f, 5 + 4 * f, 0, ripe ? '#7E4FB0' : '#8E6FB8');
+    leaf(
+      0,
+      -6,
+      (6 + 5 * f) * (ripe ? sz(0) : 1),
+      (5 + 4 * f) * (ripe ? sz(0) : 1),
+      0,
+      ripe ? '#7E4FB0' : '#8E6FB8',
+    );
     leaf(-2, -8 - 2 * f, 3 * f, 2 * f, 0, 'rgba(255,255,255,.25)');
     return;
   }
@@ -968,7 +985,7 @@ function drawPlant(
         ctx.arc(
           sx + (dx + ox) * s + sway,
           sy + (dy + oy) * s,
-          (on ? 1.9 : 1.3) * s,
+          (on ? 1.9 * sz(j) : 1.3) * s,
           0,
           Math.PI * 2,
         );
@@ -1018,7 +1035,7 @@ export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: b
       f: () => {
         const sx = v.px(x, y);
         const sy = v.py(x, y, 2);
-        drawPlant(v, b.crop, sx, sy, grownOf(b, now), b.ripe, v.T, i);
+        drawPlant(v, b.crop, sx, sy, grownOf(b, now), b.ripe, sizesOn(b), v.T, i);
         if (!timers) return;
         if (b.ripe > 0) {
           const k = 0.5 + 0.5 * Math.sin(v.T * 4 + i);
