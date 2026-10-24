@@ -203,3 +203,56 @@ export function drawPad(
     ctx.stroke();
   }
 }
+
+/** A walking pet's longer side, in world units: a little bigger than the dog, so a drawing reads on a phone. */
+export const PET_SIZE = 34;
+
+/**
+ * Your walking pet (entities/petwalk.ts) at world x, y, standing at height z: its shadow, the drawing walking, facing
+ * the way it goes, a hop and hearts after a pat (`love`, seconds left of `loveT`). Aboard it is drawn a little smaller.
+ */
+export function drawWalking(
+  v: DrawView,
+  r: Rig,
+  x: number,
+  y: number,
+  z: number,
+  h: number,
+  ph: number,
+  walk: number,
+  love: number,
+  loveT: number,
+  scale = 1,
+): void {
+  const { ctx } = v;
+  const Z = v.zoom * scale;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, z);
+  const face = Math.cos(h) - Math.sin(h) >= 0 ? 1 : -1;
+  const hop = love > 0 ? Math.sin(Math.min(1, (loveT - love) / 0.45) * Math.PI) * 7 * Z : 0;
+  ctx.fillStyle = 'rgba(0,0,0,.2)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, 8 * Z, 3.2 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  drawDoodle(ctx, r, sx, sy, PET_SIZE * Z, face, ph, walk, hop);
+  if (love <= 0) return;
+  // Hearts rising over it.
+  ctx.save();
+  ctx.fillStyle = '#FF698C';
+  for (let i = 0; i < 3; i++) {
+    const t = Math.max(0, Math.min(1, (loveT - love) / loveT - i * 0.15));
+    if (t <= 0) continue;
+    ctx.globalAlpha = 1 - t;
+    const hx = sx + (i - 1) * 7 * Z;
+    const hy = sy - PET_SIZE * Z - 4 * Z - t * 14 * Z;
+    const k = 1.6 * Z;
+    ctx.beginPath();
+    ctx.arc(hx - k, hy, k * 1.1, 0, Math.PI * 2);
+    ctx.arc(hx + k, hy, k * 1.1, 0, Math.PI * 2);
+    ctx.moveTo(hx - k * 2.1, hy + k * 0.3);
+    ctx.lineTo(hx, hy + k * 2.4);
+    ctx.lineTo(hx + k * 2.1, hy + k * 0.3);
+    ctx.fill();
+  }
+  ctx.restore();
+}

@@ -880,9 +880,12 @@ type Np = {
     save: {
       nm: Record<string, string>;
       drawn: { id: number; nm: string; d: string; got: number }[];
+      walk: string | null;
     };
     open: boolean;
     padOpen: boolean;
+    walker: { on: boolean; ashore: boolean; x: number; y: number; love: number };
+    walkAt: [number, number] | null;
     pad: { strokes: unknown[]; inkLeft: number };
   };
 };
@@ -13560,5 +13563,51 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   await page.click('#go');
   const beds = await page.evaluate(() => window.__np.gardenIsle.beds?.map((b) => b?.crop ?? null));
   expect(beds?.slice(0, 2)).toEqual([null, 'strawberry']);
+  expect(errors).toEqual([]);
+});
+
+test('your walking pet: taken along from the book, it rides the boat, follows you ashore, and is petted', async ({
+  context,
+  page,
+}) => {
+  // Tied up in the dock ring, with a pet drawn.
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: { drawn: [{ id: 1, nm: 'Wiggles', d: 'EUUsUyetoUoOeOU.EYoYv.EgpWv.Ekpkv', got: 1 }] },
+  });
+  expect(await page.evaluate(() => window.__np.pets.walker.on)).toBe(false);
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await page.locator('[data-walk="d1"]').click();
+  await expect(page.locator('[data-walk="d1"]')).toHaveText('Walking with you');
+  await expect(page.locator('[data-pet="d1"] .now')).toContainText('Walks with you');
+  expect(
+    await page.evaluate(() => [window.__np.pets.save.walk, window.__np.pets.walker.on]),
+  ).toEqual(['d1', true]);
+  await page.locator('#petBookClose').click();
+  // Aboard, it rides the boat: there is somewhere to tap it.
+  expect(await page.evaluate(() => window.__np.pets.walkAt)).not.toBeNull();
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // On foot, it hops out and keeps at the figure's heel as the figure walks.
+  await page.waitForFunction(() => window.__np.pets.walker.ashore, null, { timeout: 3000 });
+  await page.keyboard.down('a');
+  await page.waitForTimeout(1200);
+  await page.keyboard.up('a');
+  await page.waitForTimeout(800);
+  const gap = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.pets.walker.x - n.walker.x, n.pets.walker.y - n.walker.y);
+  });
+  expect(gap).toBeLessThan(60);
+  // A tap on it: hearts.
+  const at = await page.evaluate(() => window.__np.pets.walkAt);
+  if (!at) throw new Error('no pet to tap');
+  await page.mouse.click(at[0], at[1]);
+  expect(await page.evaluate(() => window.__np.pets.walker.love)).toBeGreaterThan(0);
+  // Kept: after a reload it still walks with you.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.walker.on === true, null, { timeout: 5000 });
   expect(errors).toEqual([]);
 });

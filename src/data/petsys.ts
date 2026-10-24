@@ -103,10 +103,12 @@ export type PetSave = {
   nm: Partial<Record<BookKey, string>>;
   /** The pets you drew, oldest first. */
   drawn: DrawnPet[];
+  /** The one pet that walks with you, ashore and aboard, if any: a pet you drew, for now. */
+  walk: EntryKey | null;
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [] };
+  return { nm: {}, drawn: [], walk: null };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -141,6 +143,8 @@ export function parsePets(v: unknown): PetSave {
       });
     }
   }
+  const walk = (v as { walk?: unknown }).walk;
+  if (typeof walk === 'string' && isDrawnKey(walk) && drawnOf(p, walk)) p.walk = walk;
   return p;
 }
 
@@ -149,6 +153,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   const out: Partial<PetSave> = {};
   if (Object.keys(p.nm).length) out.nm = p.nm;
   if (p.drawn.length) out.drawn = p.drawn;
+  if (p.walk) out.walk = p.walk;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -211,7 +216,15 @@ export function addDrawn(
 export function letGo(p: PetSave, k: EntryKey): boolean {
   const n = p.drawn.length;
   p.drawn = p.drawn.filter((d) => drawnKey(d.id) !== k);
+  if (p.walk === k) p.walk = null;
   return p.drawn.length < n;
+}
+
+/** Take a pet along, the one that walks with you; or, already walking, leave it in the book. Says whether it walks now. */
+export function toggleWalk(p: PetSave, k: EntryKey): boolean {
+  if (!isDrawnKey(k) || !drawnOf(p, k)) return false;
+  p.walk = p.walk === k ? null : k;
+  return p.walk === k;
 }
 
 /** One card in the book: who, on which shelf, called what, and where it is now. */
@@ -225,6 +238,8 @@ export type BookEntry = {
   where: string;
   /** A drawn pet's drawing, as saved. */
   doodle?: string;
+  /** The one walking with you. */
+  walking?: boolean;
 };
 
 /** What the game tells the book: whether each is yours, where it is, and how many crows and muffins there are. */
@@ -271,7 +286,11 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       name: d.nm,
       was: null,
       from: 'You drew this one.',
-      where: 'In your pet book. Walks with you come next.',
+      where:
+        p.walk === drawnKey(d.id)
+          ? 'Walks with you, ashore and aboard. Tap it to pet it.'
+          : 'In your pet book. Take it along and it walks with you.',
+      walking: p.walk === drawnKey(d.id),
       doodle: d.d,
     }),
   );
