@@ -11,6 +11,7 @@
  */
 
 import { clamp } from '../core/math';
+import { TRICORN } from '../data/look';
 import { clockOf } from '../data/slalom';
 import { BUCKET_W, HOLE, type Plank, plankY } from '../data/treehouse';
 import {
@@ -1309,7 +1310,8 @@ function drawClimber(
     ctx.translate(0, HANDS * u);
   }
   ctx.scale(c.face, 1);
-  const trousers = '#3A3F4A';
+  const out = look.out ?? null;
+  const trousers = out?.legs ?? '#3A3F4A';
   const sw = Math.sin(c.stride * 0.32);
   const sat = pose === 'stun' && c.phase !== 'down';
   const hip = sat ? -4 : -7;
@@ -1418,22 +1420,59 @@ function drawClimber(
   if (ctx.roundRect) ctx.roundRect(-3 * u, (hip - 6.4) * u, 6 * u, 7 * u, 2 * u);
   else ctx.rect(-3 * u, (hip - 6.4) * u, 6 * u, 7 * u);
   ctx.fill();
+  if (out) {
+    ctx.fillStyle = out.trim;
+    ctx.fillRect(-3 * u, (hip - 1.4) * u, 6 * u, 1.1 * u);
+  }
   const hy = hip - 9.4;
-  ctx.fillStyle = look.skin;
+  ctx.fillStyle = out?.hood ?? look.skin;
   ctx.beginPath();
   ctx.arc(0.4 * u, hy * u, 3 * u, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = look.hair;
-  ctx.beginPath();
-  if (back) ctx.arc(0.4 * u, (hy - 0.2) * u, 3 * u, Math.PI * 0.8, Math.PI * 2.2);
-  else ctx.arc(0.2 * u, (hy - 0.4) * u, 3.1 * u, Math.PI * 0.88, Math.PI * 1.97);
-  ctx.closePath();
-  ctx.fill();
+  if (out?.hood) {
+    // A ninja's hood: all hood, a slit for the eye toward where it looks, a headband with its tails behind.
+    ctx.strokeStyle = 'rgba(70,95,130,.45)';
+    ctx.lineWidth = 0.4 * u;
+    ctx.stroke();
+    if (!back) {
+      ctx.fillStyle = look.skin;
+      ctx.fillRect(0.6 * u, (hy - 0.3) * u, 2.8 * u, 1.4 * u);
+    }
+    ctx.fillStyle = out.trim;
+    ctx.fillRect(-2.6 * u, (hy - 1.8) * u, 6 * u, 1 * u);
+    ctx.beginPath();
+    ctx.moveTo(-2.4 * u, (hy - 1.6) * u);
+    ctx.lineTo(-5.2 * u, (hy - 0.6 + Math.sin(T * 9) * 0.6) * u);
+    ctx.lineTo(-4.8 * u, (hy + 0.4 + Math.sin(T * 9) * 0.6) * u);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.fillStyle = look.hair;
+    ctx.beginPath();
+    if (back) ctx.arc(0.4 * u, (hy - 0.2) * u, 3 * u, Math.PI * 0.8, Math.PI * 2.2);
+    else ctx.arc(0.2 * u, (hy - 0.4) * u, 3.1 * u, Math.PI * 0.88, Math.PI * 1.97);
+    ctx.closePath();
+    ctx.fill();
+  }
   if (!back) {
     ctx.fillStyle = INK;
     ctx.beginPath();
     ctx.arc(1.8 * u, (hy + 0.4) * u, 0.5 * u, 0, Math.PI * 2);
     ctx.fill();
+  }
+  // The captain's tricorn, side on: black felt turned up front and back, edged gold.
+  if (out && !out.hood) {
+    ctx.fillStyle = TRICORN[0];
+    ctx.strokeStyle = TRICORN[1];
+    ctx.lineWidth = 0.4 * u;
+    ctx.beginPath();
+    ctx.moveTo(-3.8 * u, (hy - 2.8) * u);
+    ctx.quadraticCurveTo(0.4 * u, (hy - 1) * u, 4.6 * u, (hy - 2.8) * u);
+    ctx.quadraticCurveTo(2.6 * u, (hy - 6) * u, 0.4 * u, (hy - 5.6) * u);
+    ctx.quadraticCurveTo(-1.8 * u, (hy - 6) * u, -3.8 * u, (hy - 2.8) * u);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   }
   if (back) drawArm(hands[0], false);
   drawArm(hands[1], false);

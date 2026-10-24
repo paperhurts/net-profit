@@ -119,7 +119,8 @@ import { skullBeastsAt, skullFloor, skullMenAt } from './world/skulltower';
 import { drawSkrillDoor, drawSkullRoom } from './render/skulltower';
 import { Spears } from './entities/spears';
 import { ARMOURS, armourAt, nextArmour, heartsFor, hasKnife, HONOR_GUARD, knifeUse, KNIFE } from './data/armour';
-import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, PRESETS, presetOf, SKINS, SKIPPER, wornArmour } from './data/look';
+import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, OUTFITS, outfitOf, PRESETS, presetOf, SKINS, SKIPPER, wornArmour } from './data/look';
+import { newOutfits, nextReward, OUTFIT_HOW, OUTFIT_NAME, outfitWon, sideBadges } from './data/rewards';
 import { decodeSailed, encodeSailed, noSailed, sail, sailAll, sailedCount, sailedShare, seedSailed } from './state/sailed';
 import { drawRadar } from './render/radar';
 import { inRange } from './world/radar';
@@ -1232,7 +1233,7 @@ $('droneFish').addEventListener('click', () => startDroneFish());
 // seen from just behind the skier, as the drone flies. The figure waits at the chairlift meanwhile.
 let ski = null, skiT = 0, skiEndT = 0, skiTop = 64, skiTold = false, skiCoins = 0, skiBeat = 0, skiBest, skiKey = 'bunny';
 const skiPops = [];
-const skierLook = () => ({shirt: PAINTS[paint].hull, hair: HAIR_COLOURS[charLook.hairColour], skin: SKINS[charLook.skin]});
+const skierLook = () => { const out = outfitOf(charLook); return {shirt: out?.coat ?? PAINTS[paint].hull, hair: HAIR_COLOURS[charLook.hairColour], skin: SKINS[charLook.skin], out}; };
 function skiPop(text, colour = '#FFF7E6'){ skiPops.push({text, colour, t: 0}); if (skiPops.length > 3) skiPops.shift(); }
 // Up the chairlift: the Bunny Slope the first time; once it has been skied to the end, a card of the runs.
 function startSlalom(key){ audio(); if (ski || droneFly || droneFish || ctf) return;
@@ -1277,8 +1278,9 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   document.body.classList.remove('droning'); $('skiTrick').hidden = true; $('skiTrick').classList.remove('bite'); climbShown = undefined; leaveShown = undefined;
   if (quiet) return;
   const pay = skiCoins; coins += pay; earned += pay;
-  const done = s.state === 'done', was = endless.slalom?.best[skiKey];
+  const done = s.state === 'done', was = endless.slalom?.best[skiKey], before = endless;
   if (done) endless = {...endless, slalom: skied(endless.slalom, skiKey, s.time)};
+  const dressed = wearWon(before);
   const best = done && (was === undefined || Math.round(s.time*10)/10 < was);
   // A medal better than this run has had, and the next run opened by skiing this one to the end the first time.
   const m = done ? medalOf(s.run, s.time) : null, won = medalBetter(m, was === undefined ? null : medalOf(s.run, was));
@@ -1286,7 +1288,11 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   toasts.clear();
   toast(done ? `Down the ${s.run.name} in ${clockOf(s.time)}!${won ? ` A ${MEDAL_NAME[m].toLowerCase()} medal!` : ''}${best && was !== undefined && !won ? ' Your best yet!' : ''} ${s.gatesMade} of ${s.gatesOut} gates${pay ? `, ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins` : ''}.${s.run.yeti ? (s.swiped ? ` The yeti caught you ${s.swiped === 1 ? 'once' : `${s.swiped} times`}.` : ' You outran the yeti!') : ''}${opened ? ` The ${RUNS[next].name} is open: up the chairlift again!` : ''}`
     : `Off the run, back at the chairlift.${pay ? ` ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins.` : ''}`, 4200, 1);
+  if (dressed) toast(`Gold on all three runs! ${outfitSay(dressed)}`, 6000, 1);
   hud(); save(); refreshShop(); }
+// An outfit won since then, put straight on: the first of them, if any; what to say of it.
+function wearWon(before){ const won = newOutfits(before, endless); if (!won.length) return null; charLook = {...charLook, outfit: won[0]}; sfx.orderFilled(); return won[0]; }
+const outfitSay = (k) => `You've won ${OUTFIT_NAME[k]}, and you're wearing it now. Change it with Your character, in the shop.`;
 // The Treehouse Climb (entities/treehouse.ts), part eight of the Endless Isle: in at the foot of the pirates' great tree,
 // and it turns side on, a stage a screen, the way Donkey Kong is. The figure waits at the foot meanwhile.
 let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, thBest, thStage = 1, thPaid = 0, thUp = [], thChest = 0;
@@ -2830,8 +2836,9 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
   if (e.k === 'over') ctfOver(e.winner); }
 // Over: the result, its coin and its marks, and the card.
 function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner === 'draw' ? 'draw' : winner === side ? 'win' : 'loss', pay = PAY[result];
-  const was = ctfBadge(side, me.role);
+  const was = ctfBadge(side, me.role), before = endless;
   coins += pay; earned += pay; endless = {...endless, battles: marked(endless.battles ?? noBattles(), side, me.role, result)};
+  const dressed = wearWon(before), rw = $('ctfReward'); rw.hidden = !dressed; if (dressed) rw.textContent = `${sideBadges(endless.battles, side)} badges as a ${side}! ${outfitSay(dressed)}`;
   const now = ctfBadge(side, me.role), m = ctfMarks(side, me.role);
   if (result === 'win') sfx.tierUp(); else sfx.sale();
   const card = $('ctfCard'); card.dataset.side = side;
@@ -2895,6 +2902,9 @@ function openRoles(mode){ const side = endlessTalk; if (!side) return; sfx.click
     return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts \u00B7 Badge ${ROMAN[b]}</span>`
       + `<small>${abs.slice(0, b).map(a => `<b>${ABILITY_NAME[side][a]}</b>`).join(' \u00B7 ')}<br>${b > 1 ? 'New: ' : ''}${abilitySays(side, top)}</small>`
       + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>` : '') + '</button>'; }).join('')
+    + (() => { const nx = nextReward(endless.battles, side), k = side === 'pirate' ? 'captain' : 'ninja';
+      return nx ? `<p class="reward">At ${nx.at} badges as a ${side}, all three roles counted: ${nx.what}. You have ${nx.have}.</p>`
+        : outfitWon(k, endless) ? `<p class="reward">You've won ${OUTFIT_NAME[k]}. Put it on or take it off with Your character, in the shop.</p>` : ''; })()
     + '<button class="answer" data-role="">Back</button>';
   $('endlessSay').textContent = (mode === 'forts' ? LEADER_PICK_FORTS : LEADER_PICK)[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
 $('endlessFight').addEventListener('click', () => openRoles('flag'));
@@ -5314,6 +5324,10 @@ function renderChar(){ const cur = presetOf(charLook);
   const swatches = (label, key, cols) => `<div class="crow"><small>${label}</small><div class="bchips">${cols.map((c, i) => `<button class="swatch${charLook[key] === i ? ' on' : ''}" data-key="${key}" data-val="${i}" style="background:${typeof c === 'string' ? c : c[0]}" aria-label="${label} ${i + 1}"></button>`).join('')}</div></div>`;
   $('charOptions').innerHTML = swatches('Skin', 'skin', SKINS) + row('Hair', 'hair', HAIRS) + swatches('Hair colour', 'hairColour', HAIR_COLOURS)
     + row('Hat', 'hat', HATS) + swatches('Hat colour', 'hatColour', HAT_COLOURS) + row('Face', 'face', FACES)
+    // Outfits won on the Endless Isle, over the look; the ones still to win say how, once you have been there.
+    + (endless.seen ? `<div class="crow"><small>Outfit${charLook.outfit === 'none' ? '' : ': over your hat and clothes'}</small><div class="bchips">${OUTFITS.map(([k, name]) => { const won = outfitWon(k, endless);
+      return `<button class="rchip${charLook.outfit === k ? ' on' : ''}${won ? '' : ' locked'}" data-key="outfit" data-val="${k}"${won ? '' : ' disabled'}>${name}</button>`; }).join('')}</div>`
+      + OUTFITS.filter(([k]) => !outfitWon(k, endless)).map(([k, name]) => `<small class="how">${name}: win it with ${OUTFIT_HOW[k]}.</small>`).join('') + '</div>' : '')
     // The armour from the shipwright, shown over the look or hidden so the look shows; its hearts stay either way.
     + (armourAt(armour) ? `<div class="crow"><small>Your armour (${armourAt(armour).name}): hidden, its hearts still count</small><div class="bchips">`
       + `<button class="rchip${charLook.hideArmour ? '' : ' on'}" data-key="hideArmour" data-val="">Show it</button><button class="rchip${charLook.hideArmour ? ' on' : ''}" data-key="hideArmour" data-val="1">Hide it</button></div></div>` : '')
@@ -5324,7 +5338,7 @@ $('charBtn').addEventListener('click', openChar);
 $('charIntro').addEventListener('click', openChar);
 $('charClose').addEventListener('click', closeChar);
 $('charCard').addEventListener('click', (e) => { const b = e.target.closest('[data-preset], [data-key]'); if (!b) return;
-  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour}; }
+  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour, outfit: charLook.outfit}; }
   else { const k = b.dataset.key, val = b.dataset.val;
     charLook = {...charLook, [k]: k === 'honorGuard' || k === 'hideArmour' ? val === '1' : ['skin', 'hairColour', 'hatColour'].includes(k) ? +val : val}; }
   sfx.click(); renderChar(); save(); });

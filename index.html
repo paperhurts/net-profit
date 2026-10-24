@@ -621,6 +621,10 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 #charCard .name{font-size:22px;font-weight:800;line-height:1.1;margin:0 0 6px}
 #charCard .crow{margin:0 4px 10px}
 #charCard .crow>small{display:block;font-size:12px;font-weight:800;margin:0 0 4px;opacity:.8}
+#charCard .rchip.locked{border-style:dashed;opacity:.5}
+#charCard .crow small.how{display:block;font-size:12px;font-weight:700;margin:4px 0 0;opacity:.75}
+#ctfReward,#endlessRoles .reward{margin:8px 4px;padding:8px 10px;border-radius:10px;background:rgba(242,201,76,.22);font-size:14px;font-weight:800;line-height:1.3}
+#ctfReward[hidden]{display:none}
 #charCard .swatch,#droneCard .swatch{width:34px;height:34px;border-radius:50%;border:3px solid rgba(0,0,0,.18);cursor:pointer;padding:0}
 #charCard .swatch.on,#droneCard .swatch.on{border-color:#3FB37A;box-shadow:0 0 0 2px #fff inset}
 #intro .who{margin-top:10px;background:transparent;border:2px solid currentColor;color:inherit;font:800 15px var(--font);border-radius:999px;padding:8px 16px;cursor:pointer}
@@ -934,6 +938,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <p class="say" id="ctfSay"></p>
     <dl id="ctfStats"></dl>
     <p class="got" id="ctfGot"></p>
+    <p class="reward" id="ctfReward" hidden></p>
     <div class="answers">
       <button class="answer again" id="ctfAgain">Fight again</button>
       <button class="answer" id="ctfDone">Done</button>

@@ -6,6 +6,8 @@ import {
   HAT_COLOURS,
   HATS,
   type Look,
+  OUTFIT_LOOK,
+  OUTFITS,
   PRESETS,
   parseLook,
   presetOf,
@@ -37,6 +39,57 @@ describe('choose your character', () => {
     expect(parseLook({ skin: 1 }).hideArmour).toBe(false);
     expect(parseLook({ ...SKIPPER, hideArmour: true }).hideArmour).toBe(true);
     for (const p of PRESETS) expect(presetOf({ ...p.look, hideArmour: true })).toBe(p.id);
+  });
+
+  it('keeps an outfit from the Endless Isle in the save, over whoever is picked, and none for a save from before', () => {
+    expect(SKIPPER.outfit).toBe('none');
+    expect(parseLook({ skin: 1 }).outfit).toBe('none');
+    expect(parseLook({ ...SKIPPER, outfit: 'snow' }).outfit).toBe('snow');
+    expect(parseLook({ ...SKIPPER, outfit: 'pyjamas' }).outfit).toBe('none');
+    // Like the armour shown or hidden, it is not part of who a preset is.
+    for (const p of PRESETS) expect(presetOf({ ...p.look, outfit: 'captain' })).toBe(p.id);
+  });
+
+  it('draws each outfit over the same look: its shapes, the coat or suit in place of the shirt, and its colours', () => {
+    const p = new Walker();
+    // What it draws, as counts of each call, and the colours it fills, facing us and facing away.
+    const drawn = (look: Look) => {
+      let shapes = '';
+      const fills: string[] = [];
+      for (const h of [Math.PI / 4, -Math.PI * 0.75]) {
+        p.look = look;
+        p.h = h;
+        const { v, calls } = fakeView();
+        const ctx = v.ctx as unknown as Record<string, unknown>;
+        const fill = ctx.fill as () => void;
+        ctx.fill = () => {
+          fills.push(String(ctx.fillStyle));
+          fill();
+        };
+        p.drawPortrait(v);
+        shapes += JSON.stringify(calls);
+      }
+      return { shapes, fills };
+    };
+    const own = drawn(SKIPPER);
+    const captain = drawn({ ...SKIPPER, outfit: 'captain' });
+    const ninja = drawn({ ...SKIPPER, outfit: 'ninja' });
+    const snow = drawn({ ...SKIPPER, outfit: 'snow' });
+    // The coat and tricorn, and the hood, each drawn their own way; the two ninjas alike but for their colours.
+    expect(new Set([own.shapes, captain.shapes, ninja.shapes]).size).toBe(3);
+    expect(snow.shapes).toBe(ninja.shapes);
+    expect(snow.fills).not.toEqual(ninja.fills);
+    for (const [k, d] of [
+      ['captain', captain],
+      ['ninja', ninja],
+      ['snow', snow],
+    ] as const) {
+      expect(d.fills).toContain(OUTFIT_LOOK[k].coat);
+      expect(d.fills).toContain(OUTFIT_LOOK[k].trim);
+    }
+    // Under a hood the hat is not drawn, nor the hair over it.
+    expect(drawn({ ...SKIPPER, outfit: 'ninja', hat: 'cowboy' }).shapes).toBe(ninja.shapes);
+    expect(OUTFITS.map(([k]) => k)).toEqual(['none', 'captain', 'ninja', 'snow']);
   });
 
   it('knows a look changed from a preset is your own', () => {
