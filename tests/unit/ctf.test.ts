@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITY, CTF, KITS, TEAM } from '../../src/data/battle';
+import { ABILITIES, ABILITY, BADGE_MARKS, badgeOf, CTF, KITS, TEAM } from '../../src/data/battle';
 import { Ctf, type Fighter, flagHome, gateSpot, graveSpot, inFort } from '../../src/entities/ctf';
-import { SIDES } from '../../src/world/endless';
+import { onHalf, SIDES } from '../../src/world/endless';
 import { distOf, flowTo, walkable } from '../../src/world/endlessnav';
 
 /** Run a battle on until it is over, or for so long. */
@@ -257,7 +257,7 @@ describe('a Capture the Flag battle', () => {
       const you = g.you as Fighter;
       expect(you.role).toBe(role);
       expect(you.hp).toBe(KITS[role].hearts);
-      expect(you.ab).toBe({ tank: 'taunt', damage: 'shot', healer: 'heal' }[role]);
+      expect(you.abs).toEqual([{ tank: 'taunt', damage: 'shot', healer: 'heal' }[role]]);
       expect(g.fighters.filter((f) => !f.bot)).toEqual([you]);
       expect(
         g
@@ -289,7 +289,7 @@ describe('a Capture the Flag battle', () => {
     run(g, 0.3, 0.1, () => [you.u, you.v]);
     expect(first.target).toBe(you);
     expect(g.ability()).toBeNull();
-    you.abCd = 0;
+    you.abCd[0] = 0;
     expect(g.ability()).toBe('taunt');
   });
 
@@ -300,7 +300,7 @@ describe('a Capture the Flag battle', () => {
     const [a, b] = g.team('ninja').filter((f) => f.role === 'damage') as [Fighter, Fighter];
     only(g, [you, a, b]);
     a.cd = b.cd = 99;
-    a.abCd = b.abCd = 99;
+    a.abCd[0] = b.abCd[0] = 99;
     a.u = you.u + ABILITY.shot.reach + 20;
     a.v = b.v = you.v;
     b.u = you.u - ABILITY.shot.reach - 20;
@@ -334,11 +334,11 @@ describe('a Capture the Flag battle', () => {
     expect(g.ability()).toBe('heal');
     expect(dmg.hp).toBe(KITS.damage.hearts - 1);
     expect(you.stats.healed).toBe(ABILITY.heal.hearts);
-    you.abCd = 0;
+    you.abCd[0] = 0;
     dmg.hp = KITS.damage.hearts;
     expect(g.ability()).toBe('heal');
     expect(tank.hp).toBe(KITS.tank.hearts);
-    you.abCd = 0;
+    you.abCd[0] = 0;
     you.hp = 3;
     tank.u = you.u + ABILITY.heal.reach + 30;
     expect(g.ability()).toBe('heal');
@@ -373,5 +373,240 @@ describe('a Capture the Flag battle', () => {
     expect(wins.pirate / decided).toBeGreaterThan(0.3);
     expect(wins.pirate / decided).toBeLessThan(0.7);
     expect(caps / n).toBeGreaterThan(1.5);
+  }, 60000);
+});
+
+describe('Badges II and III', () => {
+  /** A place out in the open on the pirates' half, with room all round. */
+  const OPEN = onHalf('pirate', -40, 470);
+  /** Somewhere in the open for each fighter, and nobody's abilities going off but the one being tried. */
+  function place(f: Fighter, du: number, dv = 0): void {
+    f.u = OPEN[0] + du;
+    f.v = OPEN[1] + dv;
+    f.target = null;
+  }
+  function quiet(...fs: Fighter[]): void {
+    for (const f of fs) f.abCd = f.abCd.map(() => 99);
+  }
+  const at = () => [OPEN[0], OPEN[1]] as [number, number];
+
+  it('takes 3 marks for Badge II and 8 for Badge III, and gives everyone as many badges as you', () => {
+    expect([0, 1, 2, 3, 7, 8, 30].map(badgeOf)).toEqual([1, 1, 1, 2, 2, 3, 3]);
+    expect(BADGE_MARKS).toEqual([0, 3, 8]);
+    for (const badge of [1, 2, 3] as const) {
+      const g = new Ctf('pirate', 20, 1.12, 'tank', badge);
+      for (const f of g.fighters) expect(f.abs).toEqual(ABILITIES[f.role].slice(0, badge));
+      expect((g.you as Fighter).abCd).toHaveLength(badge);
+    }
+  });
+
+  it("the tank's guard halves what it takes, for six seconds", () => {
+    const g = new Ctf('pirate', 21, 1.12, 'tank', 2);
+    open(g);
+    const you = g.you as Fighter;
+    only(g, [you]);
+    place(you, 0);
+    expect(g.ability(you, 1)).toBe('guard');
+    expect(g.events.some((e) => e.k === 'guard' && e.f === you)).toBe(true);
+    g.hurt(you, 2);
+    expect(you.hp).toBe(KITS.tank.hearts - 1);
+    expect(g.ability(you, 1)).toBeNull();
+    run(g, ABILITY.guard.lasts + 0.1, 0.1, at);
+    g.hurt(you, 2);
+    expect(you.hp).toBe(KITS.tank.hearts - 3);
+  });
+
+  it("the tank's stomp winds up in its ring, then hits and stuns every foe close round it", () => {
+    const g = new Ctf('pirate', 22, 1.12, 'tank', 3);
+    open(g);
+    const you = g.you as Fighter;
+    const [a, b, c] = g.team('ninja').filter((f) => f.role === 'damage') as [
+      Fighter,
+      Fighter,
+      Fighter,
+    ];
+    only(g, [you, a, b, c]);
+    place(you, 0);
+    place(a, 400);
+    place(b, -400);
+    place(c, 0, 400);
+    expect(g.ability(you, 2)).toBeNull();
+    place(a, 50);
+    place(b, -60, 20);
+    place(c, ABILITY.stomp.reach + 60);
+    quiet(a, b, c);
+    a.cd = b.cd = c.cd = 99;
+    expect(g.ability(you, 2)).toBe('stomp');
+    expect(you.windT).toBeGreaterThan(0);
+    // Winding up, it can do nothing else.
+    expect(g.strike(you)).toBeNull();
+    expect(g.ability(you, 0)).toBeNull();
+    run(g, ABILITY.stomp.wind + 0.05, 0.05, at);
+    expect([a.hp, b.hp, c.hp]).toEqual([
+      KITS.damage.hearts - ABILITY.stomp.hit,
+      KITS.damage.hearts - ABILITY.stomp.hit,
+      KITS.damage.hearts,
+    ]);
+    expect(a.stunT).toBeGreaterThan(1);
+    expect(c.stunT).toBe(0);
+    expect(g.events.some((e) => e.k === 'stomp' && e.n === 2)).toBe(true);
+    // Stunned: it does not move or strike, until the stun wears off.
+    a.cd = 0;
+    const [au, av] = [a.u, a.v];
+    expect(g.strike(a)).toBeNull();
+    run(g, 0.5, 0.05, at);
+    expect([a.u, a.v]).toEqual([au, av]);
+    run(g, ABILITY.stomp.stun, 0.05, at);
+    expect(a.stunT).toBe(0);
+  });
+
+  it("the damage's leap lands it behind a foe further off, with a strike for three", () => {
+    const g = new Ctf('pirate', 23, 1.12, 'damage', 2);
+    open(g);
+    const you = g.you as Fighter;
+    const a = g.team('ninja').find((f) => f.role === 'damage') as Fighter;
+    only(g, [you, a]);
+    quiet(a);
+    a.cd = 99;
+    place(you, 0);
+    place(a, ABILITY.leap.reach + 30);
+    expect(g.ability(you, 1)).toBeNull();
+    place(a, 180);
+    expect(walkable(a.u, a.v)).toBe(true);
+    expect(g.ability(you, 1)).toBe('leap');
+    expect(Math.hypot(you.u - a.u, you.v - a.v)).toBeLessThan(20);
+    expect(a.hp).toBe(KITS.damage.hearts - ABILITY.leap.hit);
+    expect(walkable(you.u, you.v)).toBe(true);
+    const e = g.events.find((x) => x.k === 'leap');
+    expect(e && 'fu' in e ? [e.fu, e.fv] : null).toEqual([OPEN[0], OPEN[1]]);
+  });
+
+  it("the damage's bomb lands where a foe stood, and bursts on whoever is still in its ring", () => {
+    const g = new Ctf('pirate', 24, 1.12, 'damage', 3);
+    open(g);
+    const you = g.you as Fighter;
+    const [a, b] = g.team('ninja').filter((f) => f.role === 'damage') as [Fighter, Fighter];
+    only(g, [you, a, b]);
+    quiet(a, b);
+    a.cd = b.cd = 99;
+    place(you, 0);
+    place(a, 150);
+    place(b, 165, 10);
+    expect(g.ability(you, 2)).toBe('bomb');
+    expect(g.bombs).toHaveLength(1);
+    // One walks out of the ring before it goes off; the other stays.
+    place(a, 150 + ABILITY.bomb.ring + 40);
+    a.stunT = b.stunT = 99;
+    run(g, ABILITY.bomb.fly + ABILITY.bomb.fuse - 0.1, 0.05, at);
+    expect(b.hp).toBe(KITS.damage.hearts);
+    run(g, 0.2, 0.05, at);
+    expect(g.bombs).toHaveLength(0);
+    expect([a.hp, b.hp]).toEqual([KITS.damage.hearts, KITS.damage.hearts - ABILITY.bomb.hit]);
+    expect(g.events.some((e) => e.k === 'burst' && e.n === 1)).toBe(true);
+  });
+
+  it("the healer's heal over time gives a heart a second for six seconds, never past full", () => {
+    const g = new Ctf('pirate', 25, 1.12, 'healer', 2);
+    open(g);
+    const you = g.you as Fighter;
+    const tank = g.team('pirate').find((f) => f.role === 'tank') as Fighter;
+    only(g, [you, tank]);
+    quiet(tank);
+    place(you, 0);
+    place(tank, 100);
+    expect(g.ability(you, 1)).toBeNull();
+    tank.hp = KITS.tank.hearts - 9;
+    expect(g.ability(you, 1)).toBe('hot');
+    const keep = () => {
+      place(tank, 100);
+      return at();
+    };
+    run(g, ABILITY.hot.lasts + 0.2, 0.05, keep);
+    expect(tank.hp).toBe(KITS.tank.hearts - 9 + ABILITY.hot.lasts);
+    expect(you.stats.healed).toBe(ABILITY.hot.lasts);
+    expect(tank.hotT).toBe(0);
+    you.abCd[1] = 0;
+    tank.hp = KITS.tank.hearts - 2;
+    expect(g.ability(you, 1)).toBe('hot');
+    run(g, ABILITY.hot.lasts + 0.2, 0.05, keep);
+    expect(tank.hp).toBe(KITS.tank.hearts);
+  });
+
+  it("the group heal: the pirates' shanty goes with its singer, slowed to half; the ninjas' lotus stays put", () => {
+    for (const side of SIDES) {
+      const g = new Ctf(side, 26, 1.12, 'healer', 3);
+      open(g);
+      const you = g.you as Fighter;
+      const [tank, dmg] = [
+        g.team(side).find((f) => f.role === 'tank'),
+        g.team(side).find((f) => f.role === 'damage'),
+      ] as [Fighter, Fighter];
+      only(g, [you, tank, dmg]);
+      quiet(tank, dmg);
+      const base = onHalf(side, -40, 470);
+      you.u = base[0];
+      you.v = base[1];
+      tank.u = dmg.u = base[0] + 120;
+      tank.v = dmg.v = base[1];
+      tank.hp = KITS.tank.hearts - 8;
+      dmg.hp = KITS.damage.hearts - 7;
+      const hold = () => {
+        tank.u = dmg.u = base[0] + 120;
+        tank.v = dmg.v = base[1];
+        tank.stunT = dmg.stunT = 1;
+      };
+      expect(g.ability(you, 2)).toBe('group');
+      const z = g.zones[0];
+      expect(z?.follow).toBe(side === 'pirate');
+      expect(you.singT > 0).toBe(side === 'pirate');
+      // You walk off a little way: the shanty comes too, the lotus stays where it was laid.
+      run(g, 1.1, 0.05, () => {
+        hold();
+        return [base[0] - 30, base[1]];
+      });
+      expect(z?.u).toBeCloseTo(side === 'pirate' ? base[0] - 30 : base[0], 6);
+      run(g, ABILITY.group.lasts, 0.05, () => {
+        hold();
+        return [base[0] - 30, base[1]];
+      });
+      expect(g.zones).toHaveLength(0);
+      expect(tank.hp).toBe(KITS.tank.hearts - 8 + ABILITY.group.lasts);
+      expect(dmg.hp).toBe(KITS.damage.hearts - 7 + ABILITY.group.lasts);
+    }
+  });
+
+  it('has the bots use every badge, on both sides', () => {
+    const want = ['aim', 'bomb', 'group', 'guard', 'heal', 'hot', 'leap', 'taunt', 'wind'];
+    const used = { pirate: new Set<string>(), ninja: new Set<string>() };
+    for (let s = 30; s < 33; s++) {
+      const g = new Ctf(null, s, 1, 'damage', 3);
+      for (let t = 0; t < CTF.gates + CTF.clock && g.phase !== 'over'; t += 0.1) {
+        g.update(0.1);
+        for (const e of g.events.splice(0))
+          if (want.includes(e.k) && 'f' in e && e.f) used[e.f.side].add(e.k);
+      }
+    }
+    expect([...used.pirate].sort()).toEqual(want);
+    expect([...used.ninja].sort()).toEqual(want);
+  });
+
+  it('stays even with every badge: bots alone, each side wins about as often, and every battle ends by its clock', () => {
+    for (const badge of [2, 3] as const) {
+      const wins = { pirate: 0, ninja: 0, draw: 0 };
+      let caps = 0;
+      const n = 40;
+      for (let s = 1; s <= n; s++) {
+        const g = new Ctf(null, s, 1, 'damage', badge);
+        run(g, CTF.gates + CTF.clock + 1);
+        expect(g.phase).toBe('over');
+        wins[g.winner ?? 'draw']++;
+        caps += g.score.pirate + g.score.ninja;
+      }
+      const decided = wins.pirate + wins.ninja;
+      expect(decided).toBeGreaterThan(n * 0.5);
+      expect(wins.pirate / decided).toBeGreaterThan(0.3);
+      expect(wins.pirate / decided).toBeLessThan(0.7);
+      expect(caps / n).toBeGreaterThan(1.5);
+    }
   }, 60000);
 });

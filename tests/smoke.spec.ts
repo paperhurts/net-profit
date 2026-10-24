@@ -23,6 +23,8 @@ type CtfFighter = {
   state: string;
   downT: number;
   carrying: boolean;
+  abCd: number[];
+  stunT: number;
 };
 type Ctf = {
   phase: string;
@@ -7733,8 +7735,8 @@ test('Capture the Flag on the Endless Isle: the badge card, behind the gates, yo
   await page.dispatchEvent('#ability', 'pointerdown', { button: 0 });
   await page.waitForFunction(
     () => {
-      const c = window.__np.ctf as Ctf & { you: { abCd: number } };
-      return c.you.abCd > 0;
+      const c = window.__np.ctf as Ctf & { you: { abCd: number[] } };
+      return (c.you.abCd[0] ?? 0) > 0;
     },
     null,
     { timeout: 3000 },
@@ -7749,6 +7751,185 @@ test('Capture the Flag on the Endless Isle: the badge card, behind the gates, yo
     null,
     before.coins + 500,
   ]);
+  expect(errors).toEqual([]);
+});
+
+test('Badges II and III: the badge card counts your marks, a Swashbuckler at Badge II swings in, a win to 8 marks brings the badge ceremony and Badge III, and the Powder Keg goes off on F', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 5,
+        won: 3,
+        marks: {
+          pirate: { tank: 0, damage: 6, healer: 2 },
+          ninja: { tank: 0, damage: 0, healer: 0 },
+        },
+      },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const toCappy = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      const L = n.LEADER13.pirate;
+      n.walker.x = L.x + 16;
+      n.walker.y = L.y + 16;
+    });
+    await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+    await page.click('#climb');
+    await page.click('#endlessFight');
+  };
+  const toFight = async () => {
+    await page.evaluate(() => {
+      (window.__np.ctf as Ctf).gateT = 0.05;
+    });
+    await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+    // Their bots out of it, so nobody but the one placed is in reach.
+    await page.evaluate(() => {
+      for (const f of (window.__np.ctf as Ctf).fighters)
+        if (f.bot) {
+          f.state = 'down';
+          f.downT = 9999;
+        }
+    });
+  };
+  // Stood still and stunned where the test puts it, out from you.
+  const placeFoe = (role: string, du: number, dv: number) =>
+    page.evaluate(
+      ([role, du, dv]) => {
+        const c = window.__np.ctf as Ctf;
+        const f = c.fighters.find(
+          (f) => f.bot && f.side === 'ninja' && f.role === role && f.state === 'down',
+        ) as CtfFighter;
+        f.state = 'live';
+        f.hp = 8;
+        f.u = c.you.u + (du as number);
+        f.v = c.you.v + (dv as number);
+        f.stunT = 99;
+        f.cd = 99;
+        f.abCd = f.abCd.map(() => 99);
+        return c.fighters.indexOf(f);
+      },
+      [role, du, dv] as const,
+    );
+  await toCappy();
+  // The badge card: each place's badge from its marks, its abilities so far, and what the next takes.
+  const damage = page.locator('#endlessRoles [data-role="damage"]');
+  await expect(damage).toContainText('Badge II');
+  await expect(damage).toContainText('Flintlock · Swing In');
+  await expect(damage).toContainText('Badge III, Powder Keg, at 8 marks. You have 6.');
+  await expect(page.locator('#endlessRoles [data-role="healer"]')).toContainText(
+    'Badge II, Lime Ration, at 3 marks. You have 2.',
+  );
+  await damage.click();
+  // Badge II: two buttons, not three.
+  await expect(page.locator('#ability')).toBeVisible();
+  await expect(page.locator('#ability2')).toBeVisible();
+  await expect(page.locator('#ability3')).toBeHidden();
+  await toFight();
+  // Swing In: over to a foe out of the blade's reach, and the walker goes with you.
+  const tank = await placeFoe('tank', -110, 20);
+  const from = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
+  await page.dispatchEvent('#ability2', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => ((window.__np.ctf as Ctf).you.abCd[1] ?? 0) > 0, null, {
+    timeout: 3000,
+  });
+  const swung = await page.evaluate((i) => {
+    const c = window.__np.ctf as Ctf;
+    const foe = c.fighters[i] as CtfFighter;
+    return {
+      d: Math.hypot(c.you.u - foe.u, c.you.v - foe.v),
+      hp: foe.hp,
+      wx: window.__np.walker.x,
+      wy: window.__np.walker.y,
+    };
+  }, tank);
+  expect(swung.d).toBeLessThan(40);
+  expect(swung.hp).toBeLessThanOrEqual(5);
+  expect(
+    Math.hypot(swung.wx - (from[0] as number), swung.wy - (from[1] as number)),
+  ).toBeGreaterThan(60);
+  // A win at the bell: two marks, eight in all, and Badge III's ceremony before the results.
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { clock: number };
+    c.score.pirate = 1;
+    c.clock = 0.01;
+  });
+  await expect(page.locator('#ctfCard')).toBeVisible({ timeout: 4000 });
+  await expect(page.locator('#ctfBadge')).toBeVisible();
+  await expect(page.locator('#ctfResults')).toBeHidden();
+  await expect(page.locator('#ctfBadgeTitle')).toHaveText('Badge III!');
+  await expect(page.locator('#ctfMedal')).toHaveText('III');
+  await expect(page.locator('#ctfBadgeRole')).toHaveText('Swashbuckler of the pirates');
+  await expect(page.locator('#ctfBadgeSay')).toContainText('Captain Cappy:');
+  await expect(page.locator('#ctfBadgeAb')).toContainText('Powder Keg');
+  await expect(page.locator('#ctfBadgeAb')).toContainText('or F.');
+  // The little show sits in the card, not over it.
+  const show = await page.locator('#ctfBadgeShow').boundingBox();
+  expect(show?.height ?? 0).toBeGreaterThan(60);
+  expect(show?.height ?? 999).toBeLessThan(200);
+  await page.click('#ctfBadgeOn');
+  await expect(page.locator('#ctfBadge')).toBeHidden();
+  await expect(page.locator('#ctfResults')).toBeVisible();
+  await expect(page.locator('#ctfTitle')).toHaveText('The pirates win!');
+  await expect(page.locator('#ctfStats')).toContainText('Marks, as a Swashbuckler8, Badge III');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.endless.battles.marks.pirate).toEqual({ tank: 0, damage: 8, healer: 2 });
+  await page.click('#ctfDone');
+  await expect(page.locator('#ctfCard')).toBeHidden();
+  // Badge III on the card, nothing more to earn there; and three buttons.
+  await toCappy();
+  await expect(damage).toContainText('Badge III');
+  await expect(damage).toContainText('Flintlock · Swing In · Powder Keg');
+  await expect(damage.locator('.next')).toHaveCount(0);
+  await damage.click();
+  await expect(page.locator('#ability3')).toBeVisible();
+  await toFight();
+  // The Powder Keg on F, at two foes stood together: thrown, a ring, then the burst for 5 on both (the parrot may
+  // have had a peck too).
+  const a = await placeFoe('damage', 120, 0);
+  const b = await placeFoe('damage', 130, 15);
+  await page.keyboard.press('f');
+  await page.waitForFunction(() => ((window.__np.ctf as Ctf).you.abCd[2] ?? 0) > 0, null, {
+    timeout: 3000,
+  });
+  await page.waitForFunction(
+    ([a, b]) => {
+      const c = window.__np.ctf as Ctf;
+      return (c.fighters[a as number]?.hp ?? 9) <= 3 && (c.fighters[b as number]?.hp ?? 9) <= 3;
+    },
+    [a, b],
+    { timeout: 4000 },
+  );
+  await page.click('#ctfLeave');
+  await page.click('#ctfLeave');
+  await expect(page.locator('#ability3')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.ctf)).toBeNull();
   expect(errors).toEqual([]);
 });
 

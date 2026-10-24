@@ -117,3 +117,18 @@ export const LEADER_AFTER: Readonly<Record<Side, { win: string; draw: string; lo
     loss: 'We lost. A ninja learns more from losing than from winning. Here is something for your trouble.',
   },
 };
+
+/**
+ * What the leader says when a battle earns you a new badge, at its ceremony on the results card: proud, each in his own
+ * way (and Jacks Parrow, on the pirates' side, rude, with one of his own lines).
+ */
+export const LEADER_BADGE: Readonly<Record<Side, { 2: string; 3: string }>> = {
+  pirate: {
+    2: "Arr, look at ye! A second badge, earned fair and square. The crew'll be singin' about this one tonight.",
+    3: "Three badges! Ye've the sea in yer blood now, matey. I'd trust ye with me own ship. Well. Nearly.",
+  },
+  ninja: {
+    2: 'A second badge. The river does not hurry, and still it reaches the sea. You are the river. Well done.',
+    3: 'Three badges. Once you were a pebble. Now you are the mountain. I am very proud of you.',
+  },
+};
