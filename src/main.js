@@ -4074,7 +4074,7 @@ function climbAction(){
 function hudHearts(){ const el = $('hearts'), show = walker.state === 'ashore' && (tower === BARGE || tarAshore || walker.dock === ISLE2_DOCK || walker.dock === ISLE3_DOCK || walker.dock === ISLE7_DOCK || walker.dock === ISLE8_DOCK || walker.dock === ISLE10_DOCK || walker.dock === ISLE11_DOCK || walker.dock === ISLE12_DOCK || (walker.dock === ISLE6_DOCK && reaperEgg < 1) || walker.dock.tar || walker.dock.isle || warlock.shown || cat.shown || bonesPal.shown || naga.shown || necroPal.shown || baby.shown || !!ctf) || hearts < maxHearts(); el.hidden = !show;
   // A tank's fourteen do not fit on a phone: in a battle, past nine, a bar.
   if (show && ctf && maxHearts() > 9){ const k = Math.round(100*hearts/maxHearts()); el.innerHTML = HEART_SVG + `<span class="hbar"><i style="width:${k}%;background:${k <= 34 ? '#E4572E' : '#5BBF6A'}"></i></span><span>${fmtHearts(hearts)}</span>`; }
-  else if (show) el.innerHTML = Array.from({length: maxHearts()}, (_, i) => HEART_SVG.replace('#E4572E', i < hearts ? '#E4572E' : 'rgba(128,128,128,.35)')).join('')
+  else if (show) el.innerHTML = Array.from({length: maxHearts()}, (_, i) => i + 1 <= hearts ? HEART_SVG : i < hearts ? HALF_HEART_SVG : HEART_SVG.replace('#E4572E', 'rgba(128,128,128,.35)')).join('')
     // The warlock's, in green, after a gap.
     + (warlock.shown ? '<i style="display:inline-block;width:8px"></i>' + Array.from({length: WARLOCK_HEARTS}, (_, i) => HEART_SVG.replace('#E4572E', i < warlock.hearts ? '#3FB37A' : 'rgba(128,128,128,.35)')).join('') : '')
     // The cat's heals left, as little pink crosses.
@@ -4165,6 +4165,8 @@ hudCharter();
 if (typeof ResizeObserver !== 'undefined'){ const ro = new ResizeObserver(() => { placeCharter(); placeToast(); }); ro.observe($('order')); ro.observe($('rchips')); ro.observe($('charter')); }
 // The boat's health, shown past the buoys and whenever it is not whole.
 const HEART_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13C3 9 1 7 1 4.5A3.5 3.5 0 0 1 8 3a3.5 3.5 0 0 1 7 1.5C15 7 13 9 8 13z" fill="#E4572E"/></svg>';
+// Half a heart, as armour leaves in a battle: its left half red over a grey one.
+const HALF_HEART_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 13C3 9 1 7 1 4.5A3.5 3.5 0 0 1 8 3a3.5 3.5 0 0 1 7 1.5C15 7 13 9 8 13z" fill="rgba(128,128,128,.35)"/><path d="M8 13C3 9 1 7 1 4.5A3.5 3.5 0 0 1 8 3V13z" fill="#E4572E"/></svg>';
 function hudHull(){ const show = pastBuoys(boat.x, boat.y) || hp < HP_MAX || swallowT > 0, v = Math.ceil(hp), key = show ? v : -2;
   if (key === hpShown) return; hpShown = key; const el = $('hull'); el.hidden = !show; if (!show) return;
   el.innerHTML = HEART_SVG + `<span class="hbar"><i style="width:${v}%;background:${v <= 34 ? '#E4572E' : '#5BBF6A'}"></i></span><span>${v}</span>`; }

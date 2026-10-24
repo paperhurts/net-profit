@@ -25,10 +25,17 @@ export type Kit = {
   thrown: boolean;
 };
 export const KITS: Readonly<Record<Role, Kit>> = {
-  tank: { hearts: 14, speed: 75, hit: 1, reach: 40, every: 0.8, thrown: false },
+  tank: { hearts: 14, speed: 75, hit: 2, reach: 40, every: 1.2, thrown: false },
   damage: { hearts: 8, speed: 85, hit: 2, reach: 40, every: 0.7, thrown: false },
   healer: { hearts: 7, speed: 85, hit: 1, reach: 160, every: 0.9, thrown: true },
 };
+
+/**
+ * Armour, the tank's (2026-10-24, the owner's call: the tank died more than anyone, and a damage beat it one on one),
+ * and yours in any place, so the other side's hits on you are kinder, once even when you are the tank: every hit is
+ * this much less, never under this. A Badge II guard halves a hit first.
+ */
+export const ARMOUR = { less: 1, least: 0.5 } as const;
 
 /** What each role is called on each side. */
 export const ROLE_NAME: Readonly<Record<Side, Readonly<Record<Role, string>>>> = {
