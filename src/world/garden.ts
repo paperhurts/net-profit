@@ -11,6 +11,7 @@
  * it (+x +y). The pier runs out along u, toward home.
  */
 
+import { BEDS_OPEN } from '../data/garden';
 import { type Point, WS } from './island';
 
 const R2 = Math.SQRT1_2;
@@ -94,8 +95,8 @@ export const BEDS: readonly { u: number; v: number }[] = (() => {
     for (const r of rows) for (const c of pair) out.push({ u: cols[c] as number, v: r });
   return out;
 })();
-/** The beds dug from the start. */
-export const BEDS_START = 6;
+/** The beds dug from the start: those that can be planted (data/garden.ts). */
+export const BEDS_START = BEDS_OPEN;
 /** The plot round all its beds, edged with low planks: a step over, not a wall. */
 export const PLOT14 = {
   u0: 40 - BED / 2 - BED_GAP,
@@ -208,4 +209,16 @@ export function stallAt(x: number, y: number): Stall | null {
 export function inPlot14(x: number, y: number): boolean {
   const [u, v] = toGarden(x, y);
   return u >= PLOT14.u0 && u <= PLOT14.u1 && v >= PLOT14.v0 && v <= PLOT14.v1;
+}
+
+/** The open bed the figure is standing on, as its index in BEDS, or -1. A little give round each, so a step onto its
+ * edge counts. */
+export function bedUnder(x: number, y: number): number {
+  const [u, v] = toGarden(x, y);
+  const h = BED / 2 + 4;
+  for (let i = 0; i < BEDS_START; i++) {
+    const b = BEDS[i] as { u: number; v: number };
+    if (Math.abs(u - b.u) <= h && Math.abs(v - b.v) <= h) return i;
+  }
+  return -1;
 }
