@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { marked, noBattles } from '../../src/data/battle';
+import { GOLD_MARKS, marked, noBattles } from '../../src/data/battle';
 import { EMBLEMS, flagShapes, parseFlag } from '../../src/data/flag';
 import {
   ALL_BADGES,
@@ -7,6 +7,8 @@ import {
   emblemWon,
   FLAG_BADGES,
   flagWon,
+  GOLD_TITLES,
+  goldWon,
   HALL_KINDS,
   HALL_SOLID,
   hallAt,
@@ -22,6 +24,7 @@ import {
   rewardsWon,
   sideBadges,
   TITLE_NAME,
+  titleRank,
   titleWon,
   WON_FLAGS,
 } from '../../src/data/rewards';
@@ -153,6 +156,27 @@ describe("the Endless Isle's side rewards", () => {
     expect(nextReward(almost.battles, 'ninja')?.what).toBe(
       "the Grand Master hull paint, midnight blue and silver, the title Grand Master and Master Sensei's katana for your trophy hall",
     );
+  });
+
+  it("turns a place's badge gold at the last rung, a title and no new power, one for each place on each side", () => {
+    const b = noBattles();
+    b.marks.pirate.damage = GOLD_MARKS - 1;
+    const was = { battles: structuredClone(b) };
+    expect(goldWon(was.battles, 'pirate', 'damage')).toBe(false);
+    expect(titleWon('gold-pirate-damage', was)).toBe(false);
+    b.marks.pirate.damage = GOLD_MARKS + 1;
+    const now = { battles: structuredClone(b) };
+    expect(goldWon(now.battles, 'pirate', 'damage')).toBe(true);
+    expect(titleWon('gold-pirate-damage', now)).toBe(true);
+    expect(titleWon('gold-ninja-damage', now)).toBe(false);
+    expect(newRewards(was, now).map(rewardName)).toEqual(['the title Golden Swashbuckler']);
+    expect(GOLD_TITLES).toHaveLength(6);
+    expect(TITLE_NAME['gold-ninja-healer']).toBe('Golden Blossom Monk');
+    // A new title goes on over a lesser one only: a side's over a gold badge's, both sides' over a side's.
+    expect(titleRank('none')).toBeLessThan(titleRank('gold-pirate-tank'));
+    expect(titleRank('gold-pirate-tank')).toBeLessThan(titleRank('lord'));
+    expect(titleRank('lord')).toBe(titleRank('master'));
+    expect(titleRank('master')).toBeLessThan(titleRank('endless'));
   });
 
   it('stands the three in the trophy hall round the dais, clear of it and of the stands round the wall, the two sides mirrored', () => {

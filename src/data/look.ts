@@ -12,12 +12,17 @@
  * ninja garb and mask, and a snow ninja's in white.
  */
 
+import type { Side } from '../world/endless';
+import { ROLE_NAME, type Role } from './battle';
+
 export type HatKind = 'souwester' | 'cap' | 'fishing' | 'cowboy' | 'none';
 export type HairKind = 'none' | 'short' | 'spiky' | 'long' | 'pigtails';
 export type FaceKind = 'dots' | 'smile' | 'grin' | 'freckles' | 'glasses';
 export type OutfitKind = 'none' | 'captain' | 'ninja' | 'snow';
-/** A title won on the Endless Isle, shown under your name: for all nine of a side's badges, or of both sides'. */
-export type TitleKind = 'none' | 'lord' | 'master' | 'endless';
+/** A title won on the Endless Isle, shown under your name: for all nine of a side's badges, or of both sides', or a
+ * place's gold badge. */
+export type GoldTitle = `gold-${Side}-${Role}`;
+export type TitleKind = 'none' | 'lord' | 'master' | 'endless' | GoldTitle;
 
 export type Look = {
   skin: number;
@@ -85,6 +90,12 @@ export const TITLES: readonly [TitleKind, string][] = [
   ['lord', 'Pirate Lord'],
   ['master', 'Grand Master'],
   ['endless', 'Master of the Endless Isle'],
+  ...(['pirate', 'ninja'] as const).flatMap((side) =>
+    (['tank', 'damage', 'healer'] as const).map((role): [TitleKind, string] => [
+      `gold-${side}-${role}`,
+      `Golden ${ROLE_NAME[side][role]}`,
+    ]),
+  ),
 ];
 export const OUTFITS: readonly [OutfitKind, string][] = [
   ['none', 'Your own clothes'],

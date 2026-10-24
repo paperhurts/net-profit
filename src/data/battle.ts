@@ -144,6 +144,8 @@ export function abilitySays(side: Side, ab: Ability): string {
 
 /** The marks a badge takes, Badge I's none (yours in your first battle); and the badge a track's marks give. */
 export const BADGE_MARKS: readonly [number, number, number] = [0, 3, 8];
+/** The last rung: Badge III turns gold, with a title and no new power, the long goal. */
+export const GOLD_MARKS = 20;
 export type Badge = 1 | 2 | 3;
 export function badgeOf(marks: number): Badge {
   return marks >= BADGE_MARKS[2] ? 3 : marks >= BADGE_MARKS[1] ? 2 : 1;

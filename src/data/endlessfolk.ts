@@ -97,6 +97,13 @@ export const LEADER_SAYS: Readonly<
   },
 };
 
+/** What each leader says as a place's badge turns gold, at the last rung. */
+export const LEADER_GOLD: Readonly<Record<Side, string>> = {
+  pirate:
+    "Gold! Twenty marks, and every one of 'em earned. Arr, there's not a pirate alive with a shinier badge than yours.",
+  ninja: 'Gold. Twenty marks of patience. Even the mountain looks up at you now.',
+};
+
 /** How each leader greets you once you have won a title (data/rewards.ts): his side's own, or the title for both. */
 export const LEADER_TITLED: Readonly<Record<Side, { own: string; both: string }>> = {
   pirate: {
