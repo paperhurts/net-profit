@@ -46,6 +46,7 @@ import {
   WINDMILL,
 } from '../world/garden';
 import type { Point } from '../world/island';
+import { drawCapybara, drawPlatypus, drawTilcayo } from './keepers';
 import type { Solid } from './layers';
 
 const N = 96;
@@ -366,10 +367,16 @@ const SEED_LOOK: StallLook = { wall: '#B9874F', top: '#D9A86A', a: '#5BAF5A', b:
 const SELL_LOOK: StallLook = { wall: '#A87B48', top: '#D2A266', a: '#3E8FD0', b: '#FFF6E5' };
 
 /** A stall: a wooden counter, and an awning in stripes over it on poles. */
-function drawStall(v: DrawView, s: Stall, look: StallLook): void {
+function drawStall(
+  v: DrawView,
+  s: Stall,
+  look: StallLook,
+  keeper?: (v: DrawView, sx: number, sy: number) => void,
+): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
   v.extrude(footprint(s.u, s.v, s.hu, s.hv), 0, 16, look.wall, look.top);
+
   // Poles at the front corners, and the awning on them, sloping down toward the front.
   const fv = s.v + s.hv;
   const bv = s.v - s.hv;
@@ -411,11 +418,16 @@ function drawStall(v: DrawView, s: Stall, look: StallLook): void {
     ctx.arc(px(x, y), py(x, y, 36), 3.2 * Z, 0, Math.PI);
     ctx.fill();
   }
+  // Its keeper (part thirteen), standing at the counter's front corner on the plot's side.
+  if (keeper) {
+    const [kx, ky] = fromGarden(s.u - s.hu - 6, s.v + s.hv + 6);
+    keeper(v, px(kx, ky), py(kx, ky, 0));
+  }
 }
 
 /** The seed stall, with seed packets pinned along its awning's poles. */
 function drawSeedStall(v: DrawView): void {
-  drawStall(v, SEED_STALL, SEED_LOOK);
+  drawStall(v, SEED_STALL, SEED_LOOK, drawCapybara);
   const { ctx, px, py } = v;
   const Z = v.zoom;
   const s = SEED_STALL;
@@ -429,7 +441,7 @@ function drawSeedStall(v: DrawView): void {
 
 /** The sell stand, with baskets on its counter. */
 function drawSellStand(v: DrawView): void {
-  drawStall(v, SELL_STAND, SELL_LOOK);
+  drawStall(v, SELL_STAND, SELL_LOOK, drawPlatypus);
   const { ctx, px, py } = v;
   const Z = v.zoom;
   const s = SELL_STAND;
@@ -493,6 +505,9 @@ function drawGearShed(v: DrawView): void {
   ctx.fill();
   ctx.fillStyle = '#FFC53D';
   ctx.fillRect(px(dx, dy) - 12 * Z, py(dx, dy, 11) + 3 * Z, 1.6 * Z, 1.6 * Z);
+  // Its keeper, the Tilcayo (part thirteen), by the door.
+  const [kx, ky] = fromGarden(s.u + 11, s.v + s.hv + 7);
+  drawTilcayo(v, px(kx, ky), py(kx, ky, 0));
   // A watering can by the door.
   const [wx, wy] = fromGarden(s.u + s.hu - 4, s.v + s.hv + 9);
   ctx.fillStyle = '#9AA9B0';

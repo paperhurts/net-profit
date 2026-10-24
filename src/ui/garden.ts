@@ -320,6 +320,16 @@ export function binShelfHtml(g: Garden): string {
 }
 
 /** One line for each crop in the garden journal (part twelve), in the game's voice. */
+/**
+ * Who keeps the three stalls (part thirteen), the owner's: a capybara, a Tilcayo and a platypus, with punny names. Stand-ins
+ * until the kid names them himself; the names are only ever said from here.
+ */
+export const KEEPERS = {
+  seeds: { name: 'Capy Barrow', kind: 'capybara' },
+  gear: { name: 'Toolcayo', kind: 'Tilcayo' },
+  sell: { name: 'Penny Platypus', kind: 'platypus' },
+} as const;
+
 export const CROP_LINES: Record<CropId, string> = {
   carrot: 'The first thing anyone grows. Ready in a minute, and pulled up whole.',
   strawberry: 'Small, sweet and never done: it keeps putting out berries, four at a time.',
