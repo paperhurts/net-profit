@@ -130,6 +130,9 @@ type Np = {
   DOCK12: { x: number; y: number; r: number };
   TOWER12_DOOR: { x: number; y: number };
   fromSkull: (u: number, v: number) => [number, number];
+  gardenIsle: { seen: boolean };
+  DOCK14: { x: number; y: number; r: number };
+  fromGarden: (u: number, v: number) => [number, number];
   farFarOpen: boolean;
   crowGoShown: boolean;
   guide: { state: string; x: number; y: number };
@@ -13123,5 +13126,80 @@ test('the sirens and the charm: their song cannot pull a boat that wears it, and
   );
   await expect(page.locator('#toast')).toContainText('shriek');
   expect(await page.evaluate(() => window.__np.hpNow)).toBe(100);
+  expect(errors).toEqual([]);
+});
+
+test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore to the plot and the shut stalls', async ({
+  context,
+  page,
+}) => {
+  // A flagship with the far deep open, sailing in on the island from the side toward home.
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.gardenIsle.seen)).toBe(false);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromGarden(1150, 40);
+    n.boat.x = x;
+    n.boat.y = y;
+    n.boat.h = (3 * Math.PI) / 4;
+    n.boat.v = 120;
+  });
+  await expect(page.locator('#toast')).toContainText('the Garden Isle', { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.gardenIsle.seen)).toBe(true);
+  // Stopped in the dock ring off the end of its pier.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Ashore on the Garden Isle');
+  // Walk off the pier toward the island, as a thumb would: left along the pier, across the screen.
+  const u = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const [x0, y0] = n.fromGarden(0, 0);
+      return (n.walker.x - x0 - (n.walker.y - y0)) * Math.SQRT1_2;
+    });
+  const u0 = await u();
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX - 60, CY, { steps: 3 });
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  expect(u0 - (await u())).toBeGreaterThan(120);
+  // Into the plot: it says what it is. Then to the seed stall: shut, for now.
+  await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromGarden(150, 8);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await expect(page.locator('#toast')).toContainText('Your plot', { timeout: 6000 });
+  await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromGarden(232, -84);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await expect(page.locator('#toast')).toContainText('The seed stall', { timeout: 6000 });
+  await expect(page.locator('#log')).toContainText('Garden Isle found');
+  // Found, it keeps.
+  await page.waitForTimeout(300);
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') || '{}').garden,
+  );
+  expect(saved).toEqual({ seen: true });
   expect(errors).toEqual([]);
 });
