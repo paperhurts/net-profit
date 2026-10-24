@@ -282,8 +282,44 @@ export const BEDS_ALL = 24;
 export const BASKET_MAX = 50;
 /** The most seeds of one kind kept at once. */
 export const SEEDS_MAX = 99;
-/** Beds in the plot that can be planted. More are staked out for later. */
+/** Beds in the plot that can be planted to begin with. More are staked out, dug six at a time (part eleven). */
 export const BEDS_OPEN = 6;
+/**
+ * More beds and a bigger basket (part eleven): the staked-out beds are dug six at a time, standing on one, for so much
+ * (the plan's numbers), up to the whole plot of 24 the owner's guardrails were set for; and a basket that carries 100,
+ * bought once at the gear shed.
+ */
+export const DIG: readonly { to: number; price: number }[] = [
+  { to: 12, price: 2000 },
+  { to: 18, price: 5000 },
+  { to: BEDS_ALL, price: 10000 },
+];
+export const BIG_BASKET = { max: 100, price: 2500 } as const;
+/** Beds that can be planted now. */
+export function bedsOpen(g: Garden): number {
+  return g.dug ?? BEDS_OPEN;
+}
+/** The next six to dig, and what they cost, or null with the whole plot dug. */
+export function nextDig(g: Garden): { to: number; price: number } | null {
+  return DIG.find((d) => d.to > bedsOpen(g)) ?? null;
+}
+/** Dig the next six with the coins held: what it cost, or 0 when it cannot be done. */
+export function digBeds(g: Garden, coins: number): number {
+  const d = nextDig(g);
+  if (!d || d.price > coins) return 0;
+  g.dug = d.to;
+  return d.price;
+}
+/** How many fruit the basket carries. */
+export function basketMax(g: Garden): number {
+  return g.bigBasket ? BIG_BASKET.max : BASKET_MAX;
+}
+/** Buy the bigger basket with the coins held: what it cost, or 0. */
+export function buyBasket(g: Garden, coins: number): number {
+  if (g.bigBasket || BIG_BASKET.price > coins) return 0;
+  g.bigBasket = true;
+  return BIG_BASKET.price;
+}
 
 /**
  * A planted bed: what is in it, when it was planted, how many fruit are ripe on it, and when the next one ripens (0
@@ -450,6 +486,10 @@ export type Garden = {
   at?: number;
   /** The lily pond's Moonkoi (part nine): the game's day it last rose (once a night at most), and how many landed. */
   koi?: Koi;
+  /** Beds dug (part eleven): 12, 18 or 24; missing for the first six. */
+  dug?: number;
+  /** The bigger basket bought, carrying 100. */
+  bigBasket?: boolean;
   /** The compost bin at the dock (part ten): the fish in it, by kind, and which kinds it keeps from the hold. */
   bin?: Partial<Record<FishClass, number>>;
   binKeep?: Partial<Record<FishClass, boolean>>;
@@ -803,10 +843,10 @@ export function buySeeds(g: Garden, k: CropId, n: number, coins: number): number
 
 /** Plant a seed of a crop in bed i, if the bed is open and empty and there is a seed. */
 export function plant(g: Garden, i: number, k: CropId, now: number, fish?: FishClass): boolean {
-  if (i < 0 || i >= BEDS_OPEN || bedAt(g, i) || seedsOf(g, k) <= 0) return false;
+  if (i < 0 || i >= bedsOpen(g) || bedAt(g, i) || seedsOf(g, k) <= 0) return false;
   const fed = fish && binOf(g, fish) > 0 ? fish : undefined;
   const beds = g.beds ? [...g.beds] : [];
-  while (beds.length < BEDS_OPEN) beds.push(null);
+  while (beds.length < bedsOpen(g)) beds.push(null);
   const b: Bed = { crop: k, planted: now, ripe: 0, next: 0 };
   if (fed) {
     b.fed = fed;
@@ -832,7 +872,7 @@ export function pick(g: Garden, i: number, now: number): Fruit[] {
   const b = bedAt(g, i);
   if (!b) return [];
   growBed(b, now);
-  const n = Math.min(b.ripe, BASKET_MAX - basketCount(g));
+  const n = Math.min(b.ripe, basketMax(g) - basketCount(g));
   if (n <= 0) return [];
   const c = CROPS[b.crop];
   const w = sizesOn(b);
@@ -1046,8 +1086,10 @@ export function parseGarden(raw: unknown): Garden {
   if (!raw || typeof raw !== 'object') return g;
   const k = raw as Record<string, unknown>;
   g.seen = k.seen === true;
+  if (DIG.some((d) => d.to === k.dug)) g.dug = k.dug as number;
+  if (k.bigBasket === true) g.bigBasket = true;
   if (Array.isArray(k.beds)) {
-    const beds = k.beds.slice(0, BEDS_OPEN).map(parseBed);
+    const beds = k.beds.slice(0, bedsOpen(g)).map(parseBed);
     if (beds.some((b) => b)) g.beds = beds;
   }
   const seeds = parseCounts(k.seeds, SEEDS_MAX);
@@ -1139,7 +1181,7 @@ export function parseGarden(raw: unknown): Garden {
   }
   const old = parseCounts(k.basket, BASKET_MAX);
   for (const c of CROP_IDS) for (let n = old?.[c] ?? 0; n > 0; n--) bag.push({ c, m: 1 });
-  if (bag.length) g.bag = bag.slice(0, BASKET_MAX);
+  if (bag.length) g.bag = bag.slice(0, basketMax(g));
   return g;
 }
 
@@ -1156,6 +1198,8 @@ export function untouchedGarden(g: Garden): boolean {
     !g.spr?.length &&
     !g.koi &&
     !g.bin &&
-    !g.binKeep
+    !g.binKeep &&
+    !g.dug &&
+    !g.bigBasket
   );
 }

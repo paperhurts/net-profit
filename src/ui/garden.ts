@@ -7,9 +7,12 @@
 import {
   ALL_CROP_IDS,
   BASKET_MAX,
+  BIG_BASKET,
   basketCount,
+  basketMax,
   basketValue,
   bedAt,
+  bedsOpen,
   binOf,
   CROP_IDS,
   CROPS,
@@ -26,6 +29,7 @@ import {
   gearRoom,
   growBed,
   inStock,
+  nextDig,
   SEEDS_MAX,
   SPRINKLERS,
   secondsLeft,
@@ -33,7 +37,7 @@ import {
   WATER,
 } from '../data/garden';
 import {
-  BEDS_START,
+  bedSpot,
   bedUnder,
   COMPOST_BIN,
   GEAR_SHED,
@@ -62,14 +66,17 @@ export function gardenAction(
   if (st === SELL_STAND) return 'g-sell';
   if (st === GEAR_SHED) return 'g-gear';
   if (st === COMPOST_BIN) return 'g-bin';
-  const i = bedUnder(x, y);
-  const b = i >= 0 && i < BEDS_START ? bedAt(g, i) : null;
+  const open = bedsOpen(g);
+  const i = bedUnder(x, y, open);
+  const b = i >= 0 ? bedAt(g, i) : null;
   if (b) growBed(b, now);
   if (b && b.ripe > 0) return `g-pick-${i}`;
   if (i >= 0 && !b && seed && seedsOf(g, seed) > 0) return `g-plant-${i}`;
   const sprinkler = (tool === 'sprinkler' || tool === 'goldsprinkler') && gearOf(g, tool) > 0;
   if (sprinkler && inPlot14(x, y)) return 'g-spr';
-  if (i < 0 || i >= BEDS_START) return null;
+  // On a bed only staked out: dig the next six, while there are more to dig.
+  if (i < 0 && bedSpot(x, y) >= open && nextDig(g)) return 'g-dig-more';
+  if (i < 0) return null;
   if (!b) return 'g-noseed';
   if (tool === 'can' && canWater(g, i)) return `g-water-${i}`;
   if (tool === 'shovel' && gearOf(g, 'shovel') > 0) return `g-dig-${i}`;
@@ -107,6 +114,12 @@ export function gardenLabel(
   if (code === 'g-seeds') return 'Look at the seeds';
   if (code === 'g-gear') return 'Look at the gear';
   if (code === 'g-bin') return 'Look in the compost bin';
+  if (code === 'g-dig-more') {
+    const d = nextDig(g);
+    return d
+      ? `Dig ${d.to - bedsOpen(g)} more beds for ${d.price.toLocaleString('en-GB')}`
+      : 'The whole plot is dug';
+  }
   if (code === 'g-spr')
     return `Set your ${tool === 'goldsprinkler' ? 'gold sprinkler' : 'sprinkler'} down here`;
   if (code === 'g-sell') {
@@ -124,7 +137,7 @@ export function gardenLabel(
   }
   if (!b) return 'An empty bed';
   if (code.startsWith('g-pick-')) {
-    const room = BASKET_MAX - basketCount(g);
+    const room = basketMax(g) - basketCount(g);
     return room ? `Pick ${howMany(b.crop, Math.min(b.ripe, room))}` : 'Your basket is full';
   }
   const c = CROPS[b.crop];
@@ -225,7 +238,16 @@ export function gearShelfHtml(g: Garden, coins: number): string {
         ? ' You have one.'
         : `${left > 0 ? ` ${left} left today.` : g.gearStock?.n[k] === 0 ? ' Sold out today.' : ' Not in today.'}${have ? ` You have ${have}${k === 'can' ? ' waterings' : ''}.` : ''}`;
     return `<button class="item${left > 0 ? '' : ' out'}" data-gear="${k}" aria-disabled="${no ? 'true' : 'false'}">${GEAR_SVG[k]}<span><b>${c.name[0]?.toUpperCase()}${c.name.slice(1)}</b><small>${gearBlurb(k)}${note}</small></span><span class="buy">${left > 0 ? c.price.toLocaleString('en-GB') : '–'}</span></button>`;
-  }).join('');
+  })
+    .concat(basketShelfHtml(g, coins))
+    .join('');
+}
+
+/** The bigger basket on the shed's shelf (part eleven): always there, bought once. */
+function basketShelfHtml(g: Garden, coins: number): string {
+  const have = !!g.bigBasket;
+  const no = have || coins < BIG_BASKET.price;
+  return `<button class="item${have ? ' out' : ''}" data-basket="1" aria-disabled="${no ? 'true' : 'false'}">${BASKET_SVG.replace('width="24" height="24"', 'width="30" height="30"')}<span><b>Bigger basket</b><small>Carries ${BIG_BASKET.max} fruit, not ${BASKET_MAX}. Yours for good.${have ? ' You have it.' : ''}</small></span><span class="buy">${have ? '–' : BIG_BASKET.price.toLocaleString('en-GB')}</span></button>`;
 }
 
 /**
@@ -253,7 +275,7 @@ export function seedTrayHtml(g: Garden, selected: CropId | null, tool: Tool | nu
       return `<button class="seed gear${on ? ' on' : ''}" data-tool="${t}" aria-pressed="${on}" aria-label="${FISH_WORDS[k].many}, ${binOf(g, k)}">${FISH_SVG[k]}<span>${binOf(g, k)}</span></button>`;
     })
     .join('');
-  return `${seeds}${gear}${fish}<span class="basket" aria-label="Basket">${BASKET_SVG}<span>${basketCount(g)}/${BASKET_MAX}</span></span>`;
+  return `${seeds}${gear}${fish}<span class="basket" aria-label="Basket">${BASKET_SVG}<span>${basketCount(g)}/${basketMax(g)}</span></span>`;
 }
 
 /** What can be in hand from the tray: a piece of gear, or a fish from the compost bin to bury as a bed is planted. */

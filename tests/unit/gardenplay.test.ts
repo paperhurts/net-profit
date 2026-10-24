@@ -330,9 +330,10 @@ describe('the garden: what the action button does', () => {
     expect(gardenLabel(g, 'g-pick-0', 'carrot', sec(60))).toBe('Pick a carrot');
     expect(bedOf('g-pick-0')).toBe(0);
     expect(bedOf('g-seeds')).toBe(-1);
-    // No seeds: it says where they are. A staked-out bed does nothing yet.
+    // No seeds: it says where they are. A staked-out bed offers to dig more.
     expect(gardenAction(noGarden(), ...on(1), null, T0)).toBe('g-noseed');
-    expect(gardenAction(g, ...on(BEDS_START), 'carrot', T0)).toBeNull();
+    // A staked-out bed offers to dig the next six (part eleven).
+    expect(gardenAction(g, ...on(BEDS_START), 'carrot', T0)).toBe('g-dig-more');
   });
 
   it('opens the seed stall at its front, and sells the basket at the stand', () => {

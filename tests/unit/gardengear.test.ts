@@ -227,9 +227,9 @@ describe('the gear: the action button', () => {
       'g-pick-0',
     );
     expect(gardenAction(g, ...on(1), 'carrot', sec(10), 'can')).toBe('g-plant-1');
-    // Out of the beds but in the plot, a sprinkler can still go down; a staked-out bed takes nothing else.
+    // Out of the beds but in the plot, a sprinkler can still go down; a staked-out bed offers to dig more.
     expect(gardenAction(g, ...on(BEDS_START), null, sec(10), 'sprinkler')).toBe('g-spr');
-    expect(gardenAction(g, ...on(BEDS_START), null, sec(10), 'can')).toBeNull();
+    expect(gardenAction(g, ...on(BEDS_START), null, sec(10), 'can')).toBe('g-dig-more');
     expect(gardenLabel(g, 'g-spr', null, T0, 'goldsprinkler')).toBe(
       'Set your gold sprinkler down here',
     );
