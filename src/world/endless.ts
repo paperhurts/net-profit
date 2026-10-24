@@ -248,7 +248,8 @@ export const HOLDS13: readonly {
 export const PEAK = { u: 340, w: 760, r: 110 } as const;
 /**
  * The ninjas' chairlift up their peak, the Ninja Slalom's way up: its station at the peak's foot on the channel side,
- * and how near to ride it. The pirates' great tree has its ladder there instead, so this one is not mirrored.
+ * and how near to ride it. The pirates' great tree has its rope ladder on its front instead (TREE13), so this one is not
+ * mirrored.
  */
 export const LIFT13_AT = { u: PEAK.u, w: PEAK.w - PEAK.r - 26 } as const;
 export const LIFT13_REACH = 34;
@@ -259,6 +260,18 @@ export const LIFT13 = (() => {
 /** Whether a point is at the chairlift's station, near enough to ride it up. */
 export function atLift(x: number, y: number): boolean {
   return Math.hypot(x - LIFT13.x, y - LIFT13.y) < LIFT13_REACH;
+}
+/**
+ * The foot of the pirates' great tree, where the Treehouse Climb goes in: on its front, down the screen, where its rope
+ * ladder hangs, and how near to climb it.
+ */
+export const TREE13_AT = { u: PEAK.u, w: PEAK.w + PEAK.r + 24 } as const;
+export const TREE13 = (() => {
+  const [x, y] = atHalf('pirate', TREE13_AT.u, TREE13_AT.w);
+  return { x, y } as const;
+})();
+export function atTree(x: number, y: number): boolean {
+  return Math.hypot(x - TREE13.x, y - TREE13.y) < LIFT13_REACH;
 }
 /** The two rope bridges over the channel, the same on both halves by their nature. */
 export const BRIDGES13: readonly number[] = [-330, 330];
