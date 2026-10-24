@@ -13,6 +13,7 @@
  * are: they already follow you.
  */
 
+import { decode, encode, type Stroke } from './doodle';
 import { COMPANION_NAMES, COMPANIONS, type Companion } from './stay';
 
 /** The pets, as the book has them. The crows and the muffins have one card each, however many there are. */
@@ -61,7 +62,7 @@ export function defaultName(k: BookKey): string {
 }
 
 /** Whether a name can be given: one each, and not to the crows or the muffins, who are several. */
-export function nameable(k: BookKey): boolean {
+export function nameable(k: EntryKey): boolean {
   return k !== 'crows' && k !== 'muffins';
 }
 
@@ -82,19 +83,37 @@ export function cleanName(s: unknown): string {
   return [...t].slice(0, NAME_MAX).join('').trim();
 }
 
-/** What the pet system keeps. Names only, for now; the drawn pets, eggs and the pet house come in later pieces. */
+/** A pet drawn on the pad (data/doodle.ts): its number, the name given it, the drawing, and when it was drawn. */
+export type DrawnPet = { id: number; nm: string; d: string; got: number };
+/** The most drawn pets kept at once; another means letting one go. It keeps the save, and the link, small. */
+export const DRAWN_MAX = 4;
+/** A drawn pet's place in the book: d and its number. */
+export type DrawnKey = `d${number}`;
+/** Anyone in the book: one of the pets and companions the game has, or one you drew. */
+export type EntryKey = BookKey | DrawnKey;
+
+export const drawnKey = (id: number): DrawnKey => `d${id}`;
+export function isDrawnKey(k: string): k is DrawnKey {
+  return /^d\d+$/.test(k);
+}
+
+/** What the pet system keeps: the names given, and the pets drawn. Eggs and the pet house come in later pieces. */
 export type PetSave = {
   /** The names you have given, by who; one renamed back to nothing is dropped. */
   nm: Partial<Record<BookKey, string>>;
+  /** The pets you drew, oldest first. */
+  drawn: DrawnPet[];
 };
 
 export function noPets(): PetSave {
-  return { nm: {} };
+  return { nm: {}, drawn: [] };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
+const whole = (v: unknown): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
 
-/** The pet system's part of a save: missing in old saves, and read as nothing named. Whatever is odd is dropped. */
+/** The pet system's part of a save: missing in old saves, and read as nothing named or drawn. What is odd is dropped. */
 export function parsePets(v: unknown): PetSave {
   const p = noPets();
   if (!v || typeof v !== 'object' || Array.isArray(v)) return p;
@@ -105,38 +124,107 @@ export function parsePets(v: unknown): PetSave {
       if (isBookKey(k) && nameable(k) && n) p.nm[k] = n;
     }
   }
+  const drawn = (v as { drawn?: unknown }).drawn;
+  if (Array.isArray(drawn)) {
+    for (const o of drawn) {
+      if (p.drawn.length >= DRAWN_MAX) break;
+      if (!o || typeof o !== 'object') continue;
+      const r = o as Record<string, unknown>;
+      const strokes = decode(r.d);
+      const id = whole(r.id);
+      if (!strokes.length || p.drawn.some((q) => q.id === id)) continue;
+      p.drawn.push({
+        id,
+        nm: cleanName(r.nm) || DRAWN_NAME,
+        d: encode(strokes),
+        got: whole(r.got),
+      });
+    }
+  }
   return p;
 }
 
 /** For the save: left out while there is nothing in it, so the copy-my-game link stays short. */
-export function petsForSave(p: PetSave): PetSave | undefined {
-  return Object.keys(p.nm).length ? p : undefined;
+export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
+  const out: Partial<PetSave> = {};
+  if (Object.keys(p.nm).length) out.nm = p.nm;
+  if (p.drawn.length) out.drawn = p.drawn;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** A drawn pet with no name given. */
+export const DRAWN_NAME = 'Doodle';
+
+export function drawnOf(p: PetSave, k: EntryKey): DrawnPet | undefined {
+  return isDrawnKey(k) ? p.drawn.find((d) => drawnKey(d.id) === k) : undefined;
 }
 
 /** What it is called now: the name you gave it, or the one it came with. */
-export function nameOf(p: PetSave, k: BookKey): string {
+export function nameOf(p: PetSave, k: EntryKey): string {
+  if (isDrawnKey(k)) return drawnOf(p, k)?.nm ?? DRAWN_NAME;
   return p.nm[k] ?? defaultName(k);
 }
 
-/** Give it a name; an empty one gives it back the name it came with. Says whether anything changed. */
-export function rename(p: PetSave, k: BookKey, name: unknown): boolean {
-  if (!nameable(k)) return false;
+/**
+ * Give it a name; an empty one gives it back the name it came with (a drawn pet keeps the one it has). Says whether
+ * anything changed.
+ */
+export function rename(p: PetSave, k: EntryKey, name: unknown): boolean {
   const n = cleanName(name);
+  if (isDrawnKey(k)) {
+    const d = drawnOf(p, k);
+    if (!d || !n || n === d.nm) return false;
+    d.nm = n;
+    return true;
+  }
+  if (!nameable(k)) return false;
   const was = p.nm[k];
   if (n && n !== defaultName(k)) p.nm[k] = n;
   else delete p.nm[k];
   return p.nm[k] !== was;
 }
 
+/** Whether there is room for another drawn pet. */
+export function canDraw(p: PetSave): boolean {
+  return p.drawn.length < DRAWN_MAX;
+}
+
+/** A drawing kept as a pet, with its name; none if it is empty or there is no room. */
+export function addDrawn(
+  p: PetSave,
+  strokes: readonly Stroke[],
+  name: unknown,
+  now: number,
+): DrawnPet | null {
+  if (!strokes.length || !canDraw(p)) return null;
+  const d: DrawnPet = {
+    id: p.drawn.reduce((m, q) => Math.max(m, q.id + 1), 1),
+    nm: cleanName(name) || DRAWN_NAME,
+    d: encode(strokes),
+    got: Math.max(0, Math.floor(now)),
+  };
+  p.drawn.push(d);
+  return d;
+}
+
+/** A drawn pet let go, to live on the island. Says whether there was one. */
+export function letGo(p: PetSave, k: EntryKey): boolean {
+  const n = p.drawn.length;
+  p.drawn = p.drawn.filter((d) => drawnKey(d.id) !== k);
+  return p.drawn.length < n;
+}
+
 /** One card in the book: who, on which shelf, called what, and where it is now. */
 export type BookEntry = {
-  key: BookKey;
+  key: EntryKey;
   shelf: Shelf;
   name: string;
   /** The name it came with, when it has been given another. */
   was: string | null;
   from: string;
   where: string;
+  /** A drawn pet's drawing, as saved. */
+  doodle?: string;
 };
 
 /** What the game tells the book: whether each is yours, where it is, and how many crows and muffins there are. */
@@ -156,9 +244,9 @@ const PET_WHERE: Readonly<Record<PetKey, (f: BookFacts) => string>> = {
   muffins: (f) => `Following you about: ${f.muffins} of 6, and a cloud of stink.`,
 };
 
-/** Everyone who is yours, pets first, then the companions in the order they join you. */
+/** Everyone who is yours: the pets, then the pets you drew, then the companions in the order they join you. */
 export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
-  return BOOK_KEYS.filter((k) => f.has(k)).map((k) => {
+  const fixed = BOOK_KEYS.filter((k) => f.has(k)).map((k): BookEntry => {
     const shelf = shelfOf(k);
     const name = nameOf(p, k);
     const where =
@@ -176,4 +264,17 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       where,
     };
   });
+  const drawn = p.drawn.map(
+    (d): BookEntry => ({
+      key: drawnKey(d.id),
+      shelf: 'pets',
+      name: d.nm,
+      was: null,
+      from: 'You drew this one.',
+      where: 'In your pet book. Walks with you come next.',
+      doodle: d.d,
+    }),
+  );
+  const at = fixed.findIndex((e) => e.shelf === 'companions');
+  return at < 0 ? [...fixed, ...drawn] : [...fixed.slice(0, at), ...drawn, ...fixed.slice(at)];
 }
