@@ -48,7 +48,10 @@ function card(e: BookEntry, st: BookState): string {
   else if (nameable(e.key))
     act =
       `<div class="pname"><button class="rchip" data-rename="${e.key}">Rename</button>` +
-      (isDrawnKey(e.key) ? `<button class="rchip" data-letgo="${e.key}">Let go</button>` : '') +
+      (isDrawnKey(e.key)
+        ? `<button class="rchip${e.walking ? ' on' : ''}" data-walk="${e.key}">${e.walking ? 'Walking with you' : 'Take it along'}</button>` +
+          `<button class="rchip" data-letgo="${e.key}">Let go</button>`
+        : '') +
       '</div>';
   return (
     `<div class="pet" data-pet="${e.key}"><canvas class="petpic" data-pic="${e.key}" aria-hidden="true"></canvas>` +

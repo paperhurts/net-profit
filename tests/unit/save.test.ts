@@ -1352,23 +1352,27 @@ describe('the tar kraken, round two', () => {
 describe('the pet system', () => {
   it('an old save has nothing named and stays without it; names round-trip, and odd ones are dropped', () => {
     const s = parseSave(legacy, bounds);
-    expect(s.pets).toEqual({ nm: {}, drawn: [] });
+    expect(s.pets).toEqual({ nm: {}, drawn: [], walk: null });
     expect(JSON.parse(serializeSave(s))).not.toHaveProperty('pets');
-    s.pets = { nm: { baby: 'Chomp', dog: 'Biscuit' }, drawn: [] };
+    s.pets = { nm: { baby: 'Chomp', dog: 'Biscuit' }, drawn: [], walk: null };
     expect(parseSave(serializeSave(s), bounds).pets).toEqual(s.pets);
     const odd = {
       ...JSON.parse(serializeSave(s)),
       pets: { nm: { baby: 7, crows: 'Flock', nobody: 'X' } },
     };
-    expect(parseSave(JSON.stringify(odd), bounds).pets).toEqual({ nm: {}, drawn: [] });
+    expect(parseSave(JSON.stringify(odd), bounds).pets).toEqual({ nm: {}, drawn: [], walk: null });
     expect(parseSave(JSON.stringify({ ...odd, pets: 'yes' }), bounds).pets).toEqual({
       nm: {},
       drawn: [],
+      walk: null,
     });
     // A drawn pet travels as its strokes.
-    s.pets = { nm: {}, drawn: [{ id: 1, nm: 'Wiggles', d: 'ECDEFGH.AQRST', got: 5 }] };
-    expect(JSON.parse(serializeSave(s)).pets).toEqual({ drawn: s.pets.drawn });
+    s.pets = { nm: {}, drawn: [{ id: 1, nm: 'Wiggles', d: 'ECDEFGH.AQRST', got: 5 }], walk: 'd1' };
+    expect(JSON.parse(serializeSave(s)).pets).toEqual({ drawn: s.pets.drawn, walk: 'd1' });
     expect(parseSave(serializeSave(s), bounds).pets).toEqual(s.pets);
+    // Walking a pet that is not there is walking nobody.
+    const gone = { ...JSON.parse(serializeSave(s)), pets: { drawn: s.pets.drawn, walk: 'd9' } };
+    expect(parseSave(JSON.stringify(gone), bounds).pets.walk).toBeNull();
   });
 });
 

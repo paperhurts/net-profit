@@ -40,6 +40,22 @@ function declared(src: string): [string, number][] {
   return out;
 }
 
+/**
+ * Names declared twice at the top of the big function. It is one function, not a module, so a second function of the
+ * same name is no error: the later one silently wins. The drawing pad's `padAt` (2026-10-24) replaced the Treehouse
+ * Climb's arrows' own, and the arrows stopped walking the climber.
+ */
+function twice(src: string): string[] {
+  const first = new Map<string, number>();
+  const out: string[] = [];
+  for (const [n, line] of declared(src)) {
+    const was = first.get(n);
+    if (was === undefined) first.set(n, line);
+    else out.push(`${n} (lines ${was} and ${line})`);
+  }
+  return out;
+}
+
 function clashes(src: string): string[] {
   const names = imported(src);
   return declared(src)
@@ -51,6 +67,12 @@ describe('the game script, src/main.js', () => {
   it('never declares a name it also imports, which would silently hide the import', () => {
     expect(imported(main).size).toBeGreaterThan(100);
     expect(clashes(main)).toEqual([]);
+  });
+
+  it('never declares the same name twice, which would silently replace the first', () => {
+    expect(twice(main)).toEqual([]);
+    expect(twice('function a(){}\nconst b = 1;\nfunction a(e){}')).toEqual(['a (lines 1 and 3)']);
+    expect(twice('function a(){\n  const b = 1;\n}\nfunction c(){\n  const b = 2;\n}')).toEqual([]);
   });
 
   it('would catch one: a function, a const among others, or one renamed on import', () => {
