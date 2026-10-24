@@ -486,6 +486,8 @@ export type Garden = {
   at?: number;
   /** The lily pond's Moonkoi (part nine): the game's day it last rose (once a night at most), and how many landed. */
   koi?: Koi;
+  /** The garden journal (part twelve): for each crop picked, how many, the biggest, and how many Gold and Rainbow. */
+  journal?: Partial<Record<CropId, JournalEntry>>;
   /** Beds dug (part eleven): 12, 18 or 24; missing for the first six. */
   dug?: number;
   /** The bigger basket bought, carrying 100. */
@@ -868,7 +870,7 @@ export function firstGrowMs(b: Bed): number {
  * Pick what is ripe on bed i into the basket, as much as it has room for: how many were picked. A crop picked once
  * leaves the bed empty; one that keeps fruiting starts its next fruit if it had been waiting, full.
  */
-export function pick(g: Garden, i: number, now: number): Fruit[] {
+export function pick(g: Garden, i: number, now: number, day?: number): Fruit[] {
   const b = bedAt(g, i);
   if (!b) return [];
   growBed(b, now);
@@ -887,6 +889,7 @@ export function pick(g: Garden, i: number, now: number): Fruit[] {
     return f;
   });
   g.bag = [...(g.bag ?? []), ...got];
+  noteInJournal(g, b.crop, got, day);
   b.w = w.slice(n);
   b.v = vs.slice(n);
   b.mu = ms.slice(n);
@@ -1005,6 +1008,36 @@ export function fillBin(g: Garden, hold: number[]): number[] {
   return took;
 }
 
+/**
+ * The garden journal (part twelve), the field guide's garden pages: a page for each crop, filled in as its fruit are
+ * picked, with how many, the biggest (its size), how many Gold and how many Rainbow, and the day of the first.
+ */
+export type JournalEntry = {
+  n: number;
+  best: number;
+  gold?: number;
+  rainbow?: number;
+  first?: number;
+};
+/** Fruit just picked, written into the journal. day is the game's day, for a crop's first page. */
+export function noteInJournal(g: Garden, k: CropId, got: readonly Fruit[], day?: number): void {
+  if (!got.length) return;
+  const was = g.journal?.[k];
+  const e: JournalEntry = { ...(was ?? { n: 0, best: 0 }) };
+  for (const f of got) {
+    e.n++;
+    e.best = Math.max(e.best, f.m);
+    if (f.v === 'gold') e.gold = (e.gold ?? 0) + 1;
+    if (f.v === 'rainbow') e.rainbow = (e.rainbow ?? 0) + 1;
+  }
+  if (!was && day !== undefined) e.first = day;
+  g.journal = { ...g.journal, [k]: e };
+}
+/** A crop's page so far, or null before its first fruit is picked. */
+export function journalOf(g: Garden, k: CropId): JournalEntry | null {
+  return g.journal?.[k] ?? null;
+}
+
 /** Sell the whole basket at the stand: the coins, and how many fruit. */
 export function sellBasket(g: Garden): { coins: number; n: number } {
   const out = { coins: basketValue(g), n: basketCount(g) };
@@ -1087,6 +1120,25 @@ export function parseGarden(raw: unknown): Garden {
   const k = raw as Record<string, unknown>;
   g.seen = k.seen === true;
   if (DIG.some((d) => d.to === k.dug)) g.dug = k.dug as number;
+  if (k.journal && typeof k.journal === 'object') {
+    const j: Partial<Record<CropId, JournalEntry>> = {};
+    for (const c of ALL_CROP_IDS) {
+      const r = (k.journal as Record<string, unknown>)[c];
+      if (!r || typeof r !== 'object') continue;
+      const e = r as Record<string, unknown>;
+      const n = count(e.n, 1e9);
+      if (!n) continue;
+      const entry: JournalEntry = { n, best: size(e.best) };
+      const gold = count(e.gold, n);
+      const rainbow = count(e.rainbow, n);
+      if (gold) entry.gold = gold;
+      if (rainbow) entry.rainbow = rainbow;
+      if (typeof e.first === 'number' && Number.isFinite(e.first) && e.first >= 0)
+        entry.first = Math.floor(e.first);
+      j[c] = entry;
+    }
+    if (Object.keys(j).length) g.journal = j;
+  }
   if (k.bigBasket === true) g.bigBasket = true;
   if (Array.isArray(k.beds)) {
     const beds = k.beds.slice(0, bedsOpen(g)).map(parseBed);
@@ -1200,6 +1252,7 @@ export function untouchedGarden(g: Garden): boolean {
     !g.bin &&
     !g.binKeep &&
     !g.dug &&
-    !g.bigBasket
+    !g.bigBasket &&
+    !g.journal
   );
 }

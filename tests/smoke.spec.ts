@@ -183,6 +183,7 @@ type Np = {
     bin?: Record<string, number>;
     binKeep?: Record<string, boolean>;
     dug?: number;
+    journal?: Record<string, { n: number; best: number; gold?: number; first?: number }>;
     bigBasket?: boolean;
   };
   gardenSkew: number;
@@ -15081,5 +15082,30 @@ test("the Garden Isle's plot grows: dig six more beds and plant in one, and buy 
   ]);
   await page.click('#gardenClose');
   await expect(page.locator('#seedTray .basket')).toContainText('0/100');
+  expect(errors).toEqual([]);
+});
+
+test('the garden journal: the field guide has a page for every crop, filled in as it is picked', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    garden: {
+      seen: true,
+      journal: { tomato: { n: 12, best: 1.18, gold: 1, first: 3 } },
+    },
+  });
+  await page.locator('#log').dispatchEvent('click');
+  await expect(page.locator('#guide')).toBeVisible();
+  const head = page.locator('#pages .jhead');
+  await expect(head).toContainText('Garden journal');
+  await expect(head).toContainText('1 of 13 picked');
+  const tomato = page.locator('#pages article', { hasText: 'Picked 12' });
+  await expect(tomato).toContainText('Tomato');
+  await expect(tomato).toContainText('Gold 1');
+  await expect(page.locator('#pages article', { hasText: 'Moonpetal vine' })).toContainText(
+    'only comes from the Moonkoi',
+  );
   expect(errors).toEqual([]);
 });
