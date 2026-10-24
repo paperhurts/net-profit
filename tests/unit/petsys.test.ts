@@ -19,6 +19,7 @@ import {
   petsForSave,
   rename,
   shelfOf,
+  toggleWalk,
 } from '../../src/data/petsys';
 import { COMPANIONS } from '../../src/data/stay';
 import { bookHtml, esc } from '../../src/ui/petbook';
@@ -130,8 +131,18 @@ describe('the pet book', () => {
     expect(rename(p, drawnKey(1), 'Sir Wiggles')).toBe(true);
     expect(nameOf(p, 'd1')).toBe('Sir Wiggles');
     expect(rename(p, 'd1', '')).toBe(false);
+    // One walks with you; another taken along takes its place, and a pet let go walks no more.
+    expect(toggleWalk(p, 'd2')).toBe(true);
+    expect(toggleWalk(p, 'd3')).toBe(true);
+    expect(p.walk).toBe('d3');
+    expect(bookEntries(p, facts([])).find((x) => x.key === 'd3')?.walking).toBe(true);
+    expect(toggleWalk(p, 'd3')).toBe(false);
+    expect(p.walk).toBeNull();
+    expect(toggleWalk(p, 'dog')).toBe(false);
+    toggleWalk(p, 'd2');
     expect(letGo(p, 'd2')).toBe(true);
     expect(letGo(p, 'd2')).toBe(false);
+    expect(p.walk).toBeNull();
     expect(canDraw(p)).toBe(true);
     // The next one gets a number of its own.
     expect(addDrawn(p, line, 'F', 105)?.id).toBe(5);
