@@ -179,12 +179,15 @@ type Np = {
     stock?: { day: number; n: Record<string, number> };
     gear?: Record<string, number>;
     gearStock?: { day: number; n: Record<string, number> };
+    koi?: { night: number; n: number };
   };
   gardenSkew: number;
   gardenSeed: string | null;
   gardenTool: string | null;
   LILY_POND: { x: number; y: number; r: number };
   lilyLine: { state: string; t: number; sp: number };
+  koiNow: { state: string; stamina: number; wait: number } | null;
+  koiPull: boolean;
   DOCK14: { x: number; y: number; r: number };
   fromGarden: (u: number, v: number) => [number, number];
   farFarOpen: boolean;
@@ -14643,5 +14646,71 @@ test("the Garden Isle's lily pond: cast with a fruit from the basket, a carp bit
   expect(await page.evaluate(() => window.__np.hold)).toBe(0);
   // The Gold tomato is all that is left, and would be the next bait.
   await expect(cast).toHaveText('Cast with a tomato');
+  expect(errors).toEqual([]);
+});
+
+test("the Garden Isle's Moonkoi: after dark, a Moonlit dragon fruit on the hook, the fight held and let go, landed for its seed", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: {
+      seen: true,
+      bag: [
+        { c: 'strawberry', m: 1 },
+        { c: 'dragonfruit', m: 1, mu: ['moonlit'] },
+      ],
+    },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.8, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.clock = 0.8;
+    const p = n.LILY_POND;
+    const [cx, cy] = n.fromGarden(-95 + 48 + 12, 40);
+    const k = (p.r + 12) / Math.hypot(cx - p.x, cy - p.y);
+    n.walker.x = p.x + (cx - p.x) * k;
+    n.walker.y = p.y + (cy - p.y) * k;
+  });
+  // At night, with a Moonlit dragon fruit in the basket, the cast is for the Moonkoi; the strawberry stays.
+  const cast = page.locator('#lilycast');
+  await expect(cast).toHaveText('Cast a Moonlit dragon fruit', { timeout: 4000 });
+  await cast.dispatchEvent('click');
+  expect(await page.evaluate(() => window.__np.gardenIsle.bag)).toEqual([
+    { c: 'strawberry', m: 1 },
+  ]);
+  await expect(page.locator('#toast')).toContainText('Something huge and pale');
+  // It strikes; the button says what to do.
+  await page.evaluate(() => {
+    const k = window.__np.koiNow;
+    if (k) k.wait = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('The Moonkoi!', { timeout: 4000 });
+  await expect(cast).toHaveText(/Hold to pull|Let go!/);
+  // Played out: it tires and is landed.
+  await page.evaluate(() => {
+    const k = window.__np.koiNow;
+    if (k) k.stamina = 0.0001;
+    window.__np.koiPull = true;
+  });
+  await expect.poll(() => page.evaluate(() => window.__np.koiNow)).toBeNull();
+  await expect(page.locator('#toast')).toContainText('moonpetal vine', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.gardenIsle.seeds)).toEqual({ moonpetal: 1 });
+  expect(await page.evaluate(() => window.__np.gardenIsle.koi?.n)).toBe(1);
+  // Once a night: the Moonlit fruit cast is gone until tomorrow night, and the strawberry is for carp.
+  await expect(cast).toHaveText('Cast with a strawberry');
   expect(errors).toEqual([]);
 });

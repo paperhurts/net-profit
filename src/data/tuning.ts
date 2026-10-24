@@ -478,6 +478,19 @@ export const SPECIES: readonly Species[] = [
     mark: '#E6D49A',
     dot: true,
   },
+  // And the lily pond's legendary (part nine), a stand-in until the kid names it: the Moonkoi, a great moon-pale koi with
+  // pale blue patches. Only after dark, only to a Moonlit fruit of mythic tier or above, once a night; a fair fight.
+  {
+    name: 'Moonkoi',
+    pl: 'Moonkoi',
+    v: 5000,
+    c: '#EEF2FA',
+    s: 26,
+    fat: 0.34,
+    tail: 0.8,
+    mark: '#8FB2F0',
+    dot: true,
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -509,6 +522,8 @@ export const ARCHERFISH = 40;
 /** The Garden Isle's lily pond's two, on a line with a fruit for bait. */
 export const CARP = 41;
 export const MIRROR_CARP = 42;
+/** The lily pond's legendary: once a night, to a Moonlit fruit of mythic tier or above. */
+export const MOONKOI = 43;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;

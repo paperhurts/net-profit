@@ -5,6 +5,7 @@
  */
 
 import {
+  ALL_CROP_IDS,
   BASKET_MAX,
   basketCount,
   basketValue,
@@ -148,6 +149,8 @@ export const CROP_SVG: Record<CropId, string> = {
     '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="17" r="11" fill="#FFE59A" opacity=".45"/><path d="M15 7c6 0 8 5 8 10s-3 9-8 9-8-4-8-9 2-10 8-10z" fill="#F7A93B"/><path d="M15 7v19M10 9c-2 5-2 12 1 16M20 9c2 5 2 12-1 16" stroke="#D97F1E" stroke-width="1.2" fill="none"/><path d="M15 7c0-2 1-3 3-4" stroke="#4E9A3E" stroke-width="2"/></svg>',
   kraken:
     '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M5 18c0-6 5-10 10-10s10 4 10 10-4 8-10 8-10-2-10-8z" fill="#7E4FB0"/><path d="M9 11c1 5 1 10 0 14M15 8v18M21 11c-1 5-1 10 0 14" stroke="#5E3590" stroke-width="1.4" fill="none"/><path d="M15 8c0-3 3-4 5-3-1 1-3 1-3 3M3 22c3 0 4-2 4-4M27 22c-3 0-4-2-4-4" stroke="#4E9A3E" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>',
+  moonpetal:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="12" fill="#AFC0FF" opacity=".35"/><path d="M6 25c4-3 6-8 6-13M12 12c3 2 7 2 10-1" stroke="#5E8C6A" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M19 7a6 6 0 1 0 5 9 5 5 0 1 1-5-9z" fill="#EEF2FA"/><g fill="#DCE6FF"><ellipse cx="9" cy="17" rx="3" ry="1.6" transform="rotate(-30 9 17)"/><ellipse cx="13" cy="21" rx="3" ry="1.6" transform="rotate(20 13 21)"/></g></svg>',
 };
 
 /** "Picked once" or "keeps fruiting", with its times and what it sells for. */
@@ -223,7 +226,7 @@ export function seedTrayHtml(
   selected: CropId | null,
   tool: GearId | null = null,
 ): string {
-  const seeds = CROP_IDS.filter((k) => seedsOf(g, k) > 0)
+  const seeds = ALL_CROP_IDS.filter((k) => seedsOf(g, k) > 0)
     .map((k) => {
       const on = k === selected && !tool;
       return `<button class="seed${on ? ' on' : ''}" data-pick="${k}" aria-pressed="${on}" aria-label="${CROPS[k].name} seeds, ${seedsOf(g, k)}">${CROP_SVG[k]}<span>${seedsOf(g, k)}</span></button>`;

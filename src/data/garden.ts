@@ -27,7 +27,8 @@ export type CropId =
   | 'coconut'
   | 'dragonfruit'
   | 'lantern'
-  | 'kraken';
+  | 'kraken'
+  | 'moonpetal';
 
 export type Tier = 'common' | 'uncommon' | 'rare' | 'legendary' | 'mythic' | 'divine';
 export const TIERS: readonly Tier[] = [
@@ -79,11 +80,13 @@ const KG: Record<CropId, number> = {
   dragonfruit: 0.5,
   lantern: 2.5,
   kraken: 9,
+  moonpetal: 0.6,
 };
 /** Where one fruit is not called what its plant is. */
 const FRUIT: Partial<Record<CropId, string>> = {
   sweetcorn: 'cob of sweetcorn',
   coconut: 'coconut',
+  moonpetal: 'moonpetal',
 };
 /** One crop: picked once when regrow is 0. */
 function crop(
@@ -239,10 +242,28 @@ export const CROPS: Record<CropId, Crop> = {
     120,
     [1, 1],
   ),
+  // The moonpetal vine (part nine), the garden's best crop that keeps fruiting, never at the stall: its only seed is the
+  // one the Moonkoi drops, one a catch, and the Moonkoi rises once a night at most. A stand-in until the kid names it.
+  moonpetal: crop(
+    'moonpetal',
+    'moonpetal vine',
+    'moonpetals',
+    'divine',
+    0,
+    1000,
+    20 * M,
+    8 * M,
+    3,
+    0,
+    [0, 0],
+  ),
 };
-export const CROP_IDS: readonly CropId[] = Object.keys(CROPS) as CropId[];
+/** Every crop, the stall's and the moonpetal vine. */
+export const ALL_CROP_IDS: readonly CropId[] = Object.keys(CROPS) as CropId[];
+/** The crops the seed stall sells, in its order: all but the moonpetal vine, whose seed only the Moonkoi gives. */
+export const CROP_IDS: readonly CropId[] = ALL_CROP_IDS.filter((k) => CROPS[k].odds > 0);
 export function isCrop(k: unknown): k is CropId {
-  return typeof k === 'string' && (CROP_IDS as readonly string[]).includes(k);
+  return typeof k === 'string' && (ALL_CROP_IDS as readonly string[]).includes(k);
 }
 
 /**
@@ -418,7 +439,12 @@ export type Garden = {
   spr?: Sprinkler[];
   /** When the beds were last brought up to now, while a sprinkler runs, so its growing is counted once. */
   at?: number;
+  /** The lily pond's Moonkoi (part nine): the game's day it last rose (once a night at most), and how many landed. */
+  koi?: Koi;
 };
+
+/** The Moonkoi: the day it last rose to a bait, and how many have been landed. */
+export type Koi = { night: number; n: number };
 
 /** What the seed stall has, rolled at a dawn: the game's day it came in, and seeds left of each crop. */
 export type Stock = { day: number; n: Partial<Record<CropId, number>> };
@@ -807,21 +833,49 @@ export function pick(g: Garden, i: number, now: number): Fruit[] {
 
 /** The fruit a cast into the lily pond would take for bait (part eight): the one in the basket worth least, so a
  * Gold or a giant is never thrown in by mistake. Null with the basket empty. */
-export function baitOf(g: Garden): Fruit | null {
+export function baitOf(g: Garden, koi = false): Fruit | null {
   let best: Fruit | null = null;
   for (const f of g.bag ?? [])
-    if (!best || fruitValue(f.c, f.m, f.v, f.mu) < fruitValue(best.c, best.m, best.v, best.mu))
+    if (
+      isKoiBait(f) === koi &&
+      (!best || fruitValue(f.c, f.m, f.v, f.mu) < fruitValue(best.c, best.m, best.v, best.mu))
+    )
       best = f;
   return best;
 }
 
-/** Take that fruit out of the basket, onto the hook: the fruit, or null with none to take. */
-export function takeBait(g: Garden): Fruit | null {
-  const f = baitOf(g);
+/** Take that fruit out of the basket, onto the hook: the fruit, or null with none to take. A Moonkoi's bait is only
+ * ever taken for the Moonkoi. */
+export function takeBait(g: Garden, koi = false): Fruit | null {
+  const f = baitOf(g, koi);
   if (!f || !g.bag) return null;
   const i = g.bag.indexOf(f);
   g.bag = [...g.bag.slice(0, i), ...g.bag.slice(i + 1)];
   return f;
+}
+
+/**
+ * The lily pond's legendary (part nine), a stand-in until the kid names it and says how it looks: the Moonkoi, a great
+ * moon-pale koi. It rises only after dark, only to a Moonlit fruit of mythic tier or above, and only once a night,
+ * caught or lost; landed it sells for 5,000, goes up on the gear shed's wall, and drops a moonpetal vine's seed.
+ */
+export const KOI_TIERS: readonly Tier[] = ['mythic', 'divine'];
+/** A fruit the Moonkoi rises to: Moonlit, of mythic tier or above. */
+export function isKoiBait(f: Fruit): boolean {
+  return !!f.mu?.includes('moonlit') && KOI_TIERS.includes(CROPS[f.c].tier);
+}
+/** Whether the Moonkoi can rise now: after dark, and not yet risen tonight (the game's day counts up at each dawn). */
+export function koiTonight(g: Garden, day: number, sky: Sky): boolean {
+  return sky.phase === 'Night' && g.koi?.night !== day;
+}
+/** It has risen to a bait tonight: whatever comes of it, not again until tomorrow night. */
+export function koiRose(g: Garden, day: number): void {
+  g.koi = { night: day, n: g.koi?.n ?? 0 };
+}
+/** Landed: one more on the count, and its seed, a moonpetal vine's. */
+export function landKoi(g: Garden): void {
+  g.koi = { night: g.koi?.night ?? 0, n: (g.koi?.n ?? 0) + 1 };
+  g.seeds = { ...g.seeds, moonpetal: Math.min(SEEDS_MAX, seedsOf(g, 'moonpetal') + 1) };
 }
 
 /** Sell the whole basket at the stand: the coins, and how many fruit. */
@@ -891,7 +945,7 @@ function parseBed(v: unknown): Bed | null {
 function parseCounts(v: unknown, max: number): Partial<Record<CropId, number>> | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const out: Partial<Record<CropId, number>> = {};
-  for (const k of CROP_IDS) {
+  for (const k of ALL_CROP_IDS) {
     const n = count((v as Record<string, unknown>)[k], max);
     if (n) out[k] = n;
   }
@@ -973,6 +1027,12 @@ export function parseGarden(raw: unknown): Garden {
   }
   const at = time(k.at);
   if (at !== null) g.at = at;
+  if (k.koi && typeof k.koi === 'object') {
+    const kk = k.koi as Record<string, unknown>;
+    const night =
+      typeof kk.night === 'number' && Number.isFinite(kk.night) ? Math.floor(kk.night) : -1;
+    g.koi = { night, n: count(kk.n, 1e6) };
+  }
   const old = parseCounts(k.basket, BASKET_MAX);
   for (const c of CROP_IDS) for (let n = old?.[c] ?? 0; n > 0; n--) bag.push({ c, m: 1 });
   if (bag.length) g.bag = bag.slice(0, BASKET_MAX);
@@ -989,6 +1049,7 @@ export function untouchedGarden(g: Garden): boolean {
     !g.stock &&
     !g.gear &&
     !g.gearStock &&
-    !g.spr?.length
+    !g.spr?.length &&
+    !g.koi
   );
 }
