@@ -10638,12 +10638,14 @@ test('the Battle Barge on the tar: bitten to nothing, the chemistry boat is pull
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
-  // A salvage crate that happens to be under the boat or the net pays too: none near, for this.
-  await page.evaluate(() => {
+  // A salvage crate that happens to be under the boat or the net pays too: none near, for this. One can pay out in
+  // the first frames, before they are moved, so what is held is counted from here.
+  const held = await page.evaluate(() => {
     for (const f of window.__np.flotsam) {
       f.x = -50000;
       f.y = -50000;
     }
+    return window.__np.coins;
   });
   await page.locator('#bargeBtn').click();
   // The kraken is not on the card until it is awake, after the tar eel.
@@ -10666,7 +10668,7 @@ test('the Battle Barge on the tar: bitten to nothing, the chemistry boat is pull
       window.__np.walker.state,
       window.__np.chemHp,
     ]),
-  ).toEqual([0, 50, 'aboard', 100]);
+  ).toEqual([0, held, 'aboard', 100]);
   expect(errors).toEqual([]);
 });
 
