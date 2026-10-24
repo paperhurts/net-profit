@@ -1335,6 +1335,8 @@ test('fish muffins: the muffin man bakes your junk into muffins, kept on reload,
   const errors = await boot(context, page, {
     muted: true,
     junk: 3,
+    // Turtles already seen: their first sighting's toast would otherwise cover the muffin man's.
+    turtleSeen: true,
     trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#junk')).toContainText('3');
