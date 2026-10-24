@@ -177,9 +177,12 @@ type Np = {
     bag?: { c: string; m: number }[];
     beds?: ({ crop: string; ripe: number; mu?: string[][] } | null)[];
     stock?: { day: number; n: Record<string, number> };
+    gear?: Record<string, number>;
+    gearStock?: { day: number; n: Record<string, number> };
   };
   gardenSkew: number;
   gardenSeed: string | null;
+  gardenTool: string | null;
   DOCK14: { x: number; y: number; r: number };
   fromGarden: (u: number, v: number) => [number, number];
   farFarOpen: boolean;
@@ -1340,6 +1343,8 @@ test('fish muffins: the muffin man bakes your junk into muffins, kept on reload,
   const errors = await boot(context, page, {
     muted: true,
     junk: 3,
+    // Turtles already seen: their first sighting's toast would otherwise cover the muffin man's.
+    turtleSeen: true,
     trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#junk')).toContainText('3');
@@ -11130,12 +11135,14 @@ test('the Battle Barge on the tar: bitten to nothing, the chemistry boat is pull
     lv: { net: 5, hold: 5, engine: 5 },
     trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
   });
-  // A salvage crate that happens to be under the boat or the net pays too: none near, for this.
-  await page.evaluate(() => {
+  // A salvage crate that happens to be under the boat or the net pays too: none near, for this. One can pay out in
+  // the first frames, before they are moved, so what is held is counted from here.
+  const held = await page.evaluate(() => {
     for (const f of window.__np.flotsam) {
       f.x = -50000;
       f.y = -50000;
     }
+    return window.__np.coins;
   });
   await page.locator('#bargeBtn').click();
   // The kraken is not on the card until it is awake, after the tar eel.
@@ -11158,7 +11165,7 @@ test('the Battle Barge on the tar: bitten to nothing, the chemistry boat is pull
       window.__np.walker.state,
       window.__np.chemHp,
     ]),
-  ).toEqual([0, 50, 'aboard', 100]);
+  ).toEqual([0, held, 'aboard', 100]);
   expect(errors).toEqual([]);
 });
 
@@ -14466,5 +14473,88 @@ test('eggs: one due hatches aboard with its reveal and a name, and one still wai
   await page.waitForFunction(() => window.__np?.pets?.save.hatched.length === 1, null, {
     timeout: 5000,
   });
+  expect(errors).toEqual([]);
+});
+
+test("the Garden Isle's gear shed: buy a can, a sprinkler and a shovel, water a bed, set the sprinkler down, dig one up", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 5000,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true, seeds: { pineapple: 2 } },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  const climb = page.locator('#climb');
+  // The shed is open now: a can, a sprinkler and the shovel, from a stock that always has the can and the shovel.
+  await standAt(-50, -136);
+  await expect(climb).toHaveText('Look at the gear', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#gardenCard')).toBeVisible();
+  await expect(page.locator('#gardenTitle')).toHaveText('The gear shed');
+  await expect(page.locator('#gardenShelf [data-gear]')).toHaveCount(4);
+  await page.evaluate(() => {
+    const g = window.__np.gardenIsle;
+    g.gearStock = { day: g.gearStock?.day ?? 1, n: { can: 2, sprinkler: 1, shovel: 1 } };
+  });
+  for (const k of ['can', 'sprinkler', 'shovel'])
+    await page.locator(`[data-gear="${k}"]`).dispatchEvent('click');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.gardenIsle.gear])).toEqual([
+    5000 - 400 - 900 - 100,
+    { can: 10, sprinkler: 1, shovel: 1 },
+  ]);
+  await page.click('#gardenClose');
+  // Plant a pineapple, then take the can from the tray and water it: half a minute off.
+  await standAt(172, 30);
+  await expect(climb).toHaveText('Plant a pineapple', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await page.locator('#seedTray [data-tool="can"]').dispatchEvent('click');
+  await expect(climb).toHaveText(/^Water the pineapple: ripe in (15:00|14:5\d)$/, {
+    timeout: 4000,
+  });
+  await climb.dispatchEvent('click');
+  await expect(climb).toHaveText(/^Water the pineapple: ripe in 14:[23]\d$/, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.gardenIsle.gear?.can)).toBe(9);
+  // The sprinkler, set down on the bed: it runs, saved, with the bed in its reach.
+  await page.locator('#seedTray [data-tool="sprinkler"]').dispatchEvent('click');
+  await expect(climb).toHaveText('Set your sprinkler down here', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  const spr = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') || '{}').garden.spr,
+  );
+  expect(spr).toHaveLength(1);
+  expect(spr[0].beds).toContain(0);
+  expect(await page.evaluate(() => window.__np.gardenTool)).toBeNull();
+  // The shovel: two taps, and the bed is free.
+  await page.locator('#seedTray [data-tool="shovel"]').dispatchEvent('click');
+  await expect(climb).toHaveText('Dig up the pineapple', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  expect(await page.evaluate(() => window.__np.gardenIsle.beds?.[0])).not.toBeNull();
+  await climb.dispatchEvent('click');
+  await expect.poll(() => page.evaluate(() => window.__np.gardenIsle.beds?.[0] ?? null)).toBeNull();
+  await expect(climb).toHaveText('Plant a pineapple', { timeout: 4000 });
   expect(errors).toEqual([]);
 });

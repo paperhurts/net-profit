@@ -222,3 +222,14 @@ export function bedUnder(x: number, y: number): number {
   }
   return -1;
 }
+
+/** How far a sprinkler's spray reaches: set on a bed, that bed and the four next to it; between beds, the four round it. */
+export const SPRINKLER_REACH = 50;
+/** The beds a sprinkler set down at (u, v) in the isle's frame waters, open or staked out, as indices in BEDS. */
+export function bedsInReach(u: number, v: number): number[] {
+  const out: number[] = [];
+  BEDS.forEach((b, i) => {
+    if (Math.hypot(b.u - u, b.v - v) <= SPRINKLER_REACH) out.push(i);
+  });
+  return out;
+}
