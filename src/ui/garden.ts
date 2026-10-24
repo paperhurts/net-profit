@@ -73,7 +73,8 @@ export function gardenAction(
   const b = i >= 0 ? bedAt(g, i) : null;
   if (b) growBed(b, now);
   if (b && b.ripe > 0) return `g-pick-${i}`;
-  if (i >= 0 && !b && seed && seedsOf(g, seed) > 0) return `g-plant-${i}`;
+  if (i >= 0 && !b && seed && seedsOf(g, seed) > 0)
+    return CROPS[seed].legend && binOf(g, 'legend') <= 0 ? 'g-nolegend' : `g-plant-${i}`;
   const sprinkler = (tool === 'sprinkler' || tool === 'goldsprinkler') && gearOf(g, tool) > 0;
   if (sprinkler && inPlot14(x, y)) return 'g-spr';
   // On a bed only staked out: dig the next six, while there are more to dig.
@@ -129,10 +130,11 @@ export function gardenLabel(
     return n ? `Sell your basket for ${basketValue(g)}` : 'Your basket is empty';
   }
   if (code === 'g-noseed') return 'No seeds: the seed stall has them';
+  if (code === 'g-nolegend') return 'It needs a legendary fish';
   const i = bedOf(code);
   const b = bedAt(g, i);
   if (code.startsWith('g-plant-') && selected) {
-    const fish = fishOfTool(tool);
+    const fish = CROPS[selected].legend ? 'legend' : fishOfTool(tool);
     return fish && binOf(g, fish) > 0
       ? `Plant a ${CROPS[selected].name} over a ${FISH_WORDS[fish].one}`
       : `Plant a ${CROPS[selected].name}`;
@@ -175,6 +177,8 @@ export const CROP_SVG: Record<CropId, string> = {
     '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="17" r="11" fill="#FFE59A" opacity=".45"/><path d="M15 7c6 0 8 5 8 10s-3 9-8 9-8-4-8-9 2-10 8-10z" fill="#F7A93B"/><path d="M15 7v19M10 9c-2 5-2 12 1 16M20 9c2 5 2 12-1 16" stroke="#D97F1E" stroke-width="1.2" fill="none"/><path d="M15 7c0-2 1-3 3-4" stroke="#4E9A3E" stroke-width="2"/></svg>',
   kraken:
     '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M5 18c0-6 5-10 10-10s10 4 10 10-4 8-10 8-10-2-10-8z" fill="#7E4FB0"/><path d="M9 11c1 5 1 10 0 14M15 8v18M21 11c-1 5-1 10 0 14" stroke="#5E3590" stroke-width="1.4" fill="none"/><path d="M15 8c0-3 3-4 5-3-1 1-3 1-3 3M3 22c3 0 4-2 4-4M27 22c-3 0-4-2-4-4" stroke="#4E9A3E" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>',
+  starfall:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="17" r="12" fill="#FFE59A" opacity=".35"/><ellipse cx="15" cy="18" rx="10" ry="8" fill="#2E4A7A"/><path d="M7 15c3-3 13-3 16 0M6 19c4-2 14-2 18 0" stroke="#4E6FA8" stroke-width="1.2" fill="none"/><g fill="#FFE07A"><path d="M11 13l.8 1.6 1.7.3-1.3 1.1.4 1.7-1.6-.9-1.5.9.3-1.7-1.2-1.1 1.7-.3z"/><circle cx="19" cy="16" r="1"/><circle cx="16" cy="22" r=".9"/><circle cx="21" cy="21" r=".7"/></g><path d="M15 10c0-3 2-5 5-5" stroke="#4E9A3E" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
   moonpetal:
     '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="12" fill="#AFC0FF" opacity=".35"/><path d="M6 25c4-3 6-8 6-13M12 12c3 2 7 2 10-1" stroke="#5E8C6A" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M19 7a6 6 0 1 0 5 9 5 5 0 1 1-5-9z" fill="#EEF2FA"/><g fill="#DCE6FF"><ellipse cx="9" cy="17" rx="3" ry="1.6" transform="rotate(-30 9 17)"/><ellipse cx="13" cy="21" rx="3" ry="1.6" transform="rotate(20 13 21)"/></g></svg>',
 };
@@ -185,7 +189,7 @@ export function cropBlurb(k: CropId): string {
   const t = (s: number) => (s < 60 ? `${s} s` : `${s / 60} min`);
   return c.regrow
     ? `Keeps fruiting: first in ${t(c.grow)}, then one every ${t(c.regrow)}, up to ${c.holds} at a time. Sells for ${c.sell.toLocaleString('en-GB')} each.`
-    : `Picked once: ripe in ${t(c.grow)}. Sells for ${c.sell.toLocaleString('en-GB')}.`;
+    : `Picked once: ripe in ${t(c.grow)}. Sells for ${c.sell.toLocaleString('en-GB')}.${c.legend ? ' Sprouts only over a legendary fish from the compost bin.' : ''}`;
 }
 
 /** The seed stall's shelf: each crop, how many seeds you hold, and a button to buy one. */
@@ -270,7 +274,8 @@ export function seedTrayHtml(g: Garden, selected: CropId | null, tool: Tool | nu
       return `<button class="seed gear${on ? ' on' : ''}" data-tool="${k}" aria-pressed="${on}" aria-label="${GEAR[k].name}${n ? `, ${n}` : ''}">${GEAR_SVG[k]}<span>${n}</span></button>`;
     })
     .join('');
-  const fish = FISH_CLASSES.filter((k) => binOf(g, k) > 0)
+  // A legendary fish is never in hand: the top crop takes one from the bin by itself.
+  const fish = FISH_CLASSES.filter((k) => k !== 'legend' && binOf(g, k) > 0)
     .map((k) => {
       const t: Tool = `fish-${k}`;
       const on = t === tool;
@@ -303,12 +308,19 @@ export const FISH_WORDS: Record<FishClass, { one: string; many: string; does: st
     many: 'Deep fish',
     does: "Fish from past the buoys and the abyss. Its plant's first fruit grow a tenth bigger.",
   },
+  legend: {
+    one: 'legendary fish',
+    many: 'Legendary fish',
+    does: 'The Remoro, the attack nibbler and the Moonkoi. The starfall melon sprouts only over one, and takes it from the bin by itself.',
+  },
 };
 const FISH_SVG: Record<FishClass, string> = {
   common:
     '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="15" rx="9" ry="4.5" fill="#9DB8C4"/><path d="M22 15l6-5v10z" fill="#9DB8C4"/><circle cx="9" cy="14" r="1.2" fill="#1E2E4A"/></svg>',
   rare: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="15" rx="9" ry="5" fill="#F28C5A"/><path d="M22 15l6-5v10z" fill="#F28C5A"/><circle cx="9" cy="14" r="1.2" fill="#1E2E4A"/><path d="M24 5l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="#FFE07A"/></svg>',
   deep: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="15" rx="9" ry="4.5" fill="#3E5F8A"/><path d="M22 15l6-5v10z" fill="#3E5F8A"/><circle cx="9" cy="14" r="1.6" fill="#BFE6FF"/></svg>',
+  legend:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="17" rx="10" ry="5.5" fill="#C9D3D6"/><path d="M23 17l6-6v12z" fill="#C9D3D6"/><circle cx="8.5" cy="16" r="1.3" fill="#1E2E4A"/><path d="M8 9l2-4 3 3 2-4 2 4 3-3 2 4z" fill="#F0C544"/></svg>',
 };
 
 /** The compost bin's card: each kind of fish, how many it holds, what it does buried, and whether the bin keeps it. */
@@ -319,7 +331,6 @@ export function binShelfHtml(g: Garden): string {
   }).join('');
 }
 
-/** One line for each crop in the garden journal (part twelve), in the game's voice. */
 /**
  * Who keeps the three stalls (part thirteen), the owner's: a capybara, a Tilcayo and a platypus, with punny names. Stand-ins
  * until the kid names them himself; the names are only ever said from here.
@@ -330,6 +341,7 @@ export const KEEPERS = {
   sell: { name: 'Penny Platypus', kind: 'platypus' },
 } as const;
 
+/** One line for each crop in the garden journal (part twelve), in the game's voice. */
 export const CROP_LINES: Record<CropId, string> = {
   carrot: 'The first thing anyone grows. Ready in a minute, and pulled up whole.',
   strawberry: 'Small, sweet and never done: it keeps putting out berries, four at a time.',
@@ -343,6 +355,8 @@ export const CROP_LINES: Record<CropId, string> = {
   dragonfruit: 'Bright pink with green flames, on a cactus that climbs. Rarer than most.',
   lantern: 'A curling vine of gourds that glow warm after dark, like the lanternfish.',
   kraken: 'A great purple squash, its vines curling like tentacles. Worth a fortune, once.',
+  starfall:
+    'A melon as dark as the night sky, speckled with stars. It will only grow over a legendary fish.',
   moonpetal:
     "The Moonkoi's gift: a silvery vine whose fruit are little crescent moons, glowing blue at night.",
 };
@@ -351,9 +365,11 @@ export const CROP_LINES: Record<CropId, string> = {
 function seedHint(k: CropId): string {
   const c = CROPS[k];
   if (!c.odds) return 'Its seed only comes from the Moonkoi.';
-  return c.odds === 1
-    ? 'The seed stall always has it.'
-    : `The seed stall has it about one day in ${c.odds}.`;
+  const where =
+    c.odds === 1
+      ? 'The seed stall always has it.'
+      : `The seed stall has it about one day in ${c.odds}.`;
+  return c.legend ? `${where} It sprouts only over a legendary fish.` : where;
 }
 
 /**

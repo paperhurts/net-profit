@@ -2287,7 +2287,9 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
     if (!got.n){ sfx.denied(); toast('Nothing in your basket yet. Pick what is ripe in your beds, then sell it here.', 2600); return; }
     coins += got.coins; earned += got.coins; sfx.sold(); hud(); save(); toast(`Sold ${got.n} fruit to ${KEEPERS.sell.name} for ${got.coins} coins.`, 2400); return; }
   if (a === 'g-noseed'){ sfx.denied(); toasts.clear(); toast('No seeds to plant. The seed stall, up by the pier, sells them.', 2600); return; }
+  if (a === 'g-nolegend'){ sfx.denied(); toasts.clear(); toast(`The ${CROPS.starfall.name} only sprouts over a legendary fish: the Remoro, the attack nibbler or the Moonkoi. Set the compost bin to keep them, and tie up here with one in your hold.`, 4200, 1); return; }
   if (a.startsWith('g-plant-')){ const k = gardenChoice(), fish = fishOfTool(gardenTool), had = fish ? binOf(gardenIsle, fish) : 0; if (k && plantBed(gardenIsle, i, k, now, fish ?? undefined)){ sfx.hop(); gardenSeed = gardenChoice() ?? k; save();
+      if (CROPS[k].legend){ sfx.tierUp(); toasts.clear(); toast(`Planted a ${CROPS[k].name} over a legendary fish. In ${CROPS[k].grow / 60} minutes it will be ripe, worth ${CROPS[k].sell.toLocaleString('en-GB')}, picked once.`, 3600, 1); return; }
       if (fish && had > 0){ if (!binOf(gardenIsle, fish)) gardenTool = null; toasts.clear(); toast(`Planted a ${CROPS[k].name} over a ${FISH_WORDS[fish].one}: ${fish === 'common' ? 'it grows a quarter faster to its first fruit' : fish === 'rare' ? 'its first fruit are Gold one time in 50' : 'its first fruit grow a tenth bigger'}.`, 3200); return; }
       if (!gardenTold.has('planted')){ gardenTold.add('planted'); toasts.clear(); toast(`Planted a ${CROPS[k].name}. ${CROPS[k].regrow ? 'It will keep fruiting once it is grown.' : 'It is picked once, when it is ripe.'} It grows even while the game is closed.`, 3600); } }
     return; }
