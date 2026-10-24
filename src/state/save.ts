@@ -19,6 +19,7 @@ import {
   UPGRADE_MAX,
 } from '../data/drone';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
+import { type Garden, noGarden, parseGarden, untouchedGarden } from '../data/garden';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { type HqBuilt, noHq, parseHq } from '../data/hq';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
@@ -395,6 +396,11 @@ export type SaveData = {
    * named; left out of the save while it is empty, so the copy-my-game link stays short.
    */
   pets: PetSave;
+  /**
+   * The Garden Isle, island 14 (data/garden.ts): sighted or not, for now. Missing in old saves and read as not seen;
+   * left out of the save until it is seen.
+   */
+  garden: Garden;
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -580,6 +586,7 @@ export function defaultSave(b: Bounds): SaveData {
     mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false, sirens: false },
     endless: { seen: false, pirate: false, ninja: false },
     pets: noPets(),
+    garden: noGarden(),
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -874,6 +881,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (slalom) d.endless.slalom = slalom;
   }
   d.pets = parsePets(o.pets);
+  d.garden = parseGarden(o.garden);
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
     for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
@@ -1042,6 +1050,7 @@ export function serializeSave(d: SaveData): string {
     mer: d.mer.seen || d.mer.given || d.mer.sirens ? d.mer : undefined,
     endless: d.endless.seen || d.endless.pirate || d.endless.ninja ? d.endless : undefined,
     pets: petsForSave(d.pets),
+    garden: untouchedGarden(d.garden) ? undefined : d.garden,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
