@@ -8,6 +8,7 @@ import { SKIPPER } from '../../src/data/look';
 import { skied } from '../../src/data/slalom';
 import { HONEY_MAX } from '../../src/data/snacks';
 import { SPEAR_MAX } from '../../src/data/spear';
+import { climbed } from '../../src/data/treehouse';
 import { LEGGY_MAX } from '../../src/entities/leggy';
 import {
   type Bounds,
@@ -1313,6 +1314,29 @@ describe('the Endless Isle', () => {
     expect(parseSave(JSON.stringify(junk), bounds).endless.slalom).toEqual({ runs: 2, best: {} });
     const none = { ...JSON.parse(serializeSave(s)), endless: { seen: true, slalom: 'lots' } };
     expect(parseSave(JSON.stringify(none), bounds).endless.slalom).toBeUndefined();
+  });
+
+  it('keeps the Treehouse Climb climbs and best times, a save from before them reading as none climbed', () => {
+    const s = parseSave(legacy, bounds);
+    s.endless = { seen: true, pirate: true, ninja: false };
+    expect(parseSave(serializeSave(s), bounds).endless.climbs).toBeUndefined();
+    s.endless = { ...s.endless, climbs: climbed(climbed(undefined, 1, null), 1, 44.44) };
+    expect(parseSave(serializeSave(s), bounds).endless.climbs).toEqual({
+      climbs: 2,
+      top: 1,
+      best: { 1: 44.4 },
+    });
+    const junk = {
+      ...JSON.parse(serializeSave(s)),
+      endless: { seen: true, climbs: { climbs: 2, top: 'high', best: { 1: 'quick' } } },
+    };
+    expect(parseSave(JSON.stringify(junk), bounds).endless.climbs).toEqual({
+      climbs: 2,
+      top: 0,
+      best: {},
+    });
+    const none = { ...JSON.parse(serializeSave(s)), endless: { seen: true, climbs: 'lots' } };
+    expect(parseSave(JSON.stringify(none), bounds).endless.climbs).toBeUndefined();
   });
 });
 
