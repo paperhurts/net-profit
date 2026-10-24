@@ -2,8 +2,9 @@
  * Drawing the Garden Isle (world/garden.ts): its shallows following the shore, a ring of sand and then grass, lush and
  * soft, with sandy paths from the pier's root to the plot and the stalls. The plot is edged with low planks; six beds are
  * dug, dark soil in rows, and the rest are staked out with string. The seed stall has a green-and-cream awning, the sell
- * stand a blue one with baskets, the gear shed a red roof, its door shut until a later piece opens it. Planted beds grow
- * their plants (gardenPlantSolids), from a sprout to a full plant with its fruit on it. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
+ * stand a blue one with baskets, the gear shed a red roof and its door open (part seven). Planted beds grow
+ * their plants (gardenPlantSolids), from a sprout to a full plant with its fruit on it, and sprinklers set down in the
+ * plot spray the beds round them. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
  */
 
 import {
@@ -13,6 +14,7 @@ import {
   grownOf,
   type Mutation,
   mutationsOn,
+  type Sprinkler,
   secondsLeft,
   sizesOn,
   type Variant,
@@ -34,6 +36,7 @@ import {
   SCARECROW,
   SEED_STALL,
   SELL_STAND,
+  SPRINKLER_REACH,
   type Stall,
   shoreRG,
   TREES14,
@@ -383,7 +386,7 @@ function drawSellStand(v: DrawView): void {
   }
 }
 
-/** The gear shed: plank walls, a red roof, its door shut, a watering can by it. */
+/** The gear shed: plank walls, a red roof, its door open on the dark inside, a watering can by it. */
 function drawGearShed(v: DrawView): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
@@ -409,12 +412,26 @@ function drawGearShed(v: DrawView): void {
     ctx.fillStyle = side > 0 ? '#C8483A' : '#A9362B';
     ctx.fill();
   }
-  // The door, shut.
+  // The door, open: the dark inside, a rake against the wall, and the door swung back.
   const [dx, dy] = fromGarden(s.u, s.v + s.hv);
-  ctx.fillStyle = '#6B4628';
+  ctx.fillStyle = '#3B2A1C';
   ctx.fillRect(px(dx, dy) - 6 * Z, py(dx, dy, 22), 12 * Z, 22 * Z * 0.9);
+  ctx.strokeStyle = '#B98B57';
+  ctx.lineWidth = 1.4 * Z;
+  ctx.beginPath();
+  ctx.moveTo(px(dx, dy) - 2 * Z, py(dx, dy, 2));
+  ctx.lineTo(px(dx, dy) + 2 * Z, py(dx, dy, 19));
+  ctx.stroke();
+  ctx.fillStyle = '#6B4628';
+  ctx.beginPath();
+  ctx.moveTo(px(dx, dy) - 6 * Z, py(dx, dy, 22));
+  ctx.lineTo(px(dx, dy) - 13 * Z, py(dx, dy, 22) + 4 * Z);
+  ctx.lineTo(px(dx, dy) - 13 * Z, py(dx, dy, 0) + 4 * Z);
+  ctx.lineTo(px(dx, dy) - 6 * Z, py(dx, dy, 0));
+  ctx.closePath();
+  ctx.fill();
   ctx.fillStyle = '#FFC53D';
-  ctx.fillRect(px(dx, dy) + 3 * Z, py(dx, dy, 11), 1.6 * Z, 1.6 * Z);
+  ctx.fillRect(px(dx, dy) - 12 * Z, py(dx, dy, 11) + 3 * Z, 1.6 * Z, 1.6 * Z);
   // A watering can by the door.
   const [wx, wy] = fromGarden(s.u + s.hu - 4, s.v + s.hv + 9);
   ctx.fillStyle = '#9AA9B0';
@@ -1048,9 +1065,9 @@ function drawTimer(v: DrawView, sx: number, sy: number, text: string): void {
  * growing bed says how long it has to go and a ripe one twinkles.
  */
 export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: boolean): Solid[] {
-  if (!near(v, 1000) || !g.beds) return [];
+  if (!near(v, 1000)) return [];
   const out: Solid[] = [];
-  g.beds.forEach((b, i) => {
+  (g.beds ?? []).forEach((b, i) => {
     const at = BEDS[i];
     if (!b || !at) return;
     const [x, y] = fromGarden(at.u, at.v);
@@ -1090,7 +1107,92 @@ export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: b
       },
     });
   });
+  for (const s of g.spr ?? []) {
+    if (s.to <= now) continue;
+    const [x, y] = fromGarden(s.u, s.v);
+    if (!v.onScreen(x, y, 80 * v.zoom)) continue;
+    out.push({ d: x + y + 1.5, f: () => drawSprinkler(v, s, now, timers) });
+  }
   return out;
+}
+
+/** A sprinkler in the plot: its reach a faint ring of wet on the ground, a post and a turning head throwing drops round
+ * it, gold for a gold one, and, ashore, a dial of the time it has left. */
+function drawSprinkler(v: DrawView, s: Sprinkler, now: number, timers: boolean): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const [x, y] = fromGarden(s.u, s.v);
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, 0);
+  const gold = s.k === 'goldsprinkler';
+  // Its reach on the ground: the isometric ellipse of a circle of SPRINKLER_REACH.
+  const rx = SPRINKLER_REACH * Z * Math.SQRT2;
+  ctx.fillStyle = 'rgba(120,190,230,.16)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, rx, rx / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // The drops, flung out round the turning head and falling.
+  const spin = v.T * 2.4;
+  ctx.fillStyle = 'rgba(170,220,250,.85)';
+  for (let k = 0; k < 14; k++) {
+    const f = (v.T * 0.9 + k / 14) % 1;
+    const a = spin + k * 2.4;
+    const r = f * rx;
+    ctx.beginPath();
+    ctx.arc(
+      sx + Math.cos(a) * r,
+      sy + (Math.sin(a) * r) / 2 - (14 + 22 * f * (1 - f) * 2) * Z,
+      1.6 * Z,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.fillStyle = gold ? '#C9962B' : '#6E7F86';
+  ctx.fillRect(sx - 1.2 * Z, sy - 12 * Z, 2.4 * Z, 12 * Z);
+  ctx.fillStyle = gold ? '#FFC53D' : '#4FA3D9';
+  ctx.beginPath();
+  ctx.arc(sx, sy - 13 * Z, 3.4 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.fillRect(sx + Math.cos(spin) * 3 * Z - Z, sy - 13 * Z - Z, 2 * Z, 2 * Z);
+  if (!timers) return;
+  // Ashore, a little dial over it emptying as it runs: words would crowd the beds' own times.
+  const left = Math.max(0, Math.min(1, (s.to - now) / (s.to - s.from)));
+  const cy = sy - 26 * Z;
+  ctx.fillStyle = 'rgba(255,246,229,.92)';
+  ctx.beginPath();
+  ctx.arc(sx, cy, 6 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = gold ? '#E0A82E' : '#4FA3D9';
+  ctx.beginPath();
+  ctx.moveTo(sx, cy);
+  ctx.arc(sx, cy, 4.6 * Z, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A watering: a can's spout of drops onto a bed, for the moment after (t from 1 down to 0). */
+export function drawGardenSplash(v: DrawView, i: number, t: number): void {
+  const at = BEDS[i];
+  if (!at) return;
+  const [x, y] = fromGarden(at.u, at.v);
+  if (!v.onScreen(x, y, 80 * v.zoom)) return;
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, 2);
+  ctx.fillStyle = `rgba(170,220,250,${Math.min(1, t * 2)})`;
+  for (let k = 0; k < 10; k++) {
+    const f = (1 - t + k / 10) % 1;
+    ctx.beginPath();
+    ctx.arc(sx + (k - 4.5) * 2.4 * Z, sy - (30 - 30 * f) * Z, 1.7 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = `rgba(60,40,25,${0.35 * t})`;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, 16 * Z, 8 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /**
