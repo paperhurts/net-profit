@@ -119,14 +119,14 @@ export function layRun(run: Run): Feature[] {
       continue;
     }
     const pick = R();
-    if (pick < 0.4) {
+    if (pick < run.hazard) {
       const kind: Hazard = R() < 0.4 ? 'pine' : R() < 0.5 ? 'rock' : 'snowman';
       const r = kind === 'pine' ? 0.9 : kind === 'rock' ? 0.7 : 0.6;
       out.push({ kind, z: mid, x: off(mid, 2.6 + r + R() * 1.5), r });
-    } else if (pick < 0.58) {
+    } else if (pick < run.hazard + run.ice) {
       const l = line(mid);
       out.push({ kind: 'ice', z: mid - 5, len: 10, x0: l - 3, x1: l + 3 });
-    } else if (pick < 0.74) {
+    } else if (pick < run.hazard + run.ice + run.moguls) {
       const l = line(mid);
       out.push({ kind: 'moguls', z: mid - 6, len: 12, x0: l - 3.5, x1: l + 3.5 });
     } else {
@@ -269,23 +269,27 @@ export class Slalom {
       this.tumbleT -= dt;
       if (this.tumbleT <= 0) {
         this.state = 'ski';
-        this.v = Math.max(this.v, RESTART);
+        this.v = Math.max(this.v, RESTART * this.run.steep);
         this.onEvent?.('up');
       }
     } else {
       this.onIce = this.over('ice');
       this.inMoguls = !this.air && this.over('moguls');
       const k = Math.min(1, (this.air ? AIR_AGILITY : this.onIce ? ICE_AGILITY : AGILITY) * dt);
-      this.vx += (sx * SIDE - this.vx) * k;
+      // A steeper run is quicker every way: down it, and across it as you carve.
+      const st = this.run.steep;
+      const side = SIDE * st;
+      this.vx += (sx * side - this.vx) * k;
       this.tuck += ((sy < -0.3 ? 1 : 0) - this.tuck) * Math.min(1, 8 * dt);
       if (!this.air) {
         let want =
-          sy < -0.3
+          st *
+          (sy < -0.3
             ? CRUISE + (TUCK - CRUISE) * Math.min(1, (-sy - 0.3) / 0.6)
             : sy > 0.3
               ? CRUISE - (CRUISE - BRAKE) * Math.min(1, (sy - 0.3) / 0.6)
-              : CRUISE;
-        want -= (CARVE * Math.abs(this.vx)) / SIDE;
+              : CRUISE);
+        want -= (CARVE * st * Math.abs(this.vx)) / side;
         if (this.inMoguls) want *= MOGUL_SLOW;
         if (Math.abs(this.x) >= half - 0.01 && Math.sign(sx) === Math.sign(this.x))
           want *= EDGE_SLOW;
@@ -358,7 +362,7 @@ export class Slalom {
       if (!this.air && this.x >= o.x0 && this.x <= o.x1) {
         this.air = true;
         this.y = RAMP_Y * 0.5;
-        this.vy = JUMP_UP * clamp(this.v / CRUISE, 0.6, 1.2);
+        this.vy = JUMP_UP * clamp(this.v / (CRUISE * this.run.steep), 0.6, 1.2);
         this.trick = null;
         this.onEvent?.('jump', o);
       }
@@ -391,7 +395,7 @@ export class Slalom {
     this.air = false;
     this.y = 0;
     this.vy = 0;
-    if (o && 'r' in o) this.vx = Math.sign(this.x - o.x || 1) * SIDE * 0.5;
+    if (o && 'r' in o) this.vx = Math.sign(this.x - o.x || 1) * SIDE * this.run.steep * 0.5;
     this.onEvent?.('crash', o);
   }
 }

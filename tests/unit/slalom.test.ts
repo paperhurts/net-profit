@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { clockOf, GATE_MISS, parseSlalom, RUNS, skied, TRICK_BONUS } from '../../src/data/slalom';
+import {
+  clockOf,
+  GATE_MISS,
+  medalBetter,
+  medalOf,
+  parseSlalom,
+  RUN_ORDER,
+  RUNS,
+  skied,
+  TRICK_BONUS,
+} from '../../src/data/slalom';
 import {
   CRUISE,
   type Feature,
@@ -41,33 +51,35 @@ function bare(...fs: Feature[]): Slalom {
 }
 
 describe('the Ninja Slalom', () => {
-  it('lays the Bunny Slope out the same every time, its gates swinging side to side inside the piste', () => {
-    const run = RUNS.bunny;
-    const a = layRun(run);
-    expect(layRun(run)).toEqual(a);
-    const gates = a.filter((f): f is Gate => f.kind === 'gate');
-    expect(gates.length).toBeGreaterThanOrEqual(12);
-    gates.forEach((g, i) => {
-      if (i) expect(Math.sign(g.x)).toBe(-Math.sign((gates[i - 1] as Gate).x));
-      expect(Math.abs(g.x) + g.w / 2).toBeLessThan(run.half);
-      expect(g.red).toBe(i % 2 === 0);
+  for (const key of RUN_ORDER)
+    it(`lays the ${RUNS[key].name} out the same every time, its gates swinging side to side inside the piste`, () => {
+      const run = RUNS[key];
+      const a = layRun(run);
+      expect(layRun(run)).toEqual(a);
+      const gates = a.filter((f): f is Gate => f.kind === 'gate');
+      expect(gates.length).toBeGreaterThanOrEqual(12);
+      gates.forEach((g, i) => {
+        if (i) expect(Math.sign(g.x)).toBe(-Math.sign((gates[i - 1] as Gate).x));
+        expect(Math.abs(g.x) + g.w / 2).toBeLessThan(run.half);
+        expect(g.red).toBe(i % 2 === 0);
+      });
+      expect(a.filter((f) => f.kind === 'jump')).toHaveLength(run.jumps);
+      expect(a.filter((f) => f.kind === 'lantern').length).toBeGreaterThanOrEqual(6);
+      for (const f of a) {
+        expect(f.z).toBeGreaterThan(0);
+        expect(f.z).toBeLessThan(run.len);
+        if ('x' in f) expect(Math.abs(f.x)).toBeLessThan(run.half);
+      }
     });
-    expect(a.filter((f) => f.kind === 'jump')).toHaveLength(run.jumps);
-    expect(a.filter((f) => f.kind === 'lantern').length).toBeGreaterThanOrEqual(6);
-    for (const f of a) {
-      expect(f.z).toBeGreaterThan(0);
-      expect(f.z).toBeLessThan(run.len);
-      if ('x' in f) expect(Math.abs(f.x)).toBeLessThan(run.half);
-    }
-  });
 
-  it('leaves a clear line through every gate: nothing stands within reach of it', () => {
-    const a = layRun(RUNS.bunny);
-    const gates = a.filter((f): f is Gate => f.kind === 'gate');
-    for (const f of a)
-      if (f.kind === 'pine' || f.kind === 'rock' || f.kind === 'snowman')
-        expect(hits(f, lineAt(gates, f.z), 0)).toBe(false);
-  });
+  for (const key of RUN_ORDER)
+    it(`leaves a clear line through every gate of the ${RUNS[key].name}: nothing stands within reach of it`, () => {
+      const a = layRun(RUNS[key]);
+      const gates = a.filter((f): f is Gate => f.kind === 'gate');
+      for (const f of a)
+        if (f.kind === 'pine' || f.kind === 'rock' || f.kind === 'snowman')
+          expect(hits(f, lineAt(gates, f.z), 0)).toBe(false);
+    });
 
   it('counts down before it goes, and the clock starts at go', () => {
     const s = new Slalom(RUNS.bunny);
@@ -278,10 +290,57 @@ describe('the Ninja Slalom', () => {
     expect(s.best.bunny).toBe(47.1);
     expect(parseSlalom(JSON.parse(JSON.stringify(s)))).toEqual(s);
     expect(parseSlalom({ runs: 'x', best: {} })).toBeUndefined();
-    expect(parseSlalom({ runs: 3, best: { bunny: -2, fox: 30 } })).toEqual({ runs: 3, best: {} });
+    expect(parseSlalom({ runs: 3, best: { bunny: -2, moon: 30 } })).toEqual({ runs: 3, best: {} });
+    expect(parseSlalom({ runs: 3, best: { bunny: 47.1, fox: 61.24 } })).toEqual({
+      runs: 3,
+      best: { bunny: 47.1, fox: 61.2 },
+    });
     expect(parseSlalom({ runs: 3, best: 'fast' })).toEqual({ runs: 3, best: {} });
     expect(clockOf(47.06)).toBe('47.1');
     expect(clockOf(63.5)).toBe('1:03.5');
     expect(clockOf(9)).toBe('9.0');
+  });
+
+  it('has the Fox Run longer, narrower and steeper than the Bunny Slope, its gates tighter and swinging further', () => {
+    const b = RUNS.bunny;
+    const f = RUNS.fox;
+    expect(f.mark).toBe('blue');
+    expect(f.len).toBeGreaterThan(b.len);
+    expect(f.half).toBeLessThan(b.half);
+    expect(f.gateW).toBeLessThan(b.gateW);
+    expect(f.swing).toBeGreaterThan(b.swing);
+    expect(f.steep).toBeGreaterThan(b.steep);
+    expect(new Slalom(f).gatesOut).toBeGreaterThan(new Slalom(b).gatesOut);
+    // Down the line it makes every gate without a fall, and goes quicker than the Bunny Slope a metre.
+    const fox = ski(new Slalom(f), theLine());
+    expect(fox.state).toBe('done');
+    expect(fox.gatesMissed).toBe(0);
+    expect(fox.crashes).toBe(0);
+    const bunny = ski(new Slalom(b), theLine());
+    expect(fox.time / f.len).toBeLessThan(bunny.time / b.len);
+  });
+
+  it('gives gold, silver or bronze for a time, or none: gold tucked all the way down, bronze cruising', () => {
+    for (const key of RUN_ORDER) {
+      const run = RUNS[key];
+      const [g, s, b] = run.medals;
+      expect(g).toBeLessThan(s);
+      expect(s).toBeLessThan(b);
+      expect(medalOf(run, g)).toBe('gold');
+      expect(medalOf(run, g + 0.04)).toBe('gold');
+      expect(medalOf(run, g + 0.1)).toBe('silver');
+      expect(medalOf(run, b)).toBe('bronze');
+      expect(medalOf(run, b + 0.1)).toBeNull();
+      expect(medalOf(run, ski(new Slalom(run), theLine(-1)).time)).toBe('gold');
+      expect(medalOf(run, ski(new Slalom(run), theLine(-0.6)).time)).toBe('silver');
+      expect(medalOf(run, ski(new Slalom(run), theLine()).time)).toBe('bronze');
+      // Braking all the way down wins nothing.
+      expect(medalOf(run, ski(new Slalom(run), theLine(1)).time)).toBeNull();
+    }
+    expect(medalBetter('gold', 'silver')).toBe(true);
+    expect(medalBetter('bronze', null)).toBe(true);
+    expect(medalBetter('silver', 'silver')).toBe(false);
+    expect(medalBetter('bronze', 'gold')).toBe(false);
+    expect(medalBetter(null, null)).toBe(false);
   });
 });

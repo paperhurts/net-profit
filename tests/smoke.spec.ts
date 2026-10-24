@@ -49,7 +49,7 @@ type Ski = {
   howTo: boolean;
   state: 'ready' | 'ski' | 'tumble' | 'done';
   course: SkiFeature[];
-  run: { len: number };
+  run: { len: number; name: string };
   x: number;
   z: number;
   v: number;
@@ -8186,7 +8186,7 @@ test('Hold the Forts: the leader offers it, the three bases neutral, the Cannon 
   expect(errors).toEqual([]);
 });
 
-test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time and coins; then a run stopped early, its time not kept', async ({
+test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time, its medal and coins, opening the Fox Run; then the run card, the Fox Run, stopped early, its time not kept', async ({
   context,
   page,
 }) => {
@@ -8277,12 +8277,22 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   expect(after.coins).toBe(before + 10);
   expect(after.slalom?.runs).toBe(1);
   expect(after.slalom?.best.bunny).toBeGreaterThan(0);
+  // That quick, a gold medal; and the run after it opened.
+  await expect(page.locator('#toast')).toContainText('A gold medal!');
+  await expect(page.locator('#toast')).toContainText('The Fox Run is open');
   await expect(page.locator('#skiTrick')).toBeHidden();
   await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
-  // Again: no how it goes this time, and stopped partway, the run is not kept.
+  // Again: now a card of the runs, the Doom Drop still being groomed; down the Fox Run, with no how it goes this
+  // time, and stopped partway, the run is not kept.
   await page.click('#climb');
-  await page.waitForFunction(() => !!window.__np.ski);
+  await expect(page.locator('#skiCard')).toBeVisible();
+  await expect(page.locator('#skiRuns [data-run="bunny"]')).toContainText('Gold');
+  await expect(page.locator('#skiRuns [data-run="fox"]')).toBeEnabled();
+  await expect(page.locator('#skiRuns button').nth(2)).toBeDisabled();
+  await page.click('#skiRuns [data-run="fox"]');
+  await expect(page.locator('#skiCard')).toBeHidden();
+  await page.waitForFunction(() => window.__np.ski?.run.name === 'Fox Run');
   expect(await page.evaluate(() => (window.__np.ski as Ski).howTo)).toBe(false);
   await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
     timeout: 4000,

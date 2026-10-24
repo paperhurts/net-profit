@@ -344,11 +344,11 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #help .helpbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:var(--plank);color:var(--plank-fg);font-size:16px;font-weight:800}
 #help .helpbar .pill{height:32px;padding:0 10px}
 #help iframe{flex:1;width:100%;border:0;background:var(--card)}
-#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#treeCard,#ctfCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#treeCard[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#ctfCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#treeCard .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#ctfCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#treeCard h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#endlessCard h2,#ctfCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#treeCard h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#endlessCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#droneCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#treeCard,#skiCard,#ctfCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#treeCard[hidden],#skiCard[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#ctfCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#treeCard .planks,#skiCard .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#ctfCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#treeCard h2,#skiCard h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#endlessCard h2,#ctfCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#treeCard h2 .pill,#skiCard h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#endlessCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#droneCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
 #tester .tnote,#boats .tnote,#orbCard .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#droneCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
@@ -456,6 +456,20 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #treeCard .answer{width:100%;min-height:52px;text-align:left;padding:10px 14px;border:0;border-radius:11px;background:#A97A48;color:#FFF7E6;box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;font-size:17px;font-weight:800;cursor:pointer}
 #treeCard .answer small{display:block;font-size:14px;opacity:.85;margin-top:2px}
 #treeCard .answer:disabled{background:#CDBBA2;color:#6B5A44;box-shadow:none;cursor:default}
+#skiCard .say{margin:4px 4px 10px;padding:12px;border-radius:11px;font-size:16px;font-weight:800;line-height:1.35;background:#EEF5FB;color:#1E3A55;border-left:6px solid #3F7DB8}
+#skiCard .answers{display:grid;gap:8px}
+#skiCard .answer{width:100%;min-height:52px;text-align:left;padding:10px 14px;border:0;border-radius:11px;background:#3F7DB8;color:#FFF7E6;box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;font-size:17px;font-weight:800;cursor:pointer}
+#skiCard .answer small{display:block;font-size:14px;opacity:.9;margin-top:2px}
+#skiCard .answer:disabled{background:#B9CADC;color:#4E6278;box-shadow:none;cursor:default}
+#skiCard .mark{display:inline-grid;place-items:center;width:22px;height:22px;margin:0 9px 0 0;vertical-align:-4px;border-radius:5px;background:#FFF}
+#skiCard .mark::after{content:'';width:12px;height:12px}
+#skiCard .m-green::after{background:#3FA34D;border-radius:50%}
+#skiCard .m-blue::after{background:#2F6FD0;border-radius:2px}
+#skiCard .m-black::after{background:#1C1F24;transform:rotate(45deg) scale(.85)}
+#skiCard .medal{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 4px -1px 0;box-shadow:inset 0 0 0 2px rgba(60,40,10,.3)}
+#skiCard .md-gold{background:#F5C84B}
+#skiCard .md-silver{background:#D5DEE7}
+#skiCard .md-bronze{background:#D69355}
 #endlessCard .answer.fight{background:#2F2A24;color:#fff}
 #endlessCard .answer.role b{font-size:17px}
 #endlessCard .answer.role .kit{float:right;font-size:14px;opacity:.8}
@@ -894,6 +908,13 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <h2><span>The great tree</span> <button class="pill icon" id="treeClose" aria-label="Not now">✕</button></h2>
     <p class="say">Where to? Up from the bottom, or from a stage you have reached.</p>
     <div class="answers" id="treeStages"></div>
+  </div>
+</section>
+<section id="skiCard" hidden aria-label="The top of the chairlift">
+  <div class="planks">
+    <h2><span>The top of the chairlift</span> <button class="pill icon" id="skiClose" aria-label="Not now">✕</button></h2>
+    <p class="say">Which run? Each opens once you have skied the one before it to the end.</p>
+    <div class="answers" id="skiRuns"></div>
   </div>
 </section>
 <section id="ctfCard" hidden aria-label="Capture the Flag">
