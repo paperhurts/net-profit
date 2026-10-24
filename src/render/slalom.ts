@@ -2,7 +2,9 @@
  * The Ninja Slalom (entities/slalom.ts), the whole screen, seen from just behind the skier as the run streams toward
  * you: the piste in stripes of snow between banks of pines, far snowy peaks under a cold blue sky, the gates, the
  * lanterns and all that stands in the way coming up out of the white haze ahead, and the skier, from behind, in your
- * jacket, a red headband's tails flying and a sword on the back. Over it all: the clock, how far down, the lanterns.
+ * jacket, a red headband's tails flying and a sword on the back. On the Doom Drop, the yeti after you: its face rising
+ * from the bottom of the screen as it gains, all the way up once it is right behind you, its paws reaching.
+ * Over it all: the clock, how far down, the medal times, the lanterns, and how far back the yeti is.
  */
 
 import { clamp } from '../core/math';
@@ -769,8 +771,9 @@ export function drawSlalom(
     ctx.arc(p.sx, p.sy, Math.max(1, 0.04 * p.s), 0, Math.PI * 2);
     ctx.fill();
   }
+  if (sl.run.yeti) yetiPeek(ctx, W, H, sl, T);
   drawSkiBars(ctx, W, sl, top);
-  drawPops(ctx, W, H, pops);
+  drawPops(ctx, W, top + (sl.run.yeti ? 122 : 104), pops);
   if (sl.howTo) drawHowTo(ctx, W, H);
   else if (sl.state === 'ready' || (sl.state === 'ski' && sl.t < 0.7)) drawCount(ctx, W, H, sl);
   if (sl.state === 'done') drawSkiOver(ctx, W, H, sl, best);
@@ -953,13 +956,158 @@ function drawSkiBars(ctx: CanvasRenderingContext2D, W: number, sl: Slalom, top: 
   ctx.font = `800 16px ${FONT}`;
   ctx.textAlign = 'left';
   ctx.fillText(`${sl.lanterns}`, W - pad - 36, top + 23);
+  // How far back the yeti is: red once it is close.
+  if (sl.run.yeti && sl.state !== 'done') {
+    const gap = Math.max(0, sl.yetiGap);
+    const near = gap < YETI_CLOSE;
+    ctx.fillStyle = near ? 'rgba(170,40,40,.75)' : 'rgba(20,40,70,.55)';
+    box(ctx, W - pad - 74, top + 50, 74, 36);
+    yetiFace(ctx, W - pad - 55, top + 68, 11, near && sl.yetiRoar > 0, 0);
+    ctx.fillStyle = '#FFF7E6';
+    ctx.font = `800 14px ${FONT}`;
+    ctx.fillText(`${Math.round(gap)} m`, W - pad - 39, top + 69);
+  }
 }
 
-/** The words over the run: each rises and fades. */
-function drawPops(
+/** Closer than this, the yeti's chip in the bar goes red. */
+const YETI_CLOSE = 15;
+/** The yeti peeks up from the bottom of the screen from this far back, and is all the way up as near as the camera. */
+const PEEK_FROM = 26;
+
+/** The edge of the yeti's white fur, so it shows against the snow. */
+const FUR_EDGE = 'rgba(70,95,130,.6)';
+
+/** The yeti's face, front on: white shaggy fur round a blue-grey face, angry brows, and its mouth shut on two fangs,
+ * or wide open, roaring. */
+function yetiFace(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  roar: boolean,
+  T: number,
+): void {
+  // The fur, shaggy round the edge.
+  ctx.fillStyle = '#F4F7FB';
+  ctx.beginPath();
+  for (let i = 0; i <= 22; i++) {
+    const a = (i / 22) * Math.PI * 2;
+    const rr = r * (1 + (i % 2 ? 0.1 : -0.02) + Math.sin(T * 6 + i) * 0.015);
+    if (i === 0) ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    else ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = FUR_EDGE;
+  ctx.lineWidth = Math.max(1, r * 0.05);
+  ctx.stroke();
+  ctx.fillStyle = '#DCE5EF';
+  ctx.beginPath();
+  ctx.arc(x, y + r * 0.08, r * 0.82, 0, Math.PI);
+  ctx.fill();
+  // The face.
+  ctx.fillStyle = '#7F9AB8';
+  ctx.beginPath();
+  ctx.ellipse(x, y + r * 0.18, r * 0.6, r * 0.52, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Brows and eyes.
+  ctx.strokeStyle = '#2A3446';
+  ctx.lineWidth = Math.max(1.5, r * 0.11);
+  ctx.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + side * r * 0.42, y - r * 0.12);
+    ctx.lineTo(x + side * r * 0.1, y + r * 0.02);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.ellipse(x + side * r * 0.24, y + r * 0.1, r * 0.11, r * 0.09, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(x + side * r * 0.22, y + r * 0.11, r * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+  // The mouth.
+  if (roar) {
+    ctx.fillStyle = '#5A1620';
+    ctx.beginPath();
+    ctx.ellipse(x, y + r * 0.44, r * 0.3, r * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFF';
+    for (const dx of [-0.17, 0.17]) {
+      ctx.beginPath();
+      ctx.moveTo(x + (dx - 0.06) * r, y + r * 0.27);
+      ctx.lineTo(x + (dx + 0.06) * r, y + r * 0.27);
+      ctx.lineTo(x + dx * r, y + r * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle = '#2A3446';
+    ctx.lineWidth = Math.max(1, r * 0.07);
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.22, y + r * 0.42);
+    ctx.lineTo(x + r * 0.22, y + r * 0.42);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF';
+    for (const dx of [-0.14, 0.14]) {
+      ctx.beginPath();
+      ctx.moveTo(x + (dx - 0.05) * r, y + r * 0.42);
+      ctx.lineTo(x + (dx + 0.05) * r, y + r * 0.42);
+      ctx.lineTo(x + dx * r, y + r * 0.53);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+/** The yeti behind you: its face rising from the bottom of the screen the nearer it comes, all the way up once it is
+ * as near as the camera, its paws reaching up either side once it is close. */
+function yetiPeek(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
+  sl: Slalom,
+  T: number,
+): void {
+  if (sl.state === 'done') return;
+  const gap = sl.yetiGap;
+  const u = clamp((PEEK_FROM - gap) / (PEEK_FROM - CAM_BACK), 0, 1);
+  if (u <= 0) return;
+  const r = Math.min(W, H) * 0.17;
+  const bobY = Math.sin(T * 9) * r * 0.04;
+  const y = H + r * 1.15 - u * r * 1.75 + bobY;
+  const roar = sl.yetiRoar > 0;
+  if (u > 0.55) {
+    // Paws, reaching up.
+    for (const side of [-1, 1]) {
+      const px = W / 2 + side * r * 1.35;
+      const py = y + r * 0.3 - Math.sin(T * 7 + side) * r * 0.1;
+      ctx.fillStyle = '#EEF2F8';
+      ctx.strokeStyle = FUR_EDGE;
+      ctx.lineWidth = Math.max(1.5, r * 0.05);
+      ctx.beginPath();
+      ctx.ellipse(px, py, r * 0.32, r * 0.42, side * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#7F9AB8';
+      for (const k of [-1, 0, 1]) {
+        ctx.beginPath();
+        ctx.arc(px + k * r * 0.12, py - r * 0.36, r * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  yetiFace(ctx, W / 2, y, r, roar, T);
+}
+
+/** The words over the run, from just under the bars: each rises and fades. */
+function drawPops(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  y0: number,
   pops: readonly SkiPop[],
 ): void {
   ctx.textAlign = 'center';
@@ -968,7 +1116,7 @@ function drawPops(
   pops.forEach((p, i) => {
     const u = clamp(p.t / SKI_POP_T, 0, 1);
     ctx.globalAlpha = 1 - u * u;
-    const y = H * 0.24 - u * 26 + i * 30;
+    const y = y0 - u * 26 + i * 30;
     ctx.lineWidth = 5;
     ctx.strokeStyle = 'rgba(20,40,70,.6)';
     ctx.strokeText(p.text, W / 2, y);
