@@ -24,6 +24,7 @@ import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { type HqBuilt, noHq, parseHq } from '../data/hq';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { type Look, parseLook, SKIPPER } from '../data/look';
+import { noPets, type PetSave, parsePets, petsForSave } from '../data/petsys';
 import { isScanKind, type ScanKind } from '../data/scans';
 import { parseSlalom, type Slalom } from '../data/slalom';
 import { noSnacks, parseHoney, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
@@ -391,6 +392,11 @@ export type SaveData = {
     slalom?: Slalom;
   };
   /**
+   * The pet system (data/petsys.ts): for now the names given in the pet book. Missing in old saves and read as nothing
+   * named; left out of the save while it is empty, so the copy-my-game link stays short.
+   */
+  pets: PetSave;
+  /**
    * The Garden Isle, island 14 (data/garden.ts): sighted or not, for now. Missing in old saves and read as not seen;
    * left out of the save until it is seen.
    */
@@ -579,6 +585,7 @@ export function defaultSave(b: Bounds): SaveData {
     },
     mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false, sirens: false },
     endless: { seen: false, pirate: false, ninja: false },
+    pets: noPets(),
     garden: noGarden(),
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
@@ -873,6 +880,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     const slalom = parseSlalom(k.slalom);
     if (slalom) d.endless.slalom = slalom;
   }
+  d.pets = parsePets(o.pets);
   d.garden = parseGarden(o.garden);
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
@@ -1041,6 +1049,7 @@ export function serializeSave(d: SaveData): string {
     drone: untouchedDrone(d.drone) ? undefined : d.drone,
     mer: d.mer.seen || d.mer.given || d.mer.sirens ? d.mer : undefined,
     endless: d.endless.seen || d.endless.pirate || d.endless.ninja ? d.endless : undefined,
+    pets: petsForSave(d.pets),
     garden: untouchedGarden(d.garden) ? undefined : d.garden,
     snook: d.snook,
     trip: d.trip ?? undefined,

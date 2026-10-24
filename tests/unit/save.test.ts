@@ -1325,6 +1325,22 @@ describe('the tar kraken, round two', () => {
   });
 });
 
+describe('the pet system', () => {
+  it('an old save has nothing named and stays without it; names round-trip, and odd ones are dropped', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.pets).toEqual({ nm: {} });
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('pets');
+    s.pets = { nm: { baby: 'Chomp', dog: 'Biscuit' } };
+    expect(parseSave(serializeSave(s), bounds).pets).toEqual(s.pets);
+    const odd = {
+      ...JSON.parse(serializeSave(s)),
+      pets: { nm: { baby: 7, crows: 'Flock', nobody: 'X' } },
+    };
+    expect(parseSave(JSON.stringify(odd), bounds).pets).toEqual({ nm: {} });
+    expect(parseSave(JSON.stringify({ ...odd, pets: 'yes' }), bounds).pets).toEqual({ nm: {} });
+  });
+});
+
 describe('the Garden Isle', () => {
   it('an old save has not sighted it; sighted, it keeps it, and an unsighted one is left out of the save', () => {
     const s = parseSave(legacy, bounds);
