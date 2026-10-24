@@ -437,6 +437,24 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #skiTrick:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #skiTrick.bite{background:#F0C544;color:#2A1E08;animation:skipulse .35s ease-in-out infinite alternate}
 @keyframes skipulse{to{transform:scale(1.08)}}
+/* The Treehouse Climb's arrows, bottom left, one thumb sliding between them; its jump button, bottom right. */
+#thPad{position:fixed;left:calc(12px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));z-index:3;width:156px;height:156px;touch-action:none;user-select:none;-webkit-user-select:none}
+#thPad[hidden],#thJump[hidden]{display:none}
+#thPad i{position:absolute;width:54px;height:54px;border-radius:15px;background:rgba(42,30,18,.62);box-shadow:0 4px 0 rgba(0,0,0,.25);display:grid;place-items:center;pointer-events:none}
+#thPad i::after{content:'';width:0;height:0;border:0 solid transparent}
+#thPad i[data-d=u]{left:51px;top:0}
+#thPad i[data-d=d]{left:51px;top:102px}
+#thPad i[data-d=l]{left:0;top:51px}
+#thPad i[data-d=r]{left:102px;top:51px}
+#thPad i[data-d=u]::after{border-width:0 14px 19px;border-bottom-color:#FFF7E6;margin-top:-4px}
+#thPad i[data-d=d]::after{border-width:19px 14px 0;border-top-color:#FFF7E6;margin-top:4px}
+#thPad i[data-d=l]::after{border-width:14px 19px 14px 0;border-right-color:#FFF7E6;margin-left:-4px}
+#thPad i[data-d=r]::after{border-width:14px 0 14px 19px;border-left-color:#FFF7E6;margin-left:4px}
+#thPad i.on{background:#F0C544;transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#thPad i.on::after{filter:brightness(.25)}
+#thJump{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(26px + env(safe-area-inset-bottom));z-index:3;width:100px;height:100px;border-radius:50%;
+  background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:20px;box-shadow:0 4px 0 rgba(0,0,0,.25);touch-action:none;user-select:none;-webkit-user-select:none}
+#thJump:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #ability .sweep,.abBtn .sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(8,16,24,.66) calc(var(--cd,0) * 360deg),transparent 0);pointer-events:none}
 .abBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 /* A battle's score along the top, where the order card was, and its result after. */
@@ -614,6 +632,8 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 <div id="scanOut" hidden role="status" aria-live="polite"><b id="scanName"></b><p><span class="lbl">How to beat it</span> <span id="scanBeat"></span></p><p id="scanWeakP"><span class="lbl">Weakness</span> <span id="scanWeak"></span></p><p id="scanHpP"><span class="lbl" id="scanHpL">Hit points</span> <span id="scanHp"></span></p><p class="cnt" id="scanCount"></p><p class="better" id="scanUp" hidden></p></div>
 <button id="throw" hidden aria-label="Throw the spear"><svg class="spearIcon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M5 29 L25 9" stroke="#FFF6E5" stroke-width="3.2" stroke-linecap="round"/><path d="M22 6 L30 4 L28 12 Z" fill="#FFF6E5"/></svg><svg class="knifeIcon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M13 21 L27 5 L28 9 L16 24 Z" fill="#FFF6E5"/><path d="M10 18 L18 26" stroke="#FFF6E5" stroke-width="3" stroke-linecap="round"/><path d="M12 24 L6 30" stroke="#E8C79A" stroke-width="4" stroke-linecap="round"/></svg><svg class="flingIcon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M4 26 Q12 10 24 8" fill="none" stroke="#FFF6E5" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="3 3"/><ellipse cx="24" cy="10" rx="6.5" ry="3.6" transform="rotate(-25 24 10)" fill="#FFF6E5"/><path d="M18 14 L13 12 L16 18 Z" fill="#FFF6E5"/></svg></button>
 <button id="skiTrick" hidden>Trick!</button>
+<div id="thPad" hidden role="group" aria-label="Arrows: walk, and climb the ladders"><i data-d="u"></i><i data-d="l"></i><i data-d="r"></i><i data-d="d"></i></div>
+<button id="thJump" hidden>Jump</button>
 <button id="ability" class="abBtn" hidden aria-label="Ability"><span class="abIcon" id="abilityIcon"></span><i class="sweep"></i></button>
 <button id="ability2" class="abBtn" hidden aria-label="Ability"><span class="abIcon"></span><i class="sweep"></i></button>
 <button id="ability3" class="abBtn" hidden aria-label="Ability"><span class="abIcon"></span><i class="sweep"></i></button>
