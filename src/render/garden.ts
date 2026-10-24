@@ -26,6 +26,7 @@ import {
   BED,
   BEDS,
   BEDS_START,
+  COMPOST_BIN,
   CRATES14,
   fromGarden,
   GARDEN,
@@ -504,6 +505,38 @@ function drawGearShed(v: DrawView): void {
   ctx.stroke();
 }
 
+/** The compost bin (part ten): a green slatted box, its lid propped open, a fish tail sticking out of the top. */
+function drawCompostBin(v: DrawView): void {
+  const { ctx, px, py } = v;
+  const Z = v.zoom;
+  const s = COMPOST_BIN;
+  v.extrude(footprint(s.u, s.v, s.hu, s.hv), 0, 16, '#3E7A46', '#57A060');
+  // Slats down its front.
+  ctx.strokeStyle = 'rgba(20,50,25,.45)';
+  ctx.lineWidth = 1.2 * Z;
+  for (let k = -s.hu + 5; k < s.hu; k += 6) {
+    const [x, y] = fromGarden(s.u + k, s.v + s.hv);
+    ctx.beginPath();
+    ctx.moveTo(px(x, y), py(x, y, 1));
+    ctx.lineTo(px(x, y), py(x, y, 15));
+    ctx.stroke();
+  }
+  // The lid, propped up at the back, and a tail over the rim.
+  const [lx, ly] = fromGarden(s.u, s.v - s.hv);
+  ctx.fillStyle = '#2F6337';
+  ctx.beginPath();
+  ctx.ellipse(px(lx, ly), py(lx, ly, 24), s.hu * Z * 1.2, 5 * Z, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+  const [tx, ty] = fromGarden(s.u + 3, s.v);
+  ctx.fillStyle = '#9DB8C4';
+  ctx.beginPath();
+  ctx.moveTo(px(tx, ty), py(tx, ty, 16));
+  ctx.lineTo(px(tx, ty) - 4 * Z, py(tx, ty, 23));
+  ctx.lineTo(px(tx, ty) + 4 * Z, py(tx, ty, 23));
+  ctx.closePath();
+  ctx.fill();
+}
+
 /** The windmill: a round white tower, a cap, and four sails turning slowly. */
 function drawWindmill(v: DrawView): void {
   const { ctx, px, py, T } = v;
@@ -683,6 +716,11 @@ export function gardenSolids(v: DrawView): Solid[] {
     out.push({ d: depth(SELL_STAND.u, SELL_STAND.v + SELL_STAND.hv), f: () => drawSellStand(v) });
   if (on(GEAR_SHED.u, GEAR_SHED.v))
     out.push({ d: depth(GEAR_SHED.u, GEAR_SHED.v + GEAR_SHED.hv), f: () => drawGearShed(v) });
+  if (on(COMPOST_BIN.u, COMPOST_BIN.v))
+    out.push({
+      d: depth(COMPOST_BIN.u, COMPOST_BIN.v + COMPOST_BIN.hv),
+      f: () => drawCompostBin(v),
+    });
   if (on(WINDMILL.u, WINDMILL.v, 260))
     out.push({ d: depth(WINDMILL.u, WINDMILL.v), f: () => drawWindmill(v) });
   TREES14.forEach((t, i) => {

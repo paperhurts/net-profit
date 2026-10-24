@@ -15,6 +15,9 @@
  * say when "now" is.
  */
 
+import { DAWN_SP, DUSK_SP, HABITAT } from './guide';
+import { ABYSS_FISH, ATTACK_NIBBLER, MOONKOI, REMORO, SPECIES } from './tuning';
+
 export type CropId =
   | 'carrot'
   | 'strawberry'
@@ -299,6 +302,8 @@ export type Bed = {
   v?: Variant[];
   /** The weather's marks on each ripe fruit (part six): Wet, Shocked, Moonlit, Twilight. Missing in older saves. */
   mu?: Mutation[][];
+  /** The fish buried under it as it was planted (part ten), which feeds its first harvest. */
+  fed?: FishClass;
 };
 
 /**
@@ -347,10 +352,14 @@ export const VARIANTS = {
 } as const;
 
 /** Gold, Rainbow, or neither, for the n-th fruit a plant planted at this time ripens. */
-export function variantOf(planted: number, n: number): Variant {
+export function variantOf(
+  planted: number,
+  n: number,
+  goldOdds: number = VARIANTS.gold.odds,
+): Variant {
   const r = hash01(planted + 7, n * 5 + 3);
   if (r < 1 / VARIANTS.rainbow.odds) return 'rainbow';
-  if (r < 1 / VARIANTS.rainbow.odds + 1 / VARIANTS.gold.odds) return 'gold';
+  if (r < 1 / VARIANTS.rainbow.odds + 1 / goldOdds) return 'gold';
   return '';
 }
 
@@ -441,6 +450,9 @@ export type Garden = {
   at?: number;
   /** The lily pond's Moonkoi (part nine): the game's day it last rose (once a night at most), and how many landed. */
   koi?: Koi;
+  /** The compost bin at the dock (part ten): the fish in it, by kind, and which kinds it keeps from the hold. */
+  bin?: Partial<Record<FishClass, number>>;
+  binKeep?: Partial<Record<FishClass, boolean>>;
 };
 
 /** The Moonkoi: the day it last rose to a bait, and how many have been landed. */
@@ -642,10 +654,12 @@ export function growBed(b: Bed, now: number, sky?: Sky, wetAt?: (t: number) => b
   while (b.next > 0 && b.next <= now && b.ripe < c.holds) {
     const w = sizesOn(b);
     const n = b.born ?? b.ripe;
-    w.push(sizeOf(b.planted, n));
+    // A fish buried under it feeds its first harvest: bigger fruit for a deep one, more Gold for a rare one.
+    const fed = n < c.holds ? b.fed : undefined;
+    w.push(sizeOf(b.planted, n) * (fed === 'deep' ? FED.deep.size : 1));
     b.w = w;
     const v = variantsOn(b);
-    v.push(variantOf(b.planted, n));
+    v.push(variantOf(b.planted, n, fed === 'rare' ? FED.rare.goldOdds : VARIANTS.gold.odds));
     b.v = v;
     // Ripening now, with the game open, the time of day may mark it.
     const mu = mutationsOn(b);
@@ -788,14 +802,26 @@ export function buySeeds(g: Garden, k: CropId, n: number, coins: number): number
 }
 
 /** Plant a seed of a crop in bed i, if the bed is open and empty and there is a seed. */
-export function plant(g: Garden, i: number, k: CropId, now: number): boolean {
+export function plant(g: Garden, i: number, k: CropId, now: number, fish?: FishClass): boolean {
   if (i < 0 || i >= BEDS_OPEN || bedAt(g, i) || seedsOf(g, k) <= 0) return false;
+  const fed = fish && binOf(g, fish) > 0 ? fish : undefined;
   const beds = g.beds ? [...g.beds] : [];
   while (beds.length < BEDS_OPEN) beds.push(null);
-  beds[i] = { crop: k, planted: now, ripe: 0, next: now + CROPS[k].grow * S };
+  const b: Bed = { crop: k, planted: now, ripe: 0, next: 0 };
+  if (fed) {
+    b.fed = fed;
+    g.bin = { ...g.bin, [fed]: binOf(g, fed) - 1 };
+  }
+  b.next = now + firstGrowMs(b);
+  beds[i] = b;
   g.beds = beds;
   g.seeds = { ...g.seeds, [k]: seedsOf(g, k) - 1 };
   return true;
+}
+
+/** How long a bed's plant takes to its first fruit: a quarter less over a common fish. */
+export function firstGrowMs(b: Bed): number {
+  return CROPS[b.crop].grow * S * (b.fed === 'common' ? FED.common.grow : 1);
 }
 
 /**
@@ -878,6 +904,67 @@ export function landKoi(g: Garden): void {
   g.seeds = { ...g.seeds, moonpetal: Math.min(SEEDS_MAX, seedsOf(g, 'moonpetal') + 1) };
 }
 
+/**
+ * Fish for the beds (part ten): a compost bin at the dock keeps fish from the hold instead of the crates buying them, ten
+ * at most, of the kinds it is set to keep; a fish from it is buried as a bed is planted, and feeds that plant's first
+ * harvest (the owner's call: the first harvest only, so a plot planted over fish pays more once and then as before).
+ * A common fish grows it a quarter faster to its first fruit; a dawn or dusk rare makes its first fruit Gold one time in
+ * 50, not 100; a deep fish makes them a tenth bigger. A fish in the bin is a fish not sold.
+ */
+export type FishClass = 'common' | 'rare' | 'deep';
+export const FISH_CLASSES: readonly FishClass[] = ['common', 'rare', 'deep'];
+export const BIN_MAX = 10;
+export const FED = {
+  common: { grow: 0.75 },
+  rare: { goldOdds: 50 },
+  deep: { size: 1.1 },
+} as const;
+
+/** What kind of fish a species is, for the bin, or null for what it does not take (crabs, and the great fish). */
+export function fishClass(sp: number): FishClass | null {
+  const S = SPECIES[sp];
+  if (!S || S.crab || BIG_FISH.includes(sp)) return null;
+  if (sp === DAWN_SP || sp === DUSK_SP) return 'rare';
+  const h = HABITAT[sp];
+  if (h?.deep || h?.far || h?.isle2 || h?.isle3 || ABYSS_FISH.includes(sp)) return 'deep';
+  return 'common';
+}
+/** The great ones the bin never takes: the Remoro, the attack nibbler and the Moonkoi. */
+const BIG_FISH: readonly number[] = [REMORO, ATTACK_NIBBLER, MOONKOI];
+
+/** Fish of a kind in the bin, and in all. */
+export function binOf(g: Garden, k: FishClass): number {
+  return g.bin?.[k] ?? 0;
+}
+export function binCount(g: Garden): number {
+  return FISH_CLASSES.reduce((n, k) => n + binOf(g, k), 0);
+}
+
+/**
+ * Tied up at the isle with fish in the hold: the bin takes what it keeps first, cheapest first, until it is full. hold
+ * is the hold's count of each species, taken from in place; what was taken, by species.
+ */
+export function fillBin(g: Garden, hold: number[]): number[] {
+  const took: number[] = [];
+  const order = hold
+    .map((_, sp) => sp)
+    .filter((sp) => {
+      const k = fishClass(sp);
+      return k && g.binKeep?.[k];
+    })
+    .sort((a, b) => (SPECIES[a]?.v ?? 0) - (SPECIES[b]?.v ?? 0));
+  for (const sp of order) {
+    const k = fishClass(sp);
+    if (!k) continue;
+    while ((hold[sp] ?? 0) > 0 && binCount(g) < BIN_MAX) {
+      hold[sp] = (hold[sp] ?? 0) - 1;
+      g.bin = { ...g.bin, [k]: binOf(g, k) + 1 };
+      took[sp] = (took[sp] ?? 0) + 1;
+    }
+  }
+  return took;
+}
+
 /** Sell the whole basket at the stand: the coins, and how many fruit. */
 export function sellBasket(g: Garden): { coins: number; n: number } {
   const out = { coins: basketValue(g), n: basketCount(g) };
@@ -895,7 +982,7 @@ export function secondsLeft(b: Bed, now: number): number {
  * sprinklers grow it on. */
 export function grownOf(b: Bed, now: number): number {
   if (b.ripe > 0 || (b.born ?? 0) > 0 || b.next === 0) return 1;
-  return Math.max(0, Math.min(1, 1 - (b.next - now) / (CROPS[b.crop].grow * S)));
+  return Math.max(0, Math.min(1, 1 - (b.next - now) / firstGrowMs(b)));
 }
 
 /** A count from the save: a whole number from 0 to max, or 0. */
@@ -939,6 +1026,7 @@ function parseBed(v: unknown): Bed | null {
   if (Array.isArray(k.mu)) b.mu = k.mu.slice(0, b.ripe).map(marks);
   if (typeof k.born === 'number' && Number.isFinite(k.born) && k.born >= b.ripe)
     b.born = Math.floor(k.born);
+  if (k.fed === 'common' || k.fed === 'rare' || k.fed === 'deep') b.fed = k.fed;
   return b;
 }
 
@@ -1027,6 +1115,22 @@ export function parseGarden(raw: unknown): Garden {
   }
   const at = time(k.at);
   if (at !== null) g.at = at;
+  if (k.bin && typeof k.bin === 'object') {
+    const bin: Partial<Record<FishClass, number>> = {};
+    let room = BIN_MAX;
+    for (const c of FISH_CLASSES) {
+      const n = Math.min(room, count((k.bin as Record<string, unknown>)[c], BIN_MAX));
+      if (n) bin[c] = n;
+      room -= n;
+    }
+    if (Object.keys(bin).length) g.bin = bin;
+  }
+  if (k.binKeep && typeof k.binKeep === 'object') {
+    const keep: Partial<Record<FishClass, boolean>> = {};
+    for (const c of FISH_CLASSES)
+      if ((k.binKeep as Record<string, unknown>)[c] === true) keep[c] = true;
+    if (Object.keys(keep).length) g.binKeep = keep;
+  }
   if (k.koi && typeof k.koi === 'object') {
     const kk = k.koi as Record<string, unknown>;
     const night =
@@ -1050,6 +1154,8 @@ export function untouchedGarden(g: Garden): boolean {
     !g.gear &&
     !g.gearStock &&
     !g.spr?.length &&
-    !g.koi
+    !g.koi &&
+    !g.bin &&
+    !g.binKeep
   );
 }

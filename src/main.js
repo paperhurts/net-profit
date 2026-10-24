@@ -208,10 +208,10 @@ import { atHalf, atLift, atTree, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, from
 import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_GOLD, LEADER_SAYS, LEADER_TITLED, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
-import { bedsInReach, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
+import { bedsInReach, COMPOST_BIN, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
 import { drawGardenBolt, drawGardenFlat, drawGardenSplash, drawKoiShadow, drawMoonkoi, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
-import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi } from './data/garden';
-import { bedOf, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
+import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin } from './data/garden';
+import { bedOf, binShelfHtml, FISH_WORDS, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
 import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, FORTS, GOLD_MARKS, HOLD_NAME, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
@@ -2247,7 +2247,8 @@ const gardenTold = new Set();
 const GARDEN_STALL_SAYS = new Map([
   [SEED_STALL, 'The seed stall. Buy seeds here, then plant them in your beds by the pier. They grow even while you are away.'],
   [SELL_STAND, 'The sell stand. Pick what is ripe into your basket, and sell the lot here.'],
-  [GEAR_SHED, 'The gear shed. Watering cans, sprinklers and a shovel, new in at every dawn. Take one from your tray to use it.']]);
+  [GEAR_SHED, 'The gear shed. Watering cans, sprinklers and a shovel, new in at every dawn. Take one from your tray to use it.'],
+  [COMPOST_BIN, 'The compost bin. It can keep fish from your hold for your beds: plant a seed over one and it feeds the first harvest.']]);
 function updateGardenIsle(){ if (walker.state !== 'ashore' || walker.dock !== GARDEN_DOCK){ if (walker.aboard) gardenTold.clear(); return; }
   const st = stallAt(walker.x, walker.y);
   if (st && !gardenTold.has(st)){ gardenTold.add(st); toast(GARDEN_STALL_SAYS.get(st), 4200, 1); }
@@ -2262,6 +2263,7 @@ function gardenChoice(){ if (gardenSeed && seedsOf(gardenIsle, gardenSeed) > 0) 
 function useGarden(a){ const now = gardenNow(), i = bedOf(a);
   if (a === 'g-seeds'){ openSeedStall(); return; }
   if (a === 'g-gear'){ openGearShed(); return; }
+  if (a === 'g-bin'){ openGardenShop('bin'); return; }
   if (a.startsWith('g-water-')){ const b = gardenBed(gardenIsle, i); if (!waterBed(gardenIsle, i, now)){ sfx.denied(); return; }
     sfx.splash(); gardenSplash = {i, t: 1}; save(); if (!gearOf(gardenIsle, 'can')){ gardenTool = null; toasts.clear(); toast('Your watering can is empty. The gear shed has more.', 2600); }
     else if (b && !gardenTold.has('watered')){ gardenTold.add('watered'); toasts.clear(); toast(`Watered your ${CROPS[b.crop].name}: half a minute sooner.`, 2400); }
@@ -2278,7 +2280,8 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
     if (!got.n){ sfx.denied(); toast('Nothing in your basket yet. Pick what is ripe in your beds, then sell it here.', 2600); return; }
     coins += got.coins; earned += got.coins; sfx.sold(); hud(); save(); toast(`Sold ${got.n} fruit for ${got.coins} coins.`, 2400); return; }
   if (a === 'g-noseed'){ sfx.denied(); toasts.clear(); toast('No seeds to plant. The seed stall, up by the pier, sells them.', 2600); return; }
-  if (a.startsWith('g-plant-')){ const k = gardenChoice(); if (k && plantBed(gardenIsle, i, k, now)){ sfx.hop(); gardenSeed = gardenChoice() ?? k; save();
+  if (a.startsWith('g-plant-')){ const k = gardenChoice(), fish = fishOfTool(gardenTool), had = fish ? binOf(gardenIsle, fish) : 0; if (k && plantBed(gardenIsle, i, k, now, fish ?? undefined)){ sfx.hop(); gardenSeed = gardenChoice() ?? k; save();
+      if (fish && had > 0){ if (!binOf(gardenIsle, fish)) gardenTool = null; toasts.clear(); toast(`Planted a ${CROPS[k].name} over a ${FISH_WORDS[fish].one}: ${fish === 'common' ? 'it grows a quarter faster to its first fruit' : fish === 'rare' ? 'its first fruit are Gold one time in 50' : 'its first fruit grow a tenth bigger'}.`, 3200); return; }
       if (!gardenTold.has('planted')){ gardenTold.add('planted'); toasts.clear(); toast(`Planted a ${CROPS[k].name}. ${CROPS[k].regrow ? 'It will keep fruiting once it is grown.' : 'It is picked once, when it is ripe.'} It grows even while the game is closed.`, 3600); } }
     return; }
   if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, got = pickBed(gardenIsle, i, now); toasts.clear();
@@ -2296,17 +2299,20 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
 // The gear shed (part seven) opens the same card with its own shelf, on the same dawn restock.
 let seedStallOpen = null;
 const GARDEN_SHOPS = {seeds: ['The seed stall', 'Plant seeds in your beds by the pier. They grow even while the game is closed. New seeds come in at every dawn, and the rarer a seed, the less often it is in.'],
-  gear: ['The gear shed', 'Take gear from your tray and use it on your beds. New gear comes in at every dawn.']};
-function openGardenShop(k){ seedStallOpen = k; sfx.hop(); const fresh = k === 'seeds' ? gardenIsle.stock?.day !== day : gardenIsle.gearStock?.day !== day;
-  if (k === 'seeds') stockToday(gardenIsle, day); else gearToday(gardenIsle, day); if (fresh) save();
+  gear: ['The gear shed', 'Take gear from your tray and use it on your beds. New gear comes in at every dawn.'],
+  bin: ['The compost bin', 'Choose which fish the bin keeps. When you tie up here, it takes those from your hold before the crates buy them, ten at most. Take one from your tray and plant over it: it feeds the plant\u2019s first harvest.']};
+function openGardenShop(k){ seedStallOpen = k; sfx.hop(); const fresh = k === 'seeds' ? gardenIsle.stock?.day !== day : k === 'gear' && gardenIsle.gearStock?.day !== day;
+  if (k === 'seeds') stockToday(gardenIsle, day); else if (k === 'gear') gearToday(gardenIsle, day); if (fresh) save();
   $('gardenTitle').textContent = GARDEN_SHOPS[k][0]; $('gardenNote').textContent = GARDEN_SHOPS[k][1]; $('gardenClose').setAttribute('aria-label', `Close ${GARDEN_SHOPS[k][0].toLowerCase()}`); $('gardenCard').setAttribute('aria-label', GARDEN_SHOPS[k][0]);
   renderSeedStall(); $('gardenCard').hidden = false; }
 function openSeedStall(){ openGardenShop('seeds'); }
 function openGearShed(){ openGardenShop('gear'); }
 function closeSeedStall(){ seedStallOpen = null; $('gardenCard').hidden = true; sfx.click(); }
-function renderSeedStall(){ $('gardenShelf').innerHTML = seedStallOpen === 'gear' ? gearShelfHtml(gardenIsle, coins) : seedShelfHtml(gardenIsle, coins); }
+function renderSeedStall(){ $('gardenShelf').innerHTML = seedStallOpen === 'gear' ? gearShelfHtml(gardenIsle, coins) : seedStallOpen === 'bin' ? binShelfHtml(gardenIsle) : seedShelfHtml(gardenIsle, coins); }
 $('gardenClose').addEventListener('click', closeSeedStall);
-$('gardenShelf').addEventListener('click', (e) => { const t = e.target.closest('[data-gear]'); if (t){ const k = t.dataset.gear, cost = buyGear(gardenIsle, k, coins); if (!cost){ sfx.denied(); return; }
+$('gardenShelf').addEventListener('click', (e) => { const kb = e.target.closest('[data-keep]'); if (kb){ const k = kb.dataset.keep;
+    gardenIsle.binKeep = {...gardenIsle.binKeep, [k]: !gardenIsle.binKeep?.[k]}; if (!gardenIsle.binKeep[k]) delete gardenIsle.binKeep[k]; sfx.click(); save(); renderSeedStall(); return; }
+  const t = e.target.closest('[data-gear]'); if (t){ const k = t.dataset.gear, cost = buyGear(gardenIsle, k, coins); if (!cost){ sfx.denied(); return; }
     coins -= cost; gardenTool = k; sfx.upgrade(); hud(); save(); renderSeedStall();
     const nb = $('gardenShelf').querySelector(`[data-gear="${k}"]`); if (nb){ nb.classList.add('added'); setTimeout(() => nb.classList.remove('added'), 700); } return; }
   const b = e.target.closest('[data-seed]'); if (!b) return; const k = b.dataset.seed;
@@ -2326,7 +2332,7 @@ function gardenWeather(ev){ if (!gardenIsle.seen || !nearIsle14(boat.x, boat.y, 
 function updateGardenUi(){ if (started) growGarden(gardenIsle, gardenNow(), {phase}); if (gardenBolt && (gardenBolt.t -= 1/60) <= 0) gardenBolt = null; if (gardenSplash && (gardenSplash.t -= 1/50) <= 0) gardenSplash = null;
   const on = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && floor < 0 && !seedStallOpen, el = $('seedTray');
   if (el.hidden === on) el.hidden = !on;
-  if (on){ gardenSeed = gardenChoice(); if (gardenTool && !gearOf(gardenIsle, gardenTool)) gardenTool = null; const h = seedTrayHtml(gardenIsle, gardenSeed, gardenTool); if (h !== trayHtml){ trayHtml = h; el.innerHTML = h; } }
+  if (on){ gardenSeed = gardenChoice(); if (gardenTool && !(fishOfTool(gardenTool) ? binOf(gardenIsle, fishOfTool(gardenTool)) : gearOf(gardenIsle, gardenTool))) gardenTool = null; const h = seedTrayHtml(gardenIsle, gardenSeed, gardenTool); if (h !== trayHtml){ trayHtml = h; el.innerHTML = h; } }
   if (climbShown && climbShown.startsWith('g-')){ const t = gardenLabel(gardenIsle, climbShown, gardenSeed, gardenNow(), gardenTool); if (elClimb.textContent !== t) elClimb.textContent = t; } }
 // A seed chosen in the tray puts the gear in hand away; gear tapped is taken in hand, and tapped again put away.
 // The lily pond (part eight): stand at its edge and cast, with the cheapest fruit in the basket for bait, one fruit a
@@ -4914,7 +4920,7 @@ function eatSnack(k){ audio(); if (!snacks[k] || ctf) return;
 for (const k of SNACK_KINDS) $(SNACK_ID[k]).addEventListener('click', () => eatSnack(k));
 function updateSnacks(dt){ forgeT = Math.max(0, forgeT - dt); bridgeTalk = Math.max(0, bridgeTalk - dt); bridgeSlap = Math.max(0, bridgeSlap - dt * 2); orbGlow = Math.max(0, orbGlow - dt * (orbOpen ? 0 : 0.8)); cageRattle = Math.max(0, cageRattle - dt * 1.2); updateCrows(); updateSunken(); appleT = Math.max(0, appleT - dt); carrotT = Math.max(0, carrotT - dt); walker.speedK = appleT > 0 ? APPLE_PACE : 1;
   if (storeOpen && (walker.state !== 'ashore' || !OldMan.reaches(walker.x, walker.y))) closeStore10();
-  if (seedStallOpen && climbAction() !== (seedStallOpen === 'gear' ? 'g-gear' : 'g-seeds')) closeSeedStall();
+  if (seedStallOpen && climbAction() !== `g-${seedStallOpen}`) closeSeedStall();
   updateGardenUi();
   if (rosterOpen && (floor !== GATE || walker.state !== 'ashore' || Math.hypot(walker.x - HQ_ROSTER.x, walker.y - HQ_ROSTER.y) > ROSTER_REACH + 30)) closeRoster();
   if (hqOpen && (floor !== GATE || walker.state !== 'ashore' || Math.hypot(walker.x - HQ_PLANS.x, walker.y - HQ_PLANS.y) > PLANS_REACH + 30)) closeHq();
@@ -6344,6 +6350,9 @@ function update(dt){
   if (swallowT > 0){ swallowT -= dt; boat.v = 0; if (swallowT <= 0) spitOut(); }
   irisT = Math.max(0, irisT - dt);
   if (swallowT <= 0){ hp = mend(hp, dt, !pastBuoys(boat.x, boat.y), docked); hudHull(); }
+  // Tied up at the Garden Isle, the compost bin (part ten) takes the fish it keeps before the crates buy the rest.
+  if (docked && holdTotal > 0 && dockHere === GARDEN_DOCK && gardenIsle.binKeep){ const took = fillBin(gardenIsle, hold), n = took.reduce((a, b) => a + (b ?? 0), 0);
+    if (n){ holdTotal -= n; hud(); save(); toast(`The compost bin keeps ${n === 1 ? 'a fish' : n + ' fish'} for your beds.`, 2400); } }
   if (docked && holdTotal > 0){
     sellT -= dt;
     while (sellT <= 0 && holdTotal > 0){ sellOne(); sellT += .045; }
