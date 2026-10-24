@@ -2,24 +2,39 @@
  * The Treehouse Climb, the Endless Isle's other mini-game, part eight of the owner's plan (2026-10-23: "All your
  * picks"): in at the foot of the pirates' great tree, and it turns side-on, one tall screen a stage, the way Donkey Kong
  * is (the kid's: gorillas roll the barrels down the treehouses). Here: the stages, what is where on them, and what a
- * climb gives. One stage so far, the Barrel Planks; the Rope Swings, the Bucket Lifts and the Crow's Nest come with part
- * nine.
+ * climb gives. The Barrel Planks (part eight) and the Rope Swings (part nine's first); the Bucket Lifts and the Crow's
+ * Nest come after. Each stage's door at the top goes on up to the next.
  *
  * A stage is laid out in its own frame: x across (0 to its width), y up from the bottom (0 to its height), in units a
  * little bigger than a pixel on a phone.
  */
 
-/** A plank: from its left end to its right, at these heights; a sloped one rolls a barrel downhill. */
+/**
+ * A plank: from its left end to its right, at these heights; a sloped one rolls a barrel downhill. One with a sag is a
+ * rope bridge, slats on ropes: it hangs this far below the line between its ends, and dips further where you stand.
+ */
 export type Plank = {
   readonly x0: number;
   readonly x1: number;
   readonly y0: number;
   readonly y1: number;
+  readonly sag?: number;
+};
+/** A swinging rope, tied to a branch at (x, y): this long, swinging this far either way (radians), once a period. */
+export type Rope = {
+  readonly x: number;
+  readonly y: number;
+  readonly len: number;
+  readonly amp: number;
+  readonly period: number;
+  readonly phase: number;
 };
 /** A rope ladder: where across, and the plank at its foot (it goes up to the next). */
 export type Ladder = { readonly x: number; readonly lo: number };
 export type Stage = {
   readonly name: string;
+  /** How it goes, a few short lines on the card before a first climb of it. */
+  readonly howTo: readonly string[];
   readonly w: number;
   readonly h: number;
   /** Bottom to top; the last is the ledge with the door at the top. */
@@ -27,14 +42,19 @@ export type Stage = {
   readonly ladders: readonly Ladder[];
   /** Belaying pins, each floating over a plank. */
   readonly pins: readonly { readonly x: number; readonly plank: number }[];
-  /** Where you start, and where the gorilla stands rolling its barrels down. */
+  /** Where you start. */
   readonly start: { readonly x: number; readonly plank: number };
-  readonly gorilla: { readonly x: number; readonly plank: number };
   /** The door to the next stage, on the top ledge. */
   readonly door: number;
-  /** The gap between barrels, seconds, at least and at most. */
-  readonly rollMin: number;
-  readonly rollMax: number;
+  /** The gorilla at the top rolling its barrels down, and the gap between barrels, seconds, at least and at most. */
+  readonly gorilla?: { readonly x: number; readonly plank: number };
+  readonly rollMin?: number;
+  readonly rollMax?: number;
+  readonly ropes?: readonly Rope[];
+  /** Bunches of coconuts, each hanging at (x, y), one dropping every so often (seconds, at least and at most). */
+  readonly nuts?: readonly { readonly x: number; readonly y: number }[];
+  readonly nutMin?: number;
+  readonly nutMax?: number;
 };
 
 /**
@@ -46,6 +66,12 @@ export type Stage = {
  */
 export const BARREL_PLANKS: Stage = {
   name: 'Barrel Planks',
+  howTo: [
+    'Arrows walk you, and climb ladders',
+    'Jump the barrels for coins',
+    'Jump up for a pin, and smash them!',
+    'Get to the door at the top',
+  ],
   w: 240,
   h: 420,
   planks: [
@@ -78,13 +104,87 @@ export const BARREL_PLANKS: Stage = {
   rollMax: 3.6,
 };
 
-/** A plank's height at x along it. */
-export function plankY(p: Plank, x: number): number {
-  return p.y0 + ((x - p.x0) / (p.x1 - p.x0)) * (p.y1 - p.y0);
-}
+/**
+ * The Rope Swings: up from the ground to a platform on one side of a gap, a rope swinging over the gap to the other,
+ * a rope bridge across the tree with coconuts dropping on it, then the same again higher up, the gap wider and its rope
+ * longer, the bridge saggier, and a ladder to the ledge with the door. A fall is only down to the level below.
+ */
+export const ROPE_SWINGS: Stage = {
+  name: 'Rope Swings',
+  howTo: [
+    'Jump at a rope to grab it',
+    'Up and down slide you on it',
+    'Jump again to let go',
+    'Watch for falling coconuts!',
+  ],
+  w: 240,
+  h: 420,
+  planks: [
+    { x0: 0, x1: 240, y0: 10, y1: 10 },
+    { x0: 140, x1: 240, y0: 80, y1: 80 },
+    { x0: 0, x1: 95, y0: 80, y1: 80 },
+    { x0: 10, x1: 230, y0: 150, y1: 150, sag: 6 },
+    { x0: 150, x1: 240, y0: 220, y1: 220 },
+    { x0: 0, x1: 82, y0: 220, y1: 220 },
+    { x0: 10, x1: 230, y0: 290, y1: 290, sag: 9 },
+    { x0: 120, x1: 230, y0: 360, y1: 360 },
+  ],
+  ladders: [
+    { x: 210, lo: 0 },
+    { x: 30, lo: 2 },
+    { x: 215, lo: 3 },
+    { x: 24, lo: 5 },
+    { x: 216, lo: 6 },
+  ],
+  pins: [],
+  ropes: [
+    { x: 118, y: 148, len: 52, amp: 0.62, period: 2.6, phase: 0 },
+    { x: 110, y: 292, len: 64, amp: 0.74, period: 3, phase: 1.3 },
+  ],
+  nuts: [
+    { x: 45, y: 212 },
+    { x: 110, y: 284 },
+    { x: 178, y: 212 },
+    { x: 62, y: 396 },
+    { x: 150, y: 352 },
+    { x: 196, y: 352 },
+  ],
+  nutMin: 2.6,
+  nutMax: 4.6,
+  start: { x: 20, plank: 0 },
+  door: 190,
+};
 
-/** Coins for each barrel jumped, each smashed with a belaying pin, and for getting to the top. */
+/** The stages, bottom to top of the tree. */
+export const STAGES_UP: readonly Stage[] = [BARREL_PLANKS, ROPE_SWINGS];
+
+/** How much deeper a rope bridge dips where you stand on it than it hangs at rest, once your weight is on it. */
+export const BRIDGE_DIP = 1.2;
+
+/** A plank's height at x along it, at rest: a rope bridge hanging in its curve. */
+export function plankY(p: Plank, x: number): number {
+  const t = (x - p.x0) / (p.x1 - p.x0);
+  return p.y0 + t * (p.y1 - p.y0) - (p.sag ? p.sag * Math.sin(Math.PI * clamp01(t)) : 0);
+}
+/**
+ * A rope bridge's height at x with someone standing at at, their weight on it as far as dip (0 just landed, 1 all of
+ * it): straight from each end down to them, as a weighted rope hangs, deepest in the middle and hardly at all by an end.
+ * Any other plank is as at rest.
+ */
+export function loadedY(p: Plank, x: number, at: number, dip: number): number {
+  if (!p.sag) return plankY(p, x);
+  const line = (u: number) => p.y0 + u * (p.y1 - p.y0);
+  const ta = clamp01((at - p.x0) / (p.x1 - p.x0));
+  const ya = line(ta) - p.sag * (1 + BRIDGE_DIP * dip) * Math.sin(Math.PI * ta);
+  const t = clamp01((x - p.x0) / (p.x1 - p.x0));
+  if (t <= ta) return ta <= 0 ? line(t) : line(0) + (t / ta) * (ya - line(0));
+  return ta >= 1 ? line(t) : ya + ((t - ta) / (1 - ta)) * (line(1) - ya);
+}
+const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** Coins for each barrel jumped, each smashed with a belaying pin, each rope swung on, and for getting to the top. */
 export const JUMP_COINS = 5;
+export const ROPE_COINS = 5;
 export const SMASH_COINS = 10;
 export const TOP_COINS = 100;
 /** Tries a stage: a barrel costs one, and with none left the stage starts again from the bottom. */
@@ -115,11 +215,14 @@ export function parseClimbs(v: unknown): Climbs | undefined {
 /** A climb made: one more, and if it got to the top of a stage, that stage's time, and the highest stage so far. */
 export function climbed(c: Climbs | undefined, stage: number, time: number | null): Climbs {
   const was = c ?? { climbs: 0, top: 0, best: {} };
-  const out: Climbs = {
-    climbs: Math.min(CLIMBS_MAX, was.climbs + 1),
-    top: was.top,
-    best: { ...was.best },
-  };
+  const out = timed(was, stage, time);
+  return { ...out, climbs: Math.min(CLIMBS_MAX, was.climbs + 1) };
+}
+/** A stage got to the top of on the way up, in this time (or not, null): its best kept, and the highest stage so far,
+ * the climbs as they were. */
+export function timed(c: Climbs | undefined, stage: number, time: number | null): Climbs {
+  const was = c ?? { climbs: 0, top: 0, best: {} };
+  const out: Climbs = { climbs: was.climbs, top: was.top, best: { ...was.best } };
   if (time === null) return out;
   const t = Math.round(time * 10) / 10;
   const old = was.best[stage];

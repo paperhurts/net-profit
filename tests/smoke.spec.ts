@@ -71,7 +71,14 @@ type Climb = {
   ladder: { x: number; lo: number } | null;
   nextRoll: number;
   coins: number;
-  stage: { ladders: { x: number; lo: number }[] };
+  safeT: number;
+  rope: number;
+  ropeAngle(i: number): number;
+  stage: {
+    name: string;
+    ladders: { x: number; lo: number }[];
+    ropes?: { amp: number }[];
+  };
 };
 type Np = {
   boat: { x: number; y: number; h: number; v: number };
@@ -8282,7 +8289,7 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   expect(errors).toEqual([]);
 });
 
-test('the Treehouse Climb: in at the foot of the great tree, how it goes, the arrows and the jump, up to the door at the top for its coins and time; then a climb left early, not kept', async ({
+test('the Treehouse Climb: in at the foot of the great tree, how it goes, the arrows and the jump, up the Barrel Planks and on up the Rope Swings, a rope swung on, for the coins and times; then the stage card, and a climb left early, not kept', async ({
   context,
   page,
 }) => {
@@ -8360,22 +8367,69 @@ test('the Treehouse Climb: in at the foot of the great tree, how it goes, the ar
   await page.keyboard.down('ArrowUp');
   await page.waitForFunction(() => window.__np.th?.phase === 'clear', null, { timeout: 4000 });
   await page.keyboard.up('ArrowUp');
+  // Its time kept at once; then in at the door and on up to the Rope Swings, its own how it goes first.
+  expect(await page.evaluate(() => window.__np.endless.climbs?.best[1] ?? 0)).toBeGreaterThan(0);
+  await page.waitForFunction(() => window.__np.th?.stage.name === 'Rope Swings', null, {
+    timeout: 8000,
+  });
+  expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(true);
+  await page.dispatchEvent('#thJump', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => window.__np.th?.phase === 'climb', null, { timeout: 4000 });
+  // Off the first platform onto the rope as it swings near, for its coins.
+  await page.evaluate(() => {
+    const c = window.__np.th as Climb;
+    c.x = 144;
+    c.plank = 1;
+    c.y = 80;
+    c.safeT = 99;
+  });
+  await page.waitForFunction(
+    () => {
+      const c = window.__np.th as Climb;
+      return c.ropeAngle(0) > (c.stage.ropes?.[0]?.amp ?? 0) * 0.88;
+    },
+    null,
+    { timeout: 6000 },
+  );
+  await page.dispatchEvent('#thJump', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => (window.__np.th as Climb).rope === 0, null, { timeout: 2000 });
+  expect(await page.evaluate(() => (window.__np.th as Climb).coins)).toBe(5);
+  // Up its last ladder: the Rope Swings climbed, the last stage built, and down from the tree with it all.
+  await page.evaluate(() => {
+    const c = window.__np.th as Climb;
+    const L = c.stage.ladders.find((l) => l.lo === 6) as { x: number; lo: number };
+    c.rope = -1;
+    c.ladder = L;
+    c.plank = -1;
+    c.x = L.x;
+    c.y = 352;
+  });
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(() => window.__np.th?.phase === 'clear', null, { timeout: 4000 });
+  await page.keyboard.up('ArrowUp');
   await page.waitForFunction(() => !window.__np.th, null, { timeout: 8000 });
   const after = await page.evaluate(() => ({
     coins: window.__np.coins,
     climbs: window.__np.endless.climbs,
   }));
-  expect(after.coins).toBe(before + 100);
+  expect(after.coins).toBe(before + 100 + 5 + 100);
   expect(after.climbs?.climbs).toBe(1);
-  expect(after.climbs?.top).toBe(1);
-  expect(after.climbs?.best[1]).toBeGreaterThan(0);
+  expect(after.climbs?.top).toBe(2);
+  expect(after.climbs?.best[2]).toBeGreaterThan(0);
   await expect(page.locator('#thPad')).toBeHidden();
   await expect(page.locator('#thJump')).toBeHidden();
   await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#climb')).toHaveText('Climb the great tree', { timeout: 4000 });
-  // Again: no how it goes this time, and down again straight away, the climb is not kept.
+  // Again: now a card to pick where to start, the stages above still being built shut; then down again straight
+  // away, with no how it goes this time, and the climb is not kept.
   await page.click('#climb');
-  await page.waitForFunction(() => !!window.__np.th);
+  await expect(page.locator('#treeCard')).toBeVisible();
+  await expect(page.locator('#treeStages [data-stage="1"]')).toBeEnabled();
+  await expect(page.locator('#treeStages [data-stage="2"]')).toBeEnabled();
+  await expect(page.locator('#treeStages [data-stage="3"]')).toBeDisabled();
+  await page.click('#treeStages [data-stage="2"]');
+  await expect(page.locator('#treeCard')).toBeHidden();
+  await page.waitForFunction(() => window.__np.th?.stage.name === 'Rope Swings');
   expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(false);
   await page.click('#leave');
   expect(await page.evaluate(() => window.__np.th)).toBeNull();
