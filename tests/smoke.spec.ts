@@ -158,9 +158,9 @@ type Np = {
   fromSkull: (u: number, v: number) => [number, number];
   gardenIsle: {
     seen: boolean;
-    beds?: ({ crop: string; ripe: number } | null)[];
     seeds?: Record<string, number>;
     bag?: { c: string; m: number }[];
+    beds?: ({ crop: string; ripe: number; mu?: string[][] } | null)[];
     stock?: { day: number; n: Record<string, number> };
   };
   gardenSkew: number;
@@ -576,7 +576,7 @@ type Np = {
   lurker: { x: number; y: number; a: number; state: string; t: number; wait: number };
   lurkerSeen: boolean;
   lurkerStung: number;
-  storm: { phase: string; t: number; bring(): void };
+  storm: { phase: string; t: number; flash: number; bring(): void };
   stormE: number;
   stormSeen: boolean;
   wreckChest: boolean;
@@ -13742,5 +13742,65 @@ test('your walking pet: taken along from the book, it rides the boat, follows yo
   await page.waitForTimeout(400);
   await page.reload();
   await page.waitForFunction(() => window.__np?.pets?.walker.on === true, null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test('the Garden Isle in a storm: out near it, the rain makes ripe fruit Wet and a bolt makes one Shocked', async ({
+  context,
+  page,
+}) => {
+  const now = Date.now();
+  const bed = {
+    crop: 'strawberry',
+    planted: now - 1e9,
+    ripe: 4,
+    next: 0,
+    w: [1, 1, 1, 1],
+    born: 4,
+  };
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true, beds: [bed, bed, bed, null, null, null] },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  // Out on the water by the isle, not tied up.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const [x, y] = n.fromGarden(700, 260);
+    n.boat.x = x;
+    n.boat.y = y;
+    n.boat.v = 0;
+    n.storm.bring();
+  });
+  // Its warning, hurried on.
+  await page.waitForFunction(() => window.__np.storm.phase === 'warn', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    window.__np.storm.t = 0.2;
+  });
+  await page.waitForFunction(() => window.__np.storm.phase === 'storm', null, { timeout: 4000 });
+  // Then a flash of lightning: the first one strikes the garden.
+  await page.evaluate(() => {
+    window.__np.storm.flash = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('Lightning struck your strawberry', {
+    timeout: 4000,
+  });
+  const marks = await page.evaluate(
+    () => window.__np.gardenIsle.beds?.flatMap((b) => b?.mu ?? []) ?? [],
+  );
+  expect(marks.filter((m) => m.includes('shocked'))).toHaveLength(1);
+  // The rain's Wet ones are the garden's own count, each at most once.
+  for (const m of marks) expect(m.filter((x) => x === 'wet').length).toBeLessThanOrEqual(1);
+  // A second flash in the same storm strikes nothing more.
+  await page.evaluate(() => {
+    window.__np.storm.flash = 0;
+  });
+  await page.waitForTimeout(600);
+  const again = await page.evaluate(
+    () => window.__np.gardenIsle.beds?.flatMap((b) => b?.mu ?? []) ?? [],
+  );
+  expect(again.filter((m) => m.includes('shocked'))).toHaveLength(1);
   expect(errors).toEqual([]);
 });

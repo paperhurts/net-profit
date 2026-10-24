@@ -205,8 +205,8 @@ import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { CRATES14, DOCK14, fromGarden, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt } from './world/garden';
-import { drawGardenFlat, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
-import { bedAt as gardenBed, buySeeds, CROP_IDS, CROPS, fruitKg, fruitValue, isGiant, pick as pickBed, plant as plantBed, seedsOf, sellBasket, stockToday } from './data/garden';
+import { drawGardenBolt, drawGardenFlat, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
+import { bedAt as gardenBed, buySeeds, CROP_IDS, CROPS, fruitKg, fruitValue, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, shockGarden, stockToday, wetGarden } from './data/garden';
 import { bedOf, gardenAction, gardenLabel, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
@@ -2198,10 +2198,11 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
   if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, got = pickBed(gardenIsle, i, now); toasts.clear();
     if (!got.length){ sfx.denied(); toast('Your basket is full. Sell it at the stand.', 2400); return; }
     got.forEach((f, j) => sfx.sale(j, 0)); save();
-    // Rainbow, Gold and giants are rare catches: their own fanfare, and what they are worth. The rarest picked says so.
-    const rare = got.find(f => f.v === 'rainbow') ?? got.find(f => f.v === 'gold') ?? got.find(f => isGiant(f.m));
-    if (rare){ sfx.tierUp(); const what = (rare.v === 'rainbow' ? 'A Rainbow ' : rare.v === 'gold' ? 'A Gold ' : 'A ') + (isGiant(rare.m) ? 'giant ' : '') + CROPS[k].fruit;
-      toast(`${what}! ${fruitKg(k, rare.m)} kg. It sells for ${fruitValue(k, rare.m, rare.v).toLocaleString('en-GB')}.`, 4200, 2); return; }
+    // Rainbow, Gold, the weather's marks and giants make a rare catch: its own fanfare, and what it is and is worth. Of
+    // what was picked, the one worth most says so.
+    const rare = got.filter(f => f.v || f.mu?.length || isGiant(f.m)).sort((a, b) => fruitValue(k, b.m, b.v, b.mu) - fruitValue(k, a.m, a.v, a.mu))[0];
+    if (rare){ sfx.tierUp(); const words = [rare.v === 'rainbow' ? 'Rainbow' : rare.v === 'gold' ? 'Gold' : '', ...(rare.mu ?? []).map(m => MUTATIONS[m].name), isGiant(rare.m) ? 'giant' : ''].filter(Boolean);
+      toast(`A ${words.join(', ').replace(/, giant$/, ' giant')} ${CROPS[k].fruit}! ${fruitKg(k, rare.m)} kg. It sells for ${fruitValue(k, rare.m, rare.v, rare.mu).toLocaleString('en-GB')}.`, 4200, 2); return; }
     toast(`Picked ${howMany(k, got.length)}` + (got.length === 1 ? `, ${fruitKg(k, got[0].m)} kg.` : '.'), 1800); return; }
   if (a.startsWith('g-wait-')){ toasts.clear(); toast(gardenLabel(gardenIsle, a, gardenSeed, now) + '.', 1800); } }
 // The seed stall's card: each seed, what it grows, and a button to buy one. Its stock comes in at each dawn, rolled the
@@ -2217,7 +2218,16 @@ $('gardenShelf').addEventListener('click', (e) => { const b = e.target.closest('
   const nb = $('gardenShelf').querySelector(`[data-seed="${k}"]`); if (nb){ nb.classList.add('added'); setTimeout(() => nb.classList.remove('added'), 700); } });
 // The seed tray and the basket, while ashore on the isle; the action button's words kept up to date (a bed's time left).
 let trayHtml = '';
-function updateGardenUi(){ const on = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && floor < 0 && !seedStallOpen, el = $('seedTray');
+// The garden grows every frame the game is played, with the time of day, so what ripens now can be Moonlit or Twilight.
+// A storm blowing while the boat is out near the isle soaks its ripe fruit (Wet) and one bolt strikes one (Shocked).
+let gardenBolt = null, gardenShockSpent = false;
+function gardenWeather(ev){ if (!gardenIsle.seen || !nearIsle14(boat.x, boat.y, 1600)) return;
+  if (ev === 'storm'){ gardenShockSpent = false; const n = wetGarden(gardenIsle); if (n){ save(); toast(`Rain over the Garden Isle: ${n === 1 ? 'a ripe fruit' : n + ' ripe fruit'} got Wet, and sell${n === 1 ? 's' : ''} for twice as much.`, 3600, 1); } }
+  if (ev === 'flash' && storm.phase === 'storm' && !gardenShockSpent){ const i = shockGarden(gardenIsle); if (i < 0) return;
+    gardenShockSpent = true; gardenBolt = {i, t: .6}; save(); const b = gardenBed(gardenIsle, i);
+    toasts.clear(); toast(`Lightning struck your ${b ? CROPS[b.crop].name : 'garden'} on the Garden Isle! One of its fruit is Shocked, and sells for ten times as much.`, 4200, 2); } }
+function updateGardenUi(){ if (started) growGarden(gardenIsle, gardenNow(), {phase}); if (gardenBolt && (gardenBolt.t -= 1/60) <= 0) gardenBolt = null;
+  const on = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && floor < 0 && !seedStallOpen, el = $('seedTray');
   if (el.hidden === on) el.hidden = !on;
   if (on){ gardenSeed = gardenChoice(); const h = seedTrayHtml(gardenIsle, gardenSeed); if (h !== trayHtml){ trayHtml = h; el.innerHTML = h; } }
   if (climbShown && climbShown.startsWith('g-')){ const t = gardenLabel(gardenIsle, climbShown, gardenSeed, gardenNow()); if (elClimb.textContent !== t) elClimb.textContent = t; } }
@@ -4781,7 +4791,8 @@ function updateStorm(dt){ if (!started || cine || diving) return;
   if (ev === 'warn'){ toasts.clear(); toast('Dark clouds over the deep: a storm is coming! The gulls have gone quiet.', 3600, 2); }
   else if (ev === 'storm'){ const first = !stormSeen; if (first){ stormSeen = true; save(); refreshShop(); }
     toasts.clear(); toast('The storm is here! Your boat is slow and turns wide, and the fish have gone deep. Ride it out, or head inside the buoys where it is calm.' + (!gear.ballast && first ? ' The shipwright has ballast to steady the boat now.' : ''), 5000, 2); sfx.whump(); }
-  else if (ev === 'boil'){ toasts.clear(); toast('The storm has passed, and the fish are boiling up! For a minute, every fish you catch past the buoys counts double.', 4200, 1); sfx.tierUp(); } }
+  else if (ev === 'boil'){ toasts.clear(); toast('The storm has passed, and the fish are boiling up! For a minute, every fish you catch past the buoys counts double.', 4200, 1); sfx.tierUp(); }
+  gardenWeather(ev); }
 // Over the sea while it storms: darker, rain blowing across, and lightning (no flash and still rain for reduced motion).
 function drawStorm(){ if (stormE < .01) return;
   ctx.fillStyle = `rgba(28,36,52,${.34*stormE})`; ctx.fillRect(0, 0, W, H);
@@ -6972,6 +6983,7 @@ function draw(){
   if (dark > .01 || warm > .01) drawNight();
   drawGlow();
   drawStorm();
+  if (gardenBolt) drawGardenBolt(drawView, gardenBolt.i, gardenBolt.t);
 
   drawTexts();
 

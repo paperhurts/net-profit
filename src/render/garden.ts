@@ -11,6 +11,8 @@ import {
   type Garden,
   growBed,
   grownOf,
+  type Mutation,
+  mutationsOn,
   secondsLeft,
   sizesOn,
   type Variant,
@@ -1070,6 +1072,12 @@ export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: b
               : `rgba(255,255,255,${0.5 + 0.5 * k})`;
           v.star(sx + (j - 1) * 8 * v.zoom, sy - (18 + 6 * k) * v.zoom, (3 + 2 * k) * v.zoom);
         });
+        // The weather's marks, each fruit's in a row under its sparkle.
+        mutationsOn(b).forEach((mu, j) => {
+          mu.forEach((m, q) => {
+            drawMark(v, m, sx + (j - 1) * 8 * v.zoom + q * 6 * v.zoom, sy - 10 * v.zoom);
+          });
+        });
         if (!timers) return;
         if (b.ripe > 0) {
           const k = 0.5 + 0.5 * Math.sin(v.T * 4 + i);
@@ -1103,4 +1111,60 @@ export function gardenLights(v: DrawView, g: Garden, now: number): void {
     const [x, y] = fromGarden(at.u, at.v);
     v.light(x, y, 10, b.crop === 'lantern' ? 110 : 50, b.crop === 'lantern' ? 0.9 : 0.5);
   });
+}
+
+/** A weather mark by a fruit: drops for Wet, a spark for Shocked, a pale blue glow for Moonlit, a pink one for Twilight. */
+function drawMark(v: DrawView, m: Mutation, x: number, y: number): void {
+  const { ctx, T } = v;
+  const Z = v.zoom;
+  if (m === 'wet') {
+    ctx.fillStyle = '#7FC8F0';
+    for (const [dx, dy] of [
+      [0, 0],
+      [3, 3],
+    ] as const) {
+      ctx.beginPath();
+      ctx.arc(x + dx * Z, y + dy * Z + ((T * 6 + dx) % 3) * Z, 1.4 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+  if (m === 'shocked') {
+    ctx.strokeStyle = Math.sin(T * 20) > 0 ? '#BFF4FF' : '#5FD3FF';
+    ctx.lineWidth = 1.4 * Z;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 4 * Z);
+    ctx.lineTo(x + 2 * Z, y);
+    ctx.lineTo(x - 1 * Z, y + 1 * Z);
+    ctx.lineTo(x + 1.5 * Z, y + 5 * Z);
+    ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = m === 'moonlit' ? 'rgba(170,200,255,.55)' : 'rgba(255,150,190,.55)';
+  ctx.beginPath();
+  ctx.arc(x, y, (2.6 + Math.sin(T * 2) * 0.5) * Z, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** A bolt of lightning down onto a bed, for a moment after it strikes (t counts down from 0.6). */
+export function drawGardenBolt(v: DrawView, i: number, t: number): void {
+  const at = BEDS[i];
+  if (!at) return;
+  const [x, y] = fromGarden(at.u, at.v);
+  if (!v.onScreen(x, y, 400 * v.zoom)) return;
+  const { ctx } = v;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y, 6);
+  ctx.strokeStyle = `rgba(230,250,255,${Math.min(1, t * 2.5)})`;
+  ctx.lineWidth = 3 * v.zoom;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx + 30 * v.zoom, sy - 320 * v.zoom);
+  for (let k = 1; k <= 6; k++)
+    ctx.lineTo(sx + (k % 2 ? -14 : 12) * v.zoom * (1 - k / 7), sy - 320 * v.zoom * (1 - k / 6));
+  ctx.stroke();
+  ctx.fillStyle = `rgba(200,240,255,${Math.min(0.6, t)})`;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 18 * v.zoom, 0, Math.PI * 2);
+  ctx.fill();
 }
