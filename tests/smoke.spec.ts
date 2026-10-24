@@ -77,6 +77,8 @@ type Climb = {
   bucket: { lift: number; k: number } | null;
   pulled: boolean[];
   lowered: number[];
+  pegs: { out: number }[];
+  nextToss: number;
   stage: {
     name: string;
     ladders: { x: number; lo: number }[];
@@ -8295,7 +8297,7 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   expect(errors).toEqual([]);
 });
 
-test('the Treehouse Climb: in at the foot of the great tree, how it goes, the arrows and the jump, up the Barrel Planks, on up the Rope Swings, a rope swung on, and on up the Bucket Lifts, a lift ridden and a lever pulled, for the coins and times; then the stage card, and a climb left early, not kept', async ({
+test("the Treehouse Climb: in at the foot of the great tree, how it goes, the arrows and the jump, up the Barrel Planks, on up the Rope Swings, a rope swung on, on up the Bucket Lifts, a lift ridden and a lever pulled, and on up the Crow's Nest, its pegs knocked out and the pirates' treasure won, for the coins and times; then the stage card, and a climb left early, not kept", async ({
   context,
   page,
 }) => {
@@ -8440,7 +8442,7 @@ test('the Treehouse Climb: in at the foot of the great tree, how it goes, the ar
   await page.waitForFunction(() => (window.__np.th as Climb).pulled[0], null, { timeout: 3000 });
   await page.keyboard.up('ArrowRight');
   expect(await page.evaluate(() => (window.__np.th as Climb).coins)).toBe(10);
-  // The top ledge's bridge down too, and over it to the door: the last stage built, and down from the tree with it all.
+  // The top ledge's bridge down too, and over it to the door, on up to the very top.
   await page.evaluate(() => {
     const c = window.__np.th as Climb;
     c.pulled[1] = true;
@@ -8452,15 +8454,40 @@ test('the Treehouse Climb: in at the foot of the great tree, how it goes, the ar
   await page.keyboard.down('ArrowRight');
   await page.waitForFunction(() => window.__np.th?.phase === 'clear', null, { timeout: 4000 });
   await page.keyboard.up('ArrowRight');
-  await page.waitForFunction(() => !window.__np.th, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.endless.climbs?.best[3] ?? 0)).toBeGreaterThan(0);
+  await page.waitForFunction(() => window.__np.th?.stage.name === "Crow's Nest", null, {
+    timeout: 8000,
+  });
+  expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(true);
+  await page.dispatchEvent('#thJump', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => window.__np.th?.phase === 'climb', null, { timeout: 4000 });
+  // The gorilla holding on to its monkeys, and every peg out but the last; over that one, and the crow's nest gives
+  // way, the gorilla into the sea, and down from the tree with the treasure.
+  await page.evaluate(() => {
+    const c = window.__np.th as Climb;
+    c.nextToss = 1e9;
+    c.pegs.forEach((g, i) => {
+      if (i < 7) g.out = 0;
+    });
+    c.plank = 4;
+    c.x = 150;
+    c.y = 290;
+    c.safeT = 99;
+  });
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => window.__np.th?.phase === 'clear', null, { timeout: 4000 });
+  await page.keyboard.up('ArrowRight');
+  expect(await page.evaluate(() => (window.__np.th as Climb).coins)).toBe(10 + 100);
+  await page.waitForFunction(() => !window.__np.th, null, { timeout: 10000 });
   const after = await page.evaluate(() => ({
     coins: window.__np.coins,
     climbs: window.__np.endless.climbs,
   }));
-  expect(after.coins).toBe(before + 100 + 5 + 100 + 10 + 100);
+  expect(after.coins).toBe(before + 100 + 5 + 100 + 10 + 100 + 10 + 100 + 1000);
   expect(after.climbs?.climbs).toBe(1);
-  expect(after.climbs?.top).toBe(3);
-  expect(after.climbs?.best[3]).toBeGreaterThan(0);
+  expect(after.climbs?.top).toBe(4);
+  expect(after.climbs?.best[4]).toBeGreaterThan(0);
+  await expect(page.locator('#toast')).toContainText("the pirates' treasure among them");
   await expect(page.locator('#thPad')).toBeHidden();
   await expect(page.locator('#thJump')).toBeHidden();
   await expect(page.locator('#leave')).toBeHidden();
@@ -8470,11 +8497,10 @@ test('the Treehouse Climb: in at the foot of the great tree, how it goes, the ar
   await page.click('#climb');
   await expect(page.locator('#treeCard')).toBeVisible();
   await expect(page.locator('#treeStages [data-stage="1"]')).toBeEnabled();
-  await expect(page.locator('#treeStages [data-stage="3"]')).toBeEnabled();
-  await expect(page.locator('#treeStages [data-stage="4"]')).toBeDisabled();
-  await page.click('#treeStages [data-stage="3"]');
+  await expect(page.locator('#treeStages [data-stage="4"]')).toBeEnabled();
+  await page.click('#treeStages [data-stage="4"]');
   await expect(page.locator('#treeCard')).toBeHidden();
-  await page.waitForFunction(() => window.__np.th?.stage.name === 'Bucket Lifts');
+  await page.waitForFunction(() => window.__np.th?.stage.name === "Crow's Nest");
   expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(false);
   await page.click('#leave');
   expect(await page.evaluate(() => window.__np.th)).toBeNull();

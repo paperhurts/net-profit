@@ -99,7 +99,7 @@ import { drawDrone, drawDroneFlight, drawDroneLagoon } from './render/dronefligh
 import { clockOf, GATE_MISS, LANTERN_COINS, RUNS, skied, TRICK_BONUS } from './data/slalom';
 import { Slalom } from './entities/slalom';
 import { drawSlalom, SKI_POP_T } from './render/slalom';
-import { climbed, JUMP_COINS, LEVER_COINS, ROPE_COINS, SMASH_COINS, STAGES_UP, timed } from './data/treehouse';
+import { chestOf, climbed, JUMP_COINS, LEVER_COINS, ROPE_COINS, SMASH_COINS, STAGES_UP, timed } from './data/treehouse';
 import { Climb } from './entities/treehouse';
 import { CLIMB_POP_T, climbFrame, drawClimb, PAD_ROOM } from './render/treehouse';
 import { drawFloe } from './render/icefloe';
@@ -1271,12 +1271,10 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   hud(); save(); refreshShop(); }
 // The Treehouse Climb (entities/treehouse.ts), part eight of the Endless Isle: in at the foot of the pirates' great tree,
 // and it turns side on, a stage a screen, the way Donkey Kong is. The figure waits at the foot meanwhile.
-let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, thBest, thStage = 1, thPaid = 0, thUp = [];
-// The stages whose how it goes has been shown this session; and the stages above the ones built so far, for the card at
-// the top of the last one.
+let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, thBest, thStage = 1, thPaid = 0, thUp = [], thChest = 0;
+// The stages whose how it goes has been shown this session; and every stage up the tree, built or not, for the card.
 const thTold = new Set();
 const TH_NAMES = ['Barrel Planks', 'Rope Swings', 'Bucket Lifts', 'Crow\'s Nest'];
-const TH_STILL = n => n < TH_NAMES.length ? `The ${TH_NAMES[n]} above ${n === 3 ? 'is' : 'are'} still being built` : 'The very top of the tree!';
 const thPops = [];
 function thPop(text, colour = '#FFF7E6'){ thPops.push({text, colour, t: 0}); if (thPops.length > 3) thPops.shift(); }
 // The arrows: one thumb on the pad, its way from the pad's middle in eight; up and to the right walks you onto a ladder.
@@ -1300,11 +1298,15 @@ function startTreehouse(){ audio(); if (th || ski || droneFly || droneFish || ct
 function climbStage(n){ const first = !th;
   th = new Climb(STAGES_UP[n - 1], (Math.random()*1e9) | 0); thStage = n; if (!thTold.has(n)) th.showHowTo(); thTold.add(n);
   thT = 0; thEndT = 0; thCam = th.y; thPops.length = 0; thBest = endless.climbs?.best[n]; joy.on = false; toasts.clear(); sfx.bleep();
-  if (first){ thPaid = 0; thUp = []; }
+  if (first){ thPaid = 0; thUp = []; thChest = 0; }
   th.onEvent = (what) => {
     if (what === 'go') sfx.ring();
     else if (what === 'hop' || what === 'grab') sfx.hop();
     else if (what === 'jumped'){ sfx.rightAnswer(); thPop(`Over! +${JUMP_COINS}`, '#FFE066'); }
+    else if (what === 'peg'){ const left = th.pegs.length - th.knocked; sfx.plip(); sfx.click(); thPop(left ? `Pop! ${left} to go` : 'That\'s all eight!', '#FFE066'); }
+    else if (what === 'toss') sfx.yip();
+    else if (what === 'bonk'){ sfx.whump(); sfx.poof(); thPop(`Bonk! +${SMASH_COINS}`, '#FFE066'); }
+    else if (what === 'splash'){ sfx.splash(); sfx.rareCaught(); thPop('SPLASH!', '#9FD8FF'); thPop(`Treasure! +${thChest}`, '#FFE066'); }
     else if (what === 'smash'){ sfx.clang(); sfx.poof(); thPop(`Smash! +${SMASH_COINS}`, '#FFE066'); }
     else if (what === 'swing'){ sfx.rightAnswer(); thPop(`Wheee! +${ROPE_COINS}`, '#FFE066'); }
     else if (what === 'lever'){ sfx.clang(); thPop(`Bridge down! +${LEVER_COINS}`, '#FFE066'); }
@@ -1316,12 +1318,15 @@ function climbStage(n){ const first = !th;
     else if (what === 'pin'){ sfx.tierUp(); thPop('A belaying pin! Smash them!', '#9BE7A0'); }
     else if (what === 'pinGone') sfx.click();
     // Up: the time kept at once, so climbing down from the top still counts it.
-    else if (what === 'top'){ thEndT = 4.4; sfx.orderFilled(); thUp.push(n); endless = {...endless, climbs: timed(endless.climbs, n, th.t)}; save(); } };
+    // At the very top, the gorilla's crow's nest gives way, and its chest is yours: the first time a big one.
+    else if (what === 'top'){ thEndT = 4.4; sfx.orderFilled(); thUp.push(n);
+      if (th.stage.nest){ thEndT = 6.6; thChest = chestOf(endless.climbs?.top ?? 0); thPaid += thChest; sfx.whump(); thPop('Whoa! It\'s giving way!', '#F2DDB4'); }
+      endless = {...endless, climbs: timed(endless.climbs, n, th.t)}; save(); } };
   if (!first) return;
   document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false;
   thTop = wayOutUp('Climb down', 'treehouse'); thRoom = thPadRoom(); }
-// The card at the top of a stage: its last line, on up to the next, or what is still being built above.
-const thAfter = () => STAGES_UP[thStage] ? `On up to the ${STAGES_UP[thStage].name}!` : TH_STILL(thStage);
+// The card at the top of a stage: its last line, on up to the next, or, at the very top, the treasure.
+const thAfter = () => STAGES_UP[thStage] ? `On up to the ${STAGES_UP[thStage].name}!` : `The pirates' treasure is yours! +${thChest}`;
 // Which stage to start at: those got to, and the next one up; the ones above still to reach, or still being built.
 function openTreeCard(){ const top = endless.climbs?.top ?? 0, best = endless.climbs?.best ?? {};
   const names = TH_NAMES;
@@ -1336,8 +1341,10 @@ function updateTreehouse(dt){ thT += dt; const c = th;
   for (const p of thPops) p.t += dt;
   while (thPops.length && thPops[0].t > CLIMB_POP_T) thPops.shift();
   const [sx, sy] = thArrows(); c.step(dt, sx, sy);
-  // The view rides with where the climber stands, not with each jump.
-  if (!c.air || c.phase !== 'climb') thCam += (c.y - thCam) * Math.min(1, 4*dt);
+  // The view rides with where the climber stands, not with each jump; up to the crow's nest a moment as it gives way.
+  const nest = c.stage.nest && c.phase === 'clear' && c.clearT < 1.1 ? c.stage.planks[c.stage.nest.plank].y0 - 40 : null;
+  if (nest !== null) thCam += (nest - thCam) * Math.min(1, 4*dt);
+  else if (!c.air || c.phase !== 'climb') thCam += (c.y - thCam) * Math.min(1, 4*dt);
   // At the top, the card a moment, then in at the door and on up to the next stage, or down if it is the last built.
   if (c.phase === 'clear'){ thEndT -= dt; if (thEndT <= 0){ if (STAGES_UP[thStage]){ thPaid += c.coins; climbStage(thStage + 1); } else endTreehouse(); } } }
 function pressJump(){ audio(); if (th) th.press(); }
@@ -1350,9 +1357,9 @@ function endTreehouse(quiet = false){ const c = th; if (!c) return; th = null;
   if (quiet) return;
   const pay = thPaid + c.coins; coins += pay; earned += pay;
   if (thUp.length || c.t > 3 || c.restarts) endless = {...endless, climbs: climbed(endless.climbs, thStage, null)};
-  const up = thUp.map((n) => `the ${STAGES_UP[n - 1].name}`), lastBuilt = thUp.at(-1) === STAGES_UP.length;
+  const up = thUp.map((n) => `the ${STAGES_UP[n - 1].name}`), treasure = thUp.at(-1) === STAGES_UP.length;
   toasts.clear();
-  toast(up.length ? `Up ${up.join(' and ')}!${pay ? ` ${pay} coins.` : ''}${lastBuilt ? ` ${TH_STILL(STAGES_UP.length)}.` : ''}`
+  toast(up.length ? `Up ${up.join(' and ')}!${treasure ? ` ${pay} coins, the pirates' treasure among them.` : pay ? ` ${pay} coins.` : ''}`
     : `Down from the great tree.${pay ? ` ${pay} coins.` : ''}`, 4200, 1);
   hud(); save(); refreshShop(); }
 // The trench from the surface: a patch of darker water with bubbles coming up.

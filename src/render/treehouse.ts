@@ -2,7 +2,9 @@
  * The Treehouse Climb (entities/treehouse.ts), the whole screen, side on: inside the pirates' great tree, its huge trunk
  * up the middle and clumps of leaves round the edges, sky between them. The planks are beams lashed across it, the
  * ladders rope ones, the gorilla up top with its stack of barrels beside it, and the hut with the door on the ledge at
- * the very top. The climber, in your shirt, hair and skin. Over it all: the tries left, the clock and the coins.
+ * the very top. At the very top of the tree (the Crow's Nest), out in the open over the crown, the sea far below: the
+ * decks held by their pegs, the monkeys, and the gorilla up in the crow's nest with the pirates' chest, until it gives
+ * way. The climber, in your shirt, hair and skin. Over it all: the tries left, the clock and the coins.
  *
  * The stage is scaled to the screen's width, or less, and, where it is too tall for what is left of the screen above
  * the arrows, the view rides up and down with the climber.
@@ -10,13 +12,14 @@
 
 import { clamp } from '../core/math';
 import { clockOf } from '../data/slalom';
-import { BUCKET_W, type Plank, plankY } from '../data/treehouse';
+import { BUCKET_W, HOLE, type Plank, plankY } from '../data/treehouse';
 import {
   BARREL_R,
   type Barrel,
   type Climb,
   DOWN_T,
   HANDS,
+  type Monkey,
   NUT_R,
   PIN_T,
   PIN_Y,
@@ -120,18 +123,22 @@ export function drawClimb(
   ctx.beginPath();
   ctx.rect(0, f.top - 6, W, f.bottom - f.top + 6);
   ctx.clip();
-  drawTree(ctx, W, f, s.w, s.h, T);
+  if (s.nest) drawCrown(ctx, W, f, s.w, s.h, T);
+  else drawTree(ctx, W, f, s.w, s.h, T);
   for (const L of s.ladders)
     drawLadder(ctx, f, L.x, c.surfaceY(L.lo, L.x), c.surfaceY(L.lo + 1, L.x));
   drawLifts(ctx, f, c);
   s.planks.forEach((p, i) => {
+    if (i === s.nest?.plank) return;
     if (p.sag) drawBridge(ctx, f, c, i);
     else if (p.lever !== undefined) drawDrawbridge(ctx, f, c, i);
+    else if (c.pegs.length) drawPegged(ctx, f, c, i, T);
     else drawPlank(ctx, f, p);
   });
   drawLevers(ctx, f, c);
   const ledge = plankOf(c, s.planks.length - 1);
-  drawHut(ctx, f, s.door, ledge.y0, c.phase === 'clear', T);
+  if (s.door !== undefined) drawHut(ctx, f, s.door, ledge.y0, c.phase === 'clear', T);
+  if (s.nest) drawNest(ctx, f, c, T);
   if (s.gorilla) {
     drawStack(ctx, f, s.gorilla.x - 18, plankY(plankOf(c, s.gorilla.plank), s.gorilla.x - 18));
     drawGorilla(ctx, f, c, T);
@@ -149,13 +156,16 @@ export function drawClimb(
     drawPin(ctx, X(p.x), Y(y), k * 1.5, -0.5, T, true);
   }
   for (const b of c.barrels) drawBarrel(ctx, f, b);
+  for (const m of c.monkeys) drawMonkey(ctx, f, m, T);
   drawClimber(ctx, f, c, look, T);
+  if (s.nest) drawGivenWay(ctx, f, c, T);
   ctx.restore();
   drawBars(ctx, W, c, top);
   drawPops(ctx, W, f, o.pops ?? []);
   if (c.howTo) drawHowTo(ctx, W, H, c);
   else if (c.phase === 'ready' || (c.phase === 'climb' && c.t < 0.8)) drawReady(ctx, W, f, c);
-  if (c.phase === 'clear' && c.clearT > 1.1) drawClear(ctx, W, H, c, o.best, o.after ?? '');
+  if (c.phase === 'clear' && c.clearT > (s.nest ? NEST_CARD_T : 1.1))
+    drawClear(ctx, W, H, c, o.best, o.after ?? '');
 }
 
 const plankOf = (c: Climb, i: number): Plank => c.stage.planks[i] as Plank;
@@ -268,6 +278,407 @@ function drawTree(
     ctx.stroke();
   }
   ctx.lineCap = 'butt';
+}
+
+/**
+ * The very top of the great tree, out in the open: the sea far below to the horizon, the ninjas' isle out on it with
+ * its snow peak, the crown's leaves under the bottom deck and a little way up the sides, and the trunk thinning to a
+ * mast up through the decks to the crow's nest.
+ */
+function drawCrown(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  f: ClimbFrame,
+  w: number,
+  h: number,
+  T: number,
+): void {
+  const { k, X, Y } = f;
+  const hz = f.top + (f.bottom - f.top) * 0.42;
+  const sea = ctx.createLinearGradient(0, hz, 0, f.bottom);
+  sea.addColorStop(0, '#7DBFDC');
+  sea.addColorStop(1, '#3F8EB9');
+  ctx.fillStyle = sea;
+  ctx.fillRect(0, hz, W, f.bottom - hz + 6);
+  // The ninjas' isle, far off.
+  const ix = W * 0.74;
+  ctx.fillStyle = '#8FA9B8';
+  ctx.beginPath();
+  ctx.moveTo(ix - 46, hz);
+  ctx.quadraticCurveTo(ix - 20, hz - 6, ix - 8, hz - 18);
+  ctx.lineTo(ix, hz - 24);
+  ctx.lineTo(ix + 9, hz - 16);
+  ctx.quadraticCurveTo(ix + 24, hz - 5, ix + 50, hz);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#F4F8FB';
+  ctx.beginPath();
+  ctx.moveTo(ix - 5, hz - 20);
+  ctx.lineTo(ix, hz - 24);
+  ctx.lineTo(ix + 5, hz - 20);
+  ctx.lineTo(ix + 2, hz - 21);
+  ctx.lineTo(ix - 1, hz - 19);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.45)';
+  ctx.fillRect(0, hz - 0.5, W, 1.5);
+  // Glints on the water.
+  for (let i = 0; i < 16; i++) {
+    const gx = ((hash(i, 8) * W + T * 5 * (0.5 + hash(i, 9))) % (W + 20)) - 10;
+    const gy = hz + 6 + hash(i, 10) * (f.bottom - hz - 8);
+    ctx.fillStyle = `rgba(255,255,255,${0.2 + 0.2 * Math.sin(T * 2 + i * 1.7)})`;
+    ctx.fillRect(gx, gy, 5 + hash(i, 11) * 9, 1.3);
+  }
+  // The trunk, thinning to a mast.
+  const mid = w / 2;
+  ctx.fillStyle = BARK;
+  ctx.beginPath();
+  ctx.moveTo(X(mid - 30), Y(-UNDER));
+  ctx.lineTo(X(mid - 5), Y(h + OVER));
+  ctx.lineTo(X(mid + 5), Y(h + OVER));
+  ctx.lineTo(X(mid + 30), Y(-UNDER));
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = BARK_DARK;
+  ctx.lineWidth = Math.max(1, 1.4 * k);
+  ctx.lineCap = 'round';
+  for (const t of [-0.55, -0.1, 0.4]) {
+    ctx.beginPath();
+    ctx.moveTo(X(mid + t * 30), Y(-UNDER));
+    ctx.lineTo(X(mid + t * 5), Y(h + OVER));
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  // The crown's leaves: a bed of them under the bottom deck, and clumps a little way up each side.
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = LEAVES[i % 4] as string;
+    ctx.beginPath();
+    ctx.arc(
+      X(-30 + i * 27 + hash(i, 12) * 10),
+      Y(-14 + hash(i, 13) * 12),
+      (24 + hash(i, 14) * 14) * k,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  for (let i = 0; i < 8; i++) {
+    const side = i % 2 ? 1 : -1;
+    const y = 14 + Math.floor(i / 2) * 30 + hash(i, 15) * 12;
+    ctx.fillStyle = LEAVES[Math.floor(hash(i, 16) * 3)] as string;
+    ctx.beginPath();
+    ctx.arc(
+      X(side < 0 ? -18 - hash(i, 17) * 16 : w + 18 + hash(i, 17) * 16) + Math.sin(T * 0.6 + i) * k,
+      Y(y),
+      (26 - i * 2) * k,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+}
+
+/** A deck held by pegs: the beam, broken where a peg has been knocked out; each peg still in with a glow round it to
+ * pick it out; one just knocked out, flying. */
+function drawPegged(
+  ctx: CanvasRenderingContext2D,
+  f: ClimbFrame,
+  c: Climb,
+  i: number,
+  T: number,
+): void {
+  const p = plankOf(c, i);
+  const holes = c.pegs
+    .filter((g) => g.plank === i && g.out >= 0)
+    .map((g) => g.x)
+    .sort((a, b) => a - b);
+  let x0 = p.x0;
+  for (const hx of [...holes, Number.POSITIVE_INFINITY]) {
+    const x1 = Math.min(p.x1, hx - HOLE / 2);
+    if (x1 > x0) drawPlank(ctx, f, { x0, x1, y0: plankY(p, x0), y1: plankY(p, x1) });
+    x0 = hx + HOLE / 2;
+  }
+  for (const g of c.pegs) {
+    if (g.plank !== i) continue;
+    const y = plankY(p, g.x);
+    if (g.out < 0) {
+      ctx.fillStyle = `rgba(255,224,102,${0.28 + 0.16 * Math.sin(T * 4 + g.x)})`;
+      ctx.beginPath();
+      ctx.arc(f.X(g.x), f.Y(y), 7 * f.k, 0, Math.PI * 2);
+      ctx.fill();
+      drawPeg(ctx, f.X(g.x), f.Y(y), f.k, 0);
+      continue;
+    }
+    const u = c.clock - g.out;
+    if (u > 1.4) continue;
+    const side = g.x < c.stage.w / 2 ? -1 : 1;
+    drawPeg(ctx, f.X(g.x + side * 22 * u), f.Y(y + 40 * u - 240 * u * u), f.k, side * 9 * u);
+  }
+}
+
+/** A peg: a wooden dowel through the beam, its round head proud of the top. */
+function drawPeg(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  k: number,
+  a: number,
+): void {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(a);
+  ctx.fillStyle = '#7A4E22';
+  ctx.fillRect(-1.6 * k, -1 * k, 3.2 * k, 8 * k);
+  ctx.fillStyle = '#E2B062';
+  ctx.strokeStyle = '#6B4A2C';
+  ctx.lineWidth = Math.max(1, 0.8 * k);
+  ctx.beginPath();
+  ctx.ellipse(0, -1.4 * k, 4 * k, 2.6 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** After the last peg: how long before the card comes up; and when the gorilla and the chest come down. */
+const NEST_CARD_T = 2.8;
+const GORILLA_FALL_T = 0.9;
+const CHEST_FALL_T = 1.15;
+/** How the crow's nest gives way: shaking, then tipping over. */
+function nestShake(c: Climb): { dx: number; tip: number } {
+  const t = c.phase === 'clear' ? c.clearT : 0;
+  return {
+    dx: t > 0 && t < 0.9 ? Math.sin(t * 70) * 1.4 * (1 - t / 0.9) : 0,
+    tip: clamp((t - 0.6) / 0.5, 0, 1) * 0.55,
+  };
+}
+
+/** The crow's nest on top of the mast: a round tub with the gorilla in it and the pirates' chest beside it, the Jolly
+ * Roger flying over; tossing the monkeys down; shaking and tipping over once the last peg is out. */
+function drawNest(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: number): void {
+  const n = c.stage.nest;
+  if (!n) return;
+  const { k } = f;
+  const p = plankOf(c, n.plank);
+  const mid = (p.x0 + p.x1) / 2;
+  const half = (p.x1 - p.x0) / 2 + 4;
+  const { dx, tip } = nestShake(c);
+  const t = c.phase === 'clear' ? c.clearT : -1;
+  ctx.save();
+  ctx.translate(f.X(mid + dx), f.Y(p.y0));
+  ctx.rotate(tip);
+  // The mast on up through it, and the flag.
+  ctx.fillStyle = BARK;
+  ctx.fillRect(-2.5 * k, -46 * k, 5 * k, 50 * k);
+  const wave = Math.sin(T * 5) * 1.2;
+  ctx.fillStyle = '#15151A';
+  ctx.beginPath();
+  ctx.moveTo(2.5 * k, -46 * k);
+  ctx.lineTo(20 * k, (-43 - wave) * k);
+  ctx.lineTo(20 * k, (-33 - wave) * k);
+  ctx.lineTo(2.5 * k, -36 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#F2EEE4';
+  ctx.beginPath();
+  ctx.arc(10.5 * k, (-40 - wave / 2) * k, 2 * k, 0, Math.PI * 2);
+  ctx.fill();
+  // The back of the tub.
+  ctx.fillStyle = PLANK_DARK;
+  ctx.fillRect(-half * k, -11 * k, half * 2 * k, 11 * k);
+  // The gorilla and the chest, till they go over.
+  if (t < GORILLA_FALL_T) {
+    const pose: GorillaPose =
+      t >= 0 ? 'whoa' : c.tossedT < 0.4 ? 'push' : Math.sin(T * 0.9) > 0.55 ? 'beat' : 'idle';
+    const face = c.x < n.x ? -1 : 1;
+    gorillaAt(ctx, (n.x - mid) * k, 0, face, k, pose, T, 0);
+  }
+  if (t < CHEST_FALL_T) drawChest(ctx, 18 * k, -8 * k, k, false, T);
+  // The front of the tub: slats, and a rim round the top.
+  ctx.fillStyle = PLANK;
+  ctx.beginPath();
+  ctx.moveTo(-half * k, -9 * k);
+  ctx.lineTo(half * k, -9 * k);
+  ctx.lineTo((half - 4) * k, 6 * k);
+  ctx.lineTo((-half + 4) * k, 6 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = PLANK_DARK;
+  ctx.lineWidth = Math.max(1, 0.9 * k);
+  for (let x = -half + 8; x < half - 4; x += 8) {
+    ctx.beginPath();
+    ctx.moveTo(x * k, -9 * k);
+    ctx.lineTo(x * 0.92 * k, 6 * k);
+    ctx.stroke();
+  }
+  ctx.fillStyle = HOOP;
+  ctx.fillRect((-half - 1) * k, -11 * k, (half * 2 + 2) * k, 2.4 * k);
+  ctx.fillRect((-half + 2) * k, 0.5 * k, (half * 2 - 4) * k, 1.6 * k);
+  ctx.restore();
+}
+
+/** Once the crow's nest has gone over: the gorilla tumbling down out of the tree to the sea, and the chest dropping to
+ * land beside you, and opening. */
+function drawGivenWay(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: number): void {
+  const n = c.stage.nest;
+  if (!n || c.phase !== 'clear') return;
+  const { k } = f;
+  const p = plankOf(c, n.plank);
+  const g = c.clearT - GORILLA_FALL_T;
+  if (g >= 0) {
+    const y = p.y0 - 240 * g * g;
+    if (y > -60) gorillaAt(ctx, f.X(n.x + 34 * g), f.Y(y), 1, k, 'whoa', T, 5 * g);
+  }
+  const u = c.clearT - CHEST_FALL_T;
+  if (u < 0) return;
+  const from = n.x + 18;
+  const to = c.x + (c.x < c.stage.w / 2 ? 16 : -16);
+  const drop = Math.max(1, p.y0 + 8 - c.y);
+  const dur = Math.sqrt(drop / 240);
+  const a = Math.min(1, u / dur);
+  const y = u < dur ? p.y0 + 8 - 240 * u * u : c.y;
+  drawChest(ctx, f.X(from + (to - from) * a), f.Y(y), k, u >= dur, T);
+}
+
+/** The pirates' chest: banded in gold; open, heaped with coins and sparkling. */
+function drawChest(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  k: number,
+  open: boolean,
+  T: number,
+): void {
+  const w = 16 * k;
+  const h = 9 * k;
+  ctx.fillStyle = '#8A4E22';
+  ctx.fillRect(sx - w / 2, sy - h, w, h);
+  ctx.fillStyle = '#E8B83A';
+  ctx.fillRect(sx - w / 2, sy - h, 1.6 * k, h);
+  ctx.fillRect(sx + w / 2 - 1.6 * k, sy - h, 1.6 * k, h);
+  if (open) {
+    ctx.fillStyle = '#F6D04D';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy - h, w * 0.46, 3.4 * k, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#6E3A18';
+    ctx.fillRect(sx - w / 2, sy - h - 9 * k, w, 3 * k);
+    for (let i = 0; i < 5; i++) {
+      const a = T * 3 + i * 1.3;
+      const r = (1 + Math.max(0, Math.sin(a)) * 1.6) * k;
+      ctx.fillStyle = '#FFF4C0';
+      ctx.fillRect(sx + Math.cos(i * 2.1) * w * 0.5 - r / 2, sy - h - (6 + (i % 3) * 4) * k, r, r);
+    }
+  } else {
+    ctx.fillStyle = '#A0602A';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy - h, w / 2, 4 * k, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#E8B83A';
+    ctx.fillRect(sx - 1.4 * k, sy - h - 1 * k, 2.8 * k, 4 * k);
+  }
+  ctx.fillStyle = '#E8B83A';
+  ctx.fillRect(sx - w / 2, sy - h - 0.6 * k, w, 1.2 * k);
+}
+
+/** A monkey, side on: knuckle-walking along a deck, its tail curled up behind; climbing a ladder, from behind; arms up
+ * as it falls; spinning off the tree, bonked. */
+function drawMonkey(ctx: CanvasRenderingContext2D, f: ClimbFrame, m: Monkey, T: number): void {
+  const u = f.k;
+  const fur = '#8A5A32';
+  const dark = '#6A4224';
+  const face = '#E8C9A0';
+  ctx.save();
+  ctx.translate(f.X(m.x), f.Y(m.y));
+  ctx.lineCap = 'round';
+  if (m.mode === 'climb') {
+    const s = Math.sin(m.y * 0.35);
+    ctx.strokeStyle = fur;
+    ctx.lineWidth = 1.8 * u;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 2 * u, -8 * u);
+      ctx.lineTo(side * 4.5 * u, (-12 - side * s * 2) * u);
+      ctx.moveTo(side * 1.5 * u, -4 * u);
+      ctx.lineTo(side * 4 * u, (-1 + side * s * 2) * u);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(0, -3 * u);
+    ctx.quadraticCurveTo(3 * u, 2 * u, 1 * u, 4 * u);
+    ctx.stroke();
+    ctx.fillStyle = fur;
+    ctx.beginPath();
+    ctx.ellipse(0, -6 * u, 3.4 * u, 4 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, -11 * u, 3 * u, 0, Math.PI * 2);
+    ctx.fill();
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(side * 3 * u, -11.5 * u, 1.2 * u, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+  const dir = m.mode === 'walk' ? m.dir || 1 : Math.sign(m.vx) || 1;
+  if (m.mode === 'fly') {
+    ctx.translate(0, -6 * u);
+    ctx.rotate(T * 9 * dir);
+    ctx.translate(0, 6 * u);
+  }
+  ctx.scale(dir, 1);
+  const air = m.mode !== 'walk';
+  const s = air ? 0 : Math.sin(m.x * 0.45);
+  // The tail, curled up behind.
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 1.4 * u;
+  ctx.beginPath();
+  ctx.moveTo(-3 * u, -5 * u);
+  ctx.bezierCurveTo(-8 * u, -5 * u, -8 * u, -12 * u, -5 * u, -12 * u);
+  ctx.quadraticCurveTo(-3.5 * u, -12 * u, -4 * u, -10.5 * u);
+  ctx.stroke();
+  // Legs and arms, swinging as it goes; up over its head as it falls.
+  ctx.strokeStyle = fur;
+  ctx.lineWidth = 1.8 * u;
+  ctx.beginPath();
+  ctx.moveTo(-1.5 * u, -4 * u);
+  ctx.lineTo((-1.5 + s * 2) * u, 0);
+  ctx.moveTo(-1.5 * u, -4 * u);
+  ctx.lineTo((-1.5 - s * 2) * u, 0);
+  if (air) {
+    ctx.moveTo(2 * u, -7 * u);
+    ctx.lineTo(1 * u, -14 * u);
+    ctx.moveTo(2 * u, -7 * u);
+    ctx.lineTo(5 * u, -13 * u);
+  } else {
+    ctx.moveTo(2 * u, -6.5 * u);
+    ctx.lineTo((4 - s * 2) * u, 0);
+    ctx.moveTo(2 * u, -6.5 * u);
+    ctx.lineTo((4 + s * 2) * u, 0);
+  }
+  ctx.stroke();
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.ellipse(0, -6 * u, 4.2 * u, 3.4 * u, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(3.8 * u, -9.6 * u, 3.2 * u, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(1.6 * u, -11.6 * u, 1.3 * u, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = face;
+  ctx.beginPath();
+  ctx.ellipse(5.2 * u, -9.2 * u, 2 * u, 2 * u, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1A1412';
+  ctx.beginPath();
+  ctx.arc(5.4 * u, -10 * u, 0.6 * u, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineCap = 'butt';
+  ctx.restore();
 }
 
 /** A rope ladder between two planks' tops. */
@@ -754,19 +1165,34 @@ function drawPin(
 
 /** The gorilla at the top: beating its chest now and then, then reaching for a barrel and rolling it off. */
 function drawGorilla(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: number): void {
-  const { k } = f;
   const g = c.stage.gorilla;
   if (!g) return;
   const p = plankOf(c, g.plank);
-  const dir = p.y1 < p.y0 ? 1 : -1;
-  const sx = f.X(g.x);
-  const sy = f.Y(plankY(p, g.x));
-  const u = k;
   const holding = c.phase === 'climb' && c.nextRoll < 0.55;
   const pushing = c.rolledT < 0.35;
   const beat = !holding && !pushing && Math.sin(T * 0.9) > 0.55;
+  const pose: GorillaPose = holding ? 'hold' : pushing ? 'push' : beat ? 'beat' : 'idle';
+  gorillaAt(ctx, f.X(g.x), f.Y(plankY(p, g.x)), p.y1 < p.y0 ? 1 : -1, f.k, pose, T, 0);
+}
+
+/** Holding a barrel ready, pushing one off (or tossing a monkey), beating its chest, at ease, or arms up, falling. */
+type GorillaPose = 'hold' | 'push' | 'beat' | 'idle' | 'whoa';
+/** The gorilla, its feet at (sx, sy) on the screen, facing dir, u a unit; turned by a, tumbling, round its middle. */
+function gorillaAt(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  dir: number,
+  u: number,
+  pose: GorillaPose,
+  T: number,
+  a: number,
+): void {
+  const beat = pose === 'beat';
   ctx.save();
-  ctx.translate(sx, sy);
+  ctx.translate(sx, sy - 16 * u);
+  ctx.rotate(a);
+  ctx.translate(0, 16 * u);
   ctx.scale(dir, 1);
   const fur = '#3B3330';
   const face = '#9A8070';
@@ -804,8 +1230,13 @@ function drawGorilla(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: 
   ctx.beginPath();
   ctx.arc(10 * u, -29.6 * u - bob, 0.6 * u, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillRect(9 * u, -25 * u - bob, 3.5 * u, 0.8 * u);
-  // The arms: fists on the chest in turn, out to a barrel, or pushing one off.
+  if (pose === 'whoa') {
+    // Mouth open in an O.
+    ctx.beginPath();
+    ctx.ellipse(10.5 * u, -24.6 * u, 1.3 * u, 1.6 * u, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else ctx.fillRect(9 * u, -25 * u - bob, 3.5 * u, 0.8 * u);
+  // The arms: fists on the chest in turn, out to a barrel, pushing one off, or flung up.
   ctx.strokeStyle = fur;
   ctx.lineCap = 'round';
   ctx.lineWidth = 5 * u;
@@ -824,17 +1255,20 @@ function drawGorilla(ctx: CanvasRenderingContext2D, f: ClimbFrame, c: Climb, T: 
     ctx.arc(hx * u, hy * u - bob, 2.6 * u, 0, Math.PI * 2);
     ctx.fill();
   };
-  if (holding) {
+  if (pose === 'hold') {
     drawUpright(ctx, 15 * u, -6 * u, u);
     arm(-2, -20, 11, -12);
     arm(6, -20, 19, -12);
-  } else if (pushing) {
+  } else if (pose === 'push') {
     arm(-2, -20, 14, -8);
     arm(6, -20, 20, -6);
   } else if (beat) {
     const s = Math.sin(T * 14) > 0;
     arm(-4, -20, s ? 6 : 2, s ? -17 : -14);
     arm(6, -20, s ? 4 : 9, s ? -13 : -17);
+  } else if (pose === 'whoa') {
+    arm(-4, -20, -10, -36);
+    arm(6, -20, 14, -38);
   } else {
     arm(-6, -20, -9, -3);
     arm(6, -20, 11, -3);
@@ -1080,6 +1514,19 @@ function drawBars(ctx: CanvasRenderingContext2D, W: number, c: Climb, top: numbe
     ctx.fillStyle = i < c.tries ? '#E8483A' : 'rgba(255,247,230,.25)';
     heart(ctx, pad + 18 + i * 20, top + 37, 7);
   }
+  // At the very top, the pegs still in.
+  if (c.pegs.length) {
+    ctx.font = `800 11px ${FONT}`;
+    ctx.fillStyle = '#F2DDB4';
+    ctx.textAlign = 'left';
+    ctx.fillText('Pegs', pad + 78, top + 37);
+    c.pegs.forEach((g, i) => {
+      ctx.fillStyle = g.out < 0 ? '#E2B062' : 'rgba(255,247,230,.22)';
+      ctx.beginPath();
+      ctx.arc(pad + 122 + i * 13, top + 37, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
   ctx.fillStyle = 'rgba(42,30,18,.6)';
   box(ctx, W - pad - 82, top, 82, 44);
   ctx.fillStyle = '#F0C544';
@@ -1196,9 +1643,11 @@ function drawClear(
   ctx.font = `800 13px ${FONT}`;
   const did = c.stage.gorilla
     ? `Jumped ${c.jumped} · Smashed ${c.smashed}`
-    : c.stage.levers?.length
-      ? `Levers pulled ${c.pulled.filter(Boolean).length}`
-      : `Ropes swung ${c.swung}`;
+    : c.pegs.length
+      ? `Pegs ${c.knocked} · Jumped ${c.jumped}`
+      : c.stage.levers?.length
+        ? `Levers pulled ${c.pulled.filter(Boolean).length}`
+        : `Ropes swung ${c.swung}`;
   ctx.fillText(`${did} · ${c.coins} coins`, W / 2, y + 102);
   ctx.fillText(after, W / 2, y + 124);
 }
