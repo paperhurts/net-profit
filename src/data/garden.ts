@@ -805,6 +805,25 @@ export function pick(g: Garden, i: number, now: number): Fruit[] {
   return got;
 }
 
+/** The fruit a cast into the lily pond would take for bait (part eight): the one in the basket worth least, so a
+ * Gold or a giant is never thrown in by mistake. Null with the basket empty. */
+export function baitOf(g: Garden): Fruit | null {
+  let best: Fruit | null = null;
+  for (const f of g.bag ?? [])
+    if (!best || fruitValue(f.c, f.m, f.v, f.mu) < fruitValue(best.c, best.m, best.v, best.mu))
+      best = f;
+  return best;
+}
+
+/** Take that fruit out of the basket, onto the hook: the fruit, or null with none to take. */
+export function takeBait(g: Garden): Fruit | null {
+  const f = baitOf(g);
+  if (!f || !g.bag) return null;
+  const i = g.bag.indexOf(f);
+  g.bag = [...g.bag.slice(0, i), ...g.bag.slice(i + 1)];
+  return f;
+}
+
 /** Sell the whole basket at the stand: the coins, and how many fruit. */
 export function sellBasket(g: Garden): { coins: number; n: number } {
   const out = { coins: basketValue(g), n: basketCount(g) };

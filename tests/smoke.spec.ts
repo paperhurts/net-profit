@@ -183,6 +183,8 @@ type Np = {
   gardenSkew: number;
   gardenSeed: string | null;
   gardenTool: string | null;
+  LILY_POND: { x: number; y: number; r: number };
+  lilyLine: { state: string; t: number; sp: number };
   DOCK14: { x: number; y: number; r: number };
   fromGarden: (u: number, v: number) => [number, number];
   farFarOpen: boolean;
@@ -14580,5 +14582,66 @@ test("the Garden Isle's gear shed: buy a can, a sprinkler and a shovel, water a 
   await climb.dispatchEvent('click');
   await expect.poll(() => page.evaluate(() => window.__np.gardenIsle.beds?.[0] ?? null)).toBeNull();
   await expect(climb).toHaveText('Plant a pineapple', { timeout: 4000 });
+  expect(errors).toEqual([]);
+});
+
+test("the Garden Isle's lily pond: cast with a fruit from the basket, a carp bites, reel it in to the hold", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: {
+      seen: true,
+      bag: [
+        { c: 'tomato', m: 1, v: 'gold' },
+        { c: 'strawberry', m: 1 },
+      ],
+    },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // At the pond's edge, on the side toward the plot: the cheapest fruit, the strawberry, is the bait.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const p = n.LILY_POND;
+    const [cx, cy] = n.fromGarden(-95 + 48 + 12, 40);
+    const k = (p.r + 12) / Math.hypot(cx - p.x, cy - p.y);
+    n.walker.x = p.x + (cx - p.x) * k;
+    n.walker.y = p.y + (cy - p.y) * k;
+  });
+  const cast = page.locator('#lilycast');
+  await expect(cast).toHaveText('Cast with a strawberry', { timeout: 4000 });
+  await cast.dispatchEvent('click');
+  await expect(cast).toHaveText('Wait for it\u2026');
+  expect(await page.evaluate(() => window.__np.gardenIsle.bag)).toEqual([
+    { c: 'tomato', m: 1, v: 'gold' },
+  ]);
+  // A common carp takes it and the float goes under: reel in.
+  await page.evaluate(() => {
+    const l = window.__np.lilyLine;
+    l.state = 'bite';
+    l.t = 0;
+    l.sp = 41;
+  });
+  await expect(cast).toHaveText('Reel in!');
+  await cast.dispatchEvent('click');
+  // Into the hold, and with the boat tied up at the pier, straight to the crates and sold.
+  await expect(page.locator('#toast')).toContainText('Your first common carp');
+  await expect.poll(() => page.evaluate(() => window.__np.coins)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__np.hold)).toBe(0);
+  // The Gold tomato is all that is left, and would be the next bait.
+  await expect(cast).toHaveText('Cast with a tomato');
   expect(errors).toEqual([]);
 });

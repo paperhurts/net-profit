@@ -454,6 +454,30 @@ export const SPECIES: readonly Species[] = [
     tail: 0.7,
     mark: '#23252E',
   },
+  // In the Garden Isle's lily pond, on a line from its edge with a fruit from the basket for bait (the owner's ask: tie
+  // the garden back to the fishing): the common carp, bronze and deep-bodied;
+  {
+    name: 'common carp',
+    pl: 'common carp',
+    v: 35,
+    c: '#B8873E',
+    s: 14,
+    fat: 0.36,
+    tail: 0.7,
+    mark: '#8A6128',
+  },
+  // and now and then a mirror carp, its big scales scattered over its flank like coins.
+  {
+    name: 'mirror carp',
+    pl: 'mirror carp',
+    v: 90,
+    c: '#9C8A52',
+    s: 16,
+    fat: 0.38,
+    tail: 0.7,
+    mark: '#E6D49A',
+    dot: true,
+  },
 ];
 
 /** Index of the spider crab in SPECIES. */
@@ -482,6 +506,9 @@ export const ATTACK_NIBBLER = 38;
 /** Island 11's black lagoon's two, on the drone's line. */
 export const AROWANA = 39;
 export const ARCHERFISH = 40;
+/** The Garden Isle's lily pond's two, on a line with a fruit for bait. */
+export const CARP = 41;
+export const MIRROR_CARP = 42;
 
 /** Index of the shark in SPECIES. */
 export const SHARK = 7;

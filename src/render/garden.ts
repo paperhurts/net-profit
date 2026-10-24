@@ -30,6 +30,8 @@ import {
   fromGarden,
   GARDEN,
   GEAR_SHED,
+  LILY_POND,
+  LILY14,
   PIER14,
   PIER14_Z,
   PLOT14,
@@ -141,6 +143,10 @@ const PATHS: readonly (readonly [number, number])[][] = [
     [PLOT14.u0, PLOT14.v0 + 20],
     [GEAR_SHED.front.u, GEAR_SHED.front.v],
   ],
+  [
+    [PLOT14.u0, LILY14.v - 20],
+    [LILY14.u + LILY14.r, LILY14.v - 10],
+  ],
 ];
 
 /** The ground, the paths, the plot and its beds, and the pier. */
@@ -187,8 +193,62 @@ export function drawGardenFlat(v: DrawView): void {
     ctx.stroke();
   }
   ctx.lineCap = 'butt';
+  drawLilyPond(v);
   drawPlot(v);
   drawPier14(v);
+}
+
+/** The lily pond (part eight): a reedy rim, still green-blue water with a glint, lily pads drifting, flowers on some. */
+function drawLilyPond(v: DrawView): void {
+  const { ctx, T, px, py } = v;
+  const Z = v.zoom;
+  const p = LILY_POND;
+  if (!v.onScreen(p.x, p.y, (p.r + 40) * Z)) return;
+  v.isoEllipse(p.x, p.y, p.r + 8);
+  ctx.fillStyle = '#6E9A48';
+  ctx.fill();
+  v.isoEllipse(p.x, p.y, p.r);
+  ctx.fillStyle = '#4C9AA8';
+  ctx.fill();
+  v.isoEllipse(p.x - 12, p.y - 14, p.r * 0.45);
+  ctx.fillStyle = 'rgba(255,255,255,.13)';
+  ctx.fill();
+  for (let i = 0; i < 8; i++) {
+    const a = i * 0.95 + 0.3;
+    const d = p.r * (0.3 + (i % 3) * 0.2);
+    const lx = p.x + Math.cos(a) * d;
+    const ly = p.y + Math.sin(a) * d + Math.sin(T * 0.5 + i) * 1.2;
+    ctx.fillStyle = i % 2 ? '#4E9A4A' : '#5DAA52';
+    v.isoEllipse(lx, ly, 6.5);
+    ctx.fill();
+    if (i % 3 === 0) {
+      ctx.fillStyle = i % 2 ? '#FFFFFF' : '#F7B6CF';
+      ctx.beginPath();
+      ctx.arc(px(lx, ly), py(lx, ly, 1.5), 2.2 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFE07A';
+      ctx.beginPath();
+      ctx.arc(px(lx, ly), py(lx, ly, 2), 0.9 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Reeds in clumps round the rim, swaying.
+  ctx.strokeStyle = '#4F7A34';
+  ctx.lineWidth = 1.3 * Z;
+  for (let i = 0; i < 14; i++) {
+    const a = i * 0.45 + (i % 2) * 0.2;
+    const rx = p.x + Math.cos(a) * (p.r + 4);
+    const ry = p.y + Math.sin(a) * (p.r + 4);
+    const sx = px(rx, ry);
+    const sy = py(rx, ry);
+    const sway = Math.sin(T * 1.1 + i) * 1.2 * Z;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + sway, sy - 11 * Z);
+    ctx.moveTo(sx + 2 * Z, sy);
+    ctx.lineTo(sx + 3 * Z + sway, sy - 8 * Z);
+    ctx.stroke();
+  }
 }
 
 /** Lighter patches in the grass: where, and how big, in the frame. */
