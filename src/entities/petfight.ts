@@ -127,6 +127,8 @@ export class PetFight {
   /** Seconds until the next big move. */
   nextBig: number;
   nipCd = 0;
+  /** Big moves so far, so a trainer with two does them in turn. */
+  bigs = 0;
   spits: Spit[] = [];
   /** Where the last pounce started, and its way. */
   private pounceDir = { x: 0, y: 0 };
@@ -333,7 +335,7 @@ export class PetFight {
           // It leaps onto the ring and slams.
           f.x = this.at.x;
           f.y = this.at.y;
-          if (Math.hypot(y.x - this.at.x, y.y - this.at.y) <= SLAM_R + BODY * 0.5)
+          if (Math.hypot(y.x - this.at.x, y.y - this.at.y) <= tr.slamR + BODY * 0.5)
             this.hurtYou(tr.big, false);
           this.foeOpen(OPEN_T);
         } else {
@@ -379,8 +381,8 @@ export class PetFight {
     const f = this.foe;
     const y = this.you;
     const tr = this.trainer;
-    const i = Math.floor(this.t / tr.every) % tr.moves.length;
-    const m = tr.moves[i] ?? 'slam';
+    // Its big moves in turn.
+    const m = tr.moves[this.bigs++ % tr.moves.length] ?? 'slam';
     this.move = m;
     this.foeState = 'wind';
     this.foeT = 0;
@@ -422,8 +424,8 @@ export class PetFight {
     const y = this.you;
     if (y.curl > 0) {
       this.events.push({ k: 'blocked', who: 'you' });
-      // Curled up, a nip finds spikes.
-      if (bite) this.hurtFoe(HIT.spikes);
+      // Curled up, whatever lands finds spikes, a slam or a charge the more.
+      this.hurtFoe(bite ? HIT.spikes : HIT.bigSpikes);
       return false;
     }
     if (y.hurt > 0 || y.pounce > 0) return false;
@@ -432,6 +434,15 @@ export class PetFight {
     this.events.push({ k: 'hit', who: 'you', dmg });
     return true;
   }
+}
+
+/** How far a charge from `at` along `dir` goes: its full length, or to the rope if that is nearer. */
+export function laneLen(at: { x: number; y: number }, dir: { x: number; y: number }): number {
+  // Where the line meets the circle the pets keep inside: |at + dir t| = EDGE, the far root.
+  const b = at.x * dir.x + at.y * dir.y;
+  const c = at.x * at.x + at.y * at.y - EDGE * EDGE;
+  const t = -b + Math.sqrt(Math.max(0, b * b - c));
+  return Math.max(0, Math.min(CHARGE_LEN, t));
 }
 
 /** A bitten pet knocked back, away from the biter. */

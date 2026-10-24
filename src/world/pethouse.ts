@@ -21,6 +21,8 @@ export const PET_HOUSE_REACH = 22;
 export const PET_YARD = { x: IX - 44, y: IY - 48, r: 36 } as const;
 /** The ring where pet battles are fought (entities/petfight.ts): its middle, on open grass clear of the house. */
 export const PET_RING = { x: IX + 66, y: IY + 30 } as const;
+/** Where the figure stands to watch a pet battle: just outside the rope, at the ring's right as you look at it. */
+export const RING_WATCH = { x: PET_RING.x + 44, y: PET_RING.y - 44 } as const;
 /** How much closer the view comes for a pet battle. */
 export const RING_ZOOM = 0.6;
 /** How far up the screen the ring is lifted, as a share of its height, clear of the buttons below. */

@@ -8,13 +8,12 @@ import type { Rig } from '../data/doodle';
 import type { DrawView } from '../entities/entity';
 import {
   BITE_T,
-  CHARGE_LEN,
   CHARGE_W,
   type Fighter,
+  laneLen,
   type PetFight,
   POUNCE_T,
   RING_R,
-  SLAM_R,
 } from '../entities/petfight';
 import { drawStun } from './battlefx';
 import { drawWalking, PET_SIZE } from './petsys';
@@ -47,7 +46,7 @@ export function drawFightGround(v: DrawView, f: PetFight, x: number, y: number):
   const { ctx } = v;
   const k = f.windK;
   if (f.foeState === 'wind' && f.move === 'slam') {
-    v.isoEllipse(x + f.at.x, y + f.at.y, SLAM_R);
+    v.isoEllipse(x + f.at.x, y + f.at.y, f.trainer.slamR);
     ctx.fillStyle = `rgba(220,40,30,${0.14 + 0.22 * k})`;
     ctx.fill();
     ctx.strokeStyle = `rgba(230,50,40,${0.55 + 0.4 * k})`;
@@ -57,8 +56,9 @@ export function drawFightGround(v: DrawView, f: PetFight, x: number, y: number):
     // The lane it will charge down: from where it stands, its body's width and then some.
     const nx = -f.dir.y * CHARGE_W;
     const ny = f.dir.x * CHARGE_W;
-    const ex = f.at.x + f.dir.x * CHARGE_LEN;
-    const ey = f.at.y + f.dir.y * CHARGE_LEN;
+    const len = laneLen(f.at, f.dir);
+    const ex = f.at.x + f.dir.x * len;
+    const ey = f.at.y + f.dir.y * len;
     const pts: [number, number][] = [
       [f.at.x + nx, f.at.y + ny],
       [ex + nx, ey + ny],
@@ -76,7 +76,7 @@ export function drawFightGround(v: DrawView, f: PetFight, x: number, y: number):
   } else if (f.foeState === 'open' && f.foeT < 0.3 && f.trainer.moves.includes('slam')) {
     // The dust where it landed.
     const d = f.foeT / 0.3;
-    v.isoEllipse(x + f.foe.x, y + f.foe.y, SLAM_R * (0.8 + d * 0.6));
+    v.isoEllipse(x + f.foe.x, y + f.foe.y, f.trainer.slamR * (0.8 + d * 0.6));
     ctx.strokeStyle = `rgba(200,170,120,${0.8 * (1 - d)})`;
     ctx.lineWidth = 3 * v.zoom;
     ctx.stroke();

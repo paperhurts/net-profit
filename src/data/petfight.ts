@@ -40,7 +40,7 @@ export const SPECIAL_SAYS: Readonly<Record<Special, string>> = {
   pounce: 'Leaps at the other pet.',
   spit: 'Spits from far away.',
   roar: 'Dazes the other pet.',
-  curl: 'Curls up: nothing gets through.',
+  curl: 'Curls up: nothing gets through, and it is spiky.',
 };
 /** Seconds before each special can be used again. */
 export const SPECIAL_COOL: Readonly<Record<Special, number>> = {
@@ -105,7 +105,7 @@ export function petStats(
 }
 
 /** What a hit of each kind takes, in half hearts, before strong's extra. */
-export const HIT = { spit: 1, pounce: 3, spikes: 1 } as const;
+export const HIT = { spit: 1, pounce: 3, spikes: 1, bigSpikes: 3 } as const;
 
 /** The big moves a trainer's pet winds up, shown on the ground in red first. */
 export type BigMove = 'slam' | 'charge';
@@ -129,9 +129,16 @@ export type Trainer = {
   wind: number;
   big: number;
   every: number;
+  /** How wide its slam's ring is. */
+  slamR: number;
   /** For a win: experience, and coins. */
   xp: number;
   coins: number;
+  /** The level it is meant for: a person's hand at this level beats it every time, with any build and special. */
+  lv: number;
+  /** Its ribbon's colour; the champion gives a cup instead. */
+  ribbon: string;
+  cup?: boolean;
 };
 
 /** A drawing in another colour: every stroke of colour `from` drawn in `to` (data/doodle.ts letters). */
@@ -161,10 +168,120 @@ export const TRAINERS: readonly Trainer[] = [
     wind: 1.1,
     big: 4,
     every: 3.5,
+    slamR: 24,
     xp: 80,
     coins: 60,
+    lv: 1,
+    ribbon: '#3D7DD8',
+  },
+  {
+    id: 't2',
+    name: 'Moss',
+    says: 'Moss and his hedgehog Bramble. Bramble never slams: it rolls at you in a straight line. Step off the red lane.',
+    pet: 'Bramble',
+    art: recolour(HATCHLING_ART.hedgehog ?? '', 'A', 'D'),
+    hp: 36,
+    speed: 46,
+    nip: 1,
+    nipWind: 0.45,
+    moves: ['charge'],
+    wind: 1.05,
+    big: 4,
+    every: 3.4,
+    slamR: 24,
+    xp: 110,
+    coins: 80,
+    lv: 2,
+    ribbon: '#4C9A45',
+  },
+  {
+    id: 't3',
+    name: 'Wren',
+    says: 'Wren and her bunny Gusty. Gusty slams, then rolls, then slams: watch which red it is.',
+    pet: 'Gusty',
+    art: recolour(HATCHLING_ART.bunny ?? '', 'A', 'C'),
+    hp: 38,
+    speed: 52,
+    nip: 1,
+    nipWind: 0.4,
+    moves: ['slam', 'charge'],
+    wind: 1,
+    big: 4,
+    every: 3.2,
+    slamR: 24,
+    xp: 140,
+    coins: 100,
+    lv: 3,
+    ribbon: '#F2B233',
+  },
+  {
+    id: 't4',
+    name: 'Ida',
+    says: 'Ida and her frog Pebble. Pebble is quick: its red comes and goes faster than anyone else so far.',
+    pet: 'Pebble',
+    art: recolour(HATCHLING_ART.frog ?? '', 'D', 'F'),
+    hp: 40,
+    speed: 54,
+    nip: 1,
+    nipWind: 0.35,
+    moves: ['slam', 'charge'],
+    wind: 0.9,
+    big: 4,
+    every: 3,
+    slamR: 24,
+    xp: 180,
+    coins: 130,
+    lv: 4,
+    ribbon: '#F28DB2',
+  },
+  {
+    id: 't5',
+    name: 'Fen',
+    says: 'Old Fen and his moth Dusk. Dusk is slow, but its slam covers a lot more ground. Go early.',
+    pet: 'Dusk',
+    art: recolour(recolour(HATCHLING_ART.moth ?? '', 'E', 'A'), 'F', 'D'),
+    hp: 44,
+    speed: 48,
+    nip: 1,
+    nipWind: 0.45,
+    moves: ['slam'],
+    wind: 1.05,
+    big: 5,
+    every: 3,
+    slamR: 30,
+    xp: 220,
+    coins: 160,
+    lv: 5,
+    ribbon: '#8E6CC9',
+  },
+  {
+    id: 'champ',
+    name: 'Cora',
+    says: 'Cora the champion, and her ladybird Ember. Ember does it all, and fast. Beat her and the cup is yours.',
+    pet: 'Ember',
+    art: HATCHLING_ART.ladybird ?? '',
+    hp: 50,
+    speed: 58,
+    nip: 1,
+    nipWind: 0.35,
+    moves: ['slam', 'charge'],
+    wind: 0.9,
+    big: 5,
+    every: 2.8,
+    slamR: 28,
+    xp: 300,
+    coins: 250,
+    lv: 7,
+    ribbon: '#E2B33C',
+    cup: true,
   },
 ];
+
+/** Whether a trainer will fight you yet: the first always, each after once the one before is beaten. */
+export function trainerOpen(i: number, won: readonly string[]): boolean {
+  const before = TRAINERS[i - 1];
+  return i === 0 || (!!before && won.includes(before.id));
+}
 
 export function trainerOf(id: string): Trainer | undefined {
   return TRAINERS.find((t) => t.id === id);
