@@ -27,7 +27,7 @@ export type Kit = {
 export const KITS: Readonly<Record<Role, Kit>> = {
   tank: { hearts: 14, speed: 75, hit: 2, reach: 40, every: 1.2, thrown: false },
   damage: { hearts: 8, speed: 85, hit: 2, reach: 40, every: 0.7, thrown: false },
-  healer: { hearts: 7, speed: 85, hit: 1, reach: 160, every: 0.9, thrown: true },
+  healer: { hearts: 7, speed: 85, hit: 1, reach: 220, every: 0.9, thrown: true },
 };
 
 /**

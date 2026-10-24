@@ -7942,6 +7942,91 @@ test('Badges II and III: the badge card counts your marks, a Swashbuckler at Bad
   expect(errors).toEqual([]);
 });
 
+test("the healer's throw in Capture the Flag: its own button, not the blade's, and it reaches a foe 200 away", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: { seen: true, pirate: true, ninja: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const L = n.LEADER13.pirate;
+    n.walker.x = L.x + 16;
+    n.walker.y = L.y + 16;
+  });
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  await page.click('#endlessRoles [data-role="healer"]');
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  // Nobody else up; one foe, stood still 200 away, far past a blade.
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf;
+    for (const f of c.fighters)
+      if (f.bot) {
+        f.state = 'down';
+        f.downT = 9999;
+      }
+    const foe = c.fighters.find((f) => f.side === 'ninja' && f.role === 'damage') as CtfFighter;
+    foe.state = 'live';
+    foe.cd = 99;
+    foe.stunT = 99;
+    foe.abCd = foe.abCd.map(() => 99);
+    foe.u = c.you.u + 200;
+    foe.v = c.you.v;
+  });
+  await expect(page.locator('#throw')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('#throw')).toHaveClass(/fling/);
+  await expect(page.locator('#throw')).not.toHaveClass(/knife/);
+  await expect(page.locator('#throw')).toHaveAttribute('aria-label', 'Throw');
+  await page.dispatchEvent('#throw', 'pointerdown', { button: 0 });
+  await page.waitForFunction(
+    () =>
+      (
+        (window.__np.ctf as Ctf).fighters.find(
+          (f) => f.side === 'ninja' && f.role === 'damage',
+        ) as CtfFighter
+      ).hp < 8,
+    null,
+    { timeout: 3000 },
+  );
+  // Out past 220, no throw.
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf;
+    const foe = c.fighters.find((f) => f.side === 'ninja' && f.role === 'damage') as CtfFighter;
+    foe.u = c.you.u + 260;
+  });
+  await expect(page.locator('#throw')).toBeHidden({ timeout: 3000 });
+  await page.click('#ctfLeave');
+  await page.click('#ctfLeave');
+  await expect(page.locator('#throw')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
 test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time and coins; then a run stopped early, its time not kept', async ({
   context,
   page,
