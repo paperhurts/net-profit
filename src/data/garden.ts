@@ -5,19 +5,49 @@
  * is free again; a multi-harvest one stays and keeps fruiting, holding a few ripe fruit and then waiting to be picked,
  * so time away is never lost and a week away pays no more than a night (the owner's call, 2026-10-24).
  *
- * Part two, the first harvest, has the three crops the stall always has: carrot, strawberry and blueberry. Every
- * function here takes the time as an argument (milliseconds since 1970, Date.now()'s), so the game and the tests say
- * when "now" is.
+ * The stall's stock (part three): every crop in six tiers, common to divine, the rarer the less often in. It restocks at
+ * every dawn, every five minutes of play, as Grow a Garden's does every five minutes; the stock is rolled once a day and
+ * saved, so a reload cannot reroll it. The numbers are the owner's call, "rival the boat": a full plot of the best crop
+ * left overnight pays three to five holds of abyss fish, and tended by hand about what the boat pays a minute, never more
+ * (GUARD below, held by a test). The throttle is the stall: the rarest seeds are in once in a hundred days or so.
+ *
+ * Every function here takes the time as an argument (milliseconds since 1970, Date.now()'s), so the game and the tests
+ * say when "now" is.
  */
 
-export type CropId = 'carrot' | 'strawberry' | 'blueberry';
+export type CropId =
+  | 'carrot'
+  | 'strawberry'
+  | 'blueberry'
+  | 'sweetpotato'
+  | 'tomato'
+  | 'sweetcorn'
+  | 'pineapple'
+  | 'papaya'
+  | 'coconut'
+  | 'dragonfruit'
+  | 'lantern'
+  | 'kraken';
+
+export type Tier = 'common' | 'uncommon' | 'rare' | 'legendary' | 'mythic' | 'divine';
+export const TIERS: readonly Tier[] = [
+  'common',
+  'uncommon',
+  'rare',
+  'legendary',
+  'mythic',
+  'divine',
+];
 
 export type Crop = {
   id: CropId;
+  /** The plant, and its seed: "coconut palm". */
   name: string;
-  /** More than one, for messages: "3 strawberries". */
+  /** One of its fruit, picked: "coconut". */
+  fruit: string;
+  /** More than one fruit, for messages: "3 coconuts". */
   plural: string;
-  tier: 'common' | 'uncommon';
+  tier: Tier;
   /** What a seed costs at the stall, and what one ripe fruit sells for at the stand. */
   seed: number;
   sell: number;
@@ -27,47 +57,184 @@ export type Crop = {
   regrow?: number;
   /** Ripe fruit it holds before it waits to be picked: 1 for a crop picked once. */
   holds: number;
+  /** In stock at a dawn one time in this many (1: always), and how many seeds come in, least and most. */
+  odds: number;
+  stock: readonly [number, number];
 };
 
-/** The crops, in the order the stall shows them. The commons as the plan has them; later pieces add the rest. */
-export const CROPS: Record<CropId, Crop> = {
-  carrot: {
-    id: 'carrot',
-    name: 'carrot',
-    plural: 'carrots',
-    tier: 'common',
-    seed: 10,
-    sell: 16,
-    grow: 60,
-    holds: 1,
-  },
-  strawberry: {
-    id: 'strawberry',
-    name: 'strawberry',
-    plural: 'strawberries',
-    tier: 'common',
-    seed: 40,
-    sell: 5,
-    grow: 120,
-    regrow: 60,
-    holds: 4,
-  },
-  blueberry: {
-    id: 'blueberry',
-    name: 'blueberry',
-    plural: 'blueberries',
-    tier: 'uncommon',
-    seed: 120,
-    sell: 14,
-    grow: 240,
-    regrow: 120,
-    holds: 4,
-  },
+const M = 60;
+/** Where one fruit is not called what its plant is. */
+const FRUIT: Partial<Record<CropId, string>> = {
+  sweetcorn: 'cob of sweetcorn',
+  coconut: 'coconut',
 };
-export const CROP_IDS: readonly CropId[] = ['carrot', 'strawberry', 'blueberry'];
+/** One crop: picked once when regrow is 0. */
+function crop(
+  id: CropId,
+  name: string,
+  plural: string,
+  tier: Tier,
+  seed: number,
+  sell: number,
+  grow: number,
+  regrow: number,
+  holds: number,
+  odds: number,
+  stock: readonly [number, number],
+): Crop {
+  const fruit = FRUIT[id] ?? name;
+  return {
+    id,
+    name,
+    fruit,
+    plural,
+    tier,
+    seed,
+    sell,
+    grow,
+    ...(regrow ? { regrow } : {}),
+    holds,
+    odds,
+    stock,
+  };
+}
+
+/** The crops, in the order the stall shows them (data for the table under Tuning tables in project.md). */
+export const CROPS: Record<CropId, Crop> = {
+  carrot: crop('carrot', 'carrot', 'carrots', 'common', 10, 16, M, 0, 1, 1, [8, 12]),
+  strawberry: crop(
+    'strawberry',
+    'strawberry',
+    'strawberries',
+    'common',
+    40,
+    5,
+    2 * M,
+    M,
+    4,
+    1,
+    [6, 10],
+  ),
+  blueberry: crop(
+    'blueberry',
+    'blueberry',
+    'blueberries',
+    'uncommon',
+    120,
+    14,
+    4 * M,
+    2 * M,
+    4,
+    1,
+    [4, 6],
+  ),
+  sweetpotato: crop(
+    'sweetpotato',
+    'sweet potato',
+    'sweet potatoes',
+    'uncommon',
+    300,
+    450,
+    5 * M,
+    0,
+    1,
+    3,
+    [2, 4],
+  ),
+  tomato: crop('tomato', 'tomato', 'tomatoes', 'rare', 800, 60, 6 * M, 3 * M, 3, 1, [2, 3]),
+  sweetcorn: crop(
+    'sweetcorn',
+    'sweetcorn',
+    'cobs of sweetcorn',
+    'rare',
+    1300,
+    95,
+    8 * M,
+    4 * M,
+    3,
+    6,
+    [1, 3],
+  ),
+  pineapple: crop(
+    'pineapple',
+    'pineapple',
+    'pineapples',
+    'legendary',
+    3000,
+    4200,
+    15 * M,
+    0,
+    1,
+    8,
+    [1, 2],
+  ),
+  papaya: crop('papaya', 'papaya', 'papayas', 'legendary', 4500, 190, 10 * M, 5 * M, 3, 12, [1, 2]),
+  coconut: crop(
+    'coconut',
+    'coconut palm',
+    'coconuts',
+    'mythic',
+    9000,
+    300,
+    15 * M,
+    7 * M,
+    3,
+    25,
+    [1, 1],
+  ),
+  dragonfruit: crop(
+    'dragonfruit',
+    'dragon fruit',
+    'dragon fruit',
+    'mythic',
+    15000,
+    420,
+    20 * M,
+    8 * M,
+    3,
+    40,
+    [1, 1],
+  ),
+  lantern: crop(
+    'lantern',
+    'lantern gourd',
+    'lantern gourds',
+    'divine',
+    30000,
+    560,
+    30 * M,
+    10 * M,
+    3,
+    80,
+    [1, 1],
+  ),
+  kraken: crop(
+    'kraken',
+    'kraken squash',
+    'kraken squashes',
+    'divine',
+    45000,
+    60000,
+    45 * M,
+    0,
+    1,
+    120,
+    [1, 1],
+  ),
+};
+export const CROP_IDS: readonly CropId[] = Object.keys(CROPS) as CropId[];
 export function isCrop(k: unknown): k is CropId {
   return typeof k === 'string' && (CROP_IDS as readonly string[]).includes(k);
 }
+
+/**
+ * The owner's "rival the boat" (2026-10-24), in numbers: a full plot (BEDS_ALL beds) of the best crop that keeps
+ * fruiting, left overnight, pays between these; and tended by hand it pays at most this a minute. A test holds the crop
+ * table to them.
+ */
+export const GUARD = { overnightMin: 30000, overnightMax: 50000, perMinuteMax: 2000 } as const;
+/** Beds in the whole plot, staked out and dug, once it has grown. */
+export const BEDS_ALL = 24;
 
 /** How many fruit the basket carries; it sells at the isle's stand. */
 export const BASKET_MAX = 50;
@@ -92,7 +259,30 @@ export type Garden = {
   seeds?: Partial<Record<CropId, number>>;
   /** Fruit in the basket, by crop. */
   basket?: Partial<Record<CropId, number>>;
+  /** The seed stall's stock, and the day it came in. */
+  stock?: Stock;
 };
+
+/** What the seed stall has, rolled at a dawn: the game's day it came in, and seeds left of each crop. */
+export type Stock = { day: number; n: Partial<Record<CropId, number>> };
+
+/** A day's stock: each crop in on its odds, with so many seeds. */
+export function rollStock(day: number, rnd: () => number = Math.random): Stock {
+  const n: Partial<Record<CropId, number>> = {};
+  for (const k of CROP_IDS) {
+    const c = CROPS[k];
+    if (c.odds > 1 && rnd() * c.odds >= 1) continue;
+    const [lo, hi] = c.stock;
+    n[k] = lo + Math.floor(rnd() * (hi - lo + 1));
+  }
+  return { day, n };
+}
+
+/** The stall's stock today, rolled fresh the first time it is asked for on a new day. */
+export function stockToday(g: Garden, day: number, rnd: () => number = Math.random): Stock {
+  if (!g.stock || g.stock.day !== day) g.stock = rollStock(day, rnd);
+  return g.stock;
+}
 
 /** A game that has never been near it. */
 export function noGarden(): Garden {
@@ -145,13 +335,19 @@ export function basketValue(g: Garden): number {
   return CROP_IDS.reduce((n, k) => n + (g.basket?.[k] ?? 0) * CROPS[k].sell, 0);
 }
 
-/** Buy n seeds of a crop with the coins held: what it costs, or 0 when it cannot be bought. */
+/** Seeds of a crop left at the stall today. */
+export function inStock(g: Garden, k: CropId): number {
+  return g.stock?.n[k] ?? 0;
+}
+
+/** Buy n seeds of a crop from today's stock with the coins held: what it costs, or 0 when it cannot be bought. */
 export function buySeeds(g: Garden, k: CropId, n: number, coins: number): number {
   const have = seedsOf(g, k);
-  const m = Math.min(n, SEEDS_MAX - have);
+  const m = Math.min(n, SEEDS_MAX - have, inStock(g, k));
   const cost = m * CROPS[k].seed;
-  if (m <= 0 || cost > coins) return 0;
+  if (m <= 0 || cost > coins || !g.stock) return 0;
   g.seeds = { ...g.seeds, [k]: have + m };
+  g.stock = { ...g.stock, n: { ...g.stock.n, [k]: inStock(g, k) - m } };
   return cost;
 }
 
@@ -247,6 +443,16 @@ export function parseGarden(raw: unknown): Garden {
   }
   const seeds = parseCounts(k.seeds, SEEDS_MAX);
   if (seeds) g.seeds = seeds;
+  if (k.stock && typeof k.stock === 'object') {
+    const st = k.stock as Record<string, unknown>;
+    if (typeof st.day === 'number' && Number.isFinite(st.day) && st.day >= 0) {
+      // Kept with its zeros, so a crop sold out today still reads as sold out.
+      const n: Partial<Record<CropId, number>> = {};
+      const raw = st.n && typeof st.n === 'object' ? (st.n as Record<string, unknown>) : {};
+      for (const c of CROP_IDS) if (c in raw) n[c] = count(raw[c], SEEDS_MAX);
+      g.stock = { day: Math.floor(st.day), n };
+    }
+  }
   const basket = parseCounts(k.basket, BASKET_MAX);
   if (basket) {
     // Never more than the basket carries, whatever the save says.
@@ -264,5 +470,5 @@ export function parseGarden(raw: unknown): Garden {
 
 /** Nothing about it worth keeping, so the save can leave it out and the copy-my-game link stays short. */
 export function untouchedGarden(g: Garden): boolean {
-  return !g.seen && !g.beds?.some((b) => b) && !g.seeds && !g.basket;
+  return !g.seen && !g.beds?.some((b) => b) && !g.seeds && !g.basket && !g.stock;
 }
