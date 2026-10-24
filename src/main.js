@@ -120,7 +120,7 @@ import { drawSkrillDoor, drawSkullRoom } from './render/skulltower';
 import { Spears } from './entities/spears';
 import { ARMOURS, armourAt, nextArmour, heartsFor, hasKnife, HONOR_GUARD, knifeUse, KNIFE } from './data/armour';
 import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, OUTFITS, outfitOf, PRESETS, presetOf, SKINS, SKIPPER, TITLES, wornArmour } from './data/look';
-import { ALL_BADGES, emblemWon, FLAG_BADGES, flagWon, HALL_KINDS, HALL_PIECES, HALL_SOLID, hallAt, hallWon, listOf, nearHall, newOutfits, newRewards, nextReward, OUTFIT_HOW, OUTFIT_NAME, outfitWon, paintWon, rewardName, rewardsWon, sideBadges, TITLE_NAME, titleWon, WON_FLAGS } from './data/rewards';
+import { ALL_BADGES, emblemWon, FLAG_BADGES, flagWon, goldWon, HALL_KINDS, HALL_PIECES, HALL_SOLID, hallAt, hallWon, listOf, nearHall, newOutfits, newRewards, nextReward, OUTFIT_HOW, OUTFIT_NAME, outfitWon, paintWon, rewardName, rewardsWon, sideBadges, TITLE_NAME, titleRank, titleWon, WON_FLAGS } from './data/rewards';
 import { decodeSailed, encodeSailed, noSailed, sail, sailAll, sailedCount, sailedShare, seedSailed } from './state/sailed';
 import { drawRadar } from './render/radar';
 import { inRange } from './world/radar';
@@ -202,7 +202,7 @@ import { drawIsle11Flat, drawIsle11Sea, isle11Solids } from './render/isle11';
 import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, insideIsle12, ISLE12, isle12Outline, nearIsle12, PITS12, pushOffIsle12, REVEAL12, REVEAL12_T, revealZoom12, SIGHT12 } from './world/isle12';
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { atHalf, atLift, atTree, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, fromEndless, HALF_C, halfOutline, insideEndless, LANDING13, LEADER13, leaderNear, nearEndless, PEAK, pushOffEndless, REVEAL13, REVEAL13_T, revealZoom13, rival, SIDES, SIGHT13, toEndless, TREE13 } from './world/endless';
-import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_SAYS, LEADER_TITLED, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
+import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_GOLD, LEADER_SAYS, LEADER_TITLED, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { bedsInReach, CRATES14, DOCK14, fromGarden, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
@@ -211,7 +211,7 @@ import { bedAt as gardenBed, buyGear, buySeeds, CROP_IDS, CROPS, dig as digBed, 
 import { bedOf, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
-import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, FORTS, HOLD_NAME, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
+import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, FORTS, GOLD_MARKS, HOLD_NAME, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
 import { Ctf, flagHome, graveSpot } from './entities/ctf';
 import { answers, SCIENCE } from './data/science';
 import { drawIsle10Flat, drawIsle10Sea, isle10Solids } from './render/isle10';
@@ -1291,7 +1291,8 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   if (dressed) toast(`Gold on all three runs! ${outfitSay(dressed)}`, 6000, 1);
   hud(); save(); refreshShop(); }
 // An outfit won since then, put straight on: the first of them, if any; what to say of it.
-function wearWon(before){ const t = ['endless', 'lord', 'master'].find(k => !titleWon(k, before) && titleWon(k, endless)); if (t) charLook = {...charLook, title: t};
+function wearWon(before){ const t = newRewards(before, endless).filter(r => r.kind === 'title').map(r => r.key).sort((a, b) => titleRank(b) - titleRank(a))[0];
+  if (t && titleRank(t) >= titleRank(charLook.title)) charLook = {...charLook, title: t};
   const won = newOutfits(before, endless); if (!won.length) return null; charLook = {...charLook, outfit: won[0]}; sfx.orderFilled(); return won[0]; }
 const outfitSay = (k) => `You've won ${OUTFIT_NAME[k]}, and you're wearing it now. Change it with Your character, in the shop.`;
 // Any reward, as said when it is won: an outfit is put on; a flag and a paint wait in the shop.
@@ -2785,7 +2786,7 @@ function ctfTarget(){ const t = ctf && ctf.phase === 'fight' ? ctf.inReach(ctf.y
 // Where you get up, and where you wait for it.
 function ctfGrave(f){ const [u, v] = graveSpot(f.side); return fromEndless(u + ((f.slot % 3) - 1)*14, v); }
 function startCtf(side, role = ctfRole, mode = ctfMode){ if (ctf || walker.state !== 'ashore' || !endless[side]) return; ctfRole = role; ctfMode = mode;
-  endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; $('ctfCard').hidden = true;
+  endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; $('ctfCard').hidden = true; document.body.classList.toggle('goldBadge', goldWon(endless.battles, side, role));
   ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role, ctfBadge(side, role), mode); ctfShots = []; ctfRings = []; ctfFx = []; ctfHud = ''; shanty = null;
   const [x, y] = fromEndless(ctf.you.u, ctf.you.v); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0;
   hearts = ctf.you.hp; invulnT = 0; benchStaying(); hudHearts();
@@ -2869,7 +2870,7 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
   if (e.k === 'over') ctfOver(e.winner); }
 // Over: the result, its coin and its marks, and the card.
 function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner === 'draw' ? 'draw' : winner === side ? 'win' : 'loss', pay = PAY[result];
-  const was = ctfBadge(side, me.role), before = endless;
+  const was = ctfBadge(side, me.role), before = endless, goldWas = goldWon(endless.battles, side, me.role);
   coins += pay; earned += pay; endless = {...endless, battles: marked(endless.battles ?? noBattles(), side, me.role, result)};
   const won = newRewards(before, endless), rw = $('ctfReward'); wearWon(before); rw.hidden = !won.length;
   if (won.length) rw.textContent = `${sideBadges(endless.battles, side)} badges as a ${side}! ${won.map(rewardSay).join(' ')}`;
@@ -2881,22 +2882,33 @@ function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner 
   $('ctfSay').textContent = `${LEADER_NAME[side]}: ${LEADER_AFTER[side][result]}`;
   const b = endless.battles, st = me.stats;
   $('ctfStats').innerHTML = [...(ctf.mode === 'forts' ? [['Bases you took', st.takes]] : [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns]]), ['Foes you beat', st.beaten], ...(me.role === 'healer' ? [['Hearts you healed', st.healed]] : []), [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`],
-    [`Marks, as a ${ROLE_NAME[side][me.role]}`, now < 3 ? `${m} of ${BADGE_MARKS[now]} for Badge ${ROMAN[now + 1]}` : `${m}, Badge III`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
+    [`Marks, as a ${ROLE_NAME[side][me.role]}`, now < 3 ? `${m} of ${BADGE_MARKS[now]} for Badge ${ROMAN[now + 1]}` : m < GOLD_MARKS ? `${m} of ${GOLD_MARKS} for the gold badge` : `${m}, a gold badge`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
   $('ctfGot').textContent = `+${pay} coins`;
   $('ctfResults').hidden = false; $('ctfBadge').hidden = true;
   card.hidden = false; hudAbility(); hud(); refreshShop(); save();
-  if (now > was) ceremony(side, me.role, now); }
+  if (now > was) ceremony(side, me.role, now); else if (!goldWas && goldWon(endless.battles, side, me.role)) goldCeremony(side, me.role); }
 // A new badge stops the results for its ceremony, the plan's: the medal spins in, the leader says something proud
 // (and Jacks Parrow something rude), and the new ability plays once, so you can see what it does.
 function ceremony(side, role, badge){ const ab = ABILITIES[role][badge - 1];
-  $('ctfBadgeTitle').textContent = `Badge ${ROMAN[badge]}!`;
-  const medal = $('ctfMedal'); medal.textContent = ROMAN[badge]; medal.dataset.side = side;
+  $('ctfBadgeTitle').textContent = `Badge ${ROMAN[badge]}!`; $('ctfBadgeShow').hidden = false;
+  const medal = $('ctfMedal'); medal.textContent = ROMAN[badge]; medal.dataset.side = side; medal.dataset.gold = '';
   $('ctfBadgeRole').textContent = `${ROLE_NAME[side][role]} of the ${CTF_SIDES[side]}`;
   $('ctfBadgeSay').textContent = `${LEADER_NAME[side]}: ${LEADER_BADGE[side][badge]}`;
   const sq = $('ctfBadgeSquawk'); sq.hidden = !(side === 'pirate' && jacks.shown);
   if (!sq.hidden){ const i = nextLine(squawk.line, Math.random()); jacksSay(i); sq.innerHTML = `<b>${MINION_NAME.pirate}:</b> ${squawkHtml(PARROT_LINES[i] ?? '')}`; }
   $('ctfBadgeAb').innerHTML = `New: <b>${ABILITY_NAME[side][ab]}</b>. ${abilitySays(side, ab)} It is on your ${badge === 2 ? 'second' : 'third'} button, or ${AB_KEYS[badge - 1].toUpperCase()}.`;
   $('ctfResults').hidden = true; $('ctfBadge').hidden = false; sfx.orderFilled(); showStart(side, role, ab); }
+// The last rung: a place's Badge III turns gold at 20 marks. Its own ceremony, with no new power to show, only the
+// gold and a title.
+function goldCeremony(side, role){ const t = `gold-${side}-${role}`;
+  $('ctfBadgeTitle').textContent = 'A gold badge!'; $('ctfBadgeShow').hidden = true;
+  const medal = $('ctfMedal'); medal.textContent = ROMAN[3]; medal.dataset.side = side; medal.dataset.gold = '1';
+  $('ctfBadgeRole').textContent = `${ROLE_NAME[side][role]} of the ${CTF_SIDES[side]}`;
+  $('ctfBadgeSay').textContent = `${LEADER_NAME[side]}: ${LEADER_GOLD[side]}`;
+  const sq = $('ctfBadgeSquawk'); sq.hidden = !(side === 'pirate' && jacks.shown);
+  if (!sq.hidden){ const i = nextLine(squawk.line, Math.random()); jacksSay(i); sq.innerHTML = `<b>${MINION_NAME.pirate}:</b> ${squawkHtml(PARROT_LINES[i] ?? '')}`; }
+  $('ctfBadgeAb').innerHTML = `No new power: your badge is gold, and you're the <b>${TITLE_NAME[t]}</b>. It's under your name on Your character.`;
+  $('ctfResults').hidden = true; $('ctfBadge').hidden = false; sfx.orderFilled(); }
 // A line of his in words: each bleep a black bar, each swear a run of symbols.
 function squawkHtml(line){ return squawkParts(line).map(p => p.kind === 'text' ? p.text.replace(/[<&>]/g, '') : `<span class="${p.kind}">${p.text}</span>`).join(''); }
 $('ctfBadgeOn').addEventListener('click', () => { sfx.click(); showStop(); $('ctfBadge').hidden = true; $('ctfResults').hidden = false; });
@@ -2915,7 +2927,7 @@ function playShanty(dt){ if (!shanty) return; if (!ctf || shanty.f.singT <= 0 ||
   shanty.t -= dt; while (shanty.t <= 0){ const [n, secs] = SHANTY[shanty.i % SHANTY.length]; if (ambience && !muted) ambience.mermaidNote(n, secs*.9, 0, shanty.f === ctf.you ? .1 : .06); shanty.t += secs; shanty.i++; } }
 // Out of the battle, back to how you were: by your side's leader, if it was played to the end.
 function endCtf(home = false){ if (!ctf) return; const side = ctf.yours; ctf = null; ctfShots = []; ctfFx = [];
-  document.body.classList.remove('ctf'); $('ctfBar').hidden = true; $('ctfCard').hidden = true; for (const id of AB_BUTTONS) $(id).hidden = true; shanty = null; showStop();
+  document.body.classList.remove('ctf', 'goldBadge'); $('ctfBar').hidden = true; $('ctfCard').hidden = true; for (const id of AB_BUTTONS) $(id).hidden = true; shanty = null; showStop();
   walker.speedK = 1; invulnT = 0; hearts = maxHearts(); hudHearts();
   if (home && walker.state === 'ashore'){ const L = LEADER13[side], h = side === 'pirate' ? 1 : -1, x = L.x - 26*h, y = L.y + 26*h, ok = walkable(x, y, build);
     walker.x = cam.x = ok ? x : LANDING13[side].x; walker.y = cam.y = ok ? y : LANDING13[side].y; walker.vx = walker.vy = 0; } }
@@ -2933,9 +2945,11 @@ const ROLES = ['tank', 'damage', 'healer'];
 let ctfRole = 'damage', ctfMode = 'flag';
 function openRoles(mode){ const side = endlessTalk; if (!side) return; sfx.click(); ctfMode = mode;
   $('endlessRoles').innerHTML = ROLES.map(r => { const m = ctfMarks(side, r), b = badgeOf(m), abs = ABILITIES[r], top = abs[b - 1];
-    return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts \u00B7 Badge ${ROMAN[b]}</span>`
+    const gold = m >= GOLD_MARKS;
+    return `<button class="answer role${gold ? ' gold' : ''}" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts \u00B7 ${gold ? 'Gold badge' : `Badge ${ROMAN[b]}`}</span>`
       + `<small>${abs.slice(0, b).map(a => `<b>${ABILITY_NAME[side][a]}</b>`).join(' \u00B7 ')}<br>${b > 1 ? 'New: ' : ''}${abilitySays(side, top)}</small>`
-      + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>` : '') + '</button>'; }).join('')
+      + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>`
+        : !gold ? `<small class="next">Gold at ${GOLD_MARKS} marks: no new power, but a gold badge and a title. You have ${m}.</small>` : '') + '</button>'; }).join('')
     + (() => { const nx = nextReward(endless.battles, side), had = rewardsWon(endless.battles, side).map(rewardName);
       return nx ? `<p class="reward">${had.length ? `Won so far: ${listOf(had)}. ` : ''}At ${nx.at} badges as a ${side}, all three roles counted: ${nx.what}. You have ${nx.have}.</p>`
         : `<p class="reward">All ${ALL_BADGES} badges as a ${side}! Yours: ${listOf(had)}.</p>`; })()

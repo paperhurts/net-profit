@@ -7978,16 +7978,21 @@ test('Badges II and III: the badge card counts your marks, a Swashbuckler at Bad
   await expect(page.locator('#ctfBadge')).toBeHidden();
   await expect(page.locator('#ctfResults')).toBeVisible();
   await expect(page.locator('#ctfTitle')).toHaveText('The pirates win!');
-  await expect(page.locator('#ctfStats')).toContainText('Marks, as a Swashbuckler8, Badge III');
+  await expect(page.locator('#ctfStats')).toContainText(
+    'Marks, as a Swashbuckler8 of 20 for the gold badge',
+  );
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
   expect(saved.endless.battles.marks.pirate).toEqual({ tank: 0, damage: 8, healer: 2 });
   await page.click('#ctfDone');
   await expect(page.locator('#ctfCard')).toBeHidden();
-  // Badge III on the card, nothing more to earn there; and three buttons.
+  // Badge III on the card; and three buttons.
   await toCappy();
   await expect(damage).toContainText('Badge III');
   await expect(damage).toContainText('Flintlock · Swing In · Powder Keg');
-  await expect(damage.locator('.next')).toHaveCount(0);
+  // Nothing more to earn there but the gold, the last rung.
+  await expect(damage.locator('.next')).toHaveText(
+    'Gold at 20 marks: no new power, but a gold badge and a title. You have 8.',
+  );
   await damage.click();
   await expect(page.locator('#ability3')).toBeVisible();
   await toFight();
@@ -8693,6 +8698,96 @@ test("the side rewards in your trophy hall: Captain Cappy's cutlass and Master S
   await expect(page.locator('#climb')).toHaveText('Look at the golden mirror', { timeout: 3000 });
   await page.click('#climb');
   await expect(page.locator('#toast')).toContainText('two of everything look back');
+  expect(errors).toEqual([]);
+});
+
+test("gold badges: the last rung, a place's Badge III gone gold at 20 marks, its ceremony with no new power, a title, and gold trim on the ability buttons", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 12,
+        won: 8,
+        marks: {
+          pirate: { tank: 0, damage: 19, healer: 0 },
+          ninja: { tank: 0, damage: 0, healer: 0 },
+        },
+      },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const toCappy = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      const L = n.LEADER13.pirate;
+      n.walker.x = L.x + 16;
+      n.walker.y = L.y + 16;
+    });
+    await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+    await page.click('#climb');
+    await page.click('#endlessFight');
+  };
+  await toCappy();
+  const damage = page.locator('#endlessRoles [data-role="damage"]');
+  await expect(damage).toContainText('Badge III');
+  await expect(damage).toContainText(
+    'Gold at 20 marks: no new power, but a gold badge and a title. You have 19.',
+  );
+  await damage.click();
+  // No gold yet: no trim.
+  expect(await page.evaluate(() => document.body.classList.contains('goldBadge'))).toBe(false);
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { clock: number };
+    c.score.pirate = 1;
+    c.clock = 0.01;
+  });
+  // A win: 21 marks, and the gold badge's ceremony, with no new ability to show.
+  await expect(page.locator('#ctfBadge')).toBeVisible({ timeout: 4000 });
+  await expect(page.locator('#ctfBadgeTitle')).toHaveText('A gold badge!');
+  await expect(page.locator('#ctfMedal')).toHaveAttribute('data-gold', '1');
+  await expect(page.locator('#ctfBadgeSay')).toContainText('Gold!');
+  await expect(page.locator('#ctfBadgeAb')).toContainText(
+    "No new power: your badge is gold, and you're the Golden Swashbuckler.",
+  );
+  await expect(page.locator('#ctfBadgeShow')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.charLook.title)).toBe('gold-pirate-damage');
+  await page.click('#ctfBadgeOn');
+  await expect(page.locator('#ctfStats')).toContainText('21, a gold badge');
+  await page.click('#ctfDone');
+  // The card says gold; and the next battle in that place has the gold trim on its buttons.
+  await toCappy();
+  await expect(damage).toContainText('Gold badge');
+  await expect(damage).toHaveClass(/gold/);
+  await damage.click();
+  expect(await page.evaluate(() => document.body.classList.contains('goldBadge'))).toBe(true);
   expect(errors).toEqual([]);
 });
 

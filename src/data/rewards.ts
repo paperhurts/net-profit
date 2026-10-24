@@ -4,13 +4,13 @@
  * and for the Ninja Slalom, a snow ninja's white outfit for gold on all three runs. A side's outfit at 3 of its badges,
  * its flag for the boat at 6, and at all 9 its hull paint, its title and a stand in your trophy hall; at all nine of
  * both sides', the golden mirror and the title Master of the Endless Isle (the plan said Doom Island, the isle's name
- * then).
+ * then). And the last rung of each place's badges, gold at 20 marks: a title, and no new power.
  */
 
 import type { Side } from '../world/endless';
-import { type Battles, badgeOf } from './battle';
+import { type Battles, badgeOf, GOLD_MARKS, type Role } from './battle';
 import { EMBLEMS, type Flag } from './flag';
-import type { OutfitKind, TitleKind } from './look';
+import { type GoldTitle, type OutfitKind, TITLES, type TitleKind } from './look';
 import { medalOf, RUN_ORDER, RUNS, type Slalom } from './slalom';
 
 /** A side's outfit takes this many of its badges, its flag this many, and its paint all of them. */
@@ -109,13 +109,22 @@ export function titleWon(k: TitleKind, w: Won): boolean {
   if (k === 'lord') return sideBadges(w.battles, 'pirate') >= ALL_BADGES;
   if (k === 'master') return sideBadges(w.battles, 'ninja') >= ALL_BADGES;
   if (k === 'endless') return titleWon('lord', w) && titleWon('master', w);
-  return true;
+  if (k === 'none') return true;
+  const [, side, role] = k.split('-') as [string, Side, Role];
+  return goldWon(w.battles, side, role);
 }
-export const TITLE_NAME: Readonly<Record<WonTitle, string>> = {
-  lord: 'Pirate Lord',
-  master: 'Grand Master',
-  endless: 'Master of the Endless Isle',
-};
+/** A place's gold badge: its marks at the last rung. */
+export function goldWon(b: Battles | undefined, side: Side, role: Role): boolean {
+  return (b?.marks[side][role] ?? 0) >= GOLD_MARKS;
+}
+export const GOLD_TITLES: readonly GoldTitle[] = TITLES.map(([k]) => k).filter(
+  (k): k is GoldTitle => k.startsWith('gold-'),
+);
+export const TITLE_NAME = Object.fromEntries(TITLES) as Readonly<Record<WonTitle, string>>;
+/** How much a title outranks another, so a new one goes on only over a lesser one. */
+export function titleRank(k: TitleKind): number {
+  return k === 'none' ? 0 : k.startsWith('gold-') ? 1 : k === 'endless' ? 3 : 2;
+}
 
 /**
  * The trophy hall's three from the Endless Isle, at Gigantis, round the treasure dais: Captain Cappy's cutlass on a
@@ -216,6 +225,7 @@ const ALL_REWARDS: readonly Reward[] = [
   { kind: 'hall', key: 'katana' },
   { kind: 'title', key: 'endless' },
   { kind: 'hall', key: 'mirror' },
+  ...GOLD_TITLES.map((key): Reward => ({ kind: 'title', key })),
 ];
 /** Every reward won between two moments, in the order they are said. */
 export function newRewards(was: Won, now: Won): Reward[] {
