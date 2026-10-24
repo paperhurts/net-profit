@@ -4,7 +4,7 @@
  * dug, dark soil in rows, and the rest are staked out with string. The seed stall has a green-and-cream awning, the sell
  * stand a blue one with baskets, the gear shed a red roof and its door open (part seven). Planted beds grow
  * their plants (gardenPlantSolids), from a sprout to a full plant with its fruit on it, and sprinklers set down in the
- * plot spray the beds round them. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
+ * plot spray the beds round them. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch at the plot's far corner.
  */
 
 import {
@@ -151,7 +151,7 @@ const PATHS: readonly (readonly [number, number])[][] = [
 ];
 
 /** The ground, the paths, the plot and its beds, and the pier. */
-export function drawGardenFlat(v: DrawView): void {
+export function drawGardenFlat(v: DrawView, open: number = BEDS_START): void {
   const { ctx, T, px, py } = v;
   const Z = v.zoom;
   if (!near(v, 1000)) return;
@@ -195,7 +195,7 @@ export function drawGardenFlat(v: DrawView): void {
   }
   ctx.lineCap = 'butt';
   drawLilyPond(v);
-  drawPlot(v);
+  drawPlot(v, open);
   drawPier14(v);
 }
 
@@ -261,8 +261,8 @@ const PATCHES: readonly [number, number, number][] = [
   [-90, -170, 36],
 ];
 
-/** The plot: its plank edging, the six dug beds and the rest staked out with string. */
-function drawPlot(v: DrawView): void {
+/** The plot: its plank edging, the dug beds (six, then more as they are dug) and the rest staked out with string. */
+function drawPlot(v: DrawView, open: number): void {
   const { ctx, T } = v;
   const Z = v.zoom;
   // Inside the edging the grass is worn a little shorter.
@@ -279,7 +279,7 @@ function drawPlot(v: DrawView): void {
   ctx.stroke();
   const h = BED / 2;
   BEDS.forEach((b, i) => {
-    if (i < BEDS_START) {
+    if (i < open) {
       // Dug: dark soil, raised a little, its furrows across it.
       frameBox(v, b.u - h, b.v - h, b.u + h, b.v + h);
       ctx.fillStyle = SOIL_DARK;

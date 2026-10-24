@@ -214,7 +214,7 @@ import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions'
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { bedsInReach, COMPOST_BIN, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
 import { drawGardenBolt, drawGardenFlat, drawGardenSplash, drawKoiShadow, drawMoonkoi, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
-import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin } from './data/garden';
+import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin, bedsOpen, buyBasket, digBeds, nextDig } from './data/garden';
 import { bedOf, binShelfHtml, FISH_WORDS, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
@@ -2257,7 +2257,7 @@ function updateGardenIsle(){ if (walker.state !== 'ashore' || walker.dock !== GA
   const st = stallAt(walker.x, walker.y);
   if (st && !gardenTold.has(st)){ gardenTold.add(st); toast(GARDEN_STALL_SAYS.get(st), 4200, 1); }
   if (!gardenTold.has('plot') && inPlot14(walker.x, walker.y)){ gardenTold.add('plot');
-    toast('Your plot: six beds to plant, and eighteen more staked out for later. Choose a seed in the tray, stand on a bed and plant it.', 4200, 1); } }
+    toast(`Your plot: ${bedsOpen(gardenIsle)} beds to plant${nextDig(gardenIsle) ? `, and ${24 - bedsOpen(gardenIsle)} more staked out: stand on one to dig more` : ''}. Choose a seed in the tray, stand on a bed and plant it.`, 4200, 1); } }
 // The Garden Isle's first harvest (data/garden.ts): seeds from the stall, planted in the beds with the action button,
 // growing in real time from saved timestamps, picked into the basket and sold at the stand. gardenSkew moves the
 // garden's clock for the tests.
@@ -2272,6 +2272,9 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
     sfx.splash(); gardenSplash = {i, t: 1}; save(); if (!gearOf(gardenIsle, 'can')){ gardenTool = null; toasts.clear(); toast('Your watering can is empty. The gear shed has more.', 2600); }
     else if (b && !gardenTold.has('watered')){ gardenTold.add('watered'); toasts.clear(); toast(`Watered your ${CROPS[b.crop].name}: half a minute sooner.`, 2400); }
     return; }
+  if (a === 'g-dig-more'){ const d = nextDig(gardenIsle), was = bedsOpen(gardenIsle), cost = digBeds(gardenIsle, coins); toasts.clear();
+    if (!cost){ sfx.denied(); toast(d ? `Digging ${d.to - was} more beds costs ${d.price.toLocaleString('en-GB')} coins.` : 'The whole plot is dug.', 2400); return; }
+    coins -= cost; sfx.upgrade(); hud(); save(); toast(`Dug ${bedsOpen(gardenIsle) - was} more beds: ${bedsOpen(gardenIsle)} to plant now.${nextDig(gardenIsle) ? '' : ' The whole plot is dug.'}`, 3000, 1); return; }
   if (a.startsWith('g-dig-')){ const b = gardenBed(gardenIsle, i); if (!b) return;
     // Two taps, so nothing is dug up by mistake: a ripe kraken squash is a lot to lose.
     if (!gardenDig || gardenDig.i !== i || now - gardenDig.at > 4000){ gardenDig = {i, at: now}; sfx.click(); toasts.clear(); toast(`Dig up your ${CROPS[b.crop].name}? It is gone for good. Tap again to dig.`, 3200); return; }
@@ -2314,7 +2317,9 @@ function openGearShed(){ openGardenShop('gear'); }
 function closeSeedStall(){ seedStallOpen = null; $('gardenCard').hidden = true; sfx.click(); }
 function renderSeedStall(){ $('gardenShelf').innerHTML = seedStallOpen === 'gear' ? gearShelfHtml(gardenIsle, coins) : seedStallOpen === 'bin' ? binShelfHtml(gardenIsle) : seedShelfHtml(gardenIsle, coins); }
 $('gardenClose').addEventListener('click', closeSeedStall);
-$('gardenShelf').addEventListener('click', (e) => { const kb = e.target.closest('[data-keep]'); if (kb){ const k = kb.dataset.keep;
+$('gardenShelf').addEventListener('click', (e) => { const bb = e.target.closest('[data-basket]'); if (bb){ const cost = buyBasket(gardenIsle, coins); if (!cost){ sfx.denied(); return; }
+    coins -= cost; sfx.upgrade(); hud(); save(); renderSeedStall(); toasts.clear(); toast('A bigger basket: it carries 100 fruit now.', 2400); return; }
+  const kb = e.target.closest('[data-keep]'); if (kb){ const k = kb.dataset.keep;
     gardenIsle.binKeep = {...gardenIsle.binKeep, [k]: !gardenIsle.binKeep?.[k]}; if (!gardenIsle.binKeep[k]) delete gardenIsle.binKeep[k]; sfx.click(); save(); renderSeedStall(); return; }
   const t = e.target.closest('[data-gear]'); if (t){ const k = t.dataset.gear, cost = buyGear(gardenIsle, k, coins); if (!cost){ sfx.denied(); return; }
     coins -= cost; gardenTool = k; sfx.upgrade(); hud(); save(); renderSeedStall();
@@ -6660,7 +6665,7 @@ function drawSea(){
   drawIsle11Flat(drawView);
   drawIsle12Flat(drawView);
   drawEndlessFlat(drawView);
-  drawGardenFlat(drawView); if (gardenIsle.seen && !koiNow && koiTonight(gardenIsle, day, {phase})) drawKoiShadow(drawView);
+  drawGardenFlat(drawView, bedsOpen(gardenIsle)); if (gardenIsle.seen && !koiNow && koiTonight(gardenIsle, day, {phase})) drawKoiShadow(drawView);
   drawIsle7Flat(drawView);
   drawIsle8Flat(drawView);
   drawGroundPlants(drawView);

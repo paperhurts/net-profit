@@ -182,6 +182,8 @@ type Np = {
     koi?: { night: number; n: number };
     bin?: Record<string, number>;
     binKeep?: Record<string, boolean>;
+    dug?: number;
+    bigBasket?: boolean;
   };
   gardenSkew: number;
   gardenSeed: string | null;
@@ -15021,5 +15023,63 @@ test("the Garden Isle's compost bin: tie up with fish aboard, the bin keeps them
       (window.__np.gardenIsle.beds?.[0] as { fed?: string } | null)?.fed,
     ]),
   ).toEqual([{ common: 4 }, 'common']);
+  expect(errors).toEqual([]);
+});
+
+test("the Garden Isle's plot grows: dig six more beds and plant in one, and buy the bigger basket", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 5000,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true, seeds: { carrot: 1 } },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  const climb = page.locator('#climb');
+  // A staked-out bed, the fourth row down by the pier: dig the next six.
+  await standAt(172, -102);
+  await expect(climb).toHaveText('Dig 6 more beds for 2,000', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#toast')).toContainText('12 to plant now');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.gardenIsle.dug])).toEqual([
+    3000, 12,
+  ]);
+  await expect(climb).toHaveText('Plant a carrot', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(climb).toHaveText(/Carrot: ripe in/, { timeout: 4000 });
+  // The bigger basket, from the gear shed.
+  await standAt(-50, -136);
+  await expect(climb).toHaveText('Look at the gear', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await page.locator('[data-basket]').dispatchEvent('click');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.gardenIsle.bigBasket])).toEqual([
+    500,
+    true,
+  ]);
+  await page.click('#gardenClose');
+  await expect(page.locator('#seedTray .basket')).toContainText('0/100');
   expect(errors).toEqual([]);
 });

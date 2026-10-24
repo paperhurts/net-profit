@@ -126,9 +126,10 @@ export const COMPOST_BIN: Stall = {
   front: { u: PIER14.u0 - 14, v: PIER14.v + 24 },
 };
 export const STALLS: readonly Stall[] = [SEED_STALL, SELL_STAND, GEAR_SHED, COMPOST_BIN];
-/** The windmill, round, and how tall; the scarecrow in the staked-out corner of the plot. */
+/** The windmill, round, and how tall. */
 export const WINDMILL = { u: -205, v: -30, r: 30, h: 150 } as const;
-export const SCARECROW = { u: 40, v: -190 } as const;
+/** Just outside the plot's far corner, keeping watch over it: once every bed can be dug (part eleven), not on one. */
+export const SCARECROW = { u: 0, v: -222 } as const;
 /** The orchard, round the back of the island. */
 export const TREES14: readonly { u: number; v: number; r: number }[] = [
   { u: -150, v: -210, r: 20 },
@@ -232,10 +233,16 @@ export function inPlot14(x: number, y: number): boolean {
 
 /** The open bed the figure is standing on, as its index in BEDS, or -1. A little give round each, so a step onto its
  * edge counts. */
-export function bedUnder(x: number, y: number): number {
+export function bedUnder(x: number, y: number, open: number = BEDS_START): number {
+  const i = bedSpot(x, y);
+  return i < open ? i : -1;
+}
+
+/** The bed the figure is standing on, dug or only staked out, as its index in BEDS, or -1. */
+export function bedSpot(x: number, y: number): number {
   const [u, v] = toGarden(x, y);
   const h = BED / 2 + 4;
-  for (let i = 0; i < BEDS_START; i++) {
+  for (let i = 0; i < BEDS.length; i++) {
     const b = BEDS[i] as { u: number; v: number };
     if (Math.abs(u - b.u) <= h && Math.abs(v - b.v) <= h) return i;
   }
