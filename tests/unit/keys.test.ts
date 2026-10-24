@@ -7,6 +7,7 @@ import {
   keyVector,
   SMOOTH_TAU,
   smoothVector,
+  typing,
 } from '../../src/input/keys';
 
 const H = Math.SQRT1_2;
@@ -41,11 +42,12 @@ class FakeTarget implements KeyTarget {
   addEventListener(type: string, listener: (e: KeyLike) => void): void {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
   }
-  fire(type: string, key: string): { prevented: boolean } {
+  fire(type: string, key: string, target?: unknown): { prevented: boolean } {
     const out = { prevented: false };
     for (const l of this.listeners.get(type) ?? []) {
       l({
         key,
+        target,
         preventDefault: () => {
           out.prevented = true;
         },
@@ -78,6 +80,32 @@ describe('bindKeys', () => {
     expect(target.fire('keydown', 'ArrowDown').prevented).toBe(true);
     expect(target.fire('keydown', 'd').prevented).toBe(false);
     expect(target.fire('keydown', 'x').prevented).toBe(false);
+  });
+
+  it('steers nothing from a key typed into a text box, and still lets go of a held key there', () => {
+    const target = new FakeTarget();
+    const keys = new Set<string>();
+    let presses = 0;
+    bindKeys(target, keys, () => presses++);
+    const box = { tagName: 'INPUT' };
+    expect(target.fire('keydown', 'w', box).prevented).toBe(false);
+    target.fire('keydown', 'ArrowLeft', { tagName: 'TEXTAREA' });
+    target.fire('keydown', 'a', { isContentEditable: true });
+    expect([...keys]).toEqual([]);
+    expect(presses).toBe(0);
+    // Held on the water, then let go with a text box focused: let go all the same.
+    target.fire('keydown', 'd', { tagName: 'CANVAS' });
+    target.fire('keyup', 'd', box);
+    expect([...keys]).toEqual([]);
+  });
+
+  it('knows a text box when it sees one', () => {
+    expect(typing({ tagName: 'INPUT' })).toBe(true);
+    expect(typing({ tagName: 'SELECT' })).toBe(true);
+    expect(typing({ tagName: 'BUTTON' })).toBe(false);
+    expect(typing({ isContentEditable: false })).toBe(false);
+    expect(typing(null)).toBe(false);
+    expect(typing('INPUT')).toBe(false);
   });
 });
 

@@ -14418,3 +14418,27 @@ test('the Garden Isle in a storm: out near it, the rain makes ripe fruit Wet and
   expect(again.filter((m) => m.includes('shocked'))).toHaveLength(1);
   expect(errors).toEqual([]);
 });
+
+test('typing a save code into the Play on another device card does not steer the boat', async ({
+  context,
+  page,
+}) => {
+  // Out on the water and still, so any turn or throttle shows.
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2400, y: 2100, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await page.waitForTimeout(300);
+  const before = await page.evaluate(() => ({ h: window.__np.boat.h, v: window.__np.boat.v }));
+  await page.locator('#carryBtn').dispatchEvent('click');
+  const box = page.locator('#carryIn');
+  await box.focus();
+  // A code is four words from the game's world; these are all steering letters.
+  await box.pressSequentially('swaddddwwwaaaa', { delay: 60 });
+  await box.press('ArrowLeft');
+  await expect(box).toHaveValue('swaddddwwwaaaa');
+  const after = await page.evaluate(() => ({ h: window.__np.boat.h, v: window.__np.boat.v }));
+  expect(after.h).toBeCloseTo(before.h, 5);
+  expect(Math.abs(after.v)).toBeLessThan(1);
+  expect(errors).toEqual([]);
+});
