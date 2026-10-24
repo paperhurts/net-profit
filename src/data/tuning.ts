@@ -661,10 +661,23 @@ export const PAINTS: readonly Paint[] = [
     flag: '#FF8FB8',
     shimmer: true,
   },
+  // Won on the Endless Isle for all nine of a side's badges (data/rewards.ts): the pirates' black and red, and the
+  // ninjas' midnight blue with silver, a silver glint running along it.
+  { name: 'Pirate Lord', hull: '#1E1C22', trim: '#C4262E', roof: '#C4262E', flag: '#F4EFE4' },
+  {
+    name: 'Grand Master',
+    hull: '#1A2552',
+    trim: '#CDD5E1',
+    roof: '#8E9BB2',
+    flag: '#CDD5E1',
+    shimmer: true,
+  },
 ];
-/** Hull paints the boat's tiers unlock; past them, the mermaids'. */
+/** Hull paints the boat's tiers unlock; past them, the mermaids', and the two won on the Endless Isle. */
 export const TIER_PAINTS = 10;
 export const MER_PAINT = 10;
+export const LORD_PAINT = 11;
+export const MASTER_PAINT = 12;
 
 /** Lifetime coins that wake the pirate, and its speed. */
 export const PIRATE_UNLOCK = 60;

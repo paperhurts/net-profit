@@ -34,7 +34,18 @@ export const FLAG_COLOR_NAMES = [
   'orange',
 ] as const;
 export const PATTERNS = ['plain', 'stripe', 'cross', 'diagonal', 'halves', 'border'] as const;
-export const EMBLEMS = ['none', 'star', 'fish', 'skull', 'anchor', 'heart', 'crown'] as const;
+/** The last two are won on the Endless Isle (data/rewards.ts): the pirates' skull and crossbones, the ninjas' star. */
+export const EMBLEMS = [
+  'none',
+  'star',
+  'fish',
+  'skull',
+  'anchor',
+  'heart',
+  'crown',
+  'jolly',
+  'shuriken',
+] as const;
 
 /**
  * A first flag to start designing from, flown on the towers taken before one is designed: gold with a navy
@@ -168,6 +179,55 @@ function emblemShapes(
       p.push(x + (hx / 17) * r, y - (hy / 17) * r);
     }
     return [{ t: 'poly', p, c }];
+  }
+  if (e === 'jolly') {
+    // A skull over two crossed bones, a knob at each bone's end.
+    const bone = (a: number): Shape[] => {
+      const dx = Math.cos(a) * r * 0.95;
+      const dy = Math.sin(a) * r * 0.95;
+      const nx = -Math.sin(a) * r * 0.09;
+      const ny = Math.cos(a) * r * 0.09;
+      const by = y + r * 0.28;
+      return [
+        {
+          t: 'poly',
+          p: [
+            x - dx + nx,
+            by - dy + ny,
+            x + dx + nx,
+            by + dy + ny,
+            x + dx - nx,
+            by + dy - ny,
+            x - dx - nx,
+            by - dy - ny,
+          ],
+          c,
+        },
+        { t: 'circle', x: x - dx, y: by - dy, r: r * 0.15, c },
+        { t: 'circle', x: x + dx, y: by + dy, r: r * 0.15, c },
+      ];
+    };
+    return [
+      ...bone(0.55),
+      ...bone(-0.55),
+      { t: 'circle', x, y: y - r * 0.25, r: r * 0.55, c },
+      { t: 'rect', x: x - r * 0.3, y: y + r * 0.05, w: r * 0.6, h: r * 0.32, c },
+      { t: 'circle', x: x - r * 0.21, y: y - r * 0.25, r: r * 0.15, c: hole },
+      { t: 'circle', x: x + r * 0.21, y: y - r * 0.25, r: r * 0.15, c: hole },
+    ];
+  }
+  if (e === 'shuriken') {
+    // The kid's throwing star: four blades round a hole, a little turned.
+    const p: number[] = [];
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + 0.3;
+      const d = k % 2 ? r * 0.32 : r;
+      p.push(x + Math.cos(a) * d, y + Math.sin(a) * d);
+    }
+    return [
+      { t: 'poly', p, c },
+      { t: 'circle', x, y, r: r * 0.2, c: hole },
+    ];
   }
   if (e === 'crown') {
     return [

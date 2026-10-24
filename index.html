@@ -593,6 +593,10 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 .fchips{display:flex;gap:6px;flex-wrap:wrap;margin:5px 2px 0}
 .fchip{width:48px;height:34px;border-radius:7px;background:var(--card);display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.22)}
 .fchip.sel{outline:3px solid var(--coin);outline-offset:1px}
+.fchip.won{width:68px;height:48px}
+.fchip.locked{opacity:.45;border:2px dashed var(--muted);box-shadow:none}
+#fWon small{flex-basis:100%;font-size:12px;font-weight:700;opacity:.75;margin:2px 2px 0}
+#fWonRow[hidden]{display:none}
 #flagger .go{display:block;margin:14px auto 4px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;padding:11px 26px 8px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pair .build small{display:none}
@@ -781,6 +785,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <div class="frow"><b>Pattern</b><div class="fchips" id="fPattern" role="group" aria-label="Pattern"></div></div>
     <div class="frow"><b>Second colour</b><div class="swatches" id="fAccent" role="group" aria-label="Second colour"></div></div>
     <div class="frow"><b>Emblem</b><div class="fchips" id="fEmblem" role="group" aria-label="Emblem"></div></div>
+    <div class="frow" id="fWonRow" hidden><b>Won on the Endless Isle</b><div class="fchips" id="fWon" role="group" aria-label="Flags won on the Endless Isle"></div></div>
     <button class="go" id="flagDone">Fly it</button>
   </div>
 </section>
