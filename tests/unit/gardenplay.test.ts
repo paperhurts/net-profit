@@ -19,6 +19,10 @@ import {
   grownOf,
   inStock,
   isGiant,
+  LIVE_MS,
+  MUTATIONS,
+  mutationsOn,
+  mutationTimes,
   noGarden,
   parseGarden,
   pick,
@@ -29,6 +33,7 @@ import {
   secondsLeft,
   seedsOf,
   sellBasket,
+  shockGarden,
   sizeOf,
   sizesOn,
   stockToday,
@@ -38,8 +43,10 @@ import {
   variantOf,
   variantsOn,
   variantTimes,
+  WEATHER_ODDS,
+  wetGarden,
 } from '../../src/data/garden';
-import { gardenLights, gardenPlantSolids } from '../../src/render/garden';
+import { drawGardenBolt, gardenLights, gardenPlantSolids } from '../../src/render/garden';
 import {
   bedOf,
   clockText,
@@ -161,6 +168,12 @@ describe("the garden's pay: the owner's 'rival the boat'", () => {
   const N = 40000;
   for (let i = 0; i < N; i++) total += Math.max(SIZE.floor, sizeOf(T0 + i * 7919, i % 9)) ** 2;
   // And Gold and Rainbow, at their odds.
+  // Tended by hand the game is open, so what ripens may be Moonlit (night, a third of the day) or Twilight (dawn and
+  // dusk, about a quarter of it). Wet and Shocked need the boat out in a storm, not tending the beds.
+  const LIVE =
+    1 +
+    (0.33 * (MUTATIONS.moonlit.times - 1)) / WEATHER_ODDS.moonlit +
+    (0.24 * (MUTATIONS.twilight.times - 1)) / WEATHER_ODDS.twilight;
   const EV =
     (total / N) *
     (1 +
@@ -176,7 +189,7 @@ describe("the garden's pay: the owner's 'rival the boat'", () => {
 
   it('tended by hand, no crop pays more a minute than the boat', () => {
     for (const c of keeps)
-      expect((BEDS_ALL * c.sell * EV) / ((c.regrow ?? 1) / 60)).toBeLessThanOrEqual(
+      expect((BEDS_ALL * c.sell * EV * LIVE) / ((c.regrow ?? 1) / 60)).toBeLessThanOrEqual(
         GUARD.perMinuteMax,
       );
     // A crop picked once, bought as often as the stall has it: a day's stock grown in a day of play.
@@ -557,5 +570,135 @@ describe('Gold and Rainbow', () => {
     const solids = gardenPlantSolids(f.v, g, sec(4000), false);
     for (const x of solids) x.f();
     expect(f.calls.star ?? 0).toBe(2);
+  });
+});
+
+describe('the weather on the garden', () => {
+  /** A strawberry plant whose fruit ripen at 120 s and then each minute. */
+  function berries(): Garden {
+    const g: Garden = { seen: true, seeds: { strawberry: 1 } };
+    plant(g, 0, 'strawberry', T0);
+    return g;
+  }
+
+  it('marks only fruit that ripen while the game is played: Moonlit at night, Twilight at dawn and dusk', () => {
+    let moon = 0;
+    let dusk = 0;
+    const N = 3000;
+    for (let i = 0; i < N; i++) {
+      const t = T0 + i * 104729;
+      for (const [phase, want] of [
+        ['Night', 'moonlit'],
+        ['Dusk', 'twilight'],
+      ] as const) {
+        const g: Garden = { seen: true, seeds: { carrot: 1 } };
+        plant(g, 0, 'carrot', t);
+        const b = bedAt(g, 0);
+        if (!b) throw new Error('no bed');
+        growBed(b, t + 60000 + 100, { phase });
+        if (mutationsOn(b)[0]?.includes(want)) {
+          if (phase === 'Night') moon++;
+          else dusk++;
+        }
+      }
+    }
+    expect(moon / N).toBeGreaterThan(0.85 / WEATHER_ODDS.moonlit);
+    expect(moon / N).toBeLessThan(1.15 / WEATHER_ODDS.moonlit);
+    expect(dusk / N).toBeGreaterThan(0.8 / WEATHER_ODDS.twilight);
+    expect(dusk / N).toBeLessThan(1.2 / WEATHER_ODDS.twilight);
+    // By day, nothing; and a fruit that ripened while the game was closed, nothing, whatever the time is now.
+    for (const [phase, late] of [
+      ['Day', 0],
+      ['Night', LIVE_MS + 1000],
+    ] as const) {
+      for (let i = 0; i < 300; i++) {
+        const g: Garden = { seen: true, seeds: { carrot: 1 } };
+        plant(g, 0, 'carrot', T0 + i * 7919);
+        const b = bedAt(g, 0);
+        if (!b) throw new Error('no bed');
+        growBed(b, T0 + i * 7919 + 60000 + late, { phase });
+        expect(mutationsOn(b)[0]).toEqual([]);
+      }
+    }
+  });
+
+  it("a storm's rain makes ripe fruit Wet, one in four, and never twice", () => {
+    const g = berries();
+    const b = bedAt(g, 0);
+    if (!b) throw new Error('no bed');
+    growBed(b, sec(300));
+    let k = 0;
+    const rnd = () => [0.1, 0.9, 0.2, 0.5][k++ % 4] as number;
+    expect(wetGarden(g, rnd)).toBe(2);
+    expect(mutationsOn(b).map((m) => m.includes('wet'))).toEqual([true, false, true, false]);
+    // Again: only the two dry ones can get Wet, and the Wet ones stay Wet once.
+    expect(wetGarden(g, () => 0)).toBe(2);
+    expect(mutationsOn(b).every((m) => m.filter((x) => x === 'wet').length === 1)).toBe(true);
+  });
+
+  it('a bolt Shocks one ripe fruit, never one already Shocked, and nothing when nothing is ripe', () => {
+    const g = berries();
+    expect(shockGarden(g, () => 0)).toBe(-1);
+    const b = bedAt(g, 0);
+    if (!b) throw new Error('no bed');
+    growBed(b, sec(130));
+    expect(b.ripe).toBe(1);
+    expect(shockGarden(g, () => 0)).toBe(0);
+    expect(mutationsOn(b)[0]).toEqual(['shocked']);
+    expect(shockGarden(g, () => 0)).toBe(-1);
+  });
+
+  it('the marks add, as in Grow a Garden, and multiply with size and Gold', () => {
+    expect(mutationTimes(['wet', 'moonlit', 'shocked'])).toBe(12);
+    expect(mutationTimes([])).toBe(1);
+    expect(fruitValue('tomato', 1, '', ['twilight'])).toBe(180);
+    expect(fruitValue('tomato', 1, 'gold', ['wet'])).toBe(60 * 20 * 2);
+    expect(fruitValue('kraken', 1, '', ['shocked'])).toBe(FRUIT_MAX);
+  });
+
+  it('carries the marks from the plant to the basket and through the save; odd ones are dropped', () => {
+    const g = berries();
+    const b = bedAt(g, 0);
+    if (!b) throw new Error('no bed');
+    growBed(b, sec(130));
+    shockGarden(g, () => 0);
+    wetGarden(g, () => 0);
+    const back = parseGarden(JSON.parse(JSON.stringify(g)));
+    expect(back.beds?.[0]?.mu).toEqual([['wet', 'shocked']]);
+    const got = pick(g, 0, sec(130));
+    expect(got[0]?.mu).toEqual(['shocked', 'wet']);
+    expect(basketValue(g)).toBe(
+      fruitValue('strawberry', got[0]?.m ?? 1, got[0]?.v, ['shocked', 'wet']),
+    );
+    expect(parseGarden(JSON.parse(JSON.stringify(g))).bag?.[0]?.mu).toEqual(['wet', 'shocked']);
+    const odd = parseGarden({ bag: [{ c: 'carrot', m: 1, mu: ['wet', 'wet', 'frozen', 3] }] });
+    expect(odd.bag).toEqual([{ c: 'carrot', m: 1, mu: ['wet'] }]);
+  });
+
+  it('draws each mark by its fruit, and the bolt on its bed', () => {
+    const g: Garden = {
+      seen: true,
+      beds: [
+        {
+          crop: 'tomato',
+          planted: T0,
+          ripe: 3,
+          next: 0,
+          w: [1, 1, 1],
+          mu: [['wet', 'shocked'], ['moonlit'], ['twilight']],
+          born: 3,
+        },
+      ],
+    };
+    const f = fakeView();
+    for (const x of gardenPlantSolids(f.v, g, sec(4000), false)) x.f();
+    expect(f.calls.arc ?? 0).toBeGreaterThan(4);
+    const f2 = fakeView();
+    drawGardenBolt(f2.v, 0, 0.5);
+    expect(f2.calls.stroke ?? 0).toBe(1);
+    const off = fakeView();
+    off.onScreen = false;
+    drawGardenBolt(off.v, 0, 0.5);
+    expect(off.calls.stroke ?? 0).toBe(0);
   });
 });

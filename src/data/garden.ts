@@ -208,7 +208,7 @@ export const CROPS: Record<CropId, Crop> = {
     15000,
     420,
     20 * M,
-    8 * M,
+    9 * M,
     3,
     40,
     [1, 1],
@@ -276,6 +276,8 @@ export type Bed = {
   born?: number;
   /** Gold or Rainbow, for each ripe fruit that is; '' for one that is not. Missing in saves from before them. */
   v?: Variant[];
+  /** The weather's marks on each ripe fruit (part six): Wet, Shocked, Moonlit, Twilight. Missing in older saves. */
+  mu?: Mutation[][];
 };
 
 /**
@@ -336,6 +338,38 @@ export function variantTimes(v: Variant | undefined): number {
   return v ? VARIANTS[v].times : 1;
 }
 
+/**
+ * The weather on the garden (part six), Grow a Garden's weather mutations rebuilt on the game's own weather and day.
+ * They add, as theirs do: a fruit that is Wet, Moonlit and Shocked sells for 1 + 1 + 1 + 9 = 12 times as much. Only
+ * while the game is played: a fruit that ripens while it is closed gets none of them.
+ *  - Moonlit, two times: ripening at night, one in three.
+ *  - Twilight, three times: ripening at dawn or dusk, one in five, like the koi and the ray.
+ *  - Wet, two times: a storm's rain, while the boat is out near the isle (storms only blow while sailing), each ripe
+ *    fruit one in four.
+ *  - Shocked, ten times (Grow a Garden's is 100; at our prices that would make every storm the best job in the game):
+ *    one bolt of a storm's lightning strikes one ripe fruit, the boat out near the isle.
+ */
+export type Mutation = 'wet' | 'shocked' | 'moonlit' | 'twilight';
+export const MUTATIONS: Record<Mutation, { name: string; times: number }> = {
+  wet: { name: 'Wet', times: 2 },
+  shocked: { name: 'Shocked', times: 10 },
+  moonlit: { name: 'Moonlit', times: 2 },
+  twilight: { name: 'Twilight', times: 3 },
+};
+const MUTATION_IDS = Object.keys(MUTATIONS) as Mutation[];
+/** One fruit in this many ripening at night is Moonlit; at dawn or dusk, Twilight; in a storm's rain, Wet. */
+export const WEATHER_ODDS = { moonlit: 3, twilight: 5, wet: 4 } as const;
+/** A fruit ripened this long ago or less was ripened while the game was being played. */
+export const LIVE_MS = 5000;
+
+/** What the time of day is, for a fruit ripening now. */
+export type Sky = { phase: 'Dawn' | 'Day' | 'Dusk' | 'Night' };
+
+/** How many times as much a fruit with these marks sells for: they add. */
+export function mutationTimes(mu: readonly Mutation[] | undefined): number {
+  return 1 + (mu ?? []).reduce((n, k) => n + MUTATIONS[k].times - 1, 0);
+}
+
 /** Is this size a giant's. */
 export function isGiant(m: number): boolean {
   return m >= SIZE.giantMin * SIZE.min;
@@ -348,10 +382,10 @@ export function isGiant(m: number): boolean {
 export const FRUIT_MAX = 100000;
 
 /** What a fruit of a crop, this size, sells for. */
-export function fruitValue(k: CropId, m: number, v?: Variant): number {
+export function fruitValue(k: CropId, m: number, v?: Variant, mu?: readonly Mutation[]): number {
   return Math.min(
     FRUIT_MAX,
-    Math.round(CROPS[k].sell * Math.max(SIZE.floor, m) ** 2 * variantTimes(v)),
+    Math.round(CROPS[k].sell * Math.max(SIZE.floor, m) ** 2 * variantTimes(v) * mutationTimes(mu)),
   );
 }
 
@@ -362,7 +396,7 @@ export function fruitKg(k: CropId, m: number): string {
 }
 
 /** A fruit in the basket: its crop and its size. */
-export type Fruit = { c: CropId; m: number; v?: Variant };
+export type Fruit = { c: CropId; m: number; v?: Variant; mu?: Mutation[] };
 
 /** The garden's part of the save. Everything past seen is optional, so saves made before it still load. */
 export type Garden = {
@@ -415,7 +449,7 @@ export function bedAt(g: Garden, i: number): Bed | null {
  * Bring a bed up to now: each fruit that has come due ripens, up to what the plant holds, and then it waits. A clock
  * that has gone backwards (a phone's time set back) never makes a fruit take longer than its full growing time.
  */
-export function growBed(b: Bed, now: number): void {
+export function growBed(b: Bed, now: number, sky?: Sky): void {
   const c = CROPS[b.crop];
   if (b.ripe >= c.holds) {
     b.next = 0;
@@ -432,6 +466,17 @@ export function growBed(b: Bed, now: number): void {
     const v = variantsOn(b);
     v.push(variantOf(b.planted, n));
     b.v = v;
+    // Ripening now, with the game open, the time of day may mark it.
+    const mu = mutationsOn(b);
+    const marks: Mutation[] = [];
+    if (sky && now - b.next < LIVE_MS) {
+      const r = hash01(b.planted + 13, n * 7 + 1);
+      if (sky.phase === 'Night' && r < 1 / WEATHER_ODDS.moonlit) marks.push('moonlit');
+      if ((sky.phase === 'Dawn' || sky.phase === 'Dusk') && r < 1 / WEATHER_ODDS.twilight)
+        marks.push('twilight');
+    }
+    mu.push(marks);
+    b.mu = mu;
     b.born = n + 1;
     b.ripe++;
     b.next = b.ripe < c.holds && c.regrow ? b.next + c.regrow * S : 0;
@@ -452,9 +497,51 @@ export function variantsOn(b: Bed): Variant[] {
   return v;
 }
 
-/** Every bed brought up to now. */
-export function growAll(g: Garden, now: number): void {
-  for (const b of g.beds ?? []) if (b) growBed(b, now);
+/** The weather's marks on each ripe fruit on a bed (none for any saved before them). */
+export function mutationsOn(b: Bed): Mutation[][] {
+  const mu = (b.mu ?? []).slice(0, b.ripe).map((x) => [...x]);
+  while (mu.length < b.ripe) mu.push([]);
+  return mu;
+}
+
+/** Every bed brought up to now; with the time of day when the game is being played. */
+export function growAll(g: Garden, now: number, sky?: Sky): void {
+  for (const b of g.beds ?? []) if (b) growBed(b, now, sky);
+}
+
+/** A storm's rain over the isle: each ripe fruit not yet Wet, one in four, gets Wet. How many did. */
+export function wetGarden(g: Garden, rnd: () => number = Math.random): number {
+  let n = 0;
+  for (const b of g.beds ?? []) {
+    if (!b) continue;
+    const mu = mutationsOn(b);
+    for (const m of mu)
+      if (!m.includes('wet') && rnd() * WEATHER_ODDS.wet < 1) {
+        m.push('wet');
+        n++;
+      }
+    b.mu = mu;
+  }
+  return n;
+}
+
+/** A bolt of lightning on the isle: one ripe fruit not yet Shocked is. Which bed it struck, or -1 if none was ripe. */
+export function shockGarden(g: Garden, rnd: () => number = Math.random): number {
+  const ripe: [number, number][] = [];
+  (g.beds ?? []).forEach((b, i) => {
+    if (!b) return;
+    mutationsOn(b).forEach((m, j) => {
+      if (!m.includes('shocked')) ripe.push([i, j]);
+    });
+  });
+  const hit = ripe[Math.floor(rnd() * ripe.length)];
+  if (!hit) return -1;
+  const b = g.beds?.[hit[0]];
+  if (!b) return -1;
+  const mu = mutationsOn(b);
+  mu[hit[1]]?.push('shocked');
+  b.mu = mu;
+  return hit[0];
 }
 
 /** Seeds of a crop held. */
@@ -469,7 +556,7 @@ export function basketCount(g: Garden): number {
 
 /** What the basket would sell for at the stand. */
 export function basketValue(g: Garden): number {
-  return (g.bag ?? []).reduce((n, f) => n + fruitValue(f.c, f.m, f.v), 0);
+  return (g.bag ?? []).reduce((n, f) => n + fruitValue(f.c, f.m, f.v, f.mu), 0);
 }
 
 /** Seeds of a crop left at the stall today. */
@@ -512,13 +599,19 @@ export function pick(g: Garden, i: number, now: number): Fruit[] {
   const c = CROPS[b.crop];
   const w = sizesOn(b);
   const vs = variantsOn(b);
+  const ms = mutationsOn(b);
   const got: Fruit[] = w.slice(0, n).map((m, j) => {
+    const f: Fruit = { c: b.crop, m };
     const v = vs[j];
-    return v ? { c: b.crop, m, v } : { c: b.crop, m };
+    if (v) f.v = v;
+    const mu = ms[j];
+    if (mu?.length) f.mu = mu;
+    return f;
   });
   g.bag = [...(g.bag ?? []), ...got];
   b.w = w.slice(n);
   b.v = vs.slice(n);
+  b.mu = ms.slice(n);
   b.ripe -= n;
   if (!c.regrow) {
     if (b.ripe === 0 && g.beds) g.beds[i] = null;
@@ -556,6 +649,12 @@ function size(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.max(0.5, Math.min(5, v)) : 1;
 }
 
+/** The weather's marks from the save: each known one once. */
+function marks(v: unknown): Mutation[] {
+  if (!Array.isArray(v)) return [];
+  return MUTATION_IDS.filter((k) => v.includes(k));
+}
+
 /** Gold or Rainbow from the save, or neither. */
 function variant(v: unknown): Variant {
   return v === 'gold' || v === 'rainbow' ? v : '';
@@ -576,6 +675,7 @@ function parseBed(v: unknown): Bed | null {
   const b: Bed = { crop: k.crop, planted, ripe: count(k.ripe, CROPS[k.crop].holds), next };
   if (Array.isArray(k.w)) b.w = k.w.slice(0, b.ripe).map(size);
   if (Array.isArray(k.v)) b.v = k.v.slice(0, b.ripe).map(variant);
+  if (Array.isArray(k.mu)) b.mu = k.mu.slice(0, b.ripe).map(marks);
   if (typeof k.born === 'number' && Number.isFinite(k.born) && k.born >= b.ripe)
     b.born = Math.floor(k.born);
   return b;
@@ -619,12 +719,12 @@ export function parseGarden(raw: unknown): Garden {
   if (Array.isArray(k.bag))
     for (const f of k.bag)
       if (f && typeof f === 'object' && isCrop((f as Fruit).c)) {
+        const fruit: Fruit = { c: (f as Fruit).c, m: size((f as Fruit).m) };
         const v = variant((f as Fruit).v);
-        bag.push(
-          v
-            ? { c: (f as Fruit).c, m: size((f as Fruit).m), v }
-            : { c: (f as Fruit).c, m: size((f as Fruit).m) },
-        );
+        if (v) fruit.v = v;
+        const mu = marks((f as Fruit).mu);
+        if (mu.length) fruit.mu = mu;
+        bag.push(fruit);
       }
   const old = parseCounts(k.basket, BASKET_MAX);
   for (const c of CROP_IDS) for (let n = old?.[c] ?? 0; n > 0; n--) bag.push({ c, m: 1 });
