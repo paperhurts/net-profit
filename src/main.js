@@ -193,12 +193,12 @@ import { drawIsle11Flat, drawIsle11Sea, isle11Solids } from './render/isle11';
 import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, insideIsle12, ISLE12, isle12Outline, nearIsle12, PITS12, pushOffIsle12, REVEAL12, REVEAL12_T, revealZoom12, SIGHT12 } from './world/isle12';
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { atHalf, atLift, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, fromEndless, HALF_C, halfOutline, insideEndless, LANDING13, LEADER13, leaderNear, nearEndless, PEAK, pushOffEndless, REVEAL13, REVEAL13_T, revealZoom13, rival, SIDES, SIGHT13, toEndless } from './world/endless';
-import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
+import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_SAYS, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
-import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
-import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
+import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
+import { ABILITIES, ABILITY, ABILITY_NAME, abilitySays, BADGE_MARKS, badgeOf, CTF, FORTS, HOLD_NAME, KITS, marked, noBattles, PAY, ROLE_NAME } from './data/battle';
 import { Ctf, flagHome, graveSpot } from './entities/ctf';
 import { answers, SCIENCE } from './data/science';
 import { drawIsle10Flat, drawIsle10Sea, isle10Solids } from './render/isle10';
@@ -2516,7 +2516,7 @@ function openEndlessTalk(side){ endlessTalk = side; endlessJoined = null; sfx.cl
 function renderEndlessTalk(says){ const side = endlessTalk; if (!side) return; $('endlessCard').dataset.side = side;
   $('endlessWho').textContent = LEADER_NAME[side]; $('endlessSay').textContent = says;
   $('endlessJoin').hidden = endless[side]; $('endlessJoin').textContent = side === 'pirate' ? 'Sign the articles: join the pirates' : 'Bow: join the ninjas';
-  $('endlessFight').hidden = !endless[side] || !!ctf; $('endlessRoles').hidden = true; $('endlessAnswers').hidden = false;
+  $('endlessFight').hidden = $('endlessForts').hidden = !endless[side] || !!ctf; $('endlessRoles').hidden = true; $('endlessAnswers').hidden = false;
   $('endlessGot').hidden = endlessJoined !== side; $('endlessGot').textContent = `${MINION_NAME[side]} is yours!`; }
 // Out of the talk, and a minion just given is there with you.
 function closeEndlessTalk(){ const got = endlessJoined; endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; sfx.click(); if (got) minionComes(got); }
@@ -2557,13 +2557,15 @@ function ctfAim(f){ let a = ctfAims.get(f);
 function ctfTarget(){ const t = ctf && ctf.phase === 'fight' ? ctf.inReach(ctf.you) : null; return t ? ctfAim(t) : null; }
 // Where you get up, and where you wait for it.
 function ctfGrave(f){ const [u, v] = graveSpot(f.side); return fromEndless(u + ((f.slot % 3) - 1)*14, v); }
-function startCtf(side, role = ctfRole){ if (ctf || walker.state !== 'ashore' || !endless[side]) return; ctfRole = role;
+function startCtf(side, role = ctfRole, mode = ctfMode){ if (ctf || walker.state !== 'ashore' || !endless[side]) return; ctfRole = role; ctfMode = mode;
   endlessTalk = null; endlessJoined = null; $('endlessCard').hidden = true; $('ctfCard').hidden = true;
-  ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role, ctfBadge(side, role)); ctfShots = []; ctfRings = []; ctfFx = []; ctfHud = ''; shanty = null;
+  ctf = new Ctf(side, 1 + Math.floor(Math.random()*1e9), 1.12, role, ctfBadge(side, role), mode); ctfShots = []; ctfRings = []; ctfFx = []; ctfHud = ''; shanty = null;
   const [x, y] = fromEndless(ctf.you.u, ctf.you.v); walker.x = cam.x = x; walker.y = cam.y = y; walker.vx = walker.vy = 0;
   hearts = ctf.you.hp; invulnT = 0; benchStaying(); hudHearts();
   document.body.classList.add('ctf'); $('ctfBar').hidden = false; ctfLeaveReset(); hudCtf(); sfx.phaseChange(); toasts.clear();
-  toast(`Capture the Flag, as a ${ROLE_NAME[side][role]}! Bring the ${CTF_SIDES[rival(side)]}' flag to yours, while yours is at home. First to three wins.`, 5000, 2); }
+  $('ctfHolds').hidden = mode !== 'forts';
+  toast(mode === 'forts' ? `Hold the Forts, as a ${ROLE_NAME[side][role]}! Stand in a base's ring to take it: the Cannon Battery, the Shipwreck and the Bell Tower. The more you hold, the faster you score. First to ${FORTS.win} wins.`
+    : `Capture the Flag, as a ${ROLE_NAME[side][role]}! Bring the ${CTF_SIDES[rival(side)]}' flag to yours, while yours is at home. First to three wins.`, 5000, 2); }
 function updateCtf(dt){ if (!ctf) return;
   if (walker.state !== 'ashore'){ toasts.clear(); toast('You left the battle. A battle left early pays nothing.', 3200, 1); endCtf(); return; }
   const me = ctf.you;
@@ -2584,7 +2586,13 @@ function updateCtf(dt){ if (!ctf) return;
   walker.speedK = (me.carrying ? CTF.carry : 1)*(me.singT > 0 ? .5 : 1);
   hudCtf(); hudAbility(); }
 function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
-  if (e.k === 'go'){ sfx.tierUp(); toasts.clear(); toast('The gates are down! Go and get their flag!', 2200, 2); return; }
+  if (e.k === 'go'){ sfx.tierUp(); toasts.clear(); toast(ctf.mode === 'forts' ? 'The gates are down! Go and take the bases!' : 'The gates are down! Go and get their flag!', 2200, 2); return; }
+  if (e.k === 'take'){ const h = ctf.hold(e.key), [x, y] = fromEndless(h.u, h.v), name = HOLD_NAME[e.key], held = ctf.holds.filter(b => b.owner === mine).length; toasts.clear();
+    if (e.side === mine){ sfx.orderFilled(); shake = Math.max(shake, .25); addText(x, y, 70, e.fs.includes(me) ? 'Taken!' : 'Ours!', '#FFF3C4', 18, 1.6);
+      toast(`${e.fs.includes(me) ? 'You took' : 'We took'} ${name}! We hold ${held} of 3.`, 2600, 2); }
+    else { sfx.denied(); addText(x, y, 70, 'Lost!', '#FFB4A8', 18, 1.6); toast(`The ${CTF_SIDES[e.side]} took ${name}.`, 2600, 2); }
+    return; }
+  if (e.k === 'threat'){ if (e.side !== mine){ toasts.clear(); toast(`They're taking ${HOLD_NAME[e.key]}! Get into its ring to stop them.`, 2600, 1); sfx.bleep(); } return; }
   if (e.k === 'pickup'){ const p = ctfAt(e.f); toasts.clear();
     if (e.f === me){ sfx.rightAnswer(); toast('You have their flag! Take it home to yours. Follow the arrow.', 3000, 2); }
     else if (e.f.side === mine){ addText(p.x, p.y, 40, 'Got their flag!', '#FFF3C4', 15, 1.6); toast(`${e.f.name} has their flag! Help get it home.`, 2600, 1); }
@@ -2640,10 +2648,10 @@ function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner 
   if (result === 'win') sfx.tierUp(); else sfx.sale();
   const card = $('ctfCard'); card.dataset.side = side;
   $('ctfTitle').textContent = result === 'win' ? `The ${CTF_SIDES[side]} win!` : result === 'draw' ? 'A draw!' : `The ${CTF_SIDES[rival(side)]} win this one`;
-  $('ctfP').textContent = ctf.score.pirate; $('ctfN').textContent = ctf.score.ninja;
+  $('ctfP').textContent = Math.floor(ctf.score.pirate); $('ctfN').textContent = Math.floor(ctf.score.ninja);
   $('ctfSay').textContent = `${LEADER_NAME[side]}: ${LEADER_AFTER[side][result]}`;
   const b = endless.battles, st = me.stats;
-  $('ctfStats').innerHTML = [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns], ['Foes you beat', st.beaten], ...(me.role === 'healer' ? [['Hearts you healed', st.healed]] : []), [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`],
+  $('ctfStats').innerHTML = [...(ctf.mode === 'forts' ? [['Bases you took', st.takes]] : [['Flags you scored', st.caps], ['Flags you carried', st.carries], ['Your flag sent home', st.returns]]), ['Foes you beat', st.beaten], ...(me.role === 'healer' ? [['Hearts you healed', st.healed]] : []), [`Battles won, as a ${ROLE_NAME[side][me.role]}`, `${b.won} of ${b.fought}`],
     [`Marks, as a ${ROLE_NAME[side][me.role]}`, now < 3 ? `${m} of ${BADGE_MARKS[now]} for Badge ${ROMAN[now + 1]}` : `${m}, Badge III`]].map(([k, n]) => `<dt>${k}</dt><dd>${n}</dd>`).join('');
   $('ctfGot').textContent = `+${pay} coins`;
   $('ctfResults').hidden = false; $('ctfBadge').hidden = true;
@@ -2693,15 +2701,16 @@ $('ctfAgain').addEventListener('click', () => { const side = ctf?.yours; sfx.cli
 $('ctfDone').addEventListener('click', () => { sfx.click(); endCtf(true); });
 // The badge card: which place to fight in, each with its hearts and its Badge I ability for this side.
 const ROLES = ['tank', 'damage', 'healer'];
-let ctfRole = 'damage';
-function openRoles(){ const side = endlessTalk; if (!side) return; sfx.click();
+let ctfRole = 'damage', ctfMode = 'flag';
+function openRoles(mode){ const side = endlessTalk; if (!side) return; sfx.click(); ctfMode = mode;
   $('endlessRoles').innerHTML = ROLES.map(r => { const m = ctfMarks(side, r), b = badgeOf(m), abs = ABILITIES[r], top = abs[b - 1];
     return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts \u00B7 Badge ${ROMAN[b]}</span>`
       + `<small>${abs.slice(0, b).map(a => `<b>${ABILITY_NAME[side][a]}</b>`).join(' \u00B7 ')}<br>${b > 1 ? 'New: ' : ''}${abilitySays(side, top)}</small>`
       + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>` : '') + '</button>'; }).join('')
     + '<button class="answer" data-role="">Back</button>';
-  $('endlessSay').textContent = LEADER_PICK[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
-$('endlessFight').addEventListener('click', openRoles);
+  $('endlessSay').textContent = (mode === 'forts' ? LEADER_PICK_FORTS : LEADER_PICK)[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
+$('endlessFight').addEventListener('click', () => openRoles('flag'));
+$('endlessForts').addEventListener('click', () => openRoles('forts'));
 $('endlessRoles').addEventListener('click', (e) => { const b = e.target.closest('[data-role]'); if (!b || !endlessTalk) return;
   if (b.dataset.role) startCtf(endlessTalk, b.dataset.role); else { sfx.click(); renderEndlessTalk(LEADER_SAYS[endlessTalk].joined); } });
 // Your abilities, one for each badge: what one did, or why not.
@@ -2740,7 +2749,7 @@ function ctfStrike(){ if (!ctf || T < reloadAt) return; const to = ctf.strike();
 function ctfSparkle(p, side){ if (!onScreen(p.x, p.y, 60*Z)) return;
   for (let i = 0; i < 12; i++) sparks.push({x: p.x, y: p.y, vx: (Math.random() - .5)*140, vy: (Math.random() - .5)*140, z: 18, vz: 30 + Math.random()*60, age: 0, life: .55 + Math.random()*.45, c: i % 2 ? '#FFFFFF' : side === 'pirate' ? '#FFD84A' : '#FF9CC4'}); }
 // The score along the top: the clock, and what is going on with the flags.
-function hudCtf(){ if (!ctf) return; const me = ctf.you, f = ctf.flags, mine = ctf.yours, theirs = rival(mine);
+function hudCtf(){ if (!ctf) return; if (ctf.mode === 'forts'){ hudForts(); return; } const me = ctf.you, f = ctf.flags, mine = ctf.yours, theirs = rival(mine);
   const left = Math.ceil(ctf.phase === 'gates' ? CTF.clock : ctf.clock), clock = `${Math.floor(left/60)}:${String(left % 60).padStart(2, '0')}`;
   const what = ctf.phase === 'over' ? 'The battle is over' : ctf.phase === 'gates' ? `Gates drop in ${Math.ceil(ctf.gateT)}` : me.state === 'down' ? `Back up in ${Math.ceil(me.downT)}`
     : me.carrying ? (f[mine].at === 'home' ? 'You have their flag: get it to yours!' : 'You have their flag. Yours is out: get it home!')
@@ -2748,6 +2757,17 @@ function hudCtf(){ if (!ctf) return; const me = ctf.you, f = ctf.flags, mine = c
   const hot = me.carrying || f[mine].at !== 'home' || ctf.phase === 'gates', key = `${ctf.score.pirate}|${ctf.score.ninja}|${clock}|${what}`; if (key === ctfHud) return; ctfHud = key;
   $('ctfBarP').textContent = ctf.score.pirate; $('ctfBarN').textContent = ctf.score.ninja; $('ctfClock').textContent = clock;
   const w = $('ctfWhat'); w.textContent = what; w.classList.toggle('hot', hot); }
+// Holding the forts: the points, the clock, the three bases in their holders' colours, and what is going on with them.
+function hudForts(){ const me = ctf.you, mine = ctf.yours, P = Math.floor(ctf.score.pirate), N = Math.floor(ctf.score.ninja);
+  const left = Math.ceil(ctf.clock), clock = `${Math.floor(left/60)}:${String(left % 60).padStart(2, '0')}`;
+  const inRing = ctf.holds.find(h => me.state === 'live' && Math.hypot(me.u - h.u, me.v - h.v) <= h.r), held = ctf.holds.filter(h => h.owner === mine).length;
+  const what = ctf.phase === 'over' ? 'The battle is over' : ctf.phase === 'gates' ? `Gates drop in ${Math.ceil(ctf.gateT)}` : me.state === 'down' ? `Back up in ${Math.ceil(me.downT)}`
+    : inRing ? (inRing.contested ? 'Clear them out of it!' : inRing.by === mine ? `Taking it: ${Math.ceil(FORTS.take - inRing.t)}` : inRing.by ? 'Winning it back...' : inRing.owner === mine ? 'Holding it' : 'Stand here to take it')
+    : `We hold ${held} of 3`;
+  const holds = ctf.holds.map(h => `${h.owner ?? '-'}${h.by ? '*' : ''}`).join(''), key = `${P}|${N}|${clock}|${what}|${holds}`; if (key === ctfHud) return; ctfHud = key;
+  $('ctfBarP').textContent = P; $('ctfBarN').textContent = N; $('ctfClock').textContent = clock;
+  for (const el of $('ctfHolds').children){ const h = ctf.hold(el.dataset.k); el.className = `${h.owner ?? ''}${h.by ? ' taking' : ''}`; }
+  const w = $('ctfWhat'); w.textContent = what; w.classList.toggle('hot', !!inRing || ctf.phase === 'gates'); }
 // The fighters drawn among the island's solids, the flag lying where it fell, and the healers' throws over everything.
 function ctfSolids(){ const out = [];
   for (const f of ctf.fighters){ if (!f.bot || f.state !== 'live') continue; const {x, y} = ctfAt(f); if (!onScreen(x, y, 60*Z)) continue;
@@ -2755,6 +2775,10 @@ function ctfSolids(){ const out = [];
     out.push({d: x + y, f: () => drawCrew(drawView, px(x, y), py(x, y, groundZ(x, y)), look, T)}); }
   for (const side of SIDES){ const fl = ctf.flags[side]; if (fl.at !== 'dropped') continue; const [x, y] = fromEndless(fl.u, fl.v);
     out.push({d: x + y, f: () => drawBattleFlag(drawView, side, px(x, y), py(x, y, groundZ(x, y)), true)}); }
+  // Holding the forts: each base's ring in its holder's colour, filling round as it is taken, its holder's flag by it.
+  for (const h of ctf.holds){ const [x, y] = fromEndless(h.u, h.v); if (!onScreen(x, y, (h.r + 60)*Z)) continue;
+    out.push({d: -1e9, f: () => drawHoldRing(ctx, px(x, y), py(x, y, groundZ(x, y)), h.r*Z, h.r*Z*.5, Z, h.owner, h.by, h.t/FORTS.take, h.contested, T)});
+    if (h.owner){ const [fx, fy] = fromEndless(h.u + h.r*.7, h.v - h.r*.7); out.push({d: fx + fy, f: () => drawBattleFlag(drawView, h.owner, px(fx, fy), py(fx, fy, groundZ(fx, fy)))}); } }
   // Your ring, in your side's colour, and their flag on your back.
   const me = ctf.you; if (me.state === 'live') out.push({d: -1e9, f: () => { const sx = px(walker.x, walker.y), sy = py(walker.x, walker.y, walker.z);
     ctx.strokeStyle = SIDE_COLOUR[me.side]; ctx.lineWidth = 2.2*Z; ctx.beginPath(); ctx.ellipse(sx, sy, 12*Z, 4.8*Z, 0, 0, Math.PI*2); ctx.stroke(); }});
@@ -2817,6 +2841,7 @@ function drawMyFlag(){ const me = ctf?.you; if (!me?.carrying) return; const sx 
   drawBattleFlag(drawView, rival(me.side), sx - dir*6*Z, sy - 12*Z); }
 // The ways to the flags, at the screen's edge: theirs, or home with it; and yours, when it is out.
 function ctfPointers(){ if (ctf.phase === 'over') return; const me = ctf.you, mine = ctf.yours, theirs = rival(mine), f = ctf.flags;
+  if (ctf.mode === 'forts'){ for (const h of ctf.holds){ if (h.owner === mine && !h.by) continue; const [x, y] = fromEndless(h.u, h.v); indicator(x, y, h.owner ? SIDE_COLOUR[h.owner] : '#8C8577', 'base', !!h.by); } return; }
   if (me.carrying){ const [x, y] = fromEndless(...flagHome(mine)); indicator(x, y, SIDE_COLOUR[mine], 'flag', true); }
   else { const [x, y] = fromEndless(f[theirs].u, f[theirs].v); indicator(x, y, SIDE_COLOUR[theirs], 'flag', f[theirs].at === 'dropped'); }
   if (f[mine].at !== 'home'){ const [x, y] = fromEndless(f[mine].u, f[mine].v); indicator(x, y, SIDE_COLOUR[mine], 'flag', true); } }
@@ -4172,7 +4197,7 @@ function sendToast(msg, ux = 0, uy = 0){ sfx.click(); toasts.dismiss(msg, perfor
 // 2026-10-16: "the text covers the action all the time").
 const TOAST_TOP = 140, TOAST_SIDE = 160, TOAST_WIDE = 360;
 function placeToast(){ let left = 0;
-  for (const el of [$('order'), $('charter')]){ const r = el.getBoundingClientRect(); if (r.height) left = Math.max(left, r.bottom); }
+  for (const el of [$('order'), $('charter'), $('ctfBar')]){ const r = el.getBoundingClientRect(); if (r.height) left = Math.max(left, r.bottom); }
   const rc = $('rchips').getBoundingClientRect(), gap = rc.left - 22;
   const side = rc.height > 0 && rc.bottom > left + 60 && gap >= TOAST_SIDE;
   elToast.classList.toggle('side', side); elToast.style.maxWidth = side ? Math.min(gap, TOAST_WIDE) + 'px' : '';
@@ -6635,6 +6660,9 @@ function indicator(wx,wy,bg,kind,pulse){
   else if (kind === 'crow') drawFlying(ctx, ix, iy + 5, 1, T*10, 1.9);
   else if (kind === 'flag'){ ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ix - 4, iy + 8); ctx.lineTo(ix - 4, iy - 8); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(ix - 4, iy - 8); ctx.lineTo(ix + 8, iy - 4); ctx.lineTo(ix - 4, iy); ctx.closePath(); ctx.fill(); }
+  // A Hold the Forts base: its ring, and the post in its middle.
+  else if (kind === 'base'){ ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(ix, iy + 3, 9, 4.5, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillRect(ix - 1.5, iy - 9, 3, 12); ctx.beginPath(); ctx.arc(ix, iy - 9, 3, 0, Math.PI*2); ctx.fill(); }
   else if (kind === 'note'){ ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(ix-2.5, iy+4, 4, 3, -.4, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.moveTo(ix+1.2, iy+3); ctx.lineTo(ix+1.2, iy-8); ctx.quadraticCurveTo(ix+6, iy-6, ix+5.5, iy-2); ctx.stroke(); }
   else if (kind === 'bubbles'){ ctx.fillStyle = '#BFEFFF'; for (const [bx, by, br] of [[-3,3,3.2],[3,-1,2.4],[-1,-5,1.8]]){ ctx.beginPath(); ctx.arc(ix+bx, iy+by, br, 0, Math.PI*2); ctx.fill(); } }

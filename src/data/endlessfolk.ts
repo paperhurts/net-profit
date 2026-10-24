@@ -103,6 +103,13 @@ export const LEADER_PICK: Readonly<Record<Side, string>> = {
     'Pick yer post, matey. A crew needs a quartermaster to take the knocks, a cook to patch us up, and swashbucklers to grab that flag.',
   ninja: 'Choose your path. A stone guard stands firm, a monk mends, and a shadow strikes.',
 };
+/** And picking for Hold the Forts. */
+export const LEADER_PICK_FORTS: Readonly<Record<Side, string>> = {
+  pirate:
+    'Hold the forts, is it? The battery, the wreck and that ninja bell. Take all three and they will never catch us. Pick yer post.',
+  ninja:
+    'Three places to hold: our bell, the wreck, and their noisy cannon. Hold more than they do, and time is on our side. Choose your path.',
+};
 
 /** What each leader says after a battle fought for his side: won, drawn or lost. */
 export const LEADER_AFTER: Readonly<Record<Side, { win: string; draw: string; loss: string }>> = {

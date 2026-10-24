@@ -169,6 +169,35 @@ export const CTF = {
   touch: 26,
 } as const;
 
+/** The two battles: Capture the Flag, and Hold the Forts. */
+export type Mode = 'flag' | 'forts';
+
+/**
+ * Hold the Forts' rules, the plan's: three bases, each half's own and the Shipwreck between. Stand in a base's ring
+ * with no foe in it to take it; both sides in it, nobody gets anywhere. Every second each side scores for the bases it
+ * holds, the more the much faster, and the first to its total wins, or the most when the clock runs out.
+ */
+export const FORTS = {
+  /** Standing in a ring with no foe in it, this long to take it. */
+  take: 5,
+  /** Points a second for holding none, one, two or all three. */
+  rate: [0, 1, 3, 10],
+  /** First to this many wins. */
+  win: 400,
+  /** The clock, seconds: the most points when it runs out wins, the same is a draw. */
+  clock: 360,
+  /** A taking left alone fades back at this much of its pace. */
+  fade: 0.5,
+} as const;
+
+/** The three bases, as they are called. */
+export type HoldKey = 'battery' | 'wreck' | 'bell';
+export const HOLD_NAME: Readonly<Record<HoldKey, string>> = {
+  battery: 'the Cannon Battery',
+  wreck: 'the Shipwreck',
+  bell: 'the Bell Tower',
+};
+
 /**
  * What a battle pays, the plan's (less than fishing pays for the time, so fishing stays the way to earn), and the marks
  * it earns toward the next badge for the side and role you fought as (1 for a loss, 2 for a win, so losing never stalls

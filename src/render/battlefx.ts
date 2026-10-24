@@ -119,6 +119,58 @@ export function drawWarnRing(
   ctx.restore();
 }
 
+/**
+ * A base's ring in Hold the Forts, at cx, cy, radii rx and ry: tinted the colour of whoever holds it (plain if nobody
+ * does), a band round its edge filling with the colour of whoever is taking it as k goes from 0 to 1, and a flicker
+ * of white dashes when both sides are in it.
+ */
+export function drawHoldRing(
+  ctx: Ctx,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  Z: number,
+  owner: Side | null,
+  by: Side | null,
+  k: number,
+  contested: boolean,
+  t: number,
+): void {
+  const tint = (s: Side | null, a: number) =>
+    s === 'pirate'
+      ? `rgba(216,68,58,${a})`
+      : s === 'ninja'
+        ? `rgba(61,111,216,${a})`
+        : `rgba(255,248,230,${a})`;
+  ctx.save();
+  ctx.fillStyle = tint(owner, owner ? 0.22 : 0.12);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 3 * Z;
+  ctx.strokeStyle = tint(owner, owner ? 0.85 : 0.55);
+  ctx.stroke();
+  if (by && k > 0) {
+    // Round from the top, the way a clock goes.
+    ctx.lineWidth = 6 * Z;
+    ctx.strokeStyle = tint(by, 0.95);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, k));
+    ctx.stroke();
+  }
+  if (contested) {
+    ctx.setLineDash([8 * Z, 8 * Z]);
+    ctx.lineDashOffset = -t * 40 * Z;
+    ctx.lineWidth = 2.5 * Z;
+    ctx.strokeStyle = `rgba(255,255,255,${0.6 + 0.4 * Math.sin(t * 10)})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 1.06, ry * 1.06, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** A stomp landing at cx, cy, its ring radii rx and ry; k from 0 to 1 over the moment after. */
 export function drawStomp(
   ctx: Ctx,

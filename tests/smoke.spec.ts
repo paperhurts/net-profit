@@ -33,6 +33,15 @@ type Ctf = {
   fighters: CtfFighter[];
   score: Record<'pirate' | 'ninja', number>;
   flags: Record<'pirate' | 'ninja', { at: string; u: number; v: number }>;
+  mode: 'flag' | 'forts';
+  holds: {
+    key: string;
+    u: number;
+    v: number;
+    r: number;
+    owner: string | null;
+    by: string | null;
+  }[];
 };
 /** The Ninja Slalom's run, as far as the smoke test looks at it. */
 type SkiFeature = { kind: string; z: number; x: number; x0: number; x1: number };
@@ -8024,6 +8033,103 @@ test("the healer's throw in Capture the Flag: its own button, not the blade's, a
   await page.click('#ctfLeave');
   await page.click('#ctfLeave');
   await expect(page.locator('#throw')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('Hold the Forts: the leader offers it, the three bases neutral, the Cannon Battery taken by standing in its ring, points for it, and the win', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: { seen: true, pirate: true, ninja: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const L = n.LEADER13.pirate;
+    n.walker.x = L.x + 16;
+    n.walker.y = L.y + 16;
+  });
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+  await page.click('#climb');
+  // Both battles on offer; this one's own word on picking.
+  await expect(page.locator('#endlessFight')).toBeVisible();
+  await expect(page.locator('#endlessForts')).toHaveText('Fight: Hold the Forts');
+  await page.click('#endlessForts');
+  await expect(page.locator('#endlessSay')).toContainText('Hold the forts');
+  const before = await page.evaluate(() => window.__np.coins);
+  await page.click('#endlessRoles [data-role="damage"]');
+  await expect(page.locator('#ctfHolds')).toBeVisible();
+  await expect(page.locator('#ctfHolds span')).toHaveText(['Cannon', 'Wreck', 'Bell']);
+  expect(
+    await page.evaluate(() => {
+      const c = window.__np.ctf as Ctf;
+      return [c.mode, c.holds.map((h) => h.owner)];
+    }),
+  ).toEqual(['forts', [null, null, null]]);
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('take the bases');
+  // Everyone else out of it; into the Cannon Battery's ring, and stay five seconds.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const c = n.ctf as Ctf;
+    for (const f of c.fighters)
+      if (f.bot) {
+        f.state = 'down';
+        f.downT = 9999;
+      }
+    const h = c.holds[0] as Ctf['holds'][number];
+    const [x, y] = n.fromEndless(h.u + 26, h.v);
+    n.walker.x = x;
+    n.walker.y = y;
+  });
+  await expect(page.locator('#ctfWhat')).toContainText('Taking it', { timeout: 3000 });
+  await page.waitForFunction(() => (window.__np.ctf as Ctf).holds[0]?.owner === 'pirate', null, {
+    timeout: 8000,
+  });
+  await expect(page.locator('#toast')).toContainText(
+    'You took the Cannon Battery! We hold 1 of 3.',
+  );
+  await expect(page.locator('#ctfHolds span').first()).toHaveClass(/pirate/);
+  await expect(page.locator('#ctfWhat')).toHaveText('Holding it');
+  // A point a second for it.
+  await page.waitForFunction(() => (window.__np.ctf as Ctf).score.pirate >= 2, null, {
+    timeout: 4000,
+  });
+  await expect(page.locator('#ctfBarP')).not.toHaveText('0');
+  // Near the total, and over it: the win, its pay, and the bases you took.
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).score.pirate = 399;
+  });
+  await expect(page.locator('#ctfCard')).toBeVisible({ timeout: 4000 });
+  await expect(page.locator('#ctfTitle')).toHaveText('The pirates win!');
+  await expect(page.locator('#ctfP')).toHaveText('400');
+  await expect(page.locator('#ctfStats')).toContainText('Bases you took1');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(before + 500);
+  await page.click('#ctfDone');
+  await expect(page.locator('#ctfBar')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

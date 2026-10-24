@@ -3,6 +3,10 @@
  * ninjas, each side's flag in its fort at the far end of its half. Cross over, take theirs, and carry it home while
  * your own is still in its place. Three captures win, or the most when the clock runs out.
  *
+ * And its second, Hold the Forts (2026-10-24), the same fighters on the same island: three bases, each half's own and
+ * the Shipwreck between. Stand in a base's ring with no foe in it to take it; each side scores every second for what
+ * it holds, the more the much faster, and the first to its total wins. The flags stay in their forts.
+ *
  * A pure simulation in the island's own frame (u across the screen, v down it; the ninjas' half is v < 0): fighters,
  * the two flags, the bots that fill both teams, the score. You are one of the fighters, moved from outside; everyone
  * else is a bot. Seeded, so a battle replays the same.
@@ -17,12 +21,15 @@ import {
   type Badge,
   BOT_NAMES,
   CTF,
+  FORTS,
+  type HoldKey,
   KITS,
   type Kit,
+  type Mode,
   type Role,
   TEAM,
 } from '../data/battle';
-import { FORT, GRAVE, onHalf, rival, SIDES, type Side } from '../world/endless';
+import { FORT, GRAVE, HOLDS13, onHalf, rival, SIDES, type Side } from '../world/endless';
 import { clearLine, flowTo, steer, wading, walkable } from '../world/endlessnav';
 
 /** What a bot is out to do when nothing more pressing comes up. */
@@ -85,8 +92,15 @@ export type Fighter = {
   hotAcc: number;
   /** Singing its sea shanty, so long still: it walks at half speed. */
   singT: number;
-  /** Its battle: flags taken, captured and sent home, foes beaten, and hearts healed. */
-  stats: { carries: number; caps: number; returns: number; beaten: number; healed: number };
+  /** Its battle: flags taken, captured and sent home, bases taken, foes beaten, and hearts healed. */
+  stats: {
+    carries: number;
+    caps: number;
+    returns: number;
+    takes: number;
+    beaten: number;
+    healed: number;
+  };
 };
 
 /** A group heal on the ground: a heart a second for every teammate in it, for so long; it goes with the singer, or stays
@@ -122,8 +136,28 @@ export type Flag = {
   t: number;
 };
 
+/**
+ * A base in Hold the Forts: whose it is, and who is taking it and how far they have got (seconds stood in its ring).
+ * A side taking another's base first undoes what the other had done of taking it.
+ */
+export type Hold = {
+  readonly key: HoldKey;
+  /** The half it stands on, or none for the Shipwreck. */
+  readonly half: Side | null;
+  readonly u: number;
+  readonly v: number;
+  readonly r: number;
+  owner: Side | null;
+  by: Side | null;
+  t: number;
+  /** Both sides in its ring. */
+  contested: boolean;
+};
+
 export type CtfEvent =
   | { k: 'go' }
+  | { k: 'take'; key: HoldKey; side: Side; fs: Fighter[] }
+  | { k: 'threat'; key: HoldKey; side: Side }
   | { k: 'pickup' | 'drop' | 'return' | 'capture'; side: Side; f: Fighter | null }
   | { k: 'hit'; f: Fighter; by: Fighter | null; n: number }
   | { k: 'swing'; f: Fighter; to: Fighter }
@@ -178,6 +212,10 @@ function midSpot(side: Side, i: number): [number, number] {
 }
 
 export class Ctf {
+  /** Which battle: Capture the Flag, or Hold the Forts. */
+  readonly mode: Mode;
+  /** Hold the Forts' three bases; none in Capture the Flag. */
+  readonly holds: Hold[] = [];
   readonly fighters: Fighter[] = [];
   readonly flags: Record<Side, Flag>;
   readonly score: Record<Side, number> = { pirate: 0, ninja: 0 };
@@ -206,7 +244,7 @@ export class Ctf {
 
   /**
    * You fight for yours, in the role given, with your badges in it; null for a battle of bots alone. Everyone has as
-   * many badges as you, so they have what you have.
+   * many badges as you, so they have what you have. Capture the Flag, unless it is Hold the Forts.
    */
   constructor(
     yours: Side | null,
@@ -214,9 +252,16 @@ export class Ctf {
     foeSlow = 1.12,
     yourRole: Role = 'damage',
     badge: Badge = 1,
+    mode: Mode = 'flag',
   ) {
     this.yours = yours;
     this.badge = badge;
+    this.mode = mode;
+    if (mode === 'forts') {
+      this.clock = FORTS.clock;
+      for (const h of HOLDS13)
+        this.holds.push({ ...h, owner: null, by: null, t: 0, contested: false });
+    }
     this.rand = rng(seed);
     this.foeSlow = yours ? foeSlow : 1;
     this.flags = {
@@ -272,7 +317,7 @@ export class Ctf {
           hotBy: null,
           hotAcc: 0,
           singT: 0,
-          stats: { carries: 0, caps: 0, returns: 0, beaten: 0, healed: 0 },
+          stats: { carries: 0, caps: 0, returns: 0, takes: 0, beaten: 0, healed: 0 },
         };
         if (isYou) (this as { you: Fighter | null }).you = f;
         this.fighters.push(f);
@@ -280,6 +325,27 @@ export class Ctf {
     }
     // Jobs: the tank guards the flag, the healer goes with the attack, the damage go for their flag, one of them (or
     // with you on the team, the one left) holding the middle. You the tank, one of them guards the flag instead.
+    // Holding the forts, the tank holds the Shipwreck, the healer goes with whoever is nearest, and the damage hold
+    // their own base, the Shipwreck and raid theirs (with you a damage, you are the Shipwreck's second).
+    if (mode === 'forts') {
+      for (const side of SIDES) {
+        const dmgJobs: Job[] =
+          side === yours && yourRole === 'damage'
+            ? ['defend', 'attack']
+            : ['defend', 'mid', 'attack'];
+        let dmg = 0;
+        for (const f of this.fighters)
+          if (f.side === side && f.bot)
+            f.job =
+              f.role === 'tank'
+                ? 'mid'
+                : f.role === 'healer'
+                  ? 'escort'
+                  : (dmgJobs[dmg++] ?? 'mid');
+      }
+      this.back.push(...[...this.fighters].reverse());
+      return;
+    }
     for (const side of SIDES) {
       const team = this.fighters.filter((f) => f.side === side && f.bot);
       let dmg = 0;
@@ -343,7 +409,8 @@ export class Ctf {
     }
     this.clock = Math.max(0, this.clock - dt);
     const fl = this.flags;
-    this.bothOutT = fl.pirate.at !== 'home' && fl.ninja.at !== 'home' ? this.bothOutT + dt : 0;
+    if (this.mode === 'flag')
+      this.bothOutT = fl.pirate.at !== 'home' && fl.ninja.at !== 'home' ? this.bothOutT + dt : 0;
     const all = this.tick++ % 2 ? this.back : this.fighters;
     for (const f of all) {
       if (f.state === 'down') {
@@ -374,6 +441,10 @@ export class Ctf {
     this.zoneTicks(dt);
     this.bombTicks(dt);
     if (this.phase !== 'fight') return;
+    if (this.mode === 'forts') {
+      this.holdTicks(dt);
+      return;
+    }
     // Dropped flags, left alone, go home.
     for (const side of SIDES) {
       const flag = fl[side];
@@ -390,6 +461,99 @@ export class Ctf {
       const n = this.score.ninja;
       this.end(p > n ? 'pirate' : n > p ? 'ninja' : 'draw');
     }
+  }
+
+  /**
+   * The bases: taken by a side alone in a ring long enough, undoing first what the other side had done of taking it,
+   * a taking left alone fading back; then the points for what each side holds, and the end at the total or the clock.
+   */
+  private holdTicks(dt: number): void {
+    for (const h of this.holds) {
+      let p = 0;
+      let n = 0;
+      for (const f of this.fighters)
+        if (f.state === 'live' && Math.hypot(f.u - h.u, f.v - h.v) <= h.r) {
+          if (f.side === 'pirate') p++;
+          else n++;
+        }
+      h.contested = p > 0 && n > 0;
+      const alone: Side | null = p && !n ? 'pirate' : n && !p ? 'ninja' : null;
+      if (h.contested) continue;
+      if (alone && alone !== h.owner) {
+        if (h.by && h.by !== alone) {
+          h.t -= dt;
+          if (h.t <= 0) {
+            h.by = alone;
+            h.t = -h.t;
+          }
+        } else {
+          if (!h.by && h.owner) this.events.push({ k: 'threat', key: h.key, side: alone });
+          h.by = alone;
+          h.t += dt;
+        }
+        if (h.by === alone && h.t >= FORTS.take) {
+          h.owner = alone;
+          h.by = null;
+          h.t = 0;
+          const fs = this.fighters.filter(
+            (f) =>
+              f.side === alone && f.state === 'live' && Math.hypot(f.u - h.u, f.v - h.v) <= h.r,
+          );
+          for (const f of fs) f.stats.takes++;
+          this.events.push({ k: 'take', key: h.key, side: alone, fs });
+        }
+      } else if (h.by) {
+        // Nobody in it, or only its own side: what was done of taking it fades, at once for its own.
+        h.t -= dt * (alone ? 1 : FORTS.fade);
+        if (h.t <= 0) {
+          h.t = 0;
+          h.by = null;
+        }
+      }
+    }
+    for (const side of SIDES) {
+      const n = this.holds.filter((h) => h.owner === side).length;
+      this.score[side] += (FORTS.rate[n] ?? 0) * dt;
+    }
+    const p = this.score.pirate;
+    const n = this.score.ninja;
+    if (p >= FORTS.win || n >= FORTS.win) this.end(p > n ? 'pirate' : n > p ? 'ninja' : 'draw');
+    else if (this.clock <= 0) this.end(p > n ? 'pirate' : n > p ? 'ninja' : 'draw');
+  }
+
+  /** A side's own base, and the other side's, and the Shipwreck. */
+  hold(key: HoldKey): Hold {
+    return this.holds.find((h) => h.key === key) as Hold;
+  }
+  private homeHold(side: Side): Hold {
+    return this.hold(side === 'pirate' ? 'battery' : 'bell');
+  }
+
+  /** Where a bot holding the forts is going: by its job, and how the bases stand. */
+  private objective(f: Fighter): Hold {
+    const mine = this.homeHold(f.side);
+    const theirs = this.homeHold(rival(f.side));
+    const wreck = this.hold('wreck');
+    const ours = (h: Hold) => h.owner === f.side && h.by === null;
+    if (f.job === 'defend') return mine;
+    if (f.job === 'mid') return ours(wreck) && !ours(mine) ? mine : wreck;
+    // The raider: theirs, then the Shipwreck, then home, whichever is not ours yet; all ours, it holds theirs.
+    for (const h of [theirs, wreck, mine]) if (!ours(h)) return h;
+    return theirs;
+  }
+
+  /** Where in a base's ring a fighter stands: round its middle by its place in the team, the same on both halves; at
+   * the Shipwreck, on its own side of the wreck. */
+  holdSpot(f: Fighter, h: Hold): [number, number] {
+    if (h.key === 'wreck') return [(f.slot - 2) * 13, f.side === 'pirate' ? 40 : -40];
+    const a = (f.slot / 5) * Math.PI * 2 + 0.4;
+    const s = h.half === 'pirate' ? 1 : -1;
+    for (const r of [30, 24, 36]) {
+      const u = h.u + Math.cos(a) * r;
+      const v = h.v + Math.sin(a) * r * s;
+      if (walkable(u, v)) return [u, v];
+    }
+    return [h.u + 26, h.v];
   }
 
   private end(w: Side | 'draw'): void {
@@ -984,6 +1148,31 @@ export class Ctf {
     } else if (mine.at === 'dropped' && this.nearestTo(f.side, mine.u, mine.v, 2).includes(f)) {
       f.target = this.inReach(f, 0);
       aim = route = [mine.u, mine.v];
+    } else if (this.mode === 'forts') {
+      // Holding the forts: to its base, fighting whoever is in or by its ring when it gets near, and on the way only
+      // what comes at it; the healer with the nearest teammate, at the base nearest them.
+      let h = this.objective(f);
+      let spot = this.holdSpot(f, h);
+      if (f.job === 'escort') {
+        const lead = this.fighters
+          .filter((t) => t.side === f.side && t.state === 'live' && t !== f && t.job !== 'escort')
+          .sort((a, b) => Math.hypot(a.u - f.u, a.v - f.v) - Math.hypot(b.u - f.u, b.v - f.v))[0];
+        if (lead) {
+          h = this.holds.reduce((a, b) =>
+            Math.hypot(b.u - lead.u, b.v - lead.v) < Math.hypot(a.u - lead.u, a.v - lead.v) ? b : a,
+          );
+          spot =
+            Math.hypot(lead.u - h.u, lead.v - h.v) < h.r + 40
+              ? this.holdSpot(f, h)
+              : [lead.u, lead.v];
+        }
+      }
+      const near = Math.hypot(f.u - h.u, f.v - h.v) < h.r + 160;
+      f.target =
+        (near ? this.pickFoe(f, h.r + 60, h.u, h.v) : null) ??
+        (f.job === 'defend' ? null : this.pickFoe(f, AGGRO[f.job]));
+      aim = f.target ? [f.target.u, f.target.v] : spot;
+      route = spot;
     } else if (thief && f.job === 'defend') {
       f.target = thief;
       aim = [thief.u, thief.v];
