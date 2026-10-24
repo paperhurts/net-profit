@@ -74,6 +74,19 @@ function eggRows(eggs: readonly EggRow[]): string {
   );
 }
 
+/** One of your own's level, with a bar to the next, and whether it is training at the pet house now. */
+function levelRow(e: BookEntry): string {
+  const l = e.level;
+  if (!l) return '';
+  if (!l.need)
+    return `<small class="lvl"><span class="lv">Level ${l.lv}</span>, the most there is.</small>`;
+  const pc = Math.round((100 * l.into) / l.need);
+  return (
+    `<small class="lvl"><span class="lv">Level ${l.lv}</span><span class="xpbar" role="img" aria-label="${l.into} of ${l.need} to level ${l.lv + 1}"><i style="width:${pc}%"></i></span>` +
+    `${e.training ? 'Training' : ''}</small>`
+  );
+}
+
 function card(e: BookEntry, st: BookState): string {
   const named = e.was ? `<small class="was">Was ${esc(e.was)}</small>` : '';
   let act = '';
@@ -95,7 +108,7 @@ function card(e: BookEntry, st: BookState): string {
       '</div>';
   return (
     `<div class="pet" data-pet="${e.key}"><canvas class="petpic" data-pic="${e.key}" aria-hidden="true"></canvas>` +
-    `<div class="pmeta"><b>${esc(e.name)}</b>${named}<small>${esc(e.from)}</small><small class="now">${esc(e.where)}</small>${act}</div></div>`
+    `<div class="pmeta"><b>${esc(e.name)}</b>${named}<small>${esc(e.from)}</small>${levelRow(e)}<small class="now">${esc(e.where)}</small>${act}</div></div>`
   );
 }
 
