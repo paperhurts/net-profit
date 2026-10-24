@@ -8,20 +8,29 @@ import {
   buySeeds,
   CROP_IDS,
   CROPS,
+  type CropId,
+  FRUIT_MAX,
+  type Fruit,
+  fruitKg,
+  fruitValue,
   type Garden,
   GUARD,
   growBed,
   grownOf,
   inStock,
+  isGiant,
   noGarden,
   parseGarden,
   pick,
   plant,
   rollStock,
   SEEDS_MAX,
+  SIZE,
   secondsLeft,
   seedsOf,
   sellBasket,
+  sizeOf,
+  sizesOn,
   stockToday,
   TIERS,
   untouchedGarden,
@@ -41,6 +50,13 @@ import { fakeView } from './helpers/view';
 
 const T0 = 1_800_000_000_000;
 const sec = (s: number) => T0 + s * 1000;
+
+/** Normal-sized fruit, so many of each crop, for a basket. */
+function bagOf(n: Partial<Record<CropId, number>>): Fruit[] {
+  return Object.entries(n).flatMap(([c, k]) =>
+    Array.from({ length: k ?? 0 }, () => ({ c: c as CropId, m: 1 })),
+  );
+}
 
 /** A garden with seeds of each kind. */
 function stocked(): Garden {
@@ -136,15 +152,24 @@ describe('the seed stall: the dawn restock', () => {
 
 describe("the garden's pay: the owner's 'rival the boat'", () => {
   const keeps = CROP_IDS.map((k) => CROPS[k]).filter((c) => c.regrow);
+  // What size adds, on average, to what a fruit sells for: sampled over many plants and fruit.
+  let total = 0;
+  const N = 40000;
+  for (let i = 0; i < N; i++) total += Math.max(SIZE.floor, sizeOf(T0 + i * 7919, i % 9)) ** 2;
+  const EV = total / N;
   it('a full plot of the best crop that keeps fruiting, left overnight, pays three to five abyss holds', () => {
-    const best = Math.max(...keeps.map((c) => BEDS_ALL * c.holds * c.sell));
+    const best = Math.max(...keeps.map((c) => BEDS_ALL * c.holds * c.sell * EV));
+    expect(EV).toBeGreaterThan(1);
+    expect(EV).toBeLessThan(1.15);
     expect(best).toBeGreaterThanOrEqual(GUARD.overnightMin);
     expect(best).toBeLessThanOrEqual(GUARD.overnightMax);
   });
 
   it('tended by hand, no crop pays more a minute than the boat', () => {
     for (const c of keeps)
-      expect((BEDS_ALL * c.sell) / ((c.regrow ?? 1) / 60)).toBeLessThanOrEqual(GUARD.perMinuteMax);
+      expect((BEDS_ALL * c.sell * EV) / ((c.regrow ?? 1) / 60)).toBeLessThanOrEqual(
+        GUARD.perMinuteMax,
+      );
     // A crop picked once, bought as often as the stall has it: a day's stock grown in a day of play.
     for (const c of CROP_IDS.map((k) => CROPS[k]).filter((c) => !c.regrow)) {
       const perDay = (c.stock[1] * (c.sell - c.seed)) / c.odds;
@@ -186,9 +211,9 @@ describe('the garden: planting and growing, in real time', () => {
     // Ripe, it waits: a week later there is still one carrot.
     growBed(b, sec(7 * 86400));
     expect(b.ripe).toBe(1);
-    expect(pick(g, 0, sec(7 * 86400))).toBe(1);
+    expect(pick(g, 0, sec(7 * 86400))).toHaveLength(1);
     expect(bedAt(g, 0)).toBeNull();
-    expect(g.basket).toEqual({ carrot: 1 });
+    expect(g.bag).toEqual([{ c: 'carrot', m: expect.any(Number) }]);
   });
 
   it('a strawberry keeps fruiting: its first after two minutes, then one a minute, and holds four then waits', () => {
@@ -207,7 +232,7 @@ describe('the garden: planting and growing, in real time', () => {
     // Closed for a night: still four, never more.
     expect(at(12 * 3600)).toBe(4);
     // Picked, the plant stays and starts its next one from now.
-    expect(pick(g, 2, sec(12 * 3600))).toBe(4);
+    expect(pick(g, 2, sec(12 * 3600))).toHaveLength(4);
     expect(bedAt(g, 2)?.ripe).toBe(0);
     expect(at(12 * 3600 + 59)).toBe(0);
     expect(at(12 * 3600 + 60)).toBe(1);
@@ -216,11 +241,11 @@ describe('the garden: planting and growing, in real time', () => {
   it('picking part of a full plant, the rest stays and it goes on fruiting', () => {
     const g = stocked();
     plant(g, 0, 'strawberry', T0);
-    g.basket = { carrot: BASKET_MAX - 1 };
-    expect(pick(g, 0, sec(400))).toBe(1);
+    g.bag = bagOf({ carrot: BASKET_MAX - 1 });
+    expect(pick(g, 0, sec(400))).toHaveLength(1);
     expect(bedAt(g, 0)?.ripe).toBe(3);
     // A full basket picks nothing.
-    expect(pick(g, 0, sec(400))).toBe(0);
+    expect(pick(g, 0, sec(400))).toHaveLength(0);
     expect(basketCount(g)).toBe(BASKET_MAX);
   });
 
@@ -239,7 +264,7 @@ describe('the garden: planting and growing, in real time', () => {
 describe('the garden: selling', () => {
   it('sells the whole basket at the stand for what each fruit is worth', () => {
     const g = stocked();
-    g.basket = { carrot: 3, strawberry: 4 };
+    g.bag = bagOf({ carrot: 3, strawberry: 4 });
     expect(basketValue(g)).toBe(3 * CROPS.carrot.sell + 4 * CROPS.strawberry.sell);
     expect(sellBasket(g)).toEqual({ coins: 3 * 16 + 4 * 5, n: 7 });
     expect(basketCount(g)).toBe(0);
@@ -250,7 +275,7 @@ describe('the garden save', () => {
   it('keeps the beds, the seeds and the basket, and reads anything odd as nothing', () => {
     const g = stocked();
     plant(g, 1, 'strawberry', T0);
-    g.basket = { blueberry: 4 };
+    g.bag = bagOf({ blueberry: 4 });
     const back = parseGarden(JSON.parse(JSON.stringify(g)));
     expect(back).toEqual(g);
     expect(untouchedGarden(back)).toBe(false);
@@ -297,7 +322,7 @@ describe('the garden: what the action button does', () => {
       'g-sell',
     );
     expect(gardenLabel(g, 'g-sell', null, T0)).toBe('Your basket is empty');
-    g.basket = { strawberry: 3 };
+    g.bag = bagOf({ strawberry: 3 });
     expect(gardenLabel(g, 'g-sell', null, T0)).toBe('Sell your basket for 15');
   });
 
@@ -376,5 +401,82 @@ describe('the garden at night', () => {
     gardenLights(f.v, g, sec(CROPS.lantern.grow + 1));
     // Two stalls, then the ripe carrot, the lantern gourd and the strawberry.
     expect(lit).toEqual([120, 120, 50, 110, 50]);
+  });
+});
+
+describe('fruit size and giants', () => {
+  it('sizes each fruit from 0.8 to 1.2 of normal, one in 200 a giant of three to four, and the same every time', () => {
+    let giants = 0;
+    const N = 100000;
+    for (let i = 0; i < N; i++) {
+      const m = sizeOf(T0 + i * 104729, i % 7);
+      expect(sizeOf(T0 + i * 104729, i % 7)).toBe(m);
+      if (isGiant(m)) {
+        giants++;
+        expect(m).toBeGreaterThanOrEqual(SIZE.giantMin * SIZE.min);
+        expect(m).toBeLessThanOrEqual(SIZE.giantMax * SIZE.max);
+      } else {
+        expect(m).toBeGreaterThanOrEqual(SIZE.min);
+        expect(m).toBeLessThanOrEqual(SIZE.max);
+      }
+    }
+    expect(giants).toBeGreaterThan((N / SIZE.giant) * 0.8);
+    expect(giants).toBeLessThan((N / SIZE.giant) * 1.2);
+  });
+
+  it('sells by the square of its size, never under 0.9 squared, and weighs its crop times its size', () => {
+    expect(fruitValue('tomato', 1)).toBe(60);
+    expect(fruitValue('tomato', 1.2)).toBe(Math.round(60 * 1.44));
+    expect(fruitValue('tomato', 0.8)).toBe(Math.round(60 * 0.81));
+    expect(fruitValue('pineapple', 4)).toBe(4200 * 16);
+    // A giant kraken squash would be more than a million: no one fruit sells for more than FRUIT_MAX.
+    expect(fruitValue('kraken', 4.8)).toBe(FRUIT_MAX);
+    expect(fruitKg('pineapple', 1)).toBe('1.50');
+    expect(fruitKg('strawberry', 1)).toBe('0.030');
+  });
+
+  it('gives each ripe fruit its size on the plant, and carries it into the basket and the save', () => {
+    const g: Garden = { seen: true, seeds: { strawberry: 1 } };
+    plant(g, 0, 'strawberry', T0);
+    const b = bedAt(g, 0);
+    if (!b) throw new Error('no bed');
+    growBed(b, sec(300));
+    expect(b.ripe).toBe(4);
+    const sizes = sizesOn(b);
+    expect(sizes).toEqual([0, 1, 2, 3].map((n) => sizeOf(T0, n)));
+    // Through a save and back, the same sizes, and the plant's count of fruit ripened.
+    const back = parseGarden(JSON.parse(JSON.stringify(g)));
+    expect(back.beds?.[0]?.w).toEqual(sizes);
+    expect(back.beds?.[0]?.born).toBe(4);
+    const got = pick(g, 0, sec(300));
+    expect(got.map((f) => f.m)).toEqual(sizes);
+    expect(basketValue(g)).toBe(sizes.reduce((n, m) => n + fruitValue('strawberry', m), 0));
+    // The next fruit is the plant's fifth, not its first again.
+    growBed(b, sec(360));
+    expect(sizesOn(b)).toEqual([sizeOf(T0, 4)]);
+  });
+
+  it('reads a basket and ripe fruit saved before sizes as normal-sized', () => {
+    const old = parseGarden({
+      seen: true,
+      beds: [{ crop: 'tomato', planted: T0, ripe: 2, next: 0 }],
+      basket: { carrot: 2, tomato: 1 },
+    });
+    expect(old.bag).toEqual([
+      { c: 'carrot', m: 1 },
+      { c: 'carrot', m: 1 },
+      { c: 'tomato', m: 1 },
+    ]);
+    const b = old.beds?.[0];
+    if (!b) throw new Error('no bed');
+    expect(sizesOn(b)).toEqual([1, 1]);
+    // Odd sizes are clamped; odd fruit are dropped.
+    const odd = parseGarden({
+      bag: [{ c: 'carrot', m: 99 }, { c: 'kale', m: 1 }, 'x', { c: 'tomato' }],
+    });
+    expect(odd.bag).toEqual([
+      { c: 'carrot', m: 5 },
+      { c: 'tomato', m: 1 },
+    ]);
   });
 });
