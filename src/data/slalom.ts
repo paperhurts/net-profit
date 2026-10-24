@@ -1,12 +1,12 @@
 /**
  * The Ninja Slalom, the Endless Isle's ski run down the ninjas' snow peak, part five of the owner's plan (2026-10-23:
  * "All your picks"): up the chairlift, then down a run seen from just behind the skier (entities/slalom.ts). Here: the
- * runs, what they are like, and what the run gives and takes. One run so far, the Bunny Slope; the Fox Run and the Doom
- * Drop, with the medals and the snow monster, come with part ten.
+ * runs, what they are like, and what the run gives and takes. The Bunny Slope (part five) and the Fox Run (part ten),
+ * each with bronze, silver and gold times; the Doom Drop and its snow monster come next.
  */
 
 /** The runs, each marked as ski runs are, green the easiest. */
-export type RunKey = 'bunny';
+export type RunKey = 'bunny' | 'fox';
 export type Run = {
   name: string;
   mark: 'green' | 'blue' | 'black';
@@ -25,6 +25,17 @@ export type Run = {
   /** Jumps along the way, and how wide each ramp is. */
   jumps: number;
   rampW: number;
+  /** How steep: the speeds, on down the run, tucked and slowed, are this many times the Bunny Slope's. */
+  steep: number;
+  /** In each gap between gates: the chance of something standing in the way off the line, of ice, of moguls; the rest
+   * are a snowman and a rock either side of the line, to go between. */
+  hazard: number;
+  ice: number;
+  moguls: number;
+  /** The times for gold, silver and bronze, seconds. */
+  medals: readonly [number, number, number];
+  /** The sky at the top, and the haze it fades to, at the horizon and far down the run. */
+  sky: readonly [string, string];
 };
 export const RUNS: Readonly<Record<RunKey, Run>> = {
   bunny: {
@@ -39,8 +50,58 @@ export const RUNS: Readonly<Record<RunKey, Run>> = {
     swing: 2.8,
     jumps: 3,
     rampW: 5,
+    steep: 1,
+    hazard: 0.4,
+    ice: 0.18,
+    moguls: 0.16,
+    medals: [44, 50, 62],
+    sky: ['#7DB6E3', '#DCEBF5'],
+  },
+  fox: {
+    name: 'Fox Run',
+    mark: 'blue',
+    seed: 2207,
+    len: 880,
+    half: 7,
+    gateW: 4.2,
+    gapMin: 27,
+    gapMax: 34,
+    swing: 3.4,
+    jumps: 4,
+    rampW: 4.6,
+    steep: 1.15,
+    hazard: 0.38,
+    ice: 0.24,
+    moguls: 0.16,
+    medals: [54, 62, 76],
+    sky: ['#E9A86A', '#F6E4CF'],
   },
 };
+/** The runs, top to bottom of the card, each opening once the one before it has been skied to the end. */
+export const RUN_ORDER: readonly RunKey[] = ['bunny', 'fox'];
+
+export type Medal = 'gold' | 'silver' | 'bronze';
+export const MEDAL_NAME: Readonly<Record<Medal, string>> = {
+  gold: 'Gold',
+  silver: 'Silver',
+  bronze: 'Bronze',
+};
+/** Gold first: whether a medal is better than another, or than none. */
+export const medalBetter = (m: Medal | null, than: Medal | null): boolean =>
+  m !== null &&
+  (than === null ||
+    ['gold', 'silver', 'bronze'].indexOf(m) < ['gold', 'silver', 'bronze'].indexOf(than));
+/** The medal a time down a run wins, if any. */
+export function medalOf(run: Run, time: number): Medal | null {
+  const t = Math.round(time * 10) / 10;
+  return t <= run.medals[0]
+    ? 'gold'
+    : t <= run.medals[1]
+      ? 'silver'
+      : t <= run.medals[2]
+        ? 'bronze'
+        : null;
+}
 
 /** Seconds added for a gate gone round, not through; taken off for a trick landed. */
 export const GATE_MISS = 2;

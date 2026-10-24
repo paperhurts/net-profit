@@ -6,7 +6,7 @@
  */
 
 import { clamp } from '../core/math';
-import { clockOf } from '../data/slalom';
+import { clockOf, MEDAL_NAME, type Medal, medalOf } from '../data/slalom';
 import {
   BEAT,
   type Feature,
@@ -25,7 +25,6 @@ const HAZE_FROM = 25;
 const HAZE_TO = 85;
 const SEE = 95;
 /** The mountain's own colours. */
-const HAZE = '#DCEBF5';
 const SNOW_A = '#F6F9FC';
 const SNOW_B = '#EAF1F8';
 const BANK_A = '#DCE6F0';
@@ -651,13 +650,18 @@ export function drawSlalom(
   };
   const half = sl.run.half;
   // The sky, the far peaks along the horizon, and the snow.
+  const [zenith, haze] = sl.run.sky;
   const sky = ctx.createLinearGradient(0, 0, 0, v.y0);
-  sky.addColorStop(0, '#7DB6E3');
-  sky.addColorStop(1, HAZE);
+  sky.addColorStop(0, zenith);
+  sky.addColorStop(1, haze);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, v.y0 + 1);
   drawFarPeaks(ctx, W, v.y0, sl.x);
-  ctx.fillStyle = HAZE;
+  // The ground: the haze far off, snow near, so the far run fades into the haze.
+  const ground = ctx.createLinearGradient(0, v.y0, 0, v.y0 + (H - v.y0) * 0.4);
+  ground.addColorStop(0, haze);
+  ground.addColorStop(1, SNOW_B);
+  ctx.fillStyle = ground;
   ctx.fillRect(0, v.y0, W, H - v.y0);
   // Stripes of snow running toward you, far to near: the piste, and the deep banks either side of it.
   const step = 3;
@@ -916,7 +920,7 @@ function drawSkiBars(ctx: CanvasRenderingContext2D, W: number, sl: Slalom, top: 
   const pad = 14;
   const w = Math.min(220, W - pad * 2 - 90);
   ctx.fillStyle = 'rgba(20,40,70,.55)';
-  box(ctx, pad, top, w + 16, 50);
+  box(ctx, pad, top, w + 16, 66);
   ctx.fillStyle = '#FFF7E6';
   ctx.font = `800 22px ${FONT}`;
   ctx.textAlign = 'left';
@@ -930,6 +934,18 @@ function drawSkiBars(ctx: CanvasRenderingContext2D, W: number, sl: Slalom, top: 
   ctx.fillRect(pad + 8, top + 36, w - 2, 4);
   ctx.fillStyle = '#FFE066';
   ctx.fillRect(pad + 8, top + 36, (w - 2) * sl.progress, 4);
+  // The medal times: each dims once the clock is past it.
+  ctx.font = `800 12px ${FONT}`;
+  ctx.textAlign = 'left';
+  sl.run.medals.forEach((m, i) => {
+    const x = pad + 10 + i * Math.min(72, (w - 2) / 3);
+    const lost = sl.time > m + 0.05;
+    ctx.globalAlpha = lost ? 0.35 : 1;
+    medalDisc(ctx, x + 6, top + 53, 6, MEDALS[i] as Medal);
+    ctx.fillStyle = '#FFF7E6';
+    ctx.fillText(clockOf(m), x + 15, top + 54);
+  });
+  ctx.globalAlpha = 1;
   ctx.fillStyle = 'rgba(20,40,70,.55)';
   box(ctx, W - pad - 74, top, 74, 44);
   paperLantern(ctx, W - pad - 52, top + 22, 10, 0, 1);
@@ -991,8 +1007,9 @@ function drawSkiOver(
   const w = Math.min(300, W - 40);
   const x = (W - w) / 2;
   const y = H * 0.3;
+  const medal = medalOf(sl.run, sl.time);
   ctx.fillStyle = 'rgba(20,40,70,.72)';
-  box(ctx, x, y, w, 118);
+  box(ctx, x, y, w, 150);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#CFE2F5';
@@ -1001,6 +1018,18 @@ function drawSkiOver(
   ctx.fillStyle = '#FFE066';
   ctx.font = `800 34px ${FONT}`;
   ctx.fillText(clockOf(sl.time), W / 2, y + 52);
+  // The medal won, or how far off bronze.
+  ctx.font = `800 17px ${FONT}`;
+  if (medal) {
+    const text = `${MEDAL_NAME[medal]} medal!`;
+    const tw = ctx.measureText(text).width;
+    medalDisc(ctx, W / 2 - tw / 2 - 4, y + 84, 10, medal);
+    ctx.fillStyle = MEDAL_COLOUR[medal];
+    ctx.fillText(text, W / 2 + 12, y + 84);
+  } else {
+    ctx.fillStyle = '#CFE2F5';
+    ctx.fillText(`Bronze is ${clockOf(sl.run.medals[2])}: so close!`, W / 2, y + 84);
+  }
   const rounded = Math.round(sl.time * 10) / 10;
   ctx.font = `800 14px ${FONT}`;
   ctx.fillStyle = '#FFF7E6';
@@ -1011,13 +1040,45 @@ function drawSkiOver(
         ? `Your best yet! (was ${clockOf(best)})`
         : `Your best: ${clockOf(best)}`,
     W / 2,
-    y + 80,
+    y + 110,
   );
   ctx.fillStyle = '#CFE2F5';
   ctx.font = `800 13px ${FONT}`;
   ctx.fillText(
     `Gates ${sl.gatesMade}/${sl.gatesOut} · Lanterns ${sl.lanterns} · Tricks ${sl.tricks}`,
     W / 2,
-    y + 102,
+    y + 132,
   );
+}
+
+/** The medals' names and colours, gold first. */
+const MEDALS: readonly Medal[] = ['gold', 'silver', 'bronze'];
+const MEDAL_COLOUR: Readonly<Record<Medal, string>> = {
+  gold: '#F5C84B',
+  silver: '#D5DEE7',
+  bronze: '#D69355',
+};
+/** A medal: a disc on its ribbon's knot, a shine across it. */
+function medalDisc(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, m: Medal): void {
+  ctx.fillStyle = '#C4433A';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.7, y - r * 1.5);
+  ctx.lineTo(x - r * 0.15, y - r * 0.4);
+  ctx.lineTo(x + r * 0.15, y - r * 0.4);
+  ctx.lineTo(x + r * 0.7, y - r * 1.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MEDAL_COLOUR[m];
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(60,40,10,.35)';
+  ctx.lineWidth = Math.max(1, r * 0.18);
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.66, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.beginPath();
+  ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.25, 0, Math.PI * 2);
+  ctx.fill();
 }
