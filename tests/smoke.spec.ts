@@ -955,7 +955,8 @@ type Np = {
       stats: { special: string; specialName: string };
     } | null;
     RING: { x: number; y: number };
-    startFight(key: string): void;
+    startFight(key: string, trainer?: string): void;
+    openRing(): void;
     open: boolean;
     padOpen: boolean;
     hatching: unknown;
@@ -14754,6 +14755,83 @@ test('pet battles: losing costs nothing, and giving up sends the pet home', asyn
   await expect(page.locator('#petFightHud')).toBeVisible();
   await page.locator('#pfLeave').click();
   await expect(page.locator('#petFightHud')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.pets.fight)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test("pet battles, the ladder: each trainer waits for the one before, a ribbon for each, and the champion's cup", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    coins: 0,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: {
+      hatched: [{ id: 1, sp: 'hedgehog', nm: 'Spike', got: 1, from: 'garden' }],
+      house: true,
+      won: ['t1', 't2', 't3', 't4'],
+    },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => window.__np.pets.openRing());
+  // Four ribbons so far, and Fen is next; the champion waits for him.
+  await expect(page.locator('#petRingBody .ribbon')).toHaveCount(4);
+  await expect(page.locator('#petRingBody .foe')).toContainText('Fen and Dusk');
+  await expect(page.locator('[data-ftr="champ"]')).toHaveAttribute('aria-disabled', 'true');
+  await page.locator('[data-ftr="champ"]').dispatchEvent('click');
+  await expect(page.locator('#petRingBody .foe')).toContainText('Fen and Dusk');
+  // An old trainer can be fought again.
+  await page.locator('[data-ftr="t2"]').click();
+  await expect(page.locator('#petRingBody .foe')).toContainText('Moss and Bramble');
+  await page.locator('[data-ftr="t5"]').click();
+  await page.locator('#petFightGo').click();
+  await page.waitForFunction(() => window.__np.pets.fight?.phase === 'fight', null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const f = window.__np.pets.fight;
+    if (f) f.foe.hp = 0;
+  });
+  await page.waitForFunction(() => window.__np.pets.fight === null, null, { timeout: 5000 });
+  await expect(page.locator('#toast')).toContainText("Fen's ribbon is yours");
+  // Now the champion: beat her and the cup is yours.
+  await page.evaluate(() => window.__np.pets.startFight('h1', 'champ'));
+  await page.waitForFunction(() => window.__np.pets.fight?.phase === 'fight', null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const f = window.__np.pets.fight;
+    if (f) f.foe.hp = 0;
+  });
+  await page.waitForFunction(() => window.__np.pets.fight === null, null, { timeout: 5000 });
+  await expect(page.locator('#toast')).toContainText("The champion's cup is yours");
+  const p = await page.evaluate(() => ({
+    won: window.__np.pets.save.won,
+    coins: window.__np.coins,
+  }));
+  expect(p.won).toEqual(['t1', 't2', 't3', 't4', 't5', 'champ']);
+  expect(p.coins).toBe(160 + 250);
+  await page.evaluate(() => window.__np.pets.openRing());
+  await expect(page.locator('#petRingBody .ribbon')).toHaveCount(5);
+  await expect(page.locator('#petRingBody .cup')).toHaveCount(1);
+  await expect(page.locator('#petRingBody .ribbons')).toContainText('6 of 6 beaten');
+  expect(errors).toEqual([]);
+});
+
+test('pet battles: a trainer not yet open will not fight', async ({ context, page }) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: { hatched: [{ id: 1, sp: 'fox', nm: 'Rusty', got: 1, from: 'garden' }], house: true },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => window.__np.pets.startFight('h1', 'champ'));
+  await page.waitForTimeout(300);
   expect(await page.evaluate(() => window.__np.pets.fight)).toBeNull();
   expect(errors).toEqual([]);
 });

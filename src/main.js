@@ -38,8 +38,8 @@ import { drawForge, drawGardenPlant, drawHqTower, drawLanding, drawPlans, drawRo
 import { COMPANION_BLURBS, COMPANION_NAMES, COMPANIONS, ROSTER_AT, ROSTER_REACH, WAIT_AT } from './data/stay';
 import { addDrawn, artOf, bookEntries, canDraw, fightOf, hatchEgg, letGo as letGoPet, nameOf, noPets, ownOf, pickFight, rename as renamePet, toggleWalk } from './data/petsys';
 import { levelOf as petLevelOf, levelUpLine, train as trainPets, XP_MAX as PET_XP_MAX } from './data/training';
-import { petStats, SPECIAL_COOL as PF_SPECIAL_COOL, TRAINERS as PET_TRAINERS } from './data/petfight';
-import { BITE_COOL as PF_BITE_COOL, OVER_T as PF_OVER_T, PetFight, RING_R as PF_RING_R } from './entities/petfight';
+import { petStats, SPECIAL_COOL as PF_SPECIAL_COOL, trainerOpen, TRAINERS as PET_TRAINERS } from './data/petfight';
+import { BITE_COOL as PF_BITE_COOL, OVER_T as PF_OVER_T, PetFight } from './entities/petfight';
 import { drawFighter, drawFightGround, drawRing as drawPetRing } from './render/petfight';
 import { ringHtml, ringReady } from './ui/petring';
 import { EGG_HATCH_MS, eggDue as petEggDue, eggLeft, HATCHLING_ART, HATCHLING_NAMES, layEgg } from './data/eggs';
@@ -171,7 +171,7 @@ import { crabSvg, drawSpiderCrab } from './render/crab';
 import { HAUL_GAP, keepShare, Seine } from './fishing/seine';
 import { drawSeine } from './render/seine';
 import { AQUARIUM, AQUARIUM_BASE, AQUARIUM_COST, AQUARIUM_FROM, AQUARIUM_MID, AQUARIUM_TOP, nearAquarium } from './world/aquarium';
-import { nearPetHouse, PET_HOUSE, PET_HOUSE_COST, PET_HOUSE_FROM, PET_HOUSE_MID, PET_HOUSE_RIDGE, PET_HOUSE_WALL, PET_RING, RING_LIFT as PF_LIFT, RING_ZOOM as PF_ZOOM, YARD_MAX, yardSpot } from './world/pethouse';
+import { nearPetHouse, PET_HOUSE, PET_HOUSE_COST, PET_HOUSE_FROM, PET_HOUSE_MID, PET_HOUSE_RIDGE, PET_HOUSE_WALL, PET_RING, RING_LIFT as PF_LIFT, RING_WATCH, RING_ZOOM as PF_ZOOM, YARD_MAX, yardSpot } from './world/pethouse';
 import { nextSpear, spearAt } from './data/spear';
 import { drivePrize, HARPOON_LEVEL, HARPOON_POWER, HARPOON_RANGE, HARPOON_RELOAD, noDriven, RESOLVE, TROPHY } from './data/harpoon';
 import { HP_MAX, HURT, hurt, mend, SPIT, SWALLOW } from './data/health';
@@ -3965,25 +3965,28 @@ let petFight = null, pfView = 0, pfKey = null, pfRigs = null, pfShown = '', ring
 const pfStick = [0, 0];
 function ringPets(){ return ownPets().map(o => ({key: o.key, name: nameOf(petSave, o.key), lv: petLevelOf(ownOf(petSave, o.key)?.xp ?? 0).lv, fight: fightOf(petSave, o.key)})); }
 function renderRing(){ $('petRingBody').innerHTML = ringHtml(ringSt); }
-function openRing(){ if (petFight) return; const t = PET_TRAINERS[0], pets = ringPets();
-  ringSt = {trainer: t, beaten: petSave.won.includes(t.id), pets, chosen: (pets.find(p => p.key === petSave.walk) ?? pets[0])?.key ?? null, build: null, special: null};
+// The trainer offered first: the next on the ladder not yet beaten, or the champion once all are.
+function nextTrainer(){ return PET_TRAINERS.find((t, i) => trainerOpen(i, petSave.won) && !petSave.won.includes(t.id)) ?? PET_TRAINERS[PET_TRAINERS.length - 1]; }
+function openRing(){ if (petFight) return; const t = nextTrainer(), pets = ringPets();
+  ringSt = {trainer: t, won: petSave.won, pets, chosen: (pets.find(p => p.key === petSave.walk) ?? pets[0])?.key ?? null, build: null, special: null};
   renderRing(); $('petRing').hidden = false; sfx.click(); }
 function closeRing(){ $('petRing').hidden = true; ringSt = null; }
 $('petRingClose').addEventListener('click', closeRing);
 $('petRingBody').addEventListener('click', (e) => { if (!ringSt) return;
-  const pk = e.target.closest('[data-fpet]'), b = e.target.closest('[data-fb]'), s = e.target.closest('[data-fs]');
+  const pk = e.target.closest('[data-fpet]'), b = e.target.closest('[data-fb]'), s = e.target.closest('[data-fs]'), tr = e.target.closest('[data-ftr]');
+  if (tr){ const i = PET_TRAINERS.findIndex(t => t.id === tr.dataset.ftr); if (i < 0 || !trainerOpen(i, petSave.won)){ sfx.denied(); return; } ringSt.trainer = PET_TRAINERS[i]; sfx.click(); renderRing(); return; }
   if (pk){ ringSt.chosen = pk.dataset.fpet; ringSt.build = ringSt.special = null; sfx.click(); renderRing(); return; }
   if (b){ ringSt.build = b.dataset.fb; sfx.click(); renderRing(); return; }
   if (s){ ringSt.special = s.dataset.fs; sfx.click(); renderRing(); return; }
   if (e.target.closest('#petFightGo')){ if (!ringReady(ringSt)){ sfx.denied(); return; } startPetFight(ringSt.chosen, ringSt.trainer.id, ringSt.build, ringSt.special); } });
-function startPetFight(key, trainerId = PET_TRAINERS[0].id, build = null, special = null){ const t = PET_TRAINERS.find(q => q.id === trainerId); if (!t || petFight || !ownOf(petSave, key)) return;
+function startPetFight(key, trainerId = PET_TRAINERS[0].id, build = null, special = null){ const ti = PET_TRAINERS.findIndex(q => q.id === trainerId), t = PET_TRAINERS[ti]; if (!t || !trainerOpen(ti, petSave.won) || petFight || !ownOf(petSave, key)) return;
   if (!fightOf(petSave, key) && (!build || !special || !pickFight(petSave, key, build, special))) return;
   const f = fightOf(petSave, key), lv = petLevelOf(ownOf(petSave, key)?.xp ?? 0).lv;
   closeRing(); if (petBookOpen) closePetBook(); toasts.clear(); save();
   petFight = new PetFight(petStats(f.build, f.special, lv, f.name), t); pfKey = key; pfShown = '';
   pfRigs = {you: doodleRig(artOf(petSave, key)), foe: doodleRig(t.art)};
   // The figure stands at the rope to watch.
-  walker.x = PET_RING.x + PF_RING_R + 10; walker.y = PET_RING.y + 8; walker.vx = walker.vy = 0;
+  walker.x = RING_WATCH.x; walker.y = RING_WATCH.y; walker.vx = walker.vy = 0;
   $('pfYouName').textContent = nameOf(petSave, key); $('pfFoeName').textContent = `${t.name}'s ${t.pet}`; $('pfSpecialName').textContent = petFight.stats.specialName;
   $('petFightHud').hidden = false; $('pfBite').hidden = false; $('pfSpecial').hidden = false; $('pfWord').textContent = 'Ready...';
   hudPetFight(); sfx.bleep(); }
@@ -4014,7 +4017,8 @@ function endPetFight(won, gaveUp = false){ const f = petFight, key = pfKey; if (
   const lv = petLevelOf(pet?.xp ?? 0).lv, first = !petSave.won.includes(t.id);
   if (first) petSave.won.push(t.id);
   coins += t.coins; earned += t.coins;
-  toast(`${name} beat ${t.name}'s ${t.pet}! ${t.xp} experience for ${name}${lv > was ? `, up to level ${lv}` : ''}, and ${t.coins} coins for you.`, 4200, 1);
+  const prize = !first ? '' : t.cup ? ' The champion\'s cup is yours: it stands on your pet house.' : ` ${t.name}'s ribbon is yours: it hangs on your pet house.`;
+  toast(`${name} beat ${t.name}'s ${t.pet}! ${t.xp} experience for ${name}${lv > was ? `, up to level ${lv}` : ''}, and ${t.coins} coins for you.${prize}`, first ? 5600 : 4200, 1);
   save(); hud(); }
 $('pfLeave').addEventListener('click', () => { audio(); endPetFight(false, true); });
 for (const [id, act] of [['pfBite', () => petFight?.bite()], ['pfSpecial', () => petFight?.special()]]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audio(); act(); });
@@ -7181,7 +7185,7 @@ function drawWorldObjects(){
   if (onScreen(DRURY_LANE.x, DRURY_LANE.y, 80*Z)) list.push({d: DRURY_LANE.x+DRURY_LANE.y, f: () => drawDruryLane(drawView)});
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   if (build >= AQUARIUM_FROM && onScreen(AQUARIUM_MID.x, AQUARIUM_MID.y, 80*Z)) list.push({d: AQUARIUM_MID.x+AQUARIUM_MID.y, f: drawAquarium});
-  if (build >= PET_HOUSE_FROM && onScreen(PET_HOUSE_MID.x, PET_HOUSE_MID.y, 80*Z)) list.push({d: PET_HOUSE_MID.x+PET_HOUSE_MID.y, f: () => drawPetHouse(drawView, petSave.house, PET_HOUSE, PET_HOUSE_WALL, PET_HOUSE_RIDGE)});
+  if (build >= PET_HOUSE_FROM && onScreen(PET_HOUSE_MID.x, PET_HOUSE_MID.y, 80*Z)) list.push({d: PET_HOUSE_MID.x+PET_HOUSE_MID.y, f: () => drawPetHouse(drawView, petSave.house, PET_HOUSE, PET_HOUSE_WALL, PET_HOUSE_RIDGE, PET_TRAINERS.filter(t => !t.cup && petSave.won.includes(t.id)).map(t => t.ribbon), petSave.won.includes('champ'))});
   if (petFight){ const f = petFight, R = PET_RING, z = groundZ(R.x, R.y), rr = pfRigs;
     list.push({d: -Infinity, f: () => { drawPetRing(drawView, R.x, R.y); drawFightGround(drawView, f, R.x, R.y); }});
     for (const [p, r] of [[f.you, rr.you], [f.foe, rr.foe]]) list.push({d: walkerDepth(R.x + p.x, R.y + p.y, build, pierD, null), f: () => drawFighter(drawView, r, p, R.x, R.y, z, T)}); }

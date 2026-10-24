@@ -355,6 +355,8 @@ export function drawPetHouse(
   f: { x0: number; y0: number; x1: number; y1: number },
   wall: number,
   ridge: number,
+  ribbons: readonly string[] = [],
+  cup = false,
 ): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
@@ -445,4 +447,43 @@ export function drawPetHouse(
   ctx.closePath();
   ctx.fill();
   paw(dx, y1, wall - 3, 2.6 * Z, '#FFF6E5');
+  // The ribbons won at the ring, pinned along the front wall left of the door; the champion's cup by the corner.
+  ribbons.forEach((c, i) => {
+    const rx = x0 + 3 + i * 3.4;
+    const sx = px(rx, y1);
+    const sy = py(rx, y1, wall * 0.62);
+    const r = 1.5 * Z;
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(sx - r * 0.7, sy);
+    ctx.lineTo(sx - r * 0.9, sy + r * 2.6);
+    ctx.lineTo(sx, sy + r * 1.9);
+    ctx.lineTo(sx + r * 0.9, sy + r * 2.6);
+    ctx.lineTo(sx + r * 0.7, sy);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, r * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  if (cup) {
+    const cx = x1 + 4;
+    const cy = y1 + 4;
+    v.box(cx - 2, cy - 2, 4, 4, 0, 4, '#B9A27E', '#D8C49E');
+    const sx = px(cx, cy);
+    const sy = py(cx, cy, 4);
+    ctx.fillStyle = '#C8952A';
+    ctx.fillRect(sx - 2.2 * Z, sy - 1.2 * Z, 4.4 * Z, 1.2 * Z);
+    ctx.fillRect(sx - 0.6 * Z, sy - 3.4 * Z, 1.2 * Z, 2.4 * Z);
+    ctx.fillStyle = '#E2B33C';
+    ctx.beginPath();
+    ctx.moveTo(sx - 2.8 * Z, sy - 8 * Z);
+    ctx.lineTo(sx + 2.8 * Z, sy - 8 * Z);
+    ctx.quadraticCurveTo(sx + 2.6 * Z, sy - 3.2 * Z, sx, sy - 3.2 * Z);
+    ctx.quadraticCurveTo(sx - 2.6 * Z, sy - 3.2 * Z, sx - 2.8 * Z, sy - 8 * Z);
+    ctx.fill();
+  }
 }

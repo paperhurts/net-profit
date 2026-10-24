@@ -8,6 +8,7 @@ import {
   PET_HOUSE_MID,
   PET_RING,
   PET_YARD,
+  RING_WATCH,
   YARD_MAX,
   yardSpot,
 } from '../../src/world/pethouse';
@@ -63,5 +64,10 @@ describe('the pet house', () => {
     const dx = Math.max(x0 - PET_RING.x, 0, PET_RING.x - x1);
     const dy = Math.max(y0 - PET_RING.y, 0, PET_RING.y - y1);
     expect(Math.hypot(dx, dy)).toBeGreaterThan(RING_R + 10);
+    // The figure watches from outside the rope, on ground it can stand on.
+    expect(Math.hypot(RING_WATCH.x - PET_RING.x, RING_WATCH.y - PET_RING.y)).toBeGreaterThan(
+      RING_R + 8,
+    );
+    expect(blocked(RING_WATCH.x, RING_WATCH.y, 99)).toBe(false);
   });
 });
