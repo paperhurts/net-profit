@@ -1,25 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import {
   BASKET_MAX,
+  BEDS_ALL,
   basketCount,
   basketValue,
   bedAt,
   buySeeds,
+  CROP_IDS,
   CROPS,
   type Garden,
+  GUARD,
   growBed,
   grownOf,
+  inStock,
   noGarden,
   parseGarden,
   pick,
   plant,
+  rollStock,
   SEEDS_MAX,
   secondsLeft,
   seedsOf,
   sellBasket,
+  stockToday,
+  TIERS,
   untouchedGarden,
 } from '../../src/data/garden';
-import { gardenPlantSolids } from '../../src/render/garden';
+import { gardenLights, gardenPlantSolids } from '../../src/render/garden';
 import {
   bedOf,
   clockText,
@@ -43,12 +50,113 @@ function stocked(): Garden {
 describe('the garden: buying seeds', () => {
   it('costs what the stall asks, needs the coins, and keeps at most 99 of a kind', () => {
     const g = noGarden();
+    // Nothing until the stall has stock.
+    expect(buySeeds(g, 'carrot', 1, 100)).toBe(0);
+    g.stock = { day: 1, n: { carrot: 3 } };
     expect(buySeeds(g, 'carrot', 1, 5)).toBe(0);
     expect(seedsOf(g, 'carrot')).toBe(0);
     expect(buySeeds(g, 'carrot', 1, 100)).toBe(CROPS.carrot.seed);
     expect(seedsOf(g, 'carrot')).toBe(1);
+    expect(inStock(g, 'carrot')).toBe(2);
     g.seeds = { carrot: SEEDS_MAX };
     expect(buySeeds(g, 'carrot', 1, 1e6)).toBe(0);
+  });
+
+  it('sells only what is in today, and sells out', () => {
+    const g = noGarden();
+    g.stock = { day: 1, n: { tomato: 2 } };
+    expect(buySeeds(g, 'pineapple', 1, 1e6)).toBe(0);
+    expect(buySeeds(g, 'tomato', 5, 1e6)).toBe(2 * CROPS.tomato.seed);
+    expect(inStock(g, 'tomato')).toBe(0);
+    expect(buySeeds(g, 'tomato', 1, 1e6)).toBe(0);
+    // Sold out survives the save, as sold out.
+    expect(parseGarden(JSON.parse(JSON.stringify(g))).stock).toEqual({ day: 1, n: { tomato: 0 } });
+  });
+});
+
+describe('the seed stall: the dawn restock', () => {
+  it('rolls once a day and keeps it: asked again the same day it is the same stock', () => {
+    const g = noGarden();
+    let calls = 0;
+    const rnd = () => {
+      calls++;
+      return 0.5;
+    };
+    const a = stockToday(g, 7, rnd);
+    const used = calls;
+    expect(stockToday(g, 7, rnd)).toBe(a);
+    expect(calls).toBe(used);
+    expect(stockToday(g, 8, rnd).day).toBe(8);
+  });
+
+  it('always has the commons, the blueberry and the tomato, and the rest as often as their odds say', () => {
+    const days = 20000;
+    const seen: Record<string, number> = {};
+    let seed = 1;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+    for (let d = 0; d < days; d++) {
+      const st = rollStock(d, rnd);
+      for (const k of CROP_IDS) {
+        const n = st.n[k] ?? 0;
+        if (n) seen[k] = (seen[k] ?? 0) + 1;
+        if (n) {
+          expect(n).toBeGreaterThanOrEqual(CROPS[k].stock[0]);
+          expect(n).toBeLessThanOrEqual(CROPS[k].stock[1]);
+        }
+      }
+    }
+    for (const k of CROP_IDS) {
+      const want = days / CROPS[k].odds;
+      expect(seen[k] ?? 0).toBeGreaterThan(want * 0.8);
+      expect(seen[k] ?? 0).toBeLessThan(want * 1.2);
+    }
+    for (const k of ['carrot', 'strawberry', 'blueberry', 'tomato'] as const)
+      expect(seen[k]).toBe(days);
+  });
+
+  it('climbs by tier: each tier dearer and rarer than the one before', () => {
+    const byTier = TIERS.map((t) =>
+      CROP_IDS.filter((k) => CROPS[k].tier === t).map((k) => CROPS[k]),
+    );
+    for (const list of byTier) expect(list.length).toBeGreaterThan(0);
+    for (let i = 1; i < byTier.length; i++) {
+      const lo = Math.max(...(byTier[i - 1] ?? []).map((c) => c.seed));
+      const hi = Math.min(...(byTier[i] ?? []).map((c) => c.seed));
+      expect(hi).toBeGreaterThan(lo);
+      const rarest = Math.max(...(byTier[i - 1] ?? []).map((c) => c.odds));
+      expect(Math.min(...(byTier[i] ?? []).map((c) => c.odds))).toBeGreaterThanOrEqual(
+        i >= 3 ? rarest : 1,
+      );
+    }
+  });
+});
+
+describe("the garden's pay: the owner's 'rival the boat'", () => {
+  const keeps = CROP_IDS.map((k) => CROPS[k]).filter((c) => c.regrow);
+  it('a full plot of the best crop that keeps fruiting, left overnight, pays three to five abyss holds', () => {
+    const best = Math.max(...keeps.map((c) => BEDS_ALL * c.holds * c.sell));
+    expect(best).toBeGreaterThanOrEqual(GUARD.overnightMin);
+    expect(best).toBeLessThanOrEqual(GUARD.overnightMax);
+  });
+
+  it('tended by hand, no crop pays more a minute than the boat', () => {
+    for (const c of keeps)
+      expect((BEDS_ALL * c.sell) / ((c.regrow ?? 1) / 60)).toBeLessThanOrEqual(GUARD.perMinuteMax);
+    // A crop picked once, bought as often as the stall has it: a day's stock grown in a day of play.
+    for (const c of CROP_IDS.map((k) => CROPS[k]).filter((c) => !c.regrow)) {
+      const perDay = (c.stock[1] * (c.sell - c.seed)) / c.odds;
+      expect(perDay / 5).toBeLessThanOrEqual(GUARD.perMinuteMax);
+    }
+  });
+
+  it('every crop pays its seed back: once picked, or in at most five dozen picks', () => {
+    for (const c of CROP_IDS.map((k) => CROPS[k])) {
+      if (c.regrow) expect(c.seed / c.sell).toBeLessThanOrEqual(60);
+      else expect(c.sell).toBeGreaterThan(c.seed);
+    }
   });
 });
 
@@ -136,15 +244,6 @@ describe('the garden: selling', () => {
     expect(sellBasket(g)).toEqual({ coins: 3 * 16 + 4 * 5, n: 7 });
     expect(basketCount(g)).toBe(0);
   });
-
-  it('every crop pays: a carrot more than its seed, and a fruiting crop its seed back in under a dozen picks', () => {
-    const c = CROPS.carrot;
-    expect(c.sell).toBeGreaterThan(c.seed);
-    for (const k of ['strawberry', 'blueberry'] as const) {
-      const x = CROPS[k];
-      expect(x.seed / x.sell).toBeLessThan(12);
-    }
-  });
 });
 
 describe('the garden save', () => {
@@ -212,10 +311,14 @@ describe('the garden: what the action button does', () => {
 
   it('lists every seed on the shelf, greyed when it cannot be bought, and only seeds held in the tray', () => {
     const g = noGarden();
+    g.stock = { day: 1, n: { carrot: 5, blueberry: 2, tomato: 0 } };
     const shelf = seedShelfHtml(g, 50);
-    expect(shelf.match(/data-seed=/g)).toHaveLength(3);
+    expect(shelf.match(/data-seed=/g)).toHaveLength(CROP_IDS.length);
     expect(shelf).toContain('data-seed="blueberry" aria-disabled="true"');
     expect(shelf).toContain('data-seed="carrot" aria-disabled="false"');
+    expect(shelf).toContain('5 left today.');
+    expect(shelf).toContain('Sold out today.');
+    expect(shelf).toContain('Not in today.');
     g.seeds = { strawberry: 2 };
     const tray = seedTrayHtml(g, 'strawberry');
     expect(tray.match(/data-pick=/g)).toHaveLength(1);
@@ -225,6 +328,22 @@ describe('the garden: what the action button does', () => {
 });
 
 describe('drawing what grows', () => {
+  it('draws every crop, growing and grown, by day and at night', () => {
+    for (const k of CROP_IDS) {
+      const g: Garden = { seen: true, seeds: { [k]: 2 } };
+      plant(g, 0, k, T0);
+      for (const t of [CROPS[k].grow / 2, CROPS[k].grow + 1])
+        for (const dark of [0, 1]) {
+          const f = fakeView();
+          f.v.dark = dark;
+          const solids = gardenPlantSolids(f.v, g, sec(t), true);
+          expect(solids).toHaveLength(1);
+          for (const x of solids) x.f();
+          expect((f.calls.fill ?? 0) + (f.calls.stroke ?? 0)).toBeGreaterThan(2);
+        }
+    }
+  });
+
   it('draws a plant in each planted bed, with its timer or its twinkle ashore', () => {
     const g = stocked();
     plant(g, 0, 'carrot', T0);
@@ -240,5 +359,22 @@ describe('drawing what grows', () => {
     const off = fakeView();
     off.onScreen = false;
     expect(gardenPlantSolids(off.v, g, sec(130), true)).toHaveLength(0);
+  });
+});
+
+describe('the garden at night', () => {
+  it('lights the open stalls, each ripe bed a little, and a ripe lantern gourd wide', () => {
+    const g: Garden = { seen: true, seeds: { carrot: 1, lantern: 1, strawberry: 1 } };
+    plant(g, 0, 'carrot', T0);
+    plant(g, 1, 'lantern', T0);
+    plant(g, 2, 'strawberry', T0);
+    const lit: number[] = [];
+    const f = fakeView();
+    f.v.light = (_x, _y, _z, r) => {
+      lit.push(r);
+    };
+    gardenLights(f.v, g, sec(CROPS.lantern.grow + 1));
+    // Two stalls, then the ripe carrot, the lantern gourd and the strawberry.
+    expect(lit).toEqual([120, 120, 50, 110, 50]);
   });
 });

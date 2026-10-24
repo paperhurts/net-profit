@@ -404,6 +404,14 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #gardenCard .tier{font-style:normal;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;margin-left:4px;vertical-align:2px}
 #gardenCard .tier.common{background:#E3E7E8;color:#4F6870}
 #gardenCard .tier.uncommon{background:#DDF0D2;color:#2F6B2A}
+#gardenCard .tier.rare{background:#D6EAF5;color:#1F5F86}
+#gardenCard .tier.legendary{background:#FFEFC2;color:#8A5A00}
+#gardenCard .tier.mythic{background:#FCDDD3;color:#A23A1C}
+#gardenCard .tier.divine{background:#EADCF7;color:#6A3A9A}
+#gardenCard .item.out{opacity:.6}
+#seedTray{overflow-x:auto;scrollbar-width:none}
+#seedTray>*{flex-shrink:0}
+#seedTray .basket{order:-1;margin:0 2px 0 0;border-left:0;border-right:2px solid rgba(18,48,58,.15);padding:0 8px 0 4px}
 /* The seed tray: the seeds held, the one chosen ringed, and the basket, above the action button while ashore there. */
 #seedTray{position:fixed;left:50%;bottom:calc(160px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;display:flex;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:rgba(255,246,229,.92);box-shadow:0 3px 0 rgba(0,0,0,.2);max-width:calc(100vw - 32px)}
 #seedTray .seed{display:flex;align-items:center;gap:2px;height:40px;padding:0 8px 0 4px;border:0;border-radius:999px;background:transparent;font:inherit;font-weight:800;font-size:14px;color:#12303A;cursor:pointer;touch-action:manipulation}
@@ -912,7 +920,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 <section id="gardenCard" hidden aria-label="The seed stall">
   <div class="planks">
     <h2>The seed stall <button class="pill icon" id="gardenClose" aria-label="Close the seed stall">✕</button></h2>
-    <p class="tnote">Plant seeds in your beds by the pier. They grow even while the game is closed.</p>
+    <p class="tnote">Plant seeds in your beds by the pier. They grow even while the game is closed. New seeds come in at every dawn, and the rarer a seed, the less often it is in.</p>
     <div class="shelf" id="gardenShelf"></div>
   </div>
 </section>
