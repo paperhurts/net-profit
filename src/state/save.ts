@@ -23,6 +23,7 @@ import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { type HqBuilt, noHq, parseHq } from '../data/hq';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
 import { type Look, parseLook, SKIPPER } from '../data/look';
+import { noPets, type PetSave, parsePets, petsForSave } from '../data/petsys';
 import { isScanKind, type ScanKind } from '../data/scans';
 import { parseSlalom, type Slalom } from '../data/slalom';
 import { noSnacks, parseHoney, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
@@ -389,6 +390,11 @@ export type SaveData = {
     battles?: Battles;
     slalom?: Slalom;
   };
+  /**
+   * The pet system (data/petsys.ts): for now the names given in the pet book. Missing in old saves and read as nothing
+   * named; left out of the save while it is empty, so the copy-my-game link stays short.
+   */
+  pets: PetSave;
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -573,6 +579,7 @@ export function defaultSave(b: Bounds): SaveData {
     },
     mer: { seen: false, pearls: 0, given: 0, night: -1, charm: false, sirens: false },
     endless: { seen: false, pirate: false, ninja: false },
+    pets: noPets(),
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -866,6 +873,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     const slalom = parseSlalom(k.slalom);
     if (slalom) d.endless.slalom = slalom;
   }
+  d.pets = parsePets(o.pets);
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
     for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
@@ -1033,6 +1041,7 @@ export function serializeSave(d: SaveData): string {
     drone: untouchedDrone(d.drone) ? undefined : d.drone,
     mer: d.mer.seen || d.mer.given || d.mer.sirens ? d.mer : undefined,
     endless: d.endless.seen || d.endless.pirate || d.endless.ninja ? d.endless : undefined,
+    pets: petsForSave(d.pets),
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
