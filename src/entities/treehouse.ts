@@ -11,7 +11,9 @@
  * up and down it with the arrows, and jump again to let go, flying on the way it swings. Rope bridges sag under you, and
  * coconuts hang under the planks above, each wobbling a moment before it drops. Higher still (the Bucket Lifts) buckets
  * on pulley ropes go up one side of the tree and down the other, to be ridden and stepped off, and levers walked into
- * let down drawbridges.
+ * let down drawbridges. At the very top (the Crow's Nest) there is no door: walk over each of the pegs holding up the
+ * crow's nest to knock it out, leaving a hole, while the monkeys the gorilla tosses down scamper about the decks; with
+ * every peg out, the crow's nest gives way and the gorilla goes into the sea.
  *
  * The stage's own frame: x across, y up, the climber's y their feet, a barrel's and a coconut's their middles.
  */
@@ -19,12 +21,14 @@
 import { clamp, rng } from '../core/math';
 import {
   BUCKET_W,
+  HOLE,
   JUMP_COINS,
   type Ladder,
   LEVER_COINS,
   type Lift,
   LOWER_T,
   loadedY,
+  PEG_COINS,
   type Plank,
   plankY,
   ROPE_COINS,
@@ -92,9 +96,47 @@ export const DIP_RATE = 4;
 export const NUT_R = 5;
 export const WOBBLE_T = 0.9;
 export const NUT_FALL = 300;
+/** A monkey: how tall; how fast along a deck, and up or down a ladder; the chance it takes a ladder it comes to; about
+ * how often it thinks again which way to go, and the chance it then turns toward you, on your deck. */
+export const MONKEY_H = 11;
+export const MONKEY_V = 30;
+export const MONKEY_CLIMB = 28;
+export const MONKEY_LADDER = 0.35;
+export const MONKEY_THINK = 2;
+export const MONKEY_CHASE = 0.5;
+/** Come down on a monkey's head from a jump: bounced up off it at this. */
+export const BOUNCE = 110;
+/** The gorilla in the crow's nest tosses the first monkey this long after the go, then another this often while there
+ * are fewer than it may have about: two at first, the stage's most after this long. */
+export const FIRST_TOSS = 1;
+export const TOSS_EVERY = 6;
+export const ALL_MONKEYS_T = 30;
+/** Every peg out: the crow's nest gives way, and the gorilla hits the sea this long after. */
+export const SPLASH_T = 2.2;
 
 export type ClimbPhase = 'ready' | 'climb' | 'down' | 'clear';
 export type Pose = 'stand' | 'walk' | 'ladder' | 'jump' | 'stun' | 'rope';
+/**
+ * A monkey: along a deck, up or down a ladder, falling (tossed down, or through a hole), or knocked flying off the tree.
+ * Its feet at (x, y).
+ */
+export type Monkey = {
+  x: number;
+  y: number;
+  plank: number;
+  ladder: Ladder | null;
+  mode: 'walk' | 'climb' | 'fall' | 'fly';
+  /** Which way along the deck; up (1) or down (-1) the ladder. */
+  dir: number;
+  climb: number;
+  vx: number;
+  vy: number;
+  /** Till it next thinks which way to go; the ladder it last came to, not to be thought about again till past it. */
+  think: number;
+  near: Ladder | null;
+  /** The jump of yours it was jumped on, for the coins once a jump. */
+  jumped: number;
+};
 /** A coconut, wobbling where it hangs until it drops, then falling until it splats on a plank. */
 export type Nut = { x: number; y: number; vy: number; wobble: number };
 export type Barrel = {
@@ -135,6 +177,10 @@ export type ClimbEvent =
   | 'tipped'
   | 'nut'
   | 'splat'
+  | 'peg'
+  | 'toss'
+  | 'bonk'
+  | 'splash'
   | 'top';
 
 /** Which way a plank rolls a barrel: toward its low end. */
@@ -184,6 +230,18 @@ export class Climb {
   /** Each lever pulled, and how far down its drawbridge has come, 0 to 1. */
   pulled: boolean[];
   lowered: number[];
+  /** The pegs, each knocked out at this time on the clock, or not yet (-1); the one whose hole you are walking over as
+   * you knock it out, not to drop you through it. */
+  pegs: { x: number; plank: number; out: number }[];
+  private over = -1;
+  /** The monkeys about, how long till the gorilla tosses the next and since it tossed the last; whether the gorilla has
+   * hit the sea. */
+  monkeys: Monkey[] = [];
+  nextToss = FIRST_TOSS;
+  tossedT = 9;
+  private splashed = false;
+  /** Each jump counted, so a monkey is jumped once a jump. */
+  private hops = 0;
   private coyote = 0;
   private buffer = 0;
   barrels: Barrel[] = [];
@@ -209,12 +267,24 @@ export class Climb {
     this.pins = stage.pins.map((p) => ({ ...p, taken: false }));
     this.pulled = (stage.levers ?? []).map(() => false);
     this.lowered = (stage.levers ?? []).map(() => 0);
+    this.pegs = (stage.pegs ?? []).map((p) => ({ ...p, out: -1 }));
     this.nutNext = (stage.nuts ?? []).map(() => this.nutGap() * (0.3 + this.R() * 0.7));
   }
 
   private nutGap(): number {
     const lo = this.stage.nutMin ?? 3;
     return lo + this.R() * ((this.stage.nutMax ?? lo) - lo);
+  }
+  /** How many pegs are knocked out. */
+  get knocked(): number {
+    return this.pegs.filter((p) => p.out >= 0).length;
+  }
+  /** Whether plank i has a hole at x, a peg knocked out there; but not the one you are knocking out as you walk over. */
+  hole(i: number, x: number, me = false): boolean {
+    return this.pegs.some(
+      (p, j) =>
+        p.plank === i && p.out >= 0 && Math.abs(x - p.x) < HOLE / 2 && !(me && j === this.over),
+    );
   }
   /** Whether a plank can be stood on: a drawbridge only once it is all the way down. */
   standable(i: number): boolean {
@@ -317,6 +387,7 @@ export class Climb {
       this.fall(dt);
       this.roll(dt);
       this.drop(dt);
+      this.scamper(dt);
       if (this.downT <= 0) this.again();
       return;
     }
@@ -324,8 +395,25 @@ export class Climb {
       this.clearT += dt;
       this.roll(dt);
       this.drop(dt);
-      // In at the door.
-      const d = this.stage.door - this.x;
+      this.scamper(dt);
+      if (this.pegs.length && !this.splashed && this.clearT >= SPLASH_T) {
+        this.splashed = true;
+        this.onEvent?.('splash');
+      }
+      // Down from a last jump, then in at the door, if there is one.
+      if (this.air) {
+        this.fall(dt);
+        return;
+      }
+      const door = this.stage.door;
+      if (door === undefined) {
+        // On across the hole the last peg left, then still.
+        this.vx = this.hole(this.plank, this.x) ? this.face * WALK * 0.6 : 0;
+        this.x += this.vx * dt;
+        this.stride += Math.abs(this.vx) * dt;
+        return;
+      }
+      const d = door - this.x;
       this.vx = Math.abs(d) > 1 ? Math.sign(d) * WALK * 0.6 : 0;
       if (this.vx) this.face = Math.sign(this.vx);
       this.x += clamp(this.vx * dt, -Math.abs(d), Math.abs(d));
@@ -356,14 +444,43 @@ export class Climb {
     const onBridge = !this.air && !this.ladder && this.plank >= 0 && !!this.plankOf(this.plank).sag;
     this.dip = clamp(this.dip + (onBridge ? 1 : -1) * DIP_RATE * dt, 0, 1);
     this.gorilla(dt);
+    this.toss(dt);
     this.roll(dt);
     this.drop(dt);
+    this.scamper(dt);
     this.meet();
-    if (!this.air && !this.ladder && this.plank === this.topPlank) {
-      this.phase = 'clear';
-      this.coins += TOP_COINS;
-      this.onEvent?.('top');
+    if (this.phase !== 'climb') return;
+    if (this.pegs.length) this.knock();
+    else if (!this.air && !this.ladder && this.plank === this.topPlank) this.top();
+  }
+
+  /** Up: the clock stops, the coins for it. At the very top, the monkeys leap off the tree. */
+  private top(): void {
+    this.phase = 'clear';
+    this.coins += TOP_COINS;
+    this.pinT = 0;
+    for (const m of this.monkeys) {
+      m.mode = 'fly';
+      m.vx = (m.x < this.stage.w / 2 ? -1 : 1) * (40 + this.R() * 30);
+      m.vy = 90 + this.R() * 40;
     }
+    this.onEvent?.('top');
+  }
+
+  /** Walked over (or jumped low over), a peg is knocked out; with the last of them out, the stage is climbed. */
+  private knock(): void {
+    this.pegs.forEach((p, j) => {
+      if (p.out >= 0) return;
+      const s = plankY(this.plankOf(p.plank), p.x);
+      const on = !this.air && this.plank === p.plank && Math.abs(this.x - p.x) < 3;
+      const above = this.air && Math.abs(this.x - p.x) < 4 && this.y >= s && this.y < s + 30;
+      if (!on && !above) return;
+      p.out = this.clock;
+      if (on) this.over = j;
+      this.coins += PEG_COINS;
+      this.onEvent?.('peg');
+    });
+    if (this.pegs.every((p) => p.out >= 0)) this.top();
   }
 
   private move(dt: number, sx: number, sy: number): void {
@@ -407,8 +524,10 @@ export class Climb {
       this.x = clamp(this.x + this.vx * dt, WALL, this.stage.w - WALL);
       this.stride += Math.abs(this.vx) * dt;
       const p = this.plankOf(this.plank);
-      if (this.x < p.x0 || this.x > p.x1) {
-        // Off the end: down to the plank below, unhurt (or straight on, onto the next, end to end).
+      const o = this.pegs[this.over];
+      if (o && (this.plank !== o.plank || Math.abs(this.x - o.x) >= HOLE / 2)) this.over = -1;
+      if (this.x < p.x0 || this.x > p.x1 || this.hole(this.plank, this.x, true)) {
+        // Off the end, or into a hole: down to the plank below, unhurt (or straight on, onto the next, end to end).
         this.air = true;
         this.vy = 0;
         this.plank = -1;
@@ -424,6 +543,8 @@ export class Climb {
       this.air = true;
       this.plank = -1;
       this.bucket = null;
+      this.over = -1;
+      this.hops++;
       this.vy = JUMP_V;
       this.onEvent?.('hop');
     }
@@ -559,7 +680,7 @@ export class Climb {
     let best = -1;
     let at = -Infinity;
     this.stage.planks.forEach((p, i) => {
-      if (this.x < p.x0 || this.x > p.x1 || !this.standable(i)) return;
+      if (this.x < p.x0 || this.x > p.x1 || !this.standable(i) || this.hole(i, this.x)) return;
       const s = plankY(p, this.x);
       if (was >= s - 0.01 && this.y <= s && s > at) {
         best = i;
@@ -634,6 +755,135 @@ export class Climb {
     const lo = this.stage.rollMin ?? 3;
     this.nextRoll = lo + this.R() * ((this.stage.rollMax ?? lo) - lo);
     this.onEvent?.('roll');
+  }
+
+  /** The gorilla in the crow's nest, tossing the next monkey down, while there are fewer about than it may have. */
+  private toss(dt: number): void {
+    const n = this.stage.nest;
+    if (!n) return;
+    this.tossedT += dt;
+    this.nextToss -= dt;
+    if (this.nextToss > 0) return;
+    const all = this.stage.monkeys ?? 2;
+    const most = this.t < ALL_MONKEYS_T ? Math.min(2, all) : all;
+    if (this.monkeys.filter((m) => m.mode !== 'fly').length >= most) {
+      this.nextToss = 1;
+      return;
+    }
+    const side = this.R() < 0.5 ? -1 : 1;
+    this.monkeys.push({
+      x: n.x + side * 8,
+      y: plankY(this.plankOf(n.plank), n.x) + 22,
+      plank: -1,
+      ladder: null,
+      mode: 'fall',
+      dir: side,
+      climb: 0,
+      vx: side * (24 + this.R() * 30),
+      vy: 70,
+      think: MONKEY_THINK,
+      near: null,
+      jumped: -1,
+    });
+    this.tossedT = 0;
+    this.nextToss = TOSS_EVERY;
+    this.onEvent?.('toss');
+  }
+
+  /** The monkeys: along the decks, turning at an end or a hole, and now and then toward you; up or down a ladder they
+   * come to, now and then; falling till they land (never back in the crow's nest); gone once out of the tree. */
+  private scamper(dt: number): void {
+    const s = this.stage;
+    for (const m of this.monkeys) {
+      if (m.mode === 'walk') {
+        const p = this.plankOf(m.plank);
+        if (this.hole(m.plank, m.x)) {
+          m.mode = 'fall';
+          m.vx = 0;
+          m.vy = 0;
+          continue;
+        }
+        m.think -= dt;
+        if (m.think <= 0) {
+          m.think = MONKEY_THINK * (0.6 + this.R() * 0.8);
+          if (this.plank === m.plank && this.R() < MONKEY_CHASE)
+            m.dir = Math.sign(this.x - m.x) || m.dir;
+          else if (this.R() < 0.3) m.dir = -m.dir;
+        }
+        const was = m.x;
+        const next = m.x + m.dir * MONKEY_V * dt;
+        if (next < p.x0 + 4 || next > p.x1 - 4 || this.hole(m.plank, next + m.dir * 5)) {
+          m.dir = -m.dir;
+          continue;
+        }
+        m.x = next;
+        m.y = plankY(p, m.x);
+        if (m.near && Math.abs(m.x - m.near.x) > 6) m.near = null;
+        for (const L of s.ladders) {
+          if (L === m.near || (L.lo !== m.plank && L.lo + 1 !== m.plank)) continue;
+          if ((was - L.x) * (m.x - L.x) > 0) continue;
+          m.near = L;
+          if (this.R() < MONKEY_LADDER) {
+            m.mode = 'climb';
+            m.ladder = L;
+            m.climb = L.lo === m.plank ? 1 : -1;
+            m.x = L.x;
+            m.plank = -1;
+          }
+          break;
+        }
+      } else if (m.mode === 'climb') {
+        const L = m.ladder as Ladder;
+        const to = m.climb > 0 ? L.lo + 1 : L.lo;
+        const end = plankY(this.plankOf(to), L.x);
+        m.y += m.climb * MONKEY_CLIMB * dt;
+        if (m.climb > 0 ? m.y >= end : m.y <= end) {
+          m.y = end;
+          m.mode = 'walk';
+          m.plank = to;
+          m.ladder = null;
+          m.near = L;
+          m.think = MONKEY_THINK;
+          m.dir =
+            this.plank === to && this.R() < MONKEY_CHASE
+              ? Math.sign(this.x - m.x) || 1
+              : this.R() < 0.5
+                ? -1
+                : 1;
+        }
+      } else {
+        const was = m.y;
+        m.x += m.vx * dt;
+        m.vy -= GRAVITY * dt;
+        m.y += m.vy * dt;
+        if (m.mode === 'fly') continue;
+        if (m.x < WALL || m.x > s.w - WALL) {
+          m.x = clamp(m.x, WALL, s.w - WALL);
+          m.vx = -m.vx;
+        }
+        if (m.vy > 0) continue;
+        let best = -1;
+        let at = -Infinity;
+        s.planks.forEach((p, i) => {
+          if (i === s.nest?.plank || m.x < p.x0 + 2 || m.x > p.x1 - 2 || this.hole(i, m.x)) return;
+          const y = plankY(p, m.x);
+          if (was >= y - 0.01 && m.y <= y && y > at) {
+            best = i;
+            at = y;
+          }
+        });
+        if (best >= 0) {
+          m.mode = 'walk';
+          m.plank = best;
+          m.y = at;
+          m.vx = 0;
+          m.vy = 0;
+          m.think = 0.6;
+          m.near = null;
+        }
+      }
+    }
+    this.monkeys = this.monkeys.filter((m) => m.y > -30);
   }
 
   /** The barrels down the planks, off their ends and now and then down a ladder; gone once out of the tree. */
@@ -759,6 +1009,62 @@ export class Climb {
       this.hit();
       if (this.phase !== 'climb') return;
     }
+    for (const m of this.monkeys) {
+      if (m.mode === 'fly') continue;
+      const dx = Math.abs(m.x - this.x);
+      if (this.pinT > 0 && dx < SMASH_X && m.y < top + 6 && m.y + MONKEY_H > this.y - 2) {
+        // Bonked with the pin: off the tree it flies.
+        m.mode = 'fly';
+        m.plank = -1;
+        m.ladder = null;
+        m.vx = (m.x < this.x ? -1 : 1) * 70;
+        m.vy = 150;
+        this.smashed++;
+        this.coins += SMASH_COINS;
+        this.onEvent?.('bonk');
+        continue;
+      }
+      // Come down on one from a jump: a bounce off its head, and it runs the other way. Forgiving, as the jumps are.
+      if (
+        this.air &&
+        this.vy < 0 &&
+        m.mode === 'walk' &&
+        dx < HIT_X &&
+        this.y <= m.y + MONKEY_H + 2 &&
+        this.y > m.y + MONKEY_H - CLEAR - 4
+      ) {
+        this.vy = BOUNCE;
+        m.dir = Math.sign(m.x - this.x) || -m.dir;
+        m.think = MONKEY_THINK;
+        if (m.jumped !== this.hops && this.stunT <= 0) {
+          m.jumped = this.hops;
+          this.jumped++;
+          this.coins += JUMP_COINS;
+          this.onEvent?.('jumped');
+        } else this.onEvent?.('hop');
+        continue;
+      }
+      if (dx < HIT_X && m.y + MONKEY_H - CLEAR > this.y && m.y < top - 4) {
+        if (this.safeT > 0 || this.stunT > 0) continue;
+        this.hit();
+        if (this.phase !== 'climb') return;
+        continue;
+      }
+      if (
+        this.air &&
+        m.jumped !== this.hops &&
+        m.mode === 'walk' &&
+        dx < HIT_X &&
+        this.y >= m.y + MONKEY_H - CLEAR &&
+        this.y < m.y + MONKEY_H + 34 &&
+        this.stunT <= 0
+      ) {
+        m.jumped = this.hops;
+        this.jumped++;
+        this.coins += JUMP_COINS;
+        this.onEvent?.('jumped');
+      }
+    }
     for (const b of [...this.barrels]) {
       const dx = Math.abs(b.x - this.x);
       const over = b.y - BARREL_R < top - 4 && b.y + BARREL_R - CLEAR > this.y;
@@ -850,6 +1156,10 @@ export class Climb {
     this.bucket = null;
     this.pulled = this.pulled.map(() => false);
     this.lowered = this.lowered.map(() => 0);
+    for (const p of this.pegs) p.out = -1;
+    this.over = -1;
+    this.monkeys = [];
+    this.nextToss = FIRST_TOSS;
     this.nuts = [];
     this.nutNext = this.nutNext.map(() => this.nutGap() * (0.3 + this.R() * 0.7));
     this.restarts++;

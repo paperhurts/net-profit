@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   BARREL_PLANKS,
   BUCKET_LIFTS,
+  CHEST_AGAIN,
+  CHEST_FIRST,
+  CROWS_NEST,
+  chestOf,
   climbed,
+  HOLE,
   JUMP_COINS,
   LEVER_COINS,
   LOWER_T,
   loadedY,
+  PEG_COINS,
   parseClimbs,
   plankY,
   ROPE_COINS,
@@ -24,16 +30,20 @@ import {
   type ClimbEvent,
   DOWN_T,
   downhill,
+  GRAB,
   GRAVITY,
   HANDS,
   HOWTO_T,
   JUMP_V,
+  MONKEY_H,
+  type Monkey,
   NUT_R,
   PIN_T,
   PIN_Y,
   READY_T,
   ROPE_TOP,
   SAFE_T,
+  SPLASH_T,
   STUN_T,
   WALK,
   WOBBLE_T,
@@ -436,7 +446,7 @@ describe('the Treehouse Climb', () => {
     const t = c.t;
     run(c, 2, climber);
     expect(c.t).toBe(t);
-    expect(Math.abs(c.x - S.door)).toBeLessThan(1.5);
+    expect(Math.abs(c.x - (S.door ?? 0))).toBeLessThan(1.5);
   });
 
   it('can be climbed with the barrels rolling, by jumping the ones that come at you', () => {
@@ -885,5 +895,343 @@ describe('the Bucket Lifts', () => {
     );
     expect(c.pulled).toEqual([false, false]);
     expect(c.lowered).toEqual([0, 0]);
+  });
+});
+
+describe("the Crow's Nest", () => {
+  const N = CROWS_NEST;
+  const np = (i: number) => N.planks[i] as (typeof N.planks)[number];
+  const pegs = N.pegs ?? [];
+  const nest = N.nest as NonNullable<typeof N.nest>;
+  /** Past the beat, the gorilla holding on to its monkeys. */
+  function nest1(seed = 1): Climb {
+    const c = new Climb(N, seed);
+    c.step(READY_T + DT, 0, 0);
+    c.nextToss = 1e9;
+    return c;
+  }
+  function at(c: Climb, p: number, x: number): void {
+    c.x = x;
+    c.plank = p;
+    c.air = false;
+    c.ladder = null;
+    c.y = plankY(np(p), x);
+  }
+  function monkey(c: Climb, x: number, p: number, dir: number): Monkey {
+    const m: Monkey = {
+      x,
+      y: plankY(np(p), x),
+      plank: p,
+      ladder: null,
+      mode: 'walk',
+      dir,
+      climb: 0,
+      vx: 0,
+      vy: 0,
+      think: 1e9,
+      near: null,
+      jumped: -1,
+    };
+    c.monkeys.push(m);
+    return m;
+  }
+  /** A kid who goes for the nearest peg, up and down the nearest ladder to it (waiting while a monkey is on it),
+   * jumping a hole or a monkey coming at them, and backing off from one falling on them. */
+  function pegger(): (c: Climb) => [number, number, boolean] {
+    let dir = 1;
+    let climb = 0;
+    return (c) => {
+      if (c.ladder) return [0, climb, false];
+      if (c.air || c.plank < 0) return [dir, 0, false];
+      const P = c.plank;
+      const left = c.pegs.filter((g) => g.out < 0);
+      if (!left.length) return [0, 0, false];
+      const cost = (g: { x: number; plank: number }) =>
+        Math.abs(g.plank - P) * 300 + Math.abs(g.x - c.x);
+      const T = left.reduce((a, g) => (cost(g) < cost(a) ? g : a));
+      let goal = T.x;
+      if (T.plank !== P) {
+        const up = T.plank > P;
+        const L = N.ladders
+          .filter((L) => (up ? L.lo === P : L.lo + 1 === P))
+          .reduce((a, l) => (Math.abs(l.x - c.x) < Math.abs(a.x - c.x) ? l : a));
+        goal = L.x;
+        if (Math.abs(L.x - c.x) < 3) {
+          if (c.monkeys.some((m) => m.ladder === L)) return [0, 0, false];
+          climb = up ? -1 : 1;
+          return [0, climb, false];
+        }
+      }
+      const d = goal - c.x;
+      if (Math.abs(d) < 1) return [0, 0, false];
+      dir = Math.sign(d);
+      const hole = c.hole(P, c.x + dir * 7);
+      const coming = c.monkeys.some(
+        (m) =>
+          m.mode === 'walk' &&
+          m.plank === P &&
+          (m.x - c.x) * dir > 0 &&
+          Math.abs(m.x - c.x) < (m.dir === -dir ? 24 : 16),
+      );
+      const falling = c.monkeys.some(
+        (m) => m.mode !== 'walk' && Math.abs(m.x - c.x) < 14 && m.y > c.y && m.y < c.y + 40,
+      );
+      if (falling) return [-dir, 0, false];
+      return [dir, 0, hole || coming];
+    };
+  }
+
+  it("has two pegs in each of four decks, none by a ladder, and the crow's nest out of reach", () => {
+    expect(pegs.length).toBe(8);
+    for (let p = 1; p <= 4; p++) expect(pegs.filter((g) => g.plank === p).length).toBe(2);
+    for (const g of pegs) {
+      expect(g.x - HOLE / 2).toBeGreaterThan(np(g.plank).x0 + 8);
+      expect(g.x + HOLE / 2).toBeLessThan(np(g.plank).x1 - 8);
+      for (const L of N.ladders)
+        if (L.lo === g.plank || L.lo + 1 === g.plank)
+          expect(Math.abs(L.x - g.x)).toBeGreaterThan(HOLE / 2 + GRAB / 2);
+    }
+    // A hole is a short hop across; the crow's nest is far over a jump from the top deck, and no ladder goes up to it.
+    expect(HOLE).toBeLessThan((WALK * ((2 * JUMP_V) / GRAVITY)) / 2);
+    expect(np(nest.plank).y0 - np(4).y0).toBeGreaterThan(((JUMP_V * JUMP_V) / (2 * GRAVITY)) * 2);
+    expect(N.ladders.some((L) => L.lo + 1 === nest.plank)).toBe(false);
+    expect(N.door).toBeUndefined();
+    expect(STAGES_UP).toEqual([BARREL_PLANKS, ROPE_SWINGS, BUCKET_LIFTS, CROWS_NEST]);
+  });
+
+  it('a peg walked over is knocked out for coins; its hole is not under you as you knock it, but is on the way back', () => {
+    const c = nest1();
+    const ev = events(c);
+    const g = pegs[0] as (typeof pegs)[number];
+    at(c, g.plank, g.x - 20);
+    run(
+      c,
+      1,
+      () => [1, 0],
+      (c) => c.x > g.x + HOLE,
+    );
+    expect(c.knocked).toBe(1);
+    expect(c.coins).toBe(PEG_COINS);
+    expect(ev).toContain('peg');
+    expect(c.plank).toBe(g.plank);
+    expect(c.hole(g.plank, g.x)).toBe(true);
+    // Back the other way, down through it to the deck below.
+    run(
+      c,
+      1.5,
+      () => [-1, 0],
+      (c) => c.plank === g.plank - 1,
+    );
+    expect(c.plank).toBe(g.plank - 1);
+    expect(c.tries).toBe(3);
+  });
+
+  it('a peg jumped low over is knocked out too, and a hole is jumped across', () => {
+    const c = nest1();
+    const g = pegs[3] as (typeof pegs)[number];
+    at(c, g.plank, g.x - 18);
+    c.press();
+    run(
+      c,
+      1,
+      () => [1, 0],
+      (c) => !c.air && c.x > g.x,
+    );
+    expect(c.knocked).toBe(1);
+    expect(c.plank).toBe(g.plank);
+    // And back over its hole with a running jump.
+    run(c, 0.25, () => [-1, 0, true]);
+    run(
+      c,
+      1,
+      () => [-1, 0],
+      (c) => !c.air,
+    );
+    expect(c.plank).toBe(g.plank);
+    expect(c.x).toBeLessThan(g.x - HOLE / 2);
+  });
+
+  it('the gorilla tosses monkeys down onto the top deck, two at first, then a third', () => {
+    const c = new Climb(N, 3);
+    const ev = events(c);
+    c.step(READY_T + DT, 0, 0);
+    at(c, 0, 20);
+    c.safeT = 1e9;
+    run(c, 20, () => [0, 0]);
+    expect(ev.filter((e) => e === 'toss').length).toBe(2);
+    expect(c.monkeys.length).toBe(2);
+    run(c, 20, () => [0, 0]);
+    expect(c.monkeys.length).toBe(3);
+    for (const m of c.monkeys) expect(m.plank === nest.plank).toBe(false);
+  });
+
+  it('a monkey walks its deck, turning at the end and at a hole, and now and then takes a ladder', () => {
+    const c = nest1();
+    at(c, 0, 20);
+    c.safeT = 1e9;
+    const g = pegs[6] as (typeof pegs)[number];
+    (c.pegs[6] as { out: number }).out = 0;
+    const m = monkey(c, g.x + 20, g.plank, -1);
+    let least = Number.POSITIVE_INFINITY;
+    run(
+      c,
+      3,
+      () => [0, 0],
+      () => {
+        if (m.plank === g.plank) least = Math.min(least, m.x);
+        return false;
+      },
+    );
+    expect(least).toBeGreaterThan(g.x + HOLE / 2);
+    // Left to it, monkeys go up and down the ladders too.
+    const d = nest1(5);
+    at(d, 0, 20);
+    d.safeT = 1e9;
+    const ms = [monkey(d, 100, 2, 1), monkey(d, 140, 3, -1), monkey(d, 60, 1, 1)];
+    for (const x of ms) x.think = 1;
+    const planks = new Set<number>();
+    run(
+      d,
+      30,
+      () => [0, 0],
+      () => {
+        for (const x of ms) if (x.mode === 'walk') planks.add(x.plank);
+        return false;
+      },
+    );
+    expect(planks.size).toBeGreaterThan(3);
+  });
+
+  it('a monkey that walks into you costs a try; jumped, or bounced off, it is coins once a jump; bonked with a pin, it flies off', () => {
+    const c = nest1();
+    at(c, 2, 120);
+    monkey(c, 150, 2, -1);
+    run(
+      c,
+      2,
+      () => [0, 0],
+      (c) => c.tries < 3,
+    );
+    expect(c.tries).toBe(2);
+    const d = nest1();
+    at(d, 2, 110);
+    const m = monkey(d, 140, 2, -1);
+    run(
+      d,
+      2,
+      () => [0, 0, Math.abs(m.x - d.x) < 10],
+      (c) => c.jumped > 0,
+    );
+    expect(d.jumped).toBe(1);
+    expect(d.coins).toBe(JUMP_COINS);
+    run(
+      d,
+      1,
+      () => [0, 0],
+      (c) => !c.air,
+    );
+    expect(d.jumped).toBe(1);
+    expect(d.tries).toBe(3);
+    // Jumped too soon, straight up, and come down on its head: a bounce off it, not a try lost.
+    const h = nest1();
+    at(h, 2, 110);
+    const k = monkey(h, 140, 2, -1);
+    run(
+      h,
+      0.5,
+      () => [0, 0, Math.abs(k.x - h.x) < 22],
+      (c) => c.air,
+    );
+    run(h, 3, () => [0, 0]);
+    expect(h.tries).toBe(3);
+    expect(k.dir).toBe(1);
+    const e = nest1();
+    const ev = events(e);
+    at(e, 2, 120);
+    e.pinT = PIN_T;
+    const b = monkey(e, 150, 2, -1);
+    run(
+      e,
+      2,
+      () => [0, 0],
+      () => b.mode === 'fly',
+    );
+    expect(ev).toContain('bonk');
+    expect(e.coins).toBe(SMASH_COINS);
+    expect(e.tries).toBe(3);
+    run(e, 3, () => [0, 0]);
+    expect(e.monkeys).toEqual([]);
+    void MONKEY_H;
+  });
+
+  it('every peg out: climbed, the monkeys leap off, and the gorilla hits the sea', () => {
+    const c = nest1();
+    const ev = events(c);
+    c.pegs.forEach((g, i) => {
+      if (i) g.out = 0;
+    });
+    monkey(c, 150, 3, 1);
+    const g = pegs[0] as (typeof pegs)[number];
+    at(c, g.plank, g.x - 10);
+    run(
+      c,
+      1,
+      () => [1, 0],
+      (c) => c.phase === 'clear',
+    );
+    expect(c.phase).toBe('clear');
+    expect(c.coins).toBe(PEG_COINS + TOP_COINS);
+    expect(ev).toContain('top');
+    expect(c.monkeys.every((m) => m.mode === 'fly')).toBe(true);
+    run(c, SPLASH_T + 0.2, () => [-1, 0]);
+    expect(ev.filter((e) => e === 'splash').length).toBe(1);
+    // No door to walk in at: on across the last peg's hole, and still there, on your deck.
+    expect(c.hole(g.plank, c.x)).toBe(false);
+    expect(c.x).toBeGreaterThan(g.x);
+    expect(c.x).toBeLessThan(g.x + HOLE);
+    expect(c.plank).toBe(g.plank);
+    expect(c.monkeys).toEqual([]);
+  });
+
+  it('can be climbed by going for the nearest peg, jumping holes and monkeys', () => {
+    let tops = 0;
+    let time = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const c = new Climb(N, seed);
+      c.step(READY_T + DT, 0, 0);
+      run(c, 300, pegger(), (c) => c.phase === 'clear');
+      if (c.phase === 'clear') {
+        tops++;
+        time += c.t;
+        expect(c.knocked).toBe(8);
+      }
+    }
+    expect(tops).toBeGreaterThanOrEqual(19);
+    expect(time / tops).toBeLessThan(60);
+  });
+
+  it('out of tries, the pegs are back in and the monkeys gone', () => {
+    const c = nest1();
+    c.pegs.forEach((g, i) => {
+      if (i < 5) g.out = 0;
+    });
+    c.tries = 1;
+    at(c, 2, 120);
+    monkey(c, 140, 2, -1);
+    run(
+      c,
+      DOWN_T + 3,
+      () => [0, 0],
+      (c) => c.phase === 'ready',
+    );
+    expect(c.knocked).toBe(0);
+    expect(c.monkeys).toEqual([]);
+  });
+
+  it('the chest: a big one the first time up, a smaller one every time after', () => {
+    expect(chestOf(0)).toBe(CHEST_FIRST);
+    expect(chestOf(3)).toBe(CHEST_FIRST);
+    expect(chestOf(4)).toBe(CHEST_AGAIN);
+    expect(CHEST_AGAIN).toBeLessThan(CHEST_FIRST);
   });
 });
