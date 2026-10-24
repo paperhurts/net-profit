@@ -206,7 +206,7 @@ import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions'
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { CRATES14, DOCK14, fromGarden, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt } from './world/garden';
 import { drawGardenFlat, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
-import { bedAt as gardenBed, buySeeds, CROP_IDS, CROPS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, stockToday } from './data/garden';
+import { bedAt as gardenBed, buySeeds, CROP_IDS, CROPS, fruitKg, fruitValue, isGiant, pick as pickBed, plant as plantBed, seedsOf, sellBasket, stockToday } from './data/garden';
 import { bedOf, gardenAction, gardenLabel, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
 import { drawBadgeShow, drawBomb, SHOW_T, drawBurst, drawGuard, drawHealRing, drawHoldRing, drawHot, drawLeap, drawShanty, drawStomp, drawStun, drawWarnRing } from './render/battlefx';
@@ -2195,9 +2195,13 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
   if (a.startsWith('g-plant-')){ const k = gardenChoice(); if (k && plantBed(gardenIsle, i, k, now)){ sfx.hop(); gardenSeed = gardenChoice() ?? k; save();
       if (!gardenTold.has('planted')){ gardenTold.add('planted'); toasts.clear(); toast(`Planted a ${CROPS[k].name}. ${CROPS[k].regrow ? 'It will keep fruiting once it is grown.' : 'It is picked once, when it is ripe.'} It grows even while the game is closed.`, 3600); } }
     return; }
-  if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, n = pickBed(gardenIsle, i, now); toasts.clear();
-    if (!n){ sfx.denied(); toast('Your basket is full. Sell it at the stand.', 2400); return; }
-    for (let j = 0; j < n; j++) sfx.sale(j, 0); save(); toast(`Picked ${howMany(k, n)}.`, 1600); return; }
+  if (a.startsWith('g-pick-')){ const b = gardenBed(gardenIsle, i), k = b && b.crop, got = pickBed(gardenIsle, i, now); toasts.clear();
+    if (!got.length){ sfx.denied(); toast('Your basket is full. Sell it at the stand.', 2400); return; }
+    got.forEach((f, j) => sfx.sale(j, 0)); save();
+    // A giant is a rare catch: its own fanfare, and its weight.
+    const big = got.find(f => isGiant(f.m));
+    if (big){ sfx.tierUp(); toast(`A giant ${CROPS[k].fruit}! ${fruitKg(k, big.m)} kg. It sells for ${fruitValue(k, big.m).toLocaleString('en-GB')}.`, 4200, 2); return; }
+    toast(`Picked ${howMany(k, got.length)}` + (got.length === 1 ? `, ${fruitKg(k, got[0].m)} kg.` : '.'), 1800); return; }
   if (a.startsWith('g-wait-')){ toasts.clear(); toast(gardenLabel(gardenIsle, a, gardenSeed, now) + '.', 1800); } }
 // The seed stall's card: each seed, what it grows, and a button to buy one. Its stock comes in at each dawn, rolled the
 // first time the stall is opened on a new day and saved at once, so a reload cannot roll it again.
