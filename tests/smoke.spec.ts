@@ -60,6 +60,19 @@ type Ski = {
   bonus: number;
   lanterns: number;
 };
+/** The Treehouse Climb, as far as the smoke test looks at it. */
+type Climb = {
+  howTo: boolean;
+  phase: 'ready' | 'climb' | 'down' | 'clear';
+  x: number;
+  y: number;
+  plank: number;
+  air: boolean;
+  ladder: { x: number; lo: number } | null;
+  nextRoll: number;
+  coins: number;
+  stage: { ladders: { x: number; lo: number }[] };
+};
 type Np = {
   boat: { x: number; y: number; h: number; v: number };
   keys: 'drive' | 'point';
@@ -94,10 +107,14 @@ type Np = {
     pirate: boolean;
     ninja: boolean;
     slalom?: { runs: number; best: { bunny?: number } };
+    climbs?: { climbs: number; top: number; best: Record<number, number> };
   };
   ctf: Ctf | null;
   ski: Ski | null;
   LIFT13: { x: number; y: number };
+  th: Climb | null;
+  TREE13: { x: number; y: number };
+  thAt(x: number, y: number): [number, number];
   DOCK13: Record<'pirate' | 'ninja', { x: number; y: number; r: number }>;
   camAt: { x: number; y: number };
   LEADER13: Record<'pirate' | 'ninja', { x: number; y: number }>;
@@ -8258,6 +8275,108 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   await page.click('#leave');
   expect(await page.evaluate(() => window.__np.ski)).toBeNull();
   expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(after.slalom);
+  await expect(page.locator('#leave')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the Treehouse Climb: in at the foot of the great tree, how it goes, the arrows and the jump, up to the door at the top for its coins and time; then a climb left early, not kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: { seen: true, pirate: false, ninja: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // Open to anyone who has landed, the pirates joined or not.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.TREE13.x + 4;
+    n.walker.y = n.TREE13.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Climb the great tree', { timeout: 4000 });
+  const before = await page.evaluate(() => window.__np.coins);
+  await page.click('#climb');
+  await page.waitForFunction(() => !!window.__np.th);
+  // How it goes first, on the first climb; the jump button skips it.
+  expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(true);
+  await expect(page.locator('#leave')).toHaveText('Climb down');
+  await expect(page.locator('#thPad')).toBeVisible();
+  await expect(page.locator('#thJump')).toBeVisible();
+  await expect(page.locator('#climb')).toBeHidden();
+  await page.dispatchEvent('#thJump', 'pointerdown', { button: 0 });
+  expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(false);
+  await page.waitForFunction(() => window.__np.th?.phase === 'climb', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    (window.__np.th as Climb).nextRoll = 1e9;
+  });
+  // A thumb on the arrows' right: along the bottom plank, and the climber stays clear of the arrows on the screen.
+  const x0 = await page.evaluate(() => (window.__np.th as Climb).x);
+  const pad = await page.locator('#thPad').boundingBox();
+  if (!pad) throw new Error('no arrows');
+  await page.mouse.move(pad.x + pad.width - 12, pad.y + pad.height / 2);
+  await page.mouse.down();
+  await page.waitForFunction((x0) => (window.__np.th as Climb).x > x0 + 20, x0, { timeout: 4000 });
+  await expect(page.locator('#thPad i[data-d="r"]')).toHaveClass(/on/);
+  await page.mouse.up();
+  const feet = await page.evaluate(() => {
+    const c = window.__np.th as Climb;
+    return window.__np.thAt(c.x, c.y);
+  });
+  expect(feet[1]).toBeLessThan(pad.y);
+  await page.dispatchEvent('#thJump', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => (window.__np.th as Climb).air, null, { timeout: 2000 });
+  await page.waitForFunction(() => !(window.__np.th as Climb).air, null, { timeout: 3000 });
+  // Up the last ladder to the ledge with the door: the stage climbed.
+  await page.evaluate(() => {
+    const c = window.__np.th as Climb;
+    const L = c.stage.ladders.find((l) => l.lo === 5) as { x: number; lo: number };
+    c.ladder = L;
+    c.plank = -1;
+    c.x = L.x;
+    c.y = 372;
+  });
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(() => window.__np.th?.phase === 'clear', null, { timeout: 4000 });
+  await page.keyboard.up('ArrowUp');
+  await page.waitForFunction(() => !window.__np.th, null, { timeout: 8000 });
+  const after = await page.evaluate(() => ({
+    coins: window.__np.coins,
+    climbs: window.__np.endless.climbs,
+  }));
+  expect(after.coins).toBe(before + 100);
+  expect(after.climbs?.climbs).toBe(1);
+  expect(after.climbs?.top).toBe(1);
+  expect(after.climbs?.best[1]).toBeGreaterThan(0);
+  await expect(page.locator('#thPad')).toBeHidden();
+  await expect(page.locator('#thJump')).toBeHidden();
+  await expect(page.locator('#leave')).toBeHidden();
+  await expect(page.locator('#climb')).toHaveText('Climb the great tree', { timeout: 4000 });
+  // Again: no how it goes this time, and down again straight away, the climb is not kept.
+  await page.click('#climb');
+  await page.waitForFunction(() => !!window.__np.th);
+  expect(await page.evaluate(() => (window.__np.th as Climb).howTo)).toBe(false);
+  await page.click('#leave');
+  expect(await page.evaluate(() => window.__np.th)).toBeNull();
+  expect(await page.evaluate(() => window.__np.endless.climbs)).toEqual(after.climbs);
   await expect(page.locator('#leave')).toBeHidden();
   expect(errors).toEqual([]);
 });

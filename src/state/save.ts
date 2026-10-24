@@ -30,6 +30,7 @@ import { parseSlalom, type Slalom } from '../data/slalom';
 import { noSnacks, parseHoney, parseSnacks, parseSprays, type Snacks } from '../data/snacks';
 import { SPEAR_MAX } from '../data/spear';
 import { type Companion, parseStay } from '../data/stay';
+import { type Climbs, parseClimbs } from '../data/treehouse';
 import { CROWS } from '../entities/crows';
 import { LEGGY_MAX } from '../entities/leggy';
 import { type Charter, parseCharter } from '../fishing/charter';
@@ -381,8 +382,9 @@ export type SaveData = {
    * sides you have joined, the pirates (Jacks Parrow with you) and the ninjas (Bun-San); you can join both. More of it
    * comes in later pieces (battle badges, the mini-games' best runs). Missing in old saves and read as not seen and
    * nobody joined; left out of the save until it is seen, so the copy-my-game link stays short. Its battles fought,
-   * won and marked (data/battle.ts) are there once you have fought one, and the Ninja Slalom's runs and best times
-   * (data/slalom.ts) once you have skied one.
+   * won and marked (data/battle.ts) are there once you have fought one, the Ninja Slalom's runs and best times
+   * (data/slalom.ts) once you have skied one, and the Treehouse Climb's climbs, highest stage and best times
+   * (data/treehouse.ts) once you have climbed.
    */
   endless: {
     seen: boolean;
@@ -390,6 +392,7 @@ export type SaveData = {
     ninja: boolean;
     battles?: Battles;
     slalom?: Slalom;
+    climbs?: Climbs;
   };
   /**
    * The pet system (data/petsys.ts): for now the names given in the pet book. Missing in old saves and read as nothing
@@ -879,6 +882,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (battles) d.endless.battles = battles;
     const slalom = parseSlalom(k.slalom);
     if (slalom) d.endless.slalom = slalom;
+    const climbs = parseClimbs(k.climbs);
+    if (climbs) d.endless.climbs = climbs;
   }
   d.pets = parsePets(o.pets);
   d.garden = parseGarden(o.garden);
