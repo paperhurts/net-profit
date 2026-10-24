@@ -8418,7 +8418,7 @@ test("the side rewards' outfits: a third pirate badge wins the captain's coat an
   // The card at the leader says it is won.
   await toCappy();
   await expect(page.locator('#endlessRoles .reward')).toContainText(
-    "You've won the captain's coat",
+    "Won so far: the captain's coat and tricorn. At 6 badges as a pirate, all three roles counted: the Jolly Roger. You have 3.",
   );
   await page.click('#endlessClose');
   // The character card: your own clothes, the coat on, the ninja garb still to win, and how.
@@ -8466,6 +8466,104 @@ test("the side rewards' outfits: a third pirate badge wins the captain's coat an
   await page.click('#toast');
   await expect(page.locator('#toast')).toContainText('Gold on all three runs!', { timeout: 4000 });
   await expect(page.locator('#toast')).toContainText("the snow ninja's whites");
+  expect(errors).toEqual([]);
+});
+
+test("the side rewards' flags and paints: the Jolly Roger at six pirate badges, flown with a tap and its emblem for any flag; a ninth badge wins the Pirate Lord hull paint", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 14,
+        won: 9,
+        marks: {
+          pirate: { tank: 8, damage: 8, healer: 6 },
+          ninja: { tank: 0, damage: 0, healer: 0 },
+        },
+      },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  // Eight pirate badges: the Jolly Roger is won, flown from the flag designer, and the ninjas' still to win.
+  await page.locator('#flagBtn').dispatchEvent('click');
+  const won = (k: string) => page.locator(`#fWon [data-won="${k}"]`);
+  await expect(won('jolly')).toBeEnabled();
+  await expect(won('banner')).toBeDisabled();
+  await expect(page.locator('#fWon')).toContainText('Ninja banner: win it with 6 ninja badges.');
+  // Its emblem joins the rest; the ninjas' star does not, yet.
+  await expect(page.locator('#fEmblem [aria-label="jolly"]')).toHaveCount(1);
+  await expect(page.locator('#fEmblem [aria-label="shuriken"]')).toHaveCount(0);
+  await won('jolly').click();
+  await page.click('#flagDone');
+  const flag = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').flag,
+  );
+  expect(flag).toEqual({ field: 8, accent: 2, pattern: 0, emblem: 7 });
+  // Not yet the paint: the tiers' ten.
+  expect(await page.locator('#paints .sw').count()).toBe(10);
+  // A win as a healer, to Badge III there: the ninth badge, and the Pirate Lord hull paint.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const L = n.LEADER13.pirate;
+    n.walker.x = L.x + 16;
+    n.walker.y = L.y + 16;
+  });
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    'At 9 badges as a pirate, all three roles counted: the Pirate Lord hull paint, black and red. You have 8.',
+  );
+  await page.click('#endlessRoles [data-role="healer"]');
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { clock: number };
+    c.score.pirate = 1;
+    c.clock = 0.01;
+  });
+  await expect(page.locator('#ctfBadge')).toBeVisible({ timeout: 4000 });
+  await page.click('#ctfBadgeOn');
+  await expect(page.locator('#ctfReward')).toContainText('9 badges as a pirate!');
+  await expect(page.locator('#ctfReward')).toContainText(
+    "You've won the Pirate Lord hull paint, black and red: paint your boat with it in the shop.",
+  );
+  await page.click('#ctfDone');
+  expect(await page.locator('#paints .sw').count()).toBe(11);
+  await page.locator('#paints [aria-label="Pirate Lord"]').dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.paint === 11, null, { timeout: 2000 });
+  // All nine: the card at the leader lists what they are.
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    "All 9 badges as a pirate! Yours: the captain's coat and tricorn, the Jolly Roger, the Pirate Lord hull paint, black and red.",
+  );
   expect(errors).toEqual([]);
 });
 

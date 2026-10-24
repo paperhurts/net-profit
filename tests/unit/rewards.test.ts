@@ -1,14 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { marked, noBattles } from '../../src/data/battle';
+import { EMBLEMS, flagShapes, parseFlag } from '../../src/data/flag';
 import {
+  ALL_BADGES,
   allGold,
+  emblemWon,
+  FLAG_BADGES,
+  flagWon,
   newOutfits,
+  newRewards,
   nextReward,
   OUTFIT_BADGES,
   outfitWon,
+  paintWon,
+  rewardName,
+  rewardsWon,
   sideBadges,
+  WON_FLAGS,
 } from '../../src/data/rewards';
 import { RUNS, skied } from '../../src/data/slalom';
+import { LORD_PAINT, MASTER_PAINT, PAINTS } from '../../src/data/tuning';
 
 describe("the Endless Isle's side rewards", () => {
   it("counts a side's badges across its three roles: Badge I once a role has been fought in, then each one after", () => {
@@ -57,7 +68,56 @@ describe("the Endless Isle's side rewards", () => {
     expect(newOutfits(was, { slalom: s })).toEqual(['snow']);
   });
 
-  it('names the next reward for a side and how far off it is, until there are none left', () => {
+  it("wins a side's flag at six of its badges, and its emblem for any flag; its hull paint at all nine", () => {
+    const b = noBattles();
+    b.marks.pirate = { tank: 8, damage: 3, healer: 0 };
+    const five = { battles: structuredClone(b) };
+    expect(flagWon('jolly', five)).toBe(false);
+    const jolly = EMBLEMS.indexOf('jolly');
+    const star = EMBLEMS.indexOf('shuriken');
+    expect(emblemWon(jolly, five)).toBe(false);
+    expect(emblemWon(EMBLEMS.indexOf('skull'), five)).toBe(true);
+    b.marks.pirate.healer = 1;
+    const six = { battles: structuredClone(b) };
+    expect(sideBadges(six.battles, 'pirate')).toBe(FLAG_BADGES);
+    expect(flagWon('jolly', six)).toBe(true);
+    expect(flagWon('banner', six)).toBe(false);
+    expect(emblemWon(jolly, six)).toBe(true);
+    expect(emblemWon(star, six)).toBe(false);
+    expect(newRewards(five, six)).toEqual([{ kind: 'flag', key: 'jolly' }]);
+    expect(paintWon('lord', six)).toBe(false);
+    b.marks.pirate = { tank: 8, damage: 8, healer: 8 };
+    const nine = { battles: structuredClone(b) };
+    expect(sideBadges(nine.battles, 'pirate')).toBe(ALL_BADGES);
+    expect(paintWon('lord', nine)).toBe(true);
+    expect(paintWon('master', nine)).toBe(false);
+    // From nothing to all nine at once, every one of them, the outfit first.
+    expect(newRewards({}, nine).map(rewardName)).toEqual([
+      "the captain's coat and tricorn",
+      'the Jolly Roger',
+      'the Pirate Lord hull paint, black and red',
+    ]);
+  });
+
+  it('flies each won flag as a plain flag of its own emblem, and a save keeps it', () => {
+    for (const w of Object.values(WON_FLAGS)) {
+      expect(EMBLEMS[w.flag.emblem]).toBe(w.emblem);
+      expect(parseFlag(JSON.parse(JSON.stringify(w.flag)))).toEqual(w.flag);
+      // Its emblem is drawn: more shapes than the plain field.
+      expect(flagShapes(w.flag, 60, 40).length).toBeGreaterThan(
+        flagShapes({ ...w.flag, emblem: 0 }, 60, 40).length + 1,
+      );
+    }
+  });
+
+  it("has the two hull paints after the mermaids', the pirates' black and red, the ninjas' midnight blue with a glint", () => {
+    expect(PAINTS[LORD_PAINT]?.name).toBe('Pirate Lord');
+    expect(PAINTS[MASTER_PAINT]?.name).toBe('Grand Master');
+    expect(PAINTS[MASTER_PAINT]?.shimmer).toBe(true);
+    expect(PAINTS).toHaveLength(13);
+  });
+
+  it('names the next reward for a side and how far off it is, up the ladder, until there are none left', () => {
     expect(nextReward(undefined, 'ninja')).toEqual({
       at: OUTFIT_BADGES,
       what: 'the ninja garb and mask',
@@ -65,7 +125,13 @@ describe("the Endless Isle's side rewards", () => {
     });
     const b = noBattles();
     b.marks.pirate.damage = 8;
+    expect(nextReward(b, 'pirate')).toEqual({ at: FLAG_BADGES, what: 'the Jolly Roger', have: 3 });
+    expect(rewardsWon(b, 'pirate').map(rewardName)).toEqual(["the captain's coat and tricorn"]);
+    b.marks.pirate.tank = 8;
+    expect(nextReward(b, 'pirate')?.at).toBe(ALL_BADGES);
+    b.marks.pirate.healer = 8;
     expect(nextReward(b, 'pirate')).toBeNull();
+    expect(rewardsWon(b, 'pirate')).toHaveLength(3);
     expect(nextReward(b, 'ninja')?.have).toBe(0);
   });
 });
