@@ -451,6 +451,14 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 #ctfBar .side.ninja{background:#3D6FD8}
 #ctfBar .clock{font-size:16px;flex:1;text-align:center}
 #ctfBar .what{font-size:13px;margin-top:4px;color:var(--muted)}
+/* Hold the Forts: the three bases, each in the colour of whoever holds it, pulsing while it is being taken. */
+#ctfBar .holds{display:flex;gap:4px;margin-top:5px}
+#ctfBar .holds[hidden]{display:none}
+#ctfBar .holds span{flex:1;text-align:center;font-size:11px;border-radius:6px;padding:3px 4px 1px;background:var(--track);color:var(--pill-fg)}
+#ctfBar .holds span.pirate{background:#D8443A;color:#fff}
+#ctfBar .holds span.ninja{background:#3D6FD8;color:#fff}
+#ctfBar .holds span.taking{animation:holdPulse .6s ease-in-out infinite alternate}
+@keyframes holdPulse{from{opacity:1}to{opacity:.45}}
 #ctfBar .what.hot{color:var(--pill-fg)}
 /* Leaving, up here out of the thumb's way, and only on a second tap: a battle left pays nothing. */
 #ctfLeave{pointer-events:auto;display:block;margin-top:6px;padding:5px 10px 3px;border-radius:999px;font-size:13px;font-weight:800;background:var(--track);color:var(--pill-fg)}
@@ -570,7 +578,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 </div>
 
 <div id="order" aria-live="polite"></div>
-<div id="ctfBar" hidden><div class="score"><span class="side pirate" id="ctfBarP">0</span><span class="clock" id="ctfClock">7:00</span><span class="side ninja" id="ctfBarN">0</span></div><div class="what" id="ctfWhat"></div><button id="ctfLeave">Leave the battle</button></div>
+<div id="ctfBar" hidden><div class="score"><span class="side pirate" id="ctfBarP">0</span><span class="clock" id="ctfClock">7:00</span><span class="side ninja" id="ctfBarN">0</span></div><div class="holds" id="ctfHolds" hidden><span data-k="battery">Cannon</span><span data-k="wreck">Wreck</span><span data-k="bell">Bell</span></div><div class="what" id="ctfWhat"></div><button id="ctfLeave">Leave the battle</button></div>
 <div id="charter" aria-live="polite" hidden></div>
 <div id="rchips"><div id="hearts" title="Your hearts" hidden></div><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><button class="snack" id="snackApple" data-snack="apple" title="An apple: walk faster for a while" aria-label="Eat an apple" hidden></button><button class="snack" id="snackCarrot" data-snack="carrot" title="A carrot: your spear hits harder for a while" aria-label="Eat a carrot" hidden></button><button class="snack" id="snackBanana" data-snack="banana" title="A banana: two hearts back" aria-label="Eat a banana" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div><div id="tarBucket" title="Tar fish for the scientist" hidden></div></div>
 <div id="toast" role="status"></div>
@@ -747,6 +755,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
       <button class="answer" id="endlessWhy">Why are you fighting?</button>
       <button class="answer join" id="endlessJoin">Join</button>
       <button class="answer fight" id="endlessFight" hidden>Fight: Capture the Flag</button>
+      <button class="answer fight" id="endlessForts" hidden>Fight: Hold the Forts</button>
     </div>
     <div class="answers" id="endlessRoles" hidden></div>
   </div>

@@ -227,6 +227,23 @@ export const FORT = { u: 0, w: 860, r: 95, wall: 7, gate: 0.4 } as const;
 export const GRAVE = { u: -360, w: 780, r: 34 } as const;
 /** The bases fought over in Hold the Forts: one on each half (the Cannon Battery, the Bell Tower) and the Shipwreck. */
 export const BASE = { u: -380, w: 380, r: 48, core: 16 } as const;
+/** The Shipwreck's ring, wider than a half's for the wreck lying in its middle. */
+export const WRECK_RING = 66;
+/**
+ * The three, in the island's frame: the pirates' Cannon Battery on their half, the Shipwreck on the sandbar in the
+ * middle, the ninjas' Bell Tower on theirs, the two halves' the mirror of each other.
+ */
+export const HOLDS13: readonly {
+  readonly key: 'battery' | 'wreck' | 'bell';
+  readonly half: Side | null;
+  readonly u: number;
+  readonly v: number;
+  readonly r: number;
+}[] = [
+  { key: 'battery', half: 'pirate', u: BASE.u, v: BASE.w, r: BASE.r },
+  { key: 'wreck', half: null, u: 0, v: 0, r: WRECK_RING },
+  { key: 'bell', half: 'ninja', u: BASE.u, v: -BASE.w, r: BASE.r },
+];
 /** Each half's landmark, the same ground on each: the ninjas' snow peak, the pirates' great tree. */
 export const PEAK = { u: 340, w: 760, r: 110 } as const;
 /**
