@@ -132,6 +132,15 @@ export const TREES14: readonly { u: number; v: number; r: number }[] = [
   { u: 120, v: 205, r: 18 },
 ];
 
+/**
+ * The lily pond (part eight), round, out on the grass between the plot and the windmill: fished from its edge with a
+ * fruit from the basket for bait. Where it is in the isle's frame, and in the world (the frame only turns, so it is as
+ * round there).
+ */
+export const LILY14 = { u: -95, v: 40, r: 48 } as const;
+const [PX, PY] = fromGarden(LILY14.u, LILY14.v);
+export const LILY_POND = { x: PX, y: PY, r: LILY14.r } as const;
+
 /** Dry land stops this far in from the waterline. */
 export const SHORE_IN14 = 14;
 
@@ -146,13 +155,14 @@ export function onPier14(x: number, y: number): boolean {
   return Math.abs(v - PIER14.v) <= PIER14.half - 3 && u >= PIER14.u0 && u <= PIER14.u1;
 }
 
-/** Its ground underfoot, not into a stall, the windmill or a tree. The plot's edging is stepped over. */
+/** Its ground underfoot, not into a stall, the windmill, a tree or the lily pond. The plot's edging is stepped over. */
 export function onIsle14Ground(x: number, y: number): boolean {
   const [a, d] = polarG(x, y);
   if (d >= shoreRG(a) - SHORE_IN14) return false;
   const [u, v] = toGarden(x, y);
   if (STALLS.some((s) => inStall(u, v, s, 4))) return false;
   if (Math.hypot(u - WINDMILL.u, v - WINDMILL.v) <= WINDMILL.r + 6) return false;
+  if (Math.hypot(u - LILY14.u, v - LILY14.v) <= LILY14.r + 2) return false;
   return !TREES14.some((t) => Math.hypot(u - t.u, v - t.v) <= t.r * 0.45 + 6);
 }
 
