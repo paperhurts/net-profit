@@ -14,6 +14,7 @@
  */
 
 import { decode, encode, type Stroke } from './doodle';
+import { type Egg, parseEggs } from './eggs';
 import { COMPANION_NAMES, COMPANIONS, type Companion } from './stay';
 
 /** The pets, as the book has them. The crows and the muffins have one card each, however many there are. */
@@ -97,7 +98,7 @@ export function isDrawnKey(k: string): k is DrawnKey {
   return /^d\d+$/.test(k);
 }
 
-/** What the pet system keeps: the names given, and the pets drawn. Eggs and the pet house come in later pieces. */
+/** What the pet system keeps: the names given, the pets drawn, the one walking with you, and eggs. */
 export type PetSave = {
   /** The names you have given, by who; one renamed back to nothing is dropped. */
   nm: Partial<Record<BookKey, string>>;
@@ -105,10 +106,12 @@ export type PetSave = {
   drawn: DrawnPet[];
   /** The one pet that walks with you, ashore and aboard, if any: a pet you drew, for now. */
   walk: EntryKey | null;
+  /** Eggs waiting to hatch (data/eggs.ts), three at most. */
+  eggs: Egg[];
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [], walk: null };
+  return { nm: {}, drawn: [], walk: null, eggs: [] };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -145,6 +148,7 @@ export function parsePets(v: unknown): PetSave {
   }
   const walk = (v as { walk?: unknown }).walk;
   if (typeof walk === 'string' && isDrawnKey(walk) && drawnOf(p, walk)) p.walk = walk;
+  p.eggs = parseEggs((v as { eggs?: unknown }).eggs);
   return p;
 }
 
@@ -154,6 +158,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (Object.keys(p.nm).length) out.nm = p.nm;
   if (p.drawn.length) out.drawn = p.drawn;
   if (p.walk) out.walk = p.walk;
+  if (p.eggs.length) out.eggs = p.eggs;
   return Object.keys(out).length ? out : undefined;
 }
 
