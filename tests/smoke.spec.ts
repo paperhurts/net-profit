@@ -49,7 +49,7 @@ type Ski = {
   howTo: boolean;
   state: 'ready' | 'ski' | 'tumble' | 'done';
   course: SkiFeature[];
-  run: { len: number };
+  run: { len: number; name: string };
   x: number;
   z: number;
   v: number;
@@ -59,6 +59,9 @@ type Ski = {
   tricks: number;
   bonus: number;
   lanterns: number;
+  yetiZ: number;
+  yetiRoar: number;
+  swiped: number;
 };
 /** The Treehouse Climb, as far as the smoke test looks at it. */
 type Climb = {
@@ -118,7 +121,7 @@ type Np = {
     seen: boolean;
     pirate: boolean;
     ninja: boolean;
-    slalom?: { runs: number; best: { bunny?: number } };
+    slalom?: { runs: number; best: { bunny?: number; fox?: number; doom?: number } };
     climbs?: { climbs: number; top: number; best: Record<number, number> };
   };
   ctf: Ctf | null;
@@ -720,6 +723,7 @@ type Np = {
     face: string;
     honorGuard: boolean;
     hideArmour: boolean;
+    outfit: string;
   };
   charOpen: boolean;
   heron9: { up: boolean; hp: number; shielded: boolean; hit(power: number): void };
@@ -8191,7 +8195,7 @@ test('Hold the Forts: the leader offers it, the three bases neutral, the Cannon 
   expect(errors).toEqual([]);
 });
 
-test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time and coins; then a run stopped early, its time not kept', async ({
+test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced and a flip off a jump, over the finish for its time, its medal and coins, opening the Fox Run; then the run card, down the Fox Run, opening the Doom Drop; down it, the yeti after you and swiping you once, stopped early, its time not kept', async ({
   context,
   page,
 }) => {
@@ -8282,20 +8286,289 @@ test('the Ninja Slalom: the chairlift at the peak, how it goes, a lantern sliced
   expect(after.coins).toBe(before + 10);
   expect(after.slalom?.runs).toBe(1);
   expect(after.slalom?.best.bunny).toBeGreaterThan(0);
+  // That quick, a gold medal; and the run after it opened.
+  await expect(page.locator('#toast')).toContainText('A gold medal!');
+  await expect(page.locator('#toast')).toContainText('The Fox Run is open');
   await expect(page.locator('#skiTrick')).toBeHidden();
   await expect(page.locator('#leave')).toBeHidden();
   await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
-  // Again: no how it goes this time, and stopped partway, the run is not kept.
+  // Again: now a card of the runs, the Doom Drop shut till the Fox Run is done; down the Fox Run, with no how it goes
+  // this time, to its end, and that opens the Doom Drop.
   await page.click('#climb');
-  await page.waitForFunction(() => !!window.__np.ski);
+  await expect(page.locator('#skiCard')).toBeVisible();
+  await expect(page.locator('#skiRuns [data-run="bunny"]')).toContainText('Gold');
+  await expect(page.locator('#skiRuns [data-run="fox"]')).toBeEnabled();
+  await expect(page.locator('#skiRuns [data-run="doom"]')).toBeDisabled();
+  await expect(page.locator('#skiRuns [data-run="doom"]')).toContainText('Ski the Fox Run');
+  await page.click('#skiRuns [data-run="fox"]');
+  await expect(page.locator('#skiCard')).toBeHidden();
+  await page.waitForFunction(() => window.__np.ski?.run.name === 'Fox Run');
   expect(await page.evaluate(() => (window.__np.ski as Ski).howTo)).toBe(false);
   await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
     timeout: 4000,
   });
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.z = s.run.len - 15;
+    s.x = 0;
+  });
+  await page.waitForFunction(() => !window.__np.ski, null, { timeout: 8000 });
+  await expect(page.locator('#toast')).toContainText('The Doom Drop is open');
+  const fox = await page.evaluate(() => window.__np.endless.slalom);
+  expect(fox?.runs).toBe(2);
+  expect(fox?.best.fox).toBeGreaterThan(0);
+  // Down the Doom Drop: the yeti roars at the go and sets off after you; caught, a swipe into a tumble.
+  await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
+  await page.click('#climb');
+  await expect(page.locator('#skiRuns [data-run="doom"]')).toBeEnabled();
+  await page.click('#skiRuns [data-run="doom"]');
+  await page.waitForFunction(() => window.__np.ski?.run.name === 'Doom Drop');
+  await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
+    timeout: 4000,
+  });
+  await page.waitForFunction(() => (window.__np.ski as Ski).yetiRoar <= 0, null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.yetiZ = s.z - 0.5;
+  });
+  await page.waitForFunction(() => (window.__np.ski as Ski).swiped === 1, null, {
+    timeout: 4000,
+  });
+  expect(await page.evaluate(() => (window.__np.ski as Ski).state)).toBe('tumble');
+  // Stopped partway, the run is not kept.
   await page.click('#leave');
   expect(await page.evaluate(() => window.__np.ski)).toBeNull();
-  expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(after.slalom);
+  expect(await page.evaluate(() => window.__np.endless.slalom)).toEqual(fox);
   await expect(page.locator('#leave')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("the side rewards' outfits: a third pirate badge wins the captain's coat and tricorn, put straight on; the character card offers it, the ninja garb still to win; and gold on the last ski run wins the snow ninja's whites", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 2,
+        won: 1,
+        marks: {
+          pirate: { tank: 0, damage: 3, healer: 0 },
+          ninja: { tank: 0, damage: 0, healer: 0 },
+        },
+      },
+      slalom: { runs: 2, best: { bunny: 43, fox: 53 } },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const toCappy = async () => {
+    await page.evaluate(() => {
+      const n = window.__np;
+      const L = n.LEADER13.pirate;
+      n.walker.x = L.x + 16;
+      n.walker.y = L.y + 16;
+    });
+    await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+    await page.click('#climb');
+    await page.click('#endlessFight');
+  };
+  // Two pirate badges so far (Badge II as a Swashbuckler): the card names the next reward.
+  await toCappy();
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    "At 3 badges as a pirate, all three roles counted: the captain's coat and tricorn. You have 2.",
+  );
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('none');
+  // A first battle as a healer, lost at the bell: Badge I there, the third badge.
+  await page.click('#endlessRoles [data-role="healer"]');
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { clock: number };
+    c.score.ninja = 1;
+    c.clock = 0.01;
+  });
+  await expect(page.locator('#ctfResults')).toBeVisible({ timeout: 4000 });
+  await expect(page.locator('#ctfReward')).toContainText('3 badges as a pirate!');
+  await expect(page.locator('#ctfReward')).toContainText("the captain's coat and tricorn");
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('captain');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.look.outfit).toBe('captain');
+  await page.click('#ctfDone');
+  // The card at the leader says it is won.
+  await toCappy();
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    "Won so far: the captain's coat and tricorn. At 6 badges as a pirate, all three roles counted: the Jolly Roger. You have 3.",
+  );
+  await page.click('#endlessClose');
+  // The character card: your own clothes, the coat on, the ninja garb still to win, and how.
+  await page.locator('#charBtn').dispatchEvent('click');
+  const outfit = (k: string) => page.locator(`#charOptions [data-key="outfit"][data-val="${k}"]`);
+  await expect(outfit('captain')).toHaveClass(/on/);
+  await expect(outfit('none')).toBeEnabled();
+  await expect(outfit('ninja')).toBeDisabled();
+  await expect(outfit('snow')).toBeDisabled();
+  await expect(page.locator('#charOptions')).toContainText(
+    'Ninja garb: win it with 3 ninja badges.',
+  );
+  await expect(page.locator('#charOptions')).toContainText(
+    'Snow ninja: win it with gold on all three ski runs.',
+  );
+  await outfit('none').click();
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('none');
+  // A preset keeps the outfit chosen.
+  await outfit('captain').click();
+  await page.click('#charPresets [data-preset="finn"]');
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('captain');
+  await page.click('#charClose');
+  // Gold on the Doom Drop, the last of the three: the snow ninja's whites, put straight on.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.LIFT13.x + 4;
+    n.walker.y = n.LIFT13.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Ride the chairlift', { timeout: 4000 });
+  await page.click('#climb');
+  await page.click('#skiRuns [data-run="doom"]');
+  await page.waitForFunction(() => window.__np.ski?.run.name === 'Doom Drop');
+  await page.dispatchEvent('#skiTrick', 'pointerdown', { button: 0 });
+  await page.waitForFunction(() => (window.__np.ski as Ski).state === 'ski', null, {
+    timeout: 4000,
+  });
+  await page.evaluate(() => {
+    const s = window.__np.ski as Ski;
+    s.z = s.run.len - 15;
+    s.x = 0;
+  });
+  await page.waitForFunction(() => !window.__np.ski, null, { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.charLook.outfit)).toBe('snow');
+  await expect(page.locator('#toast')).toContainText('A gold medal!');
+  await page.click('#toast');
+  await expect(page.locator('#toast')).toContainText('Gold on all three runs!', { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText("the snow ninja's whites");
+  expect(errors).toEqual([]);
+});
+
+test("the side rewards' flags and paints: the Jolly Roger at six pirate badges, flown with a tap and its emblem for any flag; a ninth badge wins the Pirate Lord hull paint", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    isle7Seen: true,
+    isle7Stage: 1,
+    isle8Seen: true,
+    isle10Seen: true,
+    isle11Seen: true,
+    endless: {
+      seen: true,
+      pirate: true,
+      ninja: true,
+      battles: {
+        fought: 14,
+        won: 9,
+        marks: {
+          pirate: { tank: 8, damage: 8, healer: 6 },
+          ninja: { tank: 0, damage: 0, healer: 0 },
+        },
+      },
+    },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -2980, y: 7780, h: (3 * Math.PI) / 4, clock: 0.3, hold: [] },
+  });
+  // Eight pirate badges: the Jolly Roger is won, flown from the flag designer, and the ninjas' still to win.
+  await page.locator('#flagBtn').dispatchEvent('click');
+  const won = (k: string) => page.locator(`#fWon [data-won="${k}"]`);
+  await expect(won('jolly')).toBeEnabled();
+  await expect(won('banner')).toBeDisabled();
+  await expect(page.locator('#fWon')).toContainText('Ninja banner: win it with 6 ninja badges.');
+  // Its emblem joins the rest; the ninjas' star does not, yet.
+  await expect(page.locator('#fEmblem [aria-label="jolly"]')).toHaveCount(1);
+  await expect(page.locator('#fEmblem [aria-label="shuriken"]')).toHaveCount(0);
+  await won('jolly').click();
+  await page.click('#flagDone');
+  const flag = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').flag,
+  );
+  expect(flag).toEqual({ field: 8, accent: 2, pattern: 0, emblem: 7 });
+  // Not yet the paint: the tiers' ten.
+  expect(await page.locator('#paints .sw').count()).toBe(10);
+  // A win as a healer, to Badge III there: the ninth badge, and the Pirate Lord hull paint.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const d = n.DOCK13.pirate;
+    n.boat.x = d.x;
+    n.boat.y = d.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    const L = n.LEADER13.pirate;
+    n.walker.x = L.x + 16;
+    n.walker.y = L.y + 16;
+  });
+  await expect(page.locator('#climb')).toHaveText('Talk to Captain Cappy', { timeout: 4000 });
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    'At 9 badges as a pirate, all three roles counted: the Pirate Lord hull paint, black and red. You have 8.',
+  );
+  await page.click('#endlessRoles [data-role="healer"]');
+  await page.evaluate(() => {
+    (window.__np.ctf as Ctf).gateT = 0.05;
+  });
+  await page.waitForFunction(() => window.__np.ctf?.phase === 'fight', null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { clock: number };
+    c.score.pirate = 1;
+    c.clock = 0.01;
+  });
+  await expect(page.locator('#ctfBadge')).toBeVisible({ timeout: 4000 });
+  await page.click('#ctfBadgeOn');
+  await expect(page.locator('#ctfReward')).toContainText('9 badges as a pirate!');
+  await expect(page.locator('#ctfReward')).toContainText(
+    "You've won the Pirate Lord hull paint, black and red: paint your boat with it in the shop.",
+  );
+  await page.click('#ctfDone');
+  expect(await page.locator('#paints .sw').count()).toBe(11);
+  await page.locator('#paints [aria-label="Pirate Lord"]').dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.paint === 11, null, { timeout: 2000 });
+  // All nine: the card at the leader lists what they are.
+  await page.click('#climb');
+  await page.click('#endlessFight');
+  await expect(page.locator('#endlessRoles .reward')).toContainText(
+    "All 9 badges as a pirate! Yours: the captain's coat and tricorn, the Jolly Roger, the Pirate Lord hull paint, black and red.",
+  );
   expect(errors).toEqual([]);
 });
 

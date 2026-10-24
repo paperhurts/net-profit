@@ -3,12 +3,12 @@
 // then it is not linted or type-checked, and legacy/net-profit.html stays the
 // behavioural reference.
 import { baseZoom, dirToWorld, K as ISO_K, onScreen as isoOnScreen, screenX, screenY } from './core/iso';
-import { AROWANA, COST, DAY_LEN, HOLD, ICE_CHAR, ICEFISH, MAXLV, MER_PAINT, NETW, PAINTS, PARROT, PIRATE_SPEED, PIRATE_UNLOCK, POLAR_COD, REMORO, ATTACK_NIBBLER, RING_R, SHARK, CRAB, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
+import { AROWANA, COST, DAY_LEN, HOLD, ICE_CHAR, ICEFISH, LORD_PAINT, MASTER_PAINT, MAXLV, MER_PAINT, NETW, PAINTS, PARROT, PIRATE_SPEED, PIRATE_UNLOCK, POLAR_COD, REMORO, ATTACK_NIBBLER, RING_R, SHARK, CRAB, SPECIES, SPEED, STAGES, TIER_NAME } from './data/tuning';
 import { angDiff, clamp } from './core/math';
 import { rgba, shade } from './core/color';
 import { GEAR, GEAR_IDS, noGear, refusal, shipwrightOpen, stealShare } from './data/gear';
 import { guidePage } from './data/guide';
-import { EMBLEMS, FLAG_COLOR_NAMES, FLAG_COLORS, flagShapes, flagSvg, PATTERNS, START_FLAG } from './data/flag';
+import { EMBLEMS, FLAG_COLOR_NAMES, FLAG_COLORS, flagShapes, flagSvg, PATTERNS, sameFlag, START_FLAG } from './data/flag';
 import { CAST_RANGE, CAST_SPEED, Fight, MAX_DISTANCE, MISS_LINE, smoothPull, snookHome, TOLL } from './fishing/snook';
 import { buyer, FISHMONGER_STAGE, NO_PICK, pickMarket, salePrice, SMOKEHOUSE_STAGE, vendorsOpen } from './data/vendors';
 import { hullScale, levelCap, paintsUnlocked, rangeOf, tierOf } from './data/progression';
@@ -96,7 +96,7 @@ import { BATTERY_LV, BEETLES_MAX, BEETLES_PER_TRAP, DRONE_COLOURS, DRONE_PRICE, 
 import { DroneFishing } from './entities/dronefish';
 import { DroneFlight } from './entities/droneflight';
 import { drawDrone, drawDroneFlight, drawDroneLagoon } from './render/droneflight';
-import { clockOf, GATE_MISS, LANTERN_COINS, RUNS, skied, TRICK_BONUS } from './data/slalom';
+import { clockOf, GATE_MISS, LANTERN_COINS, MEDAL_NAME, medalBetter, medalOf, RUN_ORDER, RUNS, skied, TRICK_BONUS } from './data/slalom';
 import { Slalom } from './entities/slalom';
 import { drawSlalom, SKI_POP_T } from './render/slalom';
 import { chestOf, climbed, JUMP_COINS, LEVER_COINS, ROPE_COINS, SMASH_COINS, STAGES_UP, timed } from './data/treehouse';
@@ -119,7 +119,8 @@ import { skullBeastsAt, skullFloor, skullMenAt } from './world/skulltower';
 import { drawSkrillDoor, drawSkullRoom } from './render/skulltower';
 import { Spears } from './entities/spears';
 import { ARMOURS, armourAt, nextArmour, heartsFor, hasKnife, HONOR_GUARD, knifeUse, KNIFE } from './data/armour';
-import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, PRESETS, presetOf, SKINS, SKIPPER, wornArmour } from './data/look';
+import { FACES, HAIR_COLOURS, HAIRS, HAT_COLOURS, HATS, OUTFITS, outfitOf, PRESETS, presetOf, SKINS, SKIPPER, wornArmour } from './data/look';
+import { ALL_BADGES, emblemWon, FLAG_BADGES, flagWon, newOutfits, newRewards, nextReward, OUTFIT_HOW, OUTFIT_NAME, outfitWon, paintWon, rewardName, rewardsWon, sideBadges, WON_FLAGS } from './data/rewards';
 import { decodeSailed, encodeSailed, noSailed, sail, sailAll, sailedCount, sailedShare, seedSailed } from './state/sailed';
 import { drawRadar } from './render/radar';
 import { inRange } from './world/radar';
@@ -1230,14 +1231,18 @@ function endDroneFish(quiet = false){ const f = droneFish; if (!f) return; drone
 $('droneFish').addEventListener('click', () => startDroneFish());
 // The Ninja Slalom (entities/slalom.ts), part five of the Endless Isle: up the ninjas' chairlift and down their peak,
 // seen from just behind the skier, as the drone flies. The figure waits at the chairlift meanwhile.
-let ski = null, skiT = 0, skiEndT = 0, skiTop = 64, skiTold = false, skiCoins = 0, skiBeat = 0, skiBest;
+let ski = null, skiT = 0, skiEndT = 0, skiTop = 64, skiTold = false, skiCoins = 0, skiBeat = 0, skiBest, skiKey = 'bunny';
 const skiPops = [];
-const skierLook = () => ({shirt: PAINTS[paint].hull, hair: HAIR_COLOURS[charLook.hairColour], skin: SKINS[charLook.skin]});
+const skierLook = () => { const out = outfitOf(charLook); return {shirt: out?.coat ?? PAINTS[paint].hull, hair: HAIR_COLOURS[charLook.hairColour], skin: SKINS[charLook.skin], out}; };
 function skiPop(text, colour = '#FFF7E6'){ skiPops.push({text, colour, t: 0}); if (skiPops.length > 3) skiPops.shift(); }
-function startSlalom(){ audio(); if (ski || droneFly || droneFish || ctf) return;
-  ski = new Slalom(RUNS.bunny); if (!skiTold) ski.showHowTo(); skiT = 0; skiEndT = 0; skiCoins = 0; skiBeat = ski.howTo ? 0 : ski.count; skiPops.length = 0; skiBest = endless.slalom?.best.bunny; joy.on = false; toasts.clear(); sfx.bleep();
+// Up the chairlift: the Bunny Slope the first time; once it has been skied to the end, a card of the runs.
+function startSlalom(key){ audio(); if (ski || droneFly || droneFish || ctf) return;
+  if (!key){ if (endless.slalom?.best.bunny !== undefined){ openSkiCard(); return; } key = 'bunny'; }
+  skiKey = key; ski = new Slalom(RUNS[key]); if (!skiTold) ski.showHowTo(); skiT = 0; skiEndT = 0; skiCoins = 0; skiBeat = ski.howTo ? 0 : ski.count; skiPops.length = 0; skiBest = endless.slalom?.best[key]; joy.on = false; toasts.clear(); sfx.bleep();
   ski.onEvent = (what) => {
-    if (what === 'go') sfx.ring();
+    if (what === 'go'){ sfx.ring(); if (ski.run.yeti){ sfx.reaperRoar(); skiPop('Go! The yeti is after you!', '#CFE2F5'); } }
+    else if (what === 'growl') sfx.grr();
+    else if (what === 'yeti'){ sfx.reaperRoar(); sfx.whump(); sfx.poof(); skiPop('The yeti got you!', '#FF9A8A'); }
     else if (what === 'miss'){ sfx.denied(); skiPop(`Missed a gate! +${GATE_MISS}s`, '#FF9A8A'); }
     else if (what === 'crash'){ sfx.whump(); sfx.poof(); skiPop('Tumble!', '#CFE2F5'); }
     else if (what === 'up' || what === 'jump') sfx.hop();
@@ -1255,6 +1260,17 @@ function updateSlalom(dt){ skiT += dt; const s = ski;
   if (s.state !== 'done'){ const v = joy.on ? joystickVector(joy) : keyVector(keys); s.step(dt, v[0], v[1]); if (!s.howTo && s.count && s.count !== skiBeat){ skiBeat = s.count; sfx.bleep(); } }
   else { s.drift(dt); skiEndT -= dt; if (skiEndT <= 0){ endSlalom(); return; } }
   $('skiTrick').classList.toggle('bite', s.air && !s.trick); }
+// The top of the chairlift: each run with its mark, its best time and medal; one opens once the one before it has been
+// skied to the end.
+function openSkiCard(){ const best = endless.slalom?.best ?? {};
+  const chip = (t, r) => { const m = t === undefined ? null : medalOf(r, t); return m ? ` · <i class="medal md-${m}"></i>${MEDAL_NAME[m]}` : ''; };
+  $('skiRuns').innerHTML = RUN_ORDER.map((k, i) => { const r = RUNS[k], prev = RUN_ORDER[i - 1], open = !prev || best[prev] !== undefined, t = best[k];
+    const note = !open ? `Ski the ${RUNS[prev].name} to the end first` : t === undefined ? `Not skied yet. Gold is under ${clockOf(r.medals[0])}` : `Your best: ${clockOf(t)}${chip(t, r)}`;
+    return `<button class="answer" data-run="${k}"${open ? '' : ' disabled'}><i class="mark m-${r.mark}"></i>${r.name}<small>${note}</small></button>`; }).join('');
+  $('skiCard').hidden = false; sfx.click(); }
+function closeSkiCard(){ $('skiCard').hidden = true; }
+$('skiClose').addEventListener('click', () => { closeSkiCard(); sfx.click(); });
+$('skiRuns').addEventListener('click', (e) => { const b = e.target.closest('[data-run]'); if (!b || b.disabled) return; closeSkiCard(); startSlalom(b.dataset.run); });
 function pressTrick(){ audio(); if (!ski) return; const v = joy.on ? joystickVector(joy) : keyVector(keys); ski.press(v[0]); }
 $('skiTrick').addEventListener('pointerdown', (e) => { e.preventDefault(); pressTrick(); });
 // Down at the chairlift again: coins for the lanterns, and a finished run's time in the save.
@@ -1262,13 +1278,23 @@ function endSlalom(quiet = false){ const s = ski; if (!s) return; ski = null;
   document.body.classList.remove('droning'); $('skiTrick').hidden = true; $('skiTrick').classList.remove('bite'); climbShown = undefined; leaveShown = undefined;
   if (quiet) return;
   const pay = skiCoins; coins += pay; earned += pay;
-  const done = s.state === 'done', was = endless.slalom?.best.bunny;
-  if (done) endless = {...endless, slalom: skied(endless.slalom, 'bunny', s.time)};
+  const done = s.state === 'done', was = endless.slalom?.best[skiKey], before = endless;
+  if (done) endless = {...endless, slalom: skied(endless.slalom, skiKey, s.time)};
+  const dressed = wearWon(before);
   const best = done && (was === undefined || Math.round(s.time*10)/10 < was);
+  // A medal better than this run has had, and the next run opened by skiing this one to the end the first time.
+  const m = done ? medalOf(s.run, s.time) : null, won = medalBetter(m, was === undefined ? null : medalOf(s.run, was));
+  const next = RUN_ORDER[RUN_ORDER.indexOf(skiKey) + 1], opened = done && was === undefined && next;
   toasts.clear();
-  toast(done ? `Down the ${s.run.name} in ${clockOf(s.time)}!${best && was !== undefined ? ' Your best yet!' : ''} ${s.gatesMade} of ${s.gatesOut} gates${pay ? `, ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins` : ''}.`
+  toast(done ? `Down the ${s.run.name} in ${clockOf(s.time)}!${won ? ` A ${MEDAL_NAME[m].toLowerCase()} medal!` : ''}${best && was !== undefined && !won ? ' Your best yet!' : ''} ${s.gatesMade} of ${s.gatesOut} gates${pay ? `, ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins` : ''}.${s.run.yeti ? (s.swiped ? ` The yeti caught you ${s.swiped === 1 ? 'once' : `${s.swiped} times`}.` : ' You outran the yeti!') : ''}${opened ? ` The ${RUNS[next].name} is open: up the chairlift again!` : ''}`
     : `Off the run, back at the chairlift.${pay ? ` ${s.lanterns} lantern${s.lanterns === 1 ? '' : 's'}: ${pay} coins.` : ''}`, 4200, 1);
+  if (dressed) toast(`Gold on all three runs! ${outfitSay(dressed)}`, 6000, 1);
   hud(); save(); refreshShop(); }
+// An outfit won since then, put straight on: the first of them, if any; what to say of it.
+function wearWon(before){ const won = newOutfits(before, endless); if (!won.length) return null; charLook = {...charLook, outfit: won[0]}; sfx.orderFilled(); return won[0]; }
+const outfitSay = (k) => `You've won ${OUTFIT_NAME[k]}, and you're wearing it now. Change it with Your character, in the shop.`;
+// Any reward, as said when it is won: an outfit is put on; a flag and a paint wait in the shop.
+const rewardSay = (r) => r.kind === 'outfit' ? outfitSay(r.key) : r.kind === 'flag' ? `You've won ${rewardName(r)}: fly it from Your flag, in the shop.` : `You've won ${rewardName(r)}: paint your boat with it in the shop.`;
 // The Treehouse Climb (entities/treehouse.ts), part eight of the Endless Isle: in at the foot of the pirates' great tree,
 // and it turns side on, a stage a screen, the way Donkey Kong is. The figure waits at the foot meanwhile.
 let th = null, thT = 0, thEndT = 0, thTop = 64, thCam = 0, thRoom = PAD_ROOM, thBest, thStage = 1, thPaid = 0, thUp = [], thChest = 0;
@@ -2838,8 +2864,10 @@ function ctfEvent(e){ const me = ctf.you, mine = ctf.yours;
   if (e.k === 'over') ctfOver(e.winner); }
 // Over: the result, its coin and its marks, and the card.
 function ctfOver(winner){ const side = ctf.yours, me = ctf.you, result = winner === 'draw' ? 'draw' : winner === side ? 'win' : 'loss', pay = PAY[result];
-  const was = ctfBadge(side, me.role);
+  const was = ctfBadge(side, me.role), before = endless;
   coins += pay; earned += pay; endless = {...endless, battles: marked(endless.battles ?? noBattles(), side, me.role, result)};
+  const won = newRewards(before, endless), rw = $('ctfReward'); wearWon(before); rw.hidden = !won.length;
+  if (won.length) rw.textContent = `${sideBadges(endless.battles, side)} badges as a ${side}! ${won.map(rewardSay).join(' ')}`;
   const now = ctfBadge(side, me.role), m = ctfMarks(side, me.role);
   if (result === 'win') sfx.tierUp(); else sfx.sale();
   const card = $('ctfCard'); card.dataset.side = side;
@@ -2903,6 +2931,9 @@ function openRoles(mode){ const side = endlessTalk; if (!side) return; sfx.click
     return `<button class="answer role" data-role="${r}"><b>${ROLE_NAME[side][r]}</b><span class="kit">${KITS[r].hearts} hearts \u00B7 Badge ${ROMAN[b]}</span>`
       + `<small>${abs.slice(0, b).map(a => `<b>${ABILITY_NAME[side][a]}</b>`).join(' \u00B7 ')}<br>${b > 1 ? 'New: ' : ''}${abilitySays(side, top)}</small>`
       + (b < 3 ? `<small class="next">Badge ${ROMAN[b + 1]}, ${ABILITY_NAME[side][abs[b]]}, at ${BADGE_MARKS[b]} marks. You have ${m}.</small>` : '') + '</button>'; }).join('')
+    + (() => { const nx = nextReward(endless.battles, side), had = rewardsWon(endless.battles, side).map(rewardName);
+      return nx ? `<p class="reward">${had.length ? `Won so far: ${had.join(', ')}. ` : ''}At ${nx.at} badges as a ${side}, all three roles counted: ${nx.what}. You have ${nx.have}.</p>`
+        : `<p class="reward">All ${ALL_BADGES} badges as a ${side}! Yours: ${had.join(', ')}.</p>`; })()
     + '<button class="answer" data-role="">Back</button>';
   $('endlessSay').textContent = (mode === 'forts' ? LEADER_PICK_FORTS : LEADER_PICK)[side]; $('endlessAnswers').hidden = true; $('endlessRoles').hidden = false; }
 $('endlessFight').addEventListener('click', () => openRoles('flag'));
@@ -4533,7 +4564,7 @@ function refreshShop(){ $('updateBtn').hidden = !updateReady;
   const t = tier(), left = 3 - (lv.net+lv.hold+lv.engine)%3;
   const nm = TIER_NAME[t][0].toUpperCase() + TIER_NAME[t].slice(1);
   $('tierTxt').textContent = t >= 5 ? nm + '. Fully grown.' : `${nm}. ${left} upgrade${left>1?'s':''} to grow.`;
-    $('paints').innerHTML = PAINTS.map((p,i) => i === MER_PAINT && !mer.given ? '' : `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${!paintOpen(i)?' (locked)':''}" aria-disabled="${!paintOpen(i)}" style="background:${p.shimmer ? `linear-gradient(135deg,${p.hull},${p.roof},${p.flag})` : p.hull};border-color:${p.trim}"></button>`).join('');
+    $('paints').innerHTML = PAINTS.map((p,i) => (i === MER_PAINT || i === LORD_PAINT || i === MASTER_PAINT) && !paintOpen(i) ? '' : `<button class="sw${i===paint?' sel':''}" data-i="${i}" aria-label="${p.name}${!paintOpen(i)?' (locked)':''}" aria-disabled="${!paintOpen(i)}" style="background:${p.shimmer ? `linear-gradient(135deg,${p.hull},${p.roof},${p.flag})` : p.hull};border-color:${p.trim}"></button>`).join('');
   // A fully grown boat has nothing left to buy here, so the three maxed cards fold away and the panel stays short.
   elShop.querySelector('.row').hidden = lv.net >= MAXLV && lv.hold >= MAXLV && lv.engine >= MAXLV;
   refreshBase(); refreshCharter(); refreshBuild(); refreshAquarium(); refreshMarket(); refreshGear(); refreshYours(); $('flagMini').innerHTML = flagSvg(flag || START_FLAG, 30, 20);
@@ -4813,7 +4844,8 @@ elShop.addEventListener('click', e => {
 function sndLabel(){ elSnd.classList.toggle('off', muted); elSnd.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on'); }
 elSnd.addEventListener('click', () => { muted = !muted; setMuted(muted); sndLabel(); save(); audio(); sfx.toggleSound(); });
 // The tiers' paints as the boat grows; the mermaids' once they have given a pearl.
-function paintOpen(i){ return i === MER_PAINT ? mer.given > 0 : i < paintsUnlocked(tier()); }
+// The mermaids' paint once one has given you a pearl, and the two won on the Endless Isle once won; the rest by tier.
+function paintOpen(i){ return i === MER_PAINT ? mer.given > 0 : i === LORD_PAINT ? paintWon('lord', endless) : i === MASTER_PAINT ? paintWon('master', endless) : i < paintsUnlocked(tier()); }
 $('paints').addEventListener('click', e => {
   const b = e.target.closest('.sw'); if (!b) return; audio();
   const i = +b.dataset.i;
@@ -5322,6 +5354,10 @@ function renderChar(){ const cur = presetOf(charLook);
   const swatches = (label, key, cols) => `<div class="crow"><small>${label}</small><div class="bchips">${cols.map((c, i) => `<button class="swatch${charLook[key] === i ? ' on' : ''}" data-key="${key}" data-val="${i}" style="background:${typeof c === 'string' ? c : c[0]}" aria-label="${label} ${i + 1}"></button>`).join('')}</div></div>`;
   $('charOptions').innerHTML = swatches('Skin', 'skin', SKINS) + row('Hair', 'hair', HAIRS) + swatches('Hair colour', 'hairColour', HAIR_COLOURS)
     + row('Hat', 'hat', HATS) + swatches('Hat colour', 'hatColour', HAT_COLOURS) + row('Face', 'face', FACES)
+    // Outfits won on the Endless Isle, over the look; the ones still to win say how, once you have been there.
+    + (endless.seen ? `<div class="crow"><small>Outfit${charLook.outfit === 'none' ? '' : ': over your hat and clothes'}</small><div class="bchips">${OUTFITS.map(([k, name]) => { const won = outfitWon(k, endless);
+      return `<button class="rchip${charLook.outfit === k ? ' on' : ''}${won ? '' : ' locked'}" data-key="outfit" data-val="${k}"${won ? '' : ' disabled'}>${name}</button>`; }).join('')}</div>`
+      + OUTFITS.filter(([k]) => !outfitWon(k, endless)).map(([k, name]) => `<small class="how">${name}: win it with ${OUTFIT_HOW[k]}.</small>`).join('') + '</div>' : '')
     // The armour from the shipwright, shown over the look or hidden so the look shows; its hearts stay either way.
     + (armourAt(armour) ? `<div class="crow"><small>Your armour (${armourAt(armour).name}): hidden, its hearts still count</small><div class="bchips">`
       + `<button class="rchip${charLook.hideArmour ? '' : ' on'}" data-key="hideArmour" data-val="">Show it</button><button class="rchip${charLook.hideArmour ? ' on' : ''}" data-key="hideArmour" data-val="1">Hide it</button></div></div>` : '')
@@ -5332,7 +5368,7 @@ $('charBtn').addEventListener('click', openChar);
 $('charIntro').addEventListener('click', openChar);
 $('charClose').addEventListener('click', closeChar);
 $('charCard').addEventListener('click', (e) => { const b = e.target.closest('[data-preset], [data-key]'); if (!b) return;
-  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour}; }
+  if (b.dataset.preset !== undefined){ const p = PRESETS.find(q => q.id === b.dataset.preset); if (p) charLook = {...p.look, hideArmour: charLook.hideArmour, outfit: charLook.outfit}; }
   else { const k = b.dataset.key, val = b.dataset.val;
     charLook = {...charLook, [k]: k === 'honorGuard' || k === 'hideArmour' ? val === '1' : ['skin', 'hairColour', 'hatColour'].includes(k) ? +val : val}; }
   sfx.click(); renderChar(); save(); });
@@ -5549,7 +5585,13 @@ function renderFlagger(){ const f = flag || START_FLAG;
   $('flagBig').innerHTML = flagSvg(f, 150, 100);
   $('fField').innerHTML = swatchRow(f.field); $('fAccent').innerHTML = swatchRow(f.accent);
   $('fPattern').innerHTML = PATTERNS.map((p,i) => `<button class="fchip${i===f.pattern?' sel':''}" data-i="${i}" aria-label="${p}">${flagSvg({...f, pattern:i, emblem:0}, 42, 28)}</button>`).join('');
-  $('fEmblem').innerHTML = EMBLEMS.map((e,i) => `<button class="fchip${i===f.emblem?' sel':''}" data-i="${i}" aria-label="${e}">${flagSvg({...f, emblem:i}, 42, 28)}</button>`).join(''); }
+  $('fEmblem').innerHTML = EMBLEMS.map((e,i) => emblemWon(i, endless) ? `<button class="fchip${i===f.emblem?' sel':''}" data-i="${i}" aria-label="${e}">${flagSvg({...f, emblem:i}, 42, 28)}</button>` : '').join('');
+  // The flags won on the Endless Isle, each flown with a tap; those still to win, and how, once you have been there.
+  $('fWonRow').hidden = !endless.seen;
+  $('fWon').innerHTML = Object.entries(WON_FLAGS).map(([k, w]) => { const won = flagWon(k, endless);
+    return `<button class="fchip won${won ? '' : ' locked'}${won && sameFlag(f, w.flag) ? ' sel' : ''}" data-won="${k}" aria-label="${w.name}"${won ? '' : ' disabled'}>${flagSvg(w.flag, 60, 40)}</button>`; }).join('')
+    + Object.entries(WON_FLAGS).filter(([k]) => !flagWon(k, endless)).map(([, w]) => `<small>${w.name.replace(/^the ./, (t) => t.slice(-1).toUpperCase())}: win it with ${FLAG_BADGES} ${w.side} badges.</small>`).join(''); }
+$('fWon').addEventListener('click', e => { const b = e.target.closest('[data-won]'); if (!b || b.disabled) return; flag = {...WON_FLAGS[b.dataset.won].flag}; audio(); sfx.click(); renderFlagger(); refreshShop(); save(); });
 function setFlag(k, i){ flag = {...(flag || START_FLAG), [k]: i}; audio(); sfx.click(); renderFlagger(); refreshShop(); save(); }
 for (const [id, k] of [['fField','field'], ['fAccent','accent'], ['fPattern','pattern'], ['fEmblem','emblem']])
   $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (b) setFlag(k, +b.dataset.i); });

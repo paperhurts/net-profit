@@ -344,11 +344,11 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #help .helpbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:var(--plank);color:var(--plank-fg);font-size:16px;font-weight:800}
 #help .helpbar .pill{height:32px;padding:0 10px}
 #help iframe{flex:1;width:100%;border:0;background:var(--card)}
-#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#treeCard,#ctfCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
-#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#treeCard[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#ctfCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
-#tester .planks,#boats .planks,#treeCard .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#ctfCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
-#tester h2,#boats h2,#treeCard h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#endlessCard h2,#ctfCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
-#tester h2 .pill,#boats h2 .pill,#treeCard h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#endlessCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#droneCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
+#tester,#boats,#orbCard,#bargeCard,#badges,#stayCard,#endlessCard,#treeCard,#skiCard,#ctfCard,#charCard,#store10,#hqCard,#droneCard,#crowCard,#carry,#carryAsk{position:fixed;inset:0;z-index:5;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));background:rgba(8,30,40,.55)}
+#updateBtn[hidden],#tester[hidden],#testerBtn[hidden],#boats[hidden],#treeCard[hidden],#skiCard[hidden],#orbCard[hidden],#bargeCard[hidden],#bargeBtn[hidden],#bargeOpen[hidden],#boatsBtn[hidden],#badges[hidden],#stayCard[hidden],#endlessCard[hidden],#ctfCard[hidden],#badgesBtn[hidden],#charCard[hidden],#store10[hidden],#hqCard[hidden],#droneCard[hidden],#droneUpsWrap[hidden],#droneDrop[hidden],#droneCard .go[hidden],#crowCard[hidden],#carry[hidden],#carryAsk[hidden]{display:none}
+#tester .planks,#boats .planks,#treeCard .planks,#skiCard .planks,#orbCard .planks,#bargeCard .planks,#badges .planks,#stayCard .planks,#endlessCard .planks,#ctfCard .planks,#charCard .planks,#store10 .planks,#hqCard .planks,#droneCard .planks,#crowCard .planks,#carry .planks,#carryAsk .planks{max-width:480px;margin:0 auto;padding:10px}
+#tester h2,#boats h2,#treeCard h2,#skiCard h2,#orbCard h2,#bargeCard h2,#badges h2,#stayCard h2,#endlessCard h2,#ctfCard h2,#charCard h2,#store10 h2,#hqCard h2,#droneCard h2,#crowCard h2,#carry h2,#carryAsk h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;justify-content:space-between;align-items:center}
+#tester h2 .pill,#boats h2 .pill,#treeCard h2 .pill,#skiCard h2 .pill,#orbCard h2 .pill,#bargeCard h2 .pill,#badges h2 .pill,#stayCard h2 .pill,#endlessCard h2 .pill,#charCard h2 .pill,#store10 h2 .pill,#hqCard h2 .pill,#droneCard h2 .pill,#crowCard h2 .pill,#carry h2 .pill{height:32px;padding:0 10px}
 #tester .tnote,#boats .tnote,#orbCard .tnote,#bargeCard .tnote,#badges .tnote,#stayCard .tnote,#charCard .tnote,#store10 .tnote,#hqCard .tnote,#droneCard .tnote,#crowCard .tnote,#carry .tnote,#carryAsk .tnote{margin:4px 4px 8px;font-size:13px;font-weight:700}
 #carryAsk{z-index:6;display:grid;place-items:center}
 #carry .crow,#carryAsk .crow{display:flex;gap:8px;align-items:center;margin:0 0 10px}
@@ -456,6 +456,20 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #treeCard .answer{width:100%;min-height:52px;text-align:left;padding:10px 14px;border:0;border-radius:11px;background:#A97A48;color:#FFF7E6;box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;font-size:17px;font-weight:800;cursor:pointer}
 #treeCard .answer small{display:block;font-size:14px;opacity:.85;margin-top:2px}
 #treeCard .answer:disabled{background:#CDBBA2;color:#6B5A44;box-shadow:none;cursor:default}
+#skiCard .say{margin:4px 4px 10px;padding:12px;border-radius:11px;font-size:16px;font-weight:800;line-height:1.35;background:#EEF5FB;color:#1E3A55;border-left:6px solid #3F7DB8}
+#skiCard .answers{display:grid;gap:8px}
+#skiCard .answer{width:100%;min-height:52px;text-align:left;padding:10px 14px;border:0;border-radius:11px;background:#3F7DB8;color:#FFF7E6;box-shadow:0 3px 0 rgba(0,0,0,.22);font:inherit;font-size:17px;font-weight:800;cursor:pointer}
+#skiCard .answer small{display:block;font-size:14px;opacity:.9;margin-top:2px}
+#skiCard .answer:disabled{background:#B9CADC;color:#4E6278;box-shadow:none;cursor:default}
+#skiCard .mark{display:inline-grid;place-items:center;width:22px;height:22px;margin:0 9px 0 0;vertical-align:-4px;border-radius:5px;background:#FFF}
+#skiCard .mark::after{content:'';width:12px;height:12px}
+#skiCard .m-green::after{background:#3FA34D;border-radius:50%}
+#skiCard .m-blue::after{background:#2F6FD0;border-radius:2px}
+#skiCard .m-black::after{background:#1C1F24;transform:rotate(45deg) scale(.85)}
+#skiCard .medal{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 4px -1px 0;box-shadow:inset 0 0 0 2px rgba(60,40,10,.3)}
+#skiCard .md-gold{background:#F5C84B}
+#skiCard .md-silver{background:#D5DEE7}
+#skiCard .md-bronze{background:#D69355}
 #endlessCard .answer.fight{background:#2F2A24;color:#fff}
 #endlessCard .answer.role b{font-size:17px}
 #endlessCard .answer.role .kit{float:right;font-size:14px;opacity:.8}
@@ -579,6 +593,10 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 .fchips{display:flex;gap:6px;flex-wrap:wrap;margin:5px 2px 0}
 .fchip{width:48px;height:34px;border-radius:7px;background:var(--card);display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.22)}
 .fchip.sel{outline:3px solid var(--coin);outline-offset:1px}
+.fchip.won{width:68px;height:48px}
+.fchip.locked{opacity:.45;border:2px dashed var(--muted);box-shadow:none}
+#fWon small{flex-basis:100%;font-size:12px;font-weight:700;opacity:.75;margin:2px 2px 0}
+#fWonRow[hidden]{display:none}
 #flagger .go{display:block;margin:14px auto 4px;background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;padding:11px 26px 8px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pair .build small{display:none}
@@ -607,6 +625,10 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
 #charCard .name{font-size:22px;font-weight:800;line-height:1.1;margin:0 0 6px}
 #charCard .crow{margin:0 4px 10px}
 #charCard .crow>small{display:block;font-size:12px;font-weight:800;margin:0 0 4px;opacity:.8}
+#charCard .rchip.locked{border-style:dashed;opacity:.5}
+#charCard .crow small.how{display:block;font-size:12px;font-weight:700;margin:4px 0 0;opacity:.75}
+#ctfReward,#endlessRoles .reward{margin:8px 4px;padding:8px 10px;border-radius:10px;background:rgba(242,201,76,.22);font-size:14px;font-weight:800;line-height:1.3}
+#ctfReward[hidden]{display:none}
 #charCard .swatch,#droneCard .swatch{width:34px;height:34px;border-radius:50%;border:3px solid rgba(0,0,0,.18);cursor:pointer;padding:0}
 #charCard .swatch.on,#droneCard .swatch.on{border-color:#3FB37A;box-shadow:0 0 0 2px #fff inset}
 #intro .who{margin-top:10px;background:transparent;border:2px solid currentColor;color:inherit;font:800 15px var(--font);border-radius:999px;padding:8px 16px;cursor:pointer}
@@ -763,6 +785,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <div class="frow"><b>Pattern</b><div class="fchips" id="fPattern" role="group" aria-label="Pattern"></div></div>
     <div class="frow"><b>Second colour</b><div class="swatches" id="fAccent" role="group" aria-label="Second colour"></div></div>
     <div class="frow"><b>Emblem</b><div class="fchips" id="fEmblem" role="group" aria-label="Emblem"></div></div>
+    <div class="frow" id="fWonRow" hidden><b>Won on the Endless Isle</b><div class="fchips" id="fWon" role="group" aria-label="Flags won on the Endless Isle"></div></div>
     <button class="go" id="flagDone">Fly it</button>
   </div>
 </section>
@@ -896,6 +919,13 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <div class="answers" id="treeStages"></div>
   </div>
 </section>
+<section id="skiCard" hidden aria-label="The top of the chairlift">
+  <div class="planks">
+    <h2><span>The top of the chairlift</span> <button class="pill icon" id="skiClose" aria-label="Not now">✕</button></h2>
+    <p class="say">Which run? Each opens once you have skied the one before it to the end.</p>
+    <div class="answers" id="skiRuns"></div>
+  </div>
+</section>
 <section id="ctfCard" hidden aria-label="Capture the Flag">
   <div class="planks">
     <div id="ctfBadge" hidden>
@@ -913,6 +943,7 @@ body.ctf #order,body.ctf #charter,body.ctf #market,body.ctf #wood,body.ctf #junk
     <p class="say" id="ctfSay"></p>
     <dl id="ctfStats"></dl>
     <p class="got" id="ctfGot"></p>
+    <p class="reward" id="ctfReward" hidden></p>
     <div class="answers">
       <button class="answer again" id="ctfAgain">Fight again</button>
       <button class="answer" id="ctfDone">Done</button>

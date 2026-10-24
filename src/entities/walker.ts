@@ -25,7 +25,16 @@
 import { dirToWorld } from '../core/iso';
 import { angDiff, clamp } from '../core/math';
 import type { ArmourLook } from '../data/armour';
-import { HAIR_COLOURS, HAT_COLOURS, type Look, SKINS, SKIPPER } from '../data/look';
+import {
+  HAIR_COLOURS,
+  HAT_COLOURS,
+  type Look,
+  type OutfitLook,
+  outfitOf,
+  SKINS,
+  SKIPPER,
+  TRICORN,
+} from '../data/look';
 import { AQUARIUM, AQUARIUM_FROM, AQUARIUM_MID } from '../world/aquarium';
 import { BASES, polePoint } from '../world/bases';
 import {
@@ -1184,9 +1193,11 @@ export class Walker implements Entity {
     const c = Math.cos(this.h);
     const s = Math.sin(this.h);
     const swing = Math.sin(this.ph) * this.gait;
-    // In island 4's tar, the chemistry suit: yellow from boots to hood.
+    // In island 4's tar, the chemistry suit: yellow from boots to hood. Else an outfit won on the Endless Isle, if one
+    // is worn, in place of the shirt in the boat's colour.
     const suit = this.dock.tar === true;
-    const shirt = suit ? SUIT : this.shirt;
+    const out = suit ? null : outfitOf(this.look);
+    const shirt = suit ? SUIT : (out?.coat ?? this.shirt);
     // A shadow on whatever is beneath, the water too while hopping.
     if (this.sink <= 0.5) {
       ctx.fillStyle = 'rgba(0,0,0,.2)';
@@ -1195,7 +1206,7 @@ export class Walker implements Entity {
     }
     ctx.lineCap = 'round';
     // Legs: the forward foot lifts a little.
-    ctx.strokeStyle = suit ? SUIT_DARK : TROUSERS;
+    ctx.strokeStyle = suit ? SUIT_DARK : (out?.legs ?? TROUSERS);
     ctx.lineWidth = 2.6 * Z;
     for (const side of [-1, 1]) {
       const f = swing * side * 3.5;
@@ -1224,9 +1235,16 @@ export class Walker implements Entity {
     const bx = px(x, y);
     const by = py(x, y, z + 13);
     ctx.fillStyle = shirt;
+    // The captain's coat flares out below the waist.
+    if (out && !out.hood) {
+      ctx.beginPath();
+      ctx.ellipse(bx, by + 2.6 * Z, 5 * Z, 4.4 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.ellipse(bx, by, 4.6 * Z, 5.8 * Z, 0, 0, Math.PI * 2);
     ctx.fill();
+    if (out) this.drawOutfitTrim(v, bx, by, out);
     // Armour over the shirt: a chest plate with an edge and a shine (never over the chemistry suit).
     const arm = suit ? null : this.armour;
     if (arm) {
@@ -1337,13 +1355,16 @@ export class Walker implements Entity {
     }
     const look = this.look;
     const helmet = !!arm && arm.helm !== 'none';
-    this.drawHairBack(v, hx, hy, fx, fy, look);
-    ctx.fillStyle = SKINS[look.skin] ?? (SKINS[1] as string);
-    ctx.beginPath();
-    ctx.arc(hx, hy, 3.8 * Z, 0, Math.PI * 2);
-    ctx.fill();
-    if (fy > -0.1) this.drawFace(v, hx, hy, fx, look);
-    if (!helmet && !this.diving) this.drawHairTop(v, hx, hy, fx, fy, look);
+    if (out?.hood) this.drawHood(v, hx, hy, fx, fy, out, look);
+    else {
+      this.drawHairBack(v, hx, hy, fx, fy, look);
+      ctx.fillStyle = SKINS[look.skin] ?? (SKINS[1] as string);
+      ctx.beginPath();
+      ctx.arc(hx, hy, 3.8 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      if (fy > -0.1) this.drawFace(v, hx, hy, fx, look);
+      if (!helmet && !this.diving) this.drawHairTop(v, hx, hy, fx, fy, look);
+    }
     if (this.diving) {
       // A brass diving helmet with a round glass port toward where it looks, and bubbles going up.
       ctx.fillStyle = '#C9973A';
@@ -1460,7 +1481,148 @@ export class Walker implements Entity {
       ctx.stroke();
       return;
     }
+    if (out) {
+      if (!out.hood) this.drawTricorn(v, hx, hy, fx, fy);
+      return;
+    }
     this.drawHat(v, hx, hy, fx, fy, look);
+  }
+
+  /** An outfit's trim on the body: the coat's gold buttons and hem, or the ninjas' sash. */
+  private drawOutfitTrim(v: DrawView, bx: number, by: number, out: OutfitLook): void {
+    const { ctx } = v;
+    const Z = v.zoom;
+    const c = Math.cos(this.h);
+    const s = Math.sin(this.h);
+    const fx = c - s;
+    const fy = (c + s) / 2;
+    ctx.fillStyle = out.trim;
+    if (out.hood) {
+      ctx.beginPath();
+      ctx.ellipse(bx, by + 2 * Z, 4.5 * Z, 1.1 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    ctx.strokeStyle = out.trim;
+    ctx.lineWidth = 0.7 * Z;
+    ctx.beginPath();
+    ctx.ellipse(bx, by + 2.6 * Z, 5 * Z, 4.4 * Z, 0, 0.12 * Math.PI, 0.88 * Math.PI);
+    ctx.stroke();
+    if (fy <= 0) return;
+    for (const dy of [-1.6, 0.6, 2.8]) {
+      ctx.beginPath();
+      ctx.arc(bx + fx * 1.3 * Z, by + dy * Z, 0.65 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /** The ninjas' hood, over the hair and all of the face but the eyes, a headband round it with its tails flying. */
+  private drawHood(
+    v: DrawView,
+    hx: number,
+    hy: number,
+    fx: number,
+    fy: number,
+    out: OutfitLook,
+    look: Look,
+  ): void {
+    const { ctx } = v;
+    const Z = v.zoom;
+    const hood = out.hood ?? out.coat;
+    // The tails behind the head first, when it faces us; in front of it when it faces away.
+    const tails = () => {
+      const sw = Math.sin(this.now * 9) * 0.7 * Z;
+      ctx.fillStyle = out.trim;
+      for (const k of [0, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(hx - fx * 3 * Z, hy - 2.2 * Z);
+        ctx.quadraticCurveTo(
+          hx - fx * 5.4 * Z,
+          hy - (1.6 - k) * Z + sw,
+          hx - fx * 7.4 * Z,
+          hy - (0.6 - k * 1.4) * Z - sw,
+        );
+        ctx.lineTo(hx - fx * 7 * Z, hy + (0.2 + k * 0.6) * Z - sw);
+        ctx.quadraticCurveTo(
+          hx - fx * 5 * Z,
+          hy - (0.8 - k) * Z + sw,
+          hx - fx * 3 * Z,
+          hy - 1.2 * Z,
+        );
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
+    if (fy > -0.1) tails();
+    ctx.fillStyle = hood;
+    ctx.beginPath();
+    ctx.arc(hx, hy - 0.3 * Z, 4.3 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    // White on the snow wants an edge.
+    ctx.strokeStyle = 'rgba(70,95,130,.45)';
+    ctx.lineWidth = 0.5 * Z;
+    ctx.stroke();
+    if (fy > -0.1) {
+      ctx.fillStyle = SKINS[look.skin] ?? (SKINS[1] as string);
+      ctx.beginPath();
+      ctx.ellipse(hx + fx * 1.4 * Z, hy + 0.6 * Z, 3.6 * Z, 1 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2A1A08';
+      for (const e of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(hx + (fx * 1.6 + e * 1.4) * Z, hy + 0.6 * Z, 0.65 * Z, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.fillStyle = out.trim;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy - 2 * Z, 4.25 * Z, 1 * Z, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (fy <= -0.1) tails();
+  }
+
+  /** The captain's tricorn: black felt, its brim turned up in a point over the face and out to either side, edged gold,
+   * a little white skull on its front. */
+  private drawTricorn(v: DrawView, hx: number, hy: number, fx: number, fy: number): void {
+    const { ctx } = v;
+    const Z = v.zoom;
+    const [felt, gold] = TRICORN;
+    ctx.fillStyle = felt;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy - 3.6 * Z, 3.6 * Z, 3.1 * Z, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    const lx = hx - 6.2 * Z;
+    const rx = hx + 6.2 * Z;
+    const ty = hy - 4.6 * Z;
+    const fpx = hx + fx * 0.8 * Z;
+    const fpy = hy - 1.5 * Z;
+    const brim = () => {
+      ctx.moveTo(lx, ty);
+      ctx.quadraticCurveTo(hx - 2.8 * Z, hy - 2.4 * Z, fpx, fpy);
+      ctx.quadraticCurveTo(hx + 2.8 * Z, hy - 2.4 * Z, rx, ty);
+    };
+    ctx.beginPath();
+    brim();
+    ctx.quadraticCurveTo(hx, hy - 5.2 * Z, lx, ty);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = 0.7 * Z;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    brim();
+    ctx.stroke();
+    if (fy <= 0) return;
+    ctx.fillStyle = '#F4EFE4';
+    ctx.beginPath();
+    ctx.arc(fpx, hy - 3.6 * Z, 0.9 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = felt;
+    for (const e of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(fpx + e * 0.35 * Z, hy - 3.7 * Z, 0.22 * Z, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   /** The figure on its own, as the character screen shows it: at its place, facing its way, standing. */

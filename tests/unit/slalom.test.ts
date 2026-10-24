@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { clockOf, GATE_MISS, parseSlalom, RUNS, skied, TRICK_BONUS } from '../../src/data/slalom';
+import {
+  clockOf,
+  GATE_MISS,
+  medalBetter,
+  medalOf,
+  parseSlalom,
+  RUN_ORDER,
+  RUNS,
+  type Run,
+  skied,
+  TRICK_BONUS,
+} from '../../src/data/slalom';
 import {
   CRUISE,
   type Feature,
@@ -11,6 +22,11 @@ import {
   SKIER_R,
   Slalom,
   TUCK,
+  YETI_GROWL,
+  YETI_REACH,
+  YETI_ROAR_T,
+  YETI_START,
+  YETI_WAIT,
 } from '../../src/entities/slalom';
 
 const DT = 1 / 60;
@@ -32,42 +48,50 @@ const theLine =
     const want = lineAt(gatesOf(s), s.z + Math.max(4, s.v * 0.6));
     return [Math.max(-1, Math.min(1, (want - s.x) * 0.9 - s.vx * 0.08)), sy];
   };
-/** A run with nothing on it but what is given, past the countdown. */
+/** A run with nothing on it but what is given, past the countdown: the Bunny Slope, or the Doom Drop and its yeti. */
 function bare(...fs: Feature[]): Slalom {
-  const s = new Slalom(RUNS.bunny);
+  return bareOf(RUNS.bunny, ...fs);
+}
+function chased(...fs: Feature[]): Slalom {
+  return bareOf(RUNS.doom, ...fs);
+}
+function bareOf(run: Run, ...fs: Feature[]): Slalom {
+  const s = new Slalom(run);
   s.course.splice(0, s.course.length, ...fs);
   s.step(READY_T + DT, 0, 0);
   return s;
 }
 
 describe('the Ninja Slalom', () => {
-  it('lays the Bunny Slope out the same every time, its gates swinging side to side inside the piste', () => {
-    const run = RUNS.bunny;
-    const a = layRun(run);
-    expect(layRun(run)).toEqual(a);
-    const gates = a.filter((f): f is Gate => f.kind === 'gate');
-    expect(gates.length).toBeGreaterThanOrEqual(12);
-    gates.forEach((g, i) => {
-      if (i) expect(Math.sign(g.x)).toBe(-Math.sign((gates[i - 1] as Gate).x));
-      expect(Math.abs(g.x) + g.w / 2).toBeLessThan(run.half);
-      expect(g.red).toBe(i % 2 === 0);
+  for (const key of RUN_ORDER)
+    it(`lays the ${RUNS[key].name} out the same every time, its gates swinging side to side inside the piste`, () => {
+      const run = RUNS[key];
+      const a = layRun(run);
+      expect(layRun(run)).toEqual(a);
+      const gates = a.filter((f): f is Gate => f.kind === 'gate');
+      expect(gates.length).toBeGreaterThanOrEqual(12);
+      gates.forEach((g, i) => {
+        if (i) expect(Math.sign(g.x)).toBe(-Math.sign((gates[i - 1] as Gate).x));
+        expect(Math.abs(g.x) + g.w / 2).toBeLessThan(run.half);
+        expect(g.red).toBe(i % 2 === 0);
+      });
+      expect(a.filter((f) => f.kind === 'jump')).toHaveLength(run.jumps);
+      expect(a.filter((f) => f.kind === 'lantern').length).toBeGreaterThanOrEqual(6);
+      for (const f of a) {
+        expect(f.z).toBeGreaterThan(0);
+        expect(f.z).toBeLessThan(run.len);
+        if ('x' in f) expect(Math.abs(f.x)).toBeLessThan(run.half);
+      }
     });
-    expect(a.filter((f) => f.kind === 'jump')).toHaveLength(run.jumps);
-    expect(a.filter((f) => f.kind === 'lantern').length).toBeGreaterThanOrEqual(6);
-    for (const f of a) {
-      expect(f.z).toBeGreaterThan(0);
-      expect(f.z).toBeLessThan(run.len);
-      if ('x' in f) expect(Math.abs(f.x)).toBeLessThan(run.half);
-    }
-  });
 
-  it('leaves a clear line through every gate: nothing stands within reach of it', () => {
-    const a = layRun(RUNS.bunny);
-    const gates = a.filter((f): f is Gate => f.kind === 'gate');
-    for (const f of a)
-      if (f.kind === 'pine' || f.kind === 'rock' || f.kind === 'snowman')
-        expect(hits(f, lineAt(gates, f.z), 0)).toBe(false);
-  });
+  for (const key of RUN_ORDER)
+    it(`leaves a clear line through every gate of the ${RUNS[key].name}: nothing stands within reach of it`, () => {
+      const a = layRun(RUNS[key]);
+      const gates = a.filter((f): f is Gate => f.kind === 'gate');
+      for (const f of a)
+        if (f.kind === 'pine' || f.kind === 'rock' || f.kind === 'snowman')
+          expect(hits(f, lineAt(gates, f.z), 0)).toBe(false);
+    });
 
   it('counts down before it goes, and the clock starts at go', () => {
     const s = new Slalom(RUNS.bunny);
@@ -278,10 +302,199 @@ describe('the Ninja Slalom', () => {
     expect(s.best.bunny).toBe(47.1);
     expect(parseSlalom(JSON.parse(JSON.stringify(s)))).toEqual(s);
     expect(parseSlalom({ runs: 'x', best: {} })).toBeUndefined();
-    expect(parseSlalom({ runs: 3, best: { bunny: -2, fox: 30 } })).toEqual({ runs: 3, best: {} });
+    expect(parseSlalom({ runs: 3, best: { bunny: -2, moon: 30 } })).toEqual({ runs: 3, best: {} });
+    expect(parseSlalom({ runs: 3, best: { bunny: 47.1, fox: 61.24 } })).toEqual({
+      runs: 3,
+      best: { bunny: 47.1, fox: 61.2 },
+    });
     expect(parseSlalom({ runs: 3, best: 'fast' })).toEqual({ runs: 3, best: {} });
     expect(clockOf(47.06)).toBe('47.1');
     expect(clockOf(63.5)).toBe('1:03.5');
     expect(clockOf(9)).toBe('9.0');
+  });
+
+  it('has the Fox Run longer, narrower and steeper than the Bunny Slope, its gates tighter and swinging further', () => {
+    const b = RUNS.bunny;
+    const f = RUNS.fox;
+    expect(f.mark).toBe('blue');
+    expect(f.len).toBeGreaterThan(b.len);
+    expect(f.half).toBeLessThan(b.half);
+    expect(f.gateW).toBeLessThan(b.gateW);
+    expect(f.swing).toBeGreaterThan(b.swing);
+    expect(f.steep).toBeGreaterThan(b.steep);
+    expect(new Slalom(f).gatesOut).toBeGreaterThan(new Slalom(b).gatesOut);
+    // Down the line it makes every gate without a fall, and goes quicker than the Bunny Slope a metre.
+    const fox = ski(new Slalom(f), theLine());
+    expect(fox.state).toBe('done');
+    expect(fox.gatesMissed).toBe(0);
+    expect(fox.crashes).toBe(0);
+    const bunny = ski(new Slalom(b), theLine());
+    expect(fox.time / f.len).toBeLessThan(bunny.time / b.len);
+  });
+
+  it('has the Doom Drop longer, narrower and steeper again, and the line down it clean, cruising or tucked', () => {
+    const f = RUNS.fox;
+    const d = RUNS.doom;
+    expect(d.mark).toBe('black');
+    expect(d.len).toBeGreaterThan(f.len);
+    expect(d.half).toBeLessThan(f.half);
+    expect(d.gateW).toBeLessThan(f.gateW);
+    expect(d.swing).toBeGreaterThan(f.swing);
+    expect(d.steep).toBeGreaterThan(f.steep);
+    expect(d.yeti).toBe(true);
+    expect(f.yeti).toBeFalsy();
+    const doom = ski(new Slalom(d), theLine());
+    expect(doom.state).toBe('done');
+    expect(doom.gatesMissed).toBe(0);
+    expect(doom.crashes).toBe(0);
+    expect(doom.swiped).toBe(0);
+    // Tucked all the way, a gate or two goes by too quick to make, but nothing is hit and the yeti never gets near.
+    const tucked = ski(new Slalom(d), theLine(-1));
+    expect(tucked.crashes).toBe(0);
+    expect(tucked.gatesMissed).toBeLessThanOrEqual(3);
+    expect(tucked.swiped).toBe(0);
+  });
+
+  it('sets the yeti off behind you at the go, after a roar, and leaves you clear of it down a clean run', () => {
+    const s = new Slalom(RUNS.doom);
+    expect(s.yetiGap).toBe(YETI_START);
+    s.step(READY_T + DT, 0, 0);
+    expect(s.state).toBe('ski');
+    for (let t = 0; t < YETI_WAIT - 0.1; t += DT) s.step(DT, 0, 0);
+    expect(s.yetiZ).toBe(-YETI_START);
+    for (let t = 0; t < 1; t += DT) s.step(DT, 0, 0);
+    expect(s.yetiZ).toBeGreaterThan(-YETI_START);
+    // Down the line, it comes close as you get going, then you pull away from it; tucked, further.
+    let least = Infinity;
+    ski(s, theLine(), (q) => {
+      least = Math.min(least, q.yetiGap);
+      return false;
+    });
+    expect(s.state).toBe('done');
+    expect(s.swiped).toBe(0);
+    expect(least).toBeGreaterThan(YETI_REACH * 3);
+    expect(least).toBeLessThan(YETI_GROWL);
+    expect(s.yetiGap).toBeGreaterThan(least * 3);
+    const tuck = ski(new Slalom(RUNS.doom), theLine(-1));
+    expect(tuck.swiped).toBe(0);
+    expect(tuck.yetiGap).toBeGreaterThan(s.yetiGap * 3);
+  });
+
+  it('catches you braking: a swipe into a tumble, then it stops to roar, and comes on again', () => {
+    const s = chased();
+    const said: string[] = [];
+    s.onEvent = (w) => said.push(w);
+    ski(
+      s,
+      () => [0, 1],
+      (q) => q.state === 'tumble',
+    );
+    expect(said).toEqual(['growl', 'yeti']);
+    expect(s.state).toBe('tumble');
+    expect(s.swiped).toBe(1);
+    expect(s.crashes).toBe(1);
+    expect(s.yetiGap).toBeCloseTo(YETI_REACH, 6);
+    expect(s.yetiRoar).toBe(YETI_ROAR_T);
+    // Roaring, it stays put while you get up and go.
+    const z = s.yetiZ;
+    for (let t = 0; t < YETI_ROAR_T - 0.1; t += DT) s.step(DT, 0, -1);
+    expect(s.yetiZ).toBe(z);
+    expect(s.state).toBe('ski');
+    // Braking again, it catches you again.
+    ski(
+      s,
+      () => [0, 1],
+      (q) => q.swiped > 1 || q.z > 400,
+    );
+    expect(s.swiped).toBe(2);
+  });
+
+  it('never swipes you while you are tumbling already, or in the air: it only roars', () => {
+    const fall = chased({ kind: 'pine', z: 30, x: 0, r: 0.9 });
+    ski(
+      fall,
+      () => [0, 0],
+      (q) => q.state === 'tumble',
+    );
+    const said: string[] = [];
+    fall.onEvent = (w) => said.push(w);
+    fall.yetiRoar = 0;
+    fall.yetiZ = fall.z - 0.5;
+    fall.step(DT, 0, 0);
+    expect(fall.state).toBe('tumble');
+    expect(fall.swiped).toBe(0);
+    expect(fall.crashes).toBe(1);
+    expect(fall.yetiRoar).toBe(YETI_ROAR_T);
+    expect(said).not.toContain('yeti');
+    const jump = chased({ kind: 'jump', z: 40, x0: -3, x1: 3 });
+    ski(
+      jump,
+      () => [0, 0],
+      (q) => q.air,
+    );
+    jump.yetiRoar = 0;
+    jump.yetiZ = jump.z - 0.5;
+    jump.step(DT, 0, 0);
+    expect(jump.air).toBe(true);
+    expect(jump.swiped).toBe(0);
+    expect(jump.yetiRoar).toBe(YETI_ROAR_T);
+  });
+
+  it('growls once as it comes close, again only once it has been left well behind', () => {
+    const s = ski(
+      chased(),
+      () => [0, 0],
+      (q) => q.z > 60,
+    );
+    const said: string[] = [];
+    s.onEvent = (w) => said.push(w);
+    const at = (gap: number) => {
+      s.yetiRoar = 0;
+      s.yetiZ = s.z - gap;
+      s.step(DT, 0, 0);
+    };
+    at(YETI_GROWL * 2 + 2);
+    at(YETI_GROWL + 1);
+    expect(said).toEqual([]);
+    at(YETI_GROWL - 1);
+    at(YETI_GROWL - 3);
+    at(YETI_GROWL + 4);
+    expect(said).toEqual(['growl']);
+    at(YETI_GROWL * 2 + 2);
+    at(YETI_GROWL - 1);
+    expect(said).toEqual(['growl', 'growl']);
+  });
+
+  it('has no yeti on the Bunny Slope or the Fox Run', () => {
+    for (const key of ['bunny', 'fox'] as const) {
+      const s = ski(new Slalom(RUNS[key]), () => [0, 1]);
+      expect(s.state).toBe('done');
+      expect(s.swiped).toBe(0);
+      expect(s.yetiZ).toBe(-YETI_START);
+    }
+  });
+
+  it('gives gold, silver or bronze for a time, or none: gold tucked all the way down, bronze cruising', () => {
+    for (const key of RUN_ORDER) {
+      const run = RUNS[key];
+      const [g, s, b] = run.medals;
+      expect(g).toBeLessThan(s);
+      expect(s).toBeLessThan(b);
+      expect(medalOf(run, g)).toBe('gold');
+      expect(medalOf(run, g + 0.04)).toBe('gold');
+      expect(medalOf(run, g + 0.1)).toBe('silver');
+      expect(medalOf(run, b)).toBe('bronze');
+      expect(medalOf(run, b + 0.1)).toBeNull();
+      expect(medalOf(run, ski(new Slalom(run), theLine(-1)).time)).toBe('gold');
+      expect(medalOf(run, ski(new Slalom(run), theLine(-0.6)).time)).toBe('silver');
+      expect(medalOf(run, ski(new Slalom(run), theLine()).time)).toBe('bronze');
+      // Braking all the way down wins nothing.
+      expect(medalOf(run, ski(new Slalom(run), theLine(1)).time)).toBeNull();
+    }
+    expect(medalBetter('gold', 'silver')).toBe(true);
+    expect(medalBetter('bronze', null)).toBe(true);
+    expect(medalBetter('silver', 'silver')).toBe(false);
+    expect(medalBetter('bronze', 'gold')).toBe(false);
+    expect(medalBetter(null, null)).toBe(false);
   });
 });

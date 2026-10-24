@@ -103,10 +103,13 @@ describe('palace table', () => {
 });
 
 describe('paints', () => {
-  it("has the ten hulls the flagship unlocks, and the mermaids' after them", () => {
-    expect(PAINTS).toHaveLength(TIER_PAINTS + 1);
+  it("has the ten hulls the flagship unlocks, the mermaids' after them, and the two won on the Endless Isle", () => {
+    expect(PAINTS).toHaveLength(TIER_PAINTS + 3);
     expect(PAINTS[MER_PAINT]?.name).toBe('Mermaid scales');
-    expect(PAINTS.filter((p) => p.shimmer)).toHaveLength(1);
+    expect(PAINTS.filter((p) => p.shimmer).map((p) => p.name)).toEqual([
+      'Mermaid scales',
+      'Grand Master',
+    ]);
     expect(paintsUnlocked(5)).toBe(TIER_PAINTS);
     for (const p of PAINTS) expect(p.hull).toMatch(/^#[0-9A-F]{6}$/i);
   });

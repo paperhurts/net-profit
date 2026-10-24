@@ -2,11 +2,14 @@
  * The Ninja Slalom (entities/slalom.ts), the whole screen, seen from just behind the skier as the run streams toward
  * you: the piste in stripes of snow between banks of pines, far snowy peaks under a cold blue sky, the gates, the
  * lanterns and all that stands in the way coming up out of the white haze ahead, and the skier, from behind, in your
- * jacket, a red headband's tails flying and a sword on the back. Over it all: the clock, how far down, the lanterns.
+ * jacket, a red headband's tails flying and a sword on the back. On the Doom Drop, the yeti after you: its face rising
+ * from the bottom of the screen as it gains, all the way up once it is right behind you, its paws reaching.
+ * Over it all: the clock, how far down, the medal times, the lanterns, and how far back the yeti is.
  */
 
 import { clamp } from '../core/math';
-import { clockOf } from '../data/slalom';
+import { type OutfitLook, TRICORN } from '../data/look';
+import { clockOf, MEDAL_NAME, type Medal, medalOf } from '../data/slalom';
 import {
   BEAT,
   type Feature,
@@ -25,7 +28,6 @@ const HAZE_FROM = 25;
 const HAZE_TO = 85;
 const SEE = 95;
 /** The mountain's own colours. */
-const HAZE = '#DCEBF5';
 const SNOW_A = '#F6F9FC';
 const SNOW_B = '#EAF1F8';
 const BANK_A = '#DCE6F0';
@@ -36,8 +38,8 @@ const ROCK = '#7E838C';
 const ROCK_LIT = '#9CA1AA';
 const INK = '#2A2D33';
 
-/** Who skis: the figure's jacket (its shirt), hair and skin. */
-export type SkierLook = { shirt: string; hair: string; skin: string };
+/** Who skis: the figure's jacket (its shirt), hair and skin, and an outfit won on the Endless Isle, if one is worn. */
+export type SkierLook = { shirt: string; hair: string; skin: string; out?: OutfitLook | null };
 /** A word over the run for a moment: a gate missed, a trick landed, a lantern cut. */
 export type SkiPop = { text: string; colour: string; t: number };
 export const SKI_POP_T = 1.2;
@@ -533,7 +535,8 @@ export function drawSkier(
     ctx.fill();
   }
   // Legs, knees bent the more for a tuck.
-  ctx.strokeStyle = '#2B3346';
+  const out = look.out ?? null;
+  ctx.strokeStyle = out?.legs ?? '#2B3346';
   ctx.lineCap = 'round';
   ctx.lineWidth = 0.13 * m;
   const knee = hip * 0.5;
@@ -560,6 +563,11 @@ export function drawSkier(
   ctx.lineTo(-0.22 * m, -neck);
   ctx.closePath();
   ctx.fill();
+  // An outfit's trim at the waist: the ninjas' sash, the captain's gold hem.
+  if (out) {
+    ctx.fillStyle = out.trim;
+    ctx.fillRect(-0.19 * m, -hip - (out.hood ? 0.09 : 0) * m, 0.38 * m, 0.05 * m);
+  }
   ctx.strokeStyle = look.shirt;
   ctx.lineWidth = 0.1 * m;
   for (const side of [-1, 1]) {
@@ -598,13 +606,23 @@ export function drawSkier(
     ctx.lineTo(-0.27 * m, -neck - 0.28 * m);
     ctx.stroke();
   }
-  // The head: the back of it, hair and all, or the face, turned round in a spin.
+  // The head: the back of it, hair and all, or the face, turned round in a spin; in a ninja's hood, all hood but a
+  // slit for the eyes.
   const hy = -neck - 0.15 * m;
-  ctx.fillStyle = front ? look.skin : look.hair;
+  ctx.fillStyle = out?.hood ?? (front ? look.skin : look.hair);
   ctx.beginPath();
   ctx.arc(0, hy, 0.14 * m, 0, Math.PI * 2);
   ctx.fill();
+  if (out?.hood) {
+    ctx.strokeStyle = 'rgba(70,95,130,.45)';
+    ctx.lineWidth = 0.015 * m;
+    ctx.stroke();
+  }
   if (front) {
+    if (out?.hood) {
+      ctx.fillStyle = look.skin;
+      ctx.fillRect(-0.1 * m, hy - 0.025 * m, 0.2 * m, 0.07 * m);
+    }
     ctx.fillStyle = INK;
     for (const dx of [-0.05, 0.05]) {
       ctx.beginPath();
@@ -612,8 +630,14 @@ export function drawSkier(
       ctx.fill();
     }
   }
-  // The red headband, its tails flying out behind.
-  ctx.fillStyle = '#D23B2E';
+  // The captain wears his tricorn down the run, and no headband.
+  if (out && !out.hood) {
+    skiTricorn(ctx, hy, m);
+    ctx.restore();
+    return;
+  }
+  // The headband, red or the outfit's, its tails flying out behind.
+  ctx.fillStyle = out?.trim ?? '#D23B2E';
   ctx.fillRect(-0.145 * m, hy - 0.06 * m, 0.29 * m, 0.06 * m);
   const flap = Math.sin(o.T * 14) * 0.05;
   ctx.beginPath();
@@ -624,6 +648,25 @@ export function drawSkier(
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+}
+
+/** The tricorn on the skier's head, from behind: black felt, its brim turned up to a point either side, edged gold. */
+function skiTricorn(ctx: CanvasRenderingContext2D, hy: number, m: number): void {
+  const [felt, gold] = TRICORN;
+  ctx.fillStyle = felt;
+  ctx.beginPath();
+  ctx.ellipse(0, hy - 0.06 * m, 0.13 * m, 0.13 * m, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-0.27 * m, hy - 0.1 * m);
+  ctx.quadraticCurveTo(0, hy + 0.02 * m, 0.27 * m, hy - 0.1 * m);
+  ctx.quadraticCurveTo(0.12 * m, hy - 0.02 * m, 0, hy + 0.06 * m);
+  ctx.quadraticCurveTo(-0.12 * m, hy - 0.02 * m, -0.27 * m, hy - 0.1 * m);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 0.02 * m;
+  ctx.stroke();
 }
 
 /** The whole run on the screen; top is where the bars sit, clear of the phone's notch; best, the best time before. */
@@ -651,13 +694,18 @@ export function drawSlalom(
   };
   const half = sl.run.half;
   // The sky, the far peaks along the horizon, and the snow.
+  const [zenith, haze] = sl.run.sky;
   const sky = ctx.createLinearGradient(0, 0, 0, v.y0);
-  sky.addColorStop(0, '#7DB6E3');
-  sky.addColorStop(1, HAZE);
+  sky.addColorStop(0, zenith);
+  sky.addColorStop(1, haze);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, v.y0 + 1);
   drawFarPeaks(ctx, W, v.y0, sl.x);
-  ctx.fillStyle = HAZE;
+  // The ground: the haze far off, snow near, so the far run fades into the haze.
+  const ground = ctx.createLinearGradient(0, v.y0, 0, v.y0 + (H - v.y0) * 0.4);
+  ground.addColorStop(0, haze);
+  ground.addColorStop(1, SNOW_B);
+  ctx.fillStyle = ground;
   ctx.fillRect(0, v.y0, W, H - v.y0);
   // Stripes of snow running toward you, far to near: the piste, and the deep banks either side of it.
   const step = 3;
@@ -765,8 +813,9 @@ export function drawSlalom(
     ctx.arc(p.sx, p.sy, Math.max(1, 0.04 * p.s), 0, Math.PI * 2);
     ctx.fill();
   }
+  if (sl.run.yeti) yetiPeek(ctx, W, H, sl, T);
   drawSkiBars(ctx, W, sl, top);
-  drawPops(ctx, W, H, pops);
+  drawPops(ctx, W, top + (sl.run.yeti ? 122 : 104), pops);
   if (sl.howTo) drawHowTo(ctx, W, H);
   else if (sl.state === 'ready' || (sl.state === 'ski' && sl.t < 0.7)) drawCount(ctx, W, H, sl);
   if (sl.state === 'done') drawSkiOver(ctx, W, H, sl, best);
@@ -916,7 +965,7 @@ function drawSkiBars(ctx: CanvasRenderingContext2D, W: number, sl: Slalom, top: 
   const pad = 14;
   const w = Math.min(220, W - pad * 2 - 90);
   ctx.fillStyle = 'rgba(20,40,70,.55)';
-  box(ctx, pad, top, w + 16, 50);
+  box(ctx, pad, top, w + 16, 66);
   ctx.fillStyle = '#FFF7E6';
   ctx.font = `800 22px ${FONT}`;
   ctx.textAlign = 'left';
@@ -930,6 +979,18 @@ function drawSkiBars(ctx: CanvasRenderingContext2D, W: number, sl: Slalom, top: 
   ctx.fillRect(pad + 8, top + 36, w - 2, 4);
   ctx.fillStyle = '#FFE066';
   ctx.fillRect(pad + 8, top + 36, (w - 2) * sl.progress, 4);
+  // The medal times: each dims once the clock is past it.
+  ctx.font = `800 12px ${FONT}`;
+  ctx.textAlign = 'left';
+  sl.run.medals.forEach((m, i) => {
+    const x = pad + 10 + i * Math.min(72, (w - 2) / 3);
+    const lost = sl.time > m + 0.05;
+    ctx.globalAlpha = lost ? 0.35 : 1;
+    medalDisc(ctx, x + 6, top + 53, 6, MEDALS[i] as Medal);
+    ctx.fillStyle = '#FFF7E6';
+    ctx.fillText(clockOf(m), x + 15, top + 54);
+  });
+  ctx.globalAlpha = 1;
   ctx.fillStyle = 'rgba(20,40,70,.55)';
   box(ctx, W - pad - 74, top, 74, 44);
   paperLantern(ctx, W - pad - 52, top + 22, 10, 0, 1);
@@ -937,13 +998,158 @@ function drawSkiBars(ctx: CanvasRenderingContext2D, W: number, sl: Slalom, top: 
   ctx.font = `800 16px ${FONT}`;
   ctx.textAlign = 'left';
   ctx.fillText(`${sl.lanterns}`, W - pad - 36, top + 23);
+  // How far back the yeti is: red once it is close.
+  if (sl.run.yeti && sl.state !== 'done') {
+    const gap = Math.max(0, sl.yetiGap);
+    const near = gap < YETI_CLOSE;
+    ctx.fillStyle = near ? 'rgba(170,40,40,.75)' : 'rgba(20,40,70,.55)';
+    box(ctx, W - pad - 74, top + 50, 74, 36);
+    yetiFace(ctx, W - pad - 55, top + 68, 11, near && sl.yetiRoar > 0, 0);
+    ctx.fillStyle = '#FFF7E6';
+    ctx.font = `800 14px ${FONT}`;
+    ctx.fillText(`${Math.round(gap)} m`, W - pad - 39, top + 69);
+  }
 }
 
-/** The words over the run: each rises and fades. */
-function drawPops(
+/** Closer than this, the yeti's chip in the bar goes red. */
+const YETI_CLOSE = 15;
+/** The yeti peeks up from the bottom of the screen from this far back, and is all the way up as near as the camera. */
+const PEEK_FROM = 26;
+
+/** The edge of the yeti's white fur, so it shows against the snow. */
+const FUR_EDGE = 'rgba(70,95,130,.6)';
+
+/** The yeti's face, front on: white shaggy fur round a blue-grey face, angry brows, and its mouth shut on two fangs,
+ * or wide open, roaring. */
+function yetiFace(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  roar: boolean,
+  T: number,
+): void {
+  // The fur, shaggy round the edge.
+  ctx.fillStyle = '#F4F7FB';
+  ctx.beginPath();
+  for (let i = 0; i <= 22; i++) {
+    const a = (i / 22) * Math.PI * 2;
+    const rr = r * (1 + (i % 2 ? 0.1 : -0.02) + Math.sin(T * 6 + i) * 0.015);
+    if (i === 0) ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    else ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = FUR_EDGE;
+  ctx.lineWidth = Math.max(1, r * 0.05);
+  ctx.stroke();
+  ctx.fillStyle = '#DCE5EF';
+  ctx.beginPath();
+  ctx.arc(x, y + r * 0.08, r * 0.82, 0, Math.PI);
+  ctx.fill();
+  // The face.
+  ctx.fillStyle = '#7F9AB8';
+  ctx.beginPath();
+  ctx.ellipse(x, y + r * 0.18, r * 0.6, r * 0.52, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Brows and eyes.
+  ctx.strokeStyle = '#2A3446';
+  ctx.lineWidth = Math.max(1.5, r * 0.11);
+  ctx.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + side * r * 0.42, y - r * 0.12);
+    ctx.lineTo(x + side * r * 0.1, y + r * 0.02);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.ellipse(x + side * r * 0.24, y + r * 0.1, r * 0.11, r * 0.09, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(x + side * r * 0.22, y + r * 0.11, r * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+  // The mouth.
+  if (roar) {
+    ctx.fillStyle = '#5A1620';
+    ctx.beginPath();
+    ctx.ellipse(x, y + r * 0.44, r * 0.3, r * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFF';
+    for (const dx of [-0.17, 0.17]) {
+      ctx.beginPath();
+      ctx.moveTo(x + (dx - 0.06) * r, y + r * 0.27);
+      ctx.lineTo(x + (dx + 0.06) * r, y + r * 0.27);
+      ctx.lineTo(x + dx * r, y + r * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle = '#2A3446';
+    ctx.lineWidth = Math.max(1, r * 0.07);
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.22, y + r * 0.42);
+    ctx.lineTo(x + r * 0.22, y + r * 0.42);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF';
+    for (const dx of [-0.14, 0.14]) {
+      ctx.beginPath();
+      ctx.moveTo(x + (dx - 0.05) * r, y + r * 0.42);
+      ctx.lineTo(x + (dx + 0.05) * r, y + r * 0.42);
+      ctx.lineTo(x + dx * r, y + r * 0.53);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+/** The yeti behind you: its face rising from the bottom of the screen the nearer it comes, all the way up once it is
+ * as near as the camera, its paws reaching up either side once it is close. */
+function yetiPeek(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
+  sl: Slalom,
+  T: number,
+): void {
+  if (sl.state === 'done') return;
+  const gap = sl.yetiGap;
+  const u = clamp((PEEK_FROM - gap) / (PEEK_FROM - CAM_BACK), 0, 1);
+  if (u <= 0) return;
+  const r = Math.min(W, H) * 0.17;
+  const bobY = Math.sin(T * 9) * r * 0.04;
+  const y = H + r * 1.15 - u * r * 1.75 + bobY;
+  const roar = sl.yetiRoar > 0;
+  if (u > 0.55) {
+    // Paws, reaching up.
+    for (const side of [-1, 1]) {
+      const px = W / 2 + side * r * 1.35;
+      const py = y + r * 0.3 - Math.sin(T * 7 + side) * r * 0.1;
+      ctx.fillStyle = '#EEF2F8';
+      ctx.strokeStyle = FUR_EDGE;
+      ctx.lineWidth = Math.max(1.5, r * 0.05);
+      ctx.beginPath();
+      ctx.ellipse(px, py, r * 0.32, r * 0.42, side * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#7F9AB8';
+      for (const k of [-1, 0, 1]) {
+        ctx.beginPath();
+        ctx.arc(px + k * r * 0.12, py - r * 0.36, r * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  yetiFace(ctx, W / 2, y, r, roar, T);
+}
+
+/** The words over the run, from just under the bars: each rises and fades. */
+function drawPops(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  y0: number,
   pops: readonly SkiPop[],
 ): void {
   ctx.textAlign = 'center';
@@ -952,7 +1158,7 @@ function drawPops(
   pops.forEach((p, i) => {
     const u = clamp(p.t / SKI_POP_T, 0, 1);
     ctx.globalAlpha = 1 - u * u;
-    const y = H * 0.24 - u * 26 + i * 30;
+    const y = y0 - u * 26 + i * 30;
     ctx.lineWidth = 5;
     ctx.strokeStyle = 'rgba(20,40,70,.6)';
     ctx.strokeText(p.text, W / 2, y);
@@ -991,8 +1197,9 @@ function drawSkiOver(
   const w = Math.min(300, W - 40);
   const x = (W - w) / 2;
   const y = H * 0.3;
+  const medal = medalOf(sl.run, sl.time);
   ctx.fillStyle = 'rgba(20,40,70,.72)';
-  box(ctx, x, y, w, 118);
+  box(ctx, x, y, w, 150);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#CFE2F5';
@@ -1001,6 +1208,18 @@ function drawSkiOver(
   ctx.fillStyle = '#FFE066';
   ctx.font = `800 34px ${FONT}`;
   ctx.fillText(clockOf(sl.time), W / 2, y + 52);
+  // The medal won, or how far off bronze.
+  ctx.font = `800 17px ${FONT}`;
+  if (medal) {
+    const text = `${MEDAL_NAME[medal]} medal!`;
+    const tw = ctx.measureText(text).width;
+    medalDisc(ctx, W / 2 - tw / 2 - 4, y + 84, 10, medal);
+    ctx.fillStyle = MEDAL_COLOUR[medal];
+    ctx.fillText(text, W / 2 + 12, y + 84);
+  } else {
+    ctx.fillStyle = '#CFE2F5';
+    ctx.fillText(`Bronze is ${clockOf(sl.run.medals[2])}: so close!`, W / 2, y + 84);
+  }
   const rounded = Math.round(sl.time * 10) / 10;
   ctx.font = `800 14px ${FONT}`;
   ctx.fillStyle = '#FFF7E6';
@@ -1011,13 +1230,45 @@ function drawSkiOver(
         ? `Your best yet! (was ${clockOf(best)})`
         : `Your best: ${clockOf(best)}`,
     W / 2,
-    y + 80,
+    y + 110,
   );
   ctx.fillStyle = '#CFE2F5';
   ctx.font = `800 13px ${FONT}`;
   ctx.fillText(
     `Gates ${sl.gatesMade}/${sl.gatesOut} · Lanterns ${sl.lanterns} · Tricks ${sl.tricks}`,
     W / 2,
-    y + 102,
+    y + 132,
   );
+}
+
+/** The medals' names and colours, gold first. */
+const MEDALS: readonly Medal[] = ['gold', 'silver', 'bronze'];
+const MEDAL_COLOUR: Readonly<Record<Medal, string>> = {
+  gold: '#F5C84B',
+  silver: '#D5DEE7',
+  bronze: '#D69355',
+};
+/** A medal: a disc on its ribbon's knot, a shine across it. */
+function medalDisc(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, m: Medal): void {
+  ctx.fillStyle = '#C4433A';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.7, y - r * 1.5);
+  ctx.lineTo(x - r * 0.15, y - r * 0.4);
+  ctx.lineTo(x + r * 0.15, y - r * 0.4);
+  ctx.lineTo(x + r * 0.7, y - r * 1.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MEDAL_COLOUR[m];
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(60,40,10,.35)';
+  ctx.lineWidth = Math.max(1, r * 0.18);
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.66, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.beginPath();
+  ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.25, 0, Math.PI * 2);
+  ctx.fill();
 }
