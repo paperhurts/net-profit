@@ -6,6 +6,7 @@
  */
 
 import { K as ISO_K } from '../core/iso';
+import { COLOURS, GRID, PEN, type Pt, type Rig, type Stroke } from '../data/doodle';
 import type { PetKey } from '../data/petsys';
 import type { DrawView } from '../entities/entity';
 import { drawOtterSit } from '../entities/otter';
@@ -113,5 +114,92 @@ export function drawPetPortrait(v: DrawView, k: PetKey, crows: number, muffins: 
       m.stride = T * 5 + i;
       drawLeggy(v, m, 0, i);
     }
+  }
+}
+
+/**
+ * A drawn pet (data/doodle.ts) at screen x, y (its feet), `size` pixels across its longer side, facing right (1) or
+ * left (-1): standing on the ground as a cut-out, it bobs, squashes and stretches a little, and its legs swing in turn.
+ * `ph` is the step's phase; `walk` how much it is walking, 0 standing to 1. `hop` lifts it, in pixels.
+ */
+export function drawDoodle(
+  ctx: CanvasRenderingContext2D,
+  r: Rig,
+  x: number,
+  y: number,
+  size: number,
+  face: number,
+  ph: number,
+  walk: number,
+  hop = 0,
+): void {
+  if (!r.strokes.length) return;
+  const s = size / Math.max(r.x1 - r.x0, r.y1 - r.y0, 16);
+  const bob = Math.abs(Math.sin(ph)) * size * 0.04 * walk;
+  const sq = 1 + Math.cos(ph * 2) * 0.035 * walk;
+  ctx.save();
+  ctx.translate(x, y - bob - hop);
+  ctx.scale(face * (2 - sq), sq);
+  ctx.rotate(face * 0.05 * walk);
+  ctx.translate(-((r.x0 + r.x1) / 2) * s, -r.y1 * s);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = PEN * s;
+  r.strokes.forEach((st, i) => {
+    const leg = r.legs.get(i);
+    ctx.save();
+    if (leg && walk > 0) {
+      const [tx, ty] = leg.top;
+      ctx.translate(tx * s, ty * s);
+      ctx.rotate(leg.sign * Math.sin(ph) * 0.38 * walk);
+      ctx.translate(-tx * s, -ty * s);
+    }
+    ctx.strokeStyle = COLOURS[st.c] ?? COLOURS[0];
+    ctx.beginPath();
+    st.p.forEach(([px, py], j) => {
+      if (j) ctx.lineTo(px * s, py * s);
+      else ctx.moveTo(px * s, py * s);
+    });
+    if (st.p.length === 1) {
+      const [px, py] = st.p[0] as Pt;
+      ctx.lineTo(px * s + 0.1, py * s);
+    }
+    ctx.stroke();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+/** The pad as the finger sees it: a square `w` pixels across, faint guide dots, the strokes and the one being drawn. */
+export function drawPad(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  strokes: readonly Stroke[],
+  cur: Stroke | null,
+): void {
+  const k = w / (GRID - 1);
+  ctx.clearRect(0, 0, w, w);
+  ctx.fillStyle = 'rgba(18,48,58,.08)';
+  for (let gx = 8; gx < GRID; gx += 8)
+    for (let gy = 8; gy < GRID; gy += 8) {
+      ctx.beginPath();
+      ctx.arc(gx * k, gy * k, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = PEN * k;
+  for (const s of cur ? [...strokes, cur] : strokes) {
+    ctx.strokeStyle = COLOURS[s.c] ?? COLOURS[0];
+    ctx.beginPath();
+    s.p.forEach(([x, y], i) => {
+      if (i) ctx.lineTo(x * k, y * k);
+      else ctx.moveTo(x * k, y * k);
+    });
+    if (s.p.length === 1) {
+      const [x, y] = s.p[0] as Pt;
+      ctx.lineTo(x * k + 0.1, y * k);
+    }
+    ctx.stroke();
   }
 }
