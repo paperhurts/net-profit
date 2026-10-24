@@ -781,7 +781,7 @@ function startDive(){ audio(); if (!diveShown) return; diveSite = diveShown; div
   neilDive.x = diver.x + 30; neilDive.y = diver.y + 20; diveGone = noneGone(diveSh()); lurker.reset(); boneSharks.forEach((b, i) => b.reset(i * Math.PI)); sharkTold = false;
   diveBubbles = []; stowSeine(); joy.on = false;
   document.body.classList.add('diving'); $('diveBtn').hidden = true; diveShown = null; $('surfaceBtn').hidden = false; $('surfaceBtn').textContent = diveSite === 'sub' ? 'Back up to the boat' : diveSite === 'abyss' ? 'Ride the cage up' : 'Swim back up'; sfx.spit(); toasts.clear();
-  elThrow.hidden = !spear; throwShown = 'dive'; elThrow.classList.remove('harpoon', 'knife'); elThrow.setAttribute('aria-label', 'Throw the spear');
+  elThrow.hidden = !spear; throwShown = 'dive'; elThrow.classList.remove('harpoon', 'knife', 'fling'); elThrow.setAttribute('aria-label', 'Throw the spear');
   if (diveSite === 'lagoon'){ const pals = divePals.map(p => p.kind === 'naga' ? 'the naga' : 'the baby Reaper'), who = pals.join(' and ');
     toast((lagoonTold ? 'Back down into the black lagoon.' : 'Down into the black lagoon! It is dark from the very top: only your lamp lights the way.')
       + (skullKey ? '' : ' Something glints, far down on the bottom.') + (lagoonTold ? '' : ' Its creatures live down here, and they claw at your tank.')
@@ -2574,7 +2574,8 @@ function updateCtf(dt){ if (!ctf) return;
   if (me.state === 'live' && ctf.held(me)){ const [x, y] = fromEndless(me.u, me.v); walker.x = x; walker.y = y; walker.vx = walker.vy = 0; }
   ctf.update(dt, toEndless(walker.x, walker.y));
   for (const e of ctf.events.splice(0)){ ctfEvent(e); if (!ctf) return; }
-  for (const s of ctfShots) s.t += dt/(s.dur ?? .35); ctfShots = ctfShots.filter(s => s.t < 1);
+  for (const s of ctfShots){ s.t += dt/(s.dur ?? .35); if (s.t >= 1 && !s.kind) ctfSparkle(s.to === me ? walker : ctfAt(s.to), s.f.side); }
+  ctfShots = ctfShots.filter(s => s.t < 1);
   for (const r of ctfRings) r.t += dt/.5; ctfRings = ctfRings.filter(r => r.t < 1);
   for (const x of ctfFx) x.t += dt/x.dur; ctfFx = ctfFx.filter(x => x.t < 1);
   playShanty(dt);
@@ -2735,6 +2736,9 @@ function hudAbility(){ const me = ctf?.you, show = !!me && ctf.phase !== 'over' 
 // Your strike, at the nearest foe in reach.
 function ctfStrike(){ if (!ctf || T < reloadAt) return; const to = ctf.strike(); if (!to) return;
   reloadAt = T + ctf.you.kit.every; const p = ctfAt(to); sfx.spearThrow(); if (ctf.you.kit.thrown) walker.throwAt(p.x, p.y); else { walker.stabAt(p.x, p.y); stabFlash(p, 18); } }
+// A healer's magic fish (or mochi) landing: a little burst of sparkles, gold for the pirates', pink for the ninjas'.
+function ctfSparkle(p, side){ if (!onScreen(p.x, p.y, 60*Z)) return;
+  for (let i = 0; i < 12; i++) sparks.push({x: p.x, y: p.y, vx: (Math.random() - .5)*140, vy: (Math.random() - .5)*140, z: 18, vz: 30 + Math.random()*60, age: 0, life: .55 + Math.random()*.45, c: i % 2 ? '#FFFFFF' : side === 'pirate' ? '#FFD84A' : '#FF9CC4'}); }
 // The score along the top: the clock, and what is going on with the flags.
 function hudCtf(){ if (!ctf) return; const me = ctf.you, f = ctf.flags, mine = ctf.yours, theirs = rival(mine);
   const left = Math.ceil(ctf.phase === 'gates' ? CTF.clock : ctf.clock), clock = `${Math.floor(left/60)}:${String(left % 60).padStart(2, '0')}`;
@@ -2793,7 +2797,21 @@ function ctfSolids(){ const out = [];
       else if (s.kind === 'tea'){ ctx.fillStyle = '#E8F0E0'; ctx.fillRect(sx - 3.5*Z, sy - 3*Z, 7*Z, 6*Z); ctx.fillStyle = '#7FB85A'; ctx.fillRect(sx - 3*Z, sy - 2.5*Z, 6*Z, 2*Z); }
       else if (s.kind === 'lime'){ ctx.fillStyle = '#9BD45A'; ctx.beginPath(); ctx.arc(sx, sy, 3.6*Z, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#E8F6C8'; ctx.beginPath(); ctx.arc(sx, sy, 2*Z, 0, Math.PI*2); ctx.fill(); }
       else if (s.kind === 'petal'){ for (let i = 0; i < 3; i++){ ctx.fillStyle = i % 2 ? '#F7B6CC' : '#F28CB1'; ctx.beginPath(); ctx.ellipse(sx + (i - 1)*4*Z, sy + Math.sin(k*9 + i)*2*Z, 2.6*Z, 1.5*Z, k*6 + i, 0, Math.PI*2); ctx.fill(); } }
-      else { ctx.fillStyle = s.f.side === 'pirate' ? '#9AB8C8' : '#F2A6C0'; ctx.beginPath(); ctx.ellipse(sx, sy, 4*Z, 2.2*Z, k*6, 0, Math.PI*2); ctx.fill(); } } }});
+      // A healer's throw: the cook's fish, or the monk's pink mochi on its leaf, big enough to follow, its shadow under it,
+      // and a trail of twinkling sparkles behind, because it is a magic fish.
+      else { const gx = px(x, y), gy = py(x, y, 0); ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(gx, gy, 5*Z, 2*Z, 0, 0, Math.PI*2); ctx.fill();
+        for (let i = 1; i <= 7; i++){ const kk = k - i*.05; if (kk < 0) break; const tx = a.x + (b.x - a.x)*kk, ty = a.y + (b.y - a.y)*kk, tw = (Math.sin(T*22 + i*1.7) + 1)/2;
+          ctx.globalAlpha = (1 - i/8)*(.65 + tw*.35); ctx.fillStyle = i % 2 ? '#FFFFFF' : s.f.side === 'pirate' ? '#FFD84A' : '#FF9CC4';
+          star(px(tx, ty) + Math.sin(i*2.3)*5*Z, py(tx, ty, 18 + Math.sin(kk*Math.PI)*lob) + Math.cos(i*1.9)*5*Z, (3.4 + tw*2.6)*Z); }
+        ctx.globalAlpha = 1;
+        ctx.save(); ctx.translate(sx, sy); ctx.lineWidth = 1.1*Z;
+        if (s.f.side === 'pirate'){ ctx.rotate(k*9); ctx.fillStyle = '#7FA6BC'; ctx.strokeStyle = '#2F4A5A'; ctx.beginPath(); ctx.ellipse(0, 0, 7*Z, 3.4*Z, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-6*Z, 0); ctx.lineTo(-11*Z, -4*Z); ctx.lineTo(-11*Z, 4*Z); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#1E1A18'; ctx.beginPath(); ctx.arc(4*Z, -1*Z, 1*Z, 0, Math.PI*2); ctx.fill(); }
+        else { ctx.rotate(k*4); ctx.fillStyle = '#6FAE5A'; ctx.beginPath(); ctx.ellipse(-1.4*Z, 5*Z, 6.4*Z, 2.8*Z, -.3, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#F4A9C4'; ctx.strokeStyle = '#B5577A'; ctx.beginPath(); ctx.arc(0, 0, 7*Z, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(-2.2*Z, -2.5*Z, 2*Z, 0, Math.PI*2); ctx.fill(); }
+        ctx.restore(); } } }});
   return out; }
 function drawMyFlag(){ const me = ctf?.you; if (!me?.carrying) return; const sx = px(walker.x, walker.y), sy = py(walker.x, walker.y, walker.z), dir = Math.cos(walker.h) - Math.sin(walker.h) < 0 ? -1 : 1;
   drawBattleFlag(drawView, rival(me.side), sx - dir*6*Z, sy - 12*Z); }
@@ -3619,7 +3637,7 @@ function updateEel(dt){ const b = tarSail; tarEel.on = eelStage === 1; kraken.on
   const safe = !b || Math.hypot(b.x - TAR_BERTH.x, b.y - TAR_BERTH.y) < EEL_CALM || Math.hypot(b.x - ISLE_BERTH.x, b.y - ISLE_BERTH.y) < EEL_CALM * 0.6;
   tarEel.step(dt, b && !tarAshore ? b : null, safe); spears.update(dt, world); tarDark = Math.max(0, tarDark - dt * 0.8);
   const show = krakenTarget() || eelTarget() || tentTarget() ? 'harpoon' : null;
-  if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', !!show); elThrow.classList.remove('knife'); if (show) elThrow.setAttribute('aria-label', 'Fire the harpoon'); }
+  if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', !!show); elThrow.classList.remove('knife', 'fling'); if (show) elThrow.setAttribute('aria-label', 'Fire the harpoon'); }
   const wait = !!show && T < harpoonAt; if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); }
   hudChem(); }
 /** Over the eel's head while the harpoon reaches it: its hits left as pips, and a ring on it. */
@@ -3750,7 +3768,7 @@ function updateTarRing(dt){ const b = tarSail, R = tarRing;
   for (const e of R.eels) e.step(dt, b, false);
   spears.update(dt, world); tarDark = Math.max(0, tarDark - dt * 0.8);
   const show = ringTarget() ? 'harpoon' : null;
-  if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', !!show); elThrow.classList.remove('knife'); if (show) elThrow.setAttribute('aria-label', 'Fire the harpoon'); }
+  if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', !!show); elThrow.classList.remove('knife', 'fling'); if (show) elThrow.setAttribute('aria-label', 'Fire the harpoon'); }
   const wait = !!show && T < harpoonAt; if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); }
   hudChem(); }
 /** What the harpoon reaches in the ring: a kraken's open eye or its nearest arm, then an eel's head, then a tentacle. */
@@ -5770,9 +5788,10 @@ function update(dt){
     if (hearts < maxHearts() && (!walker.shown || (!fighting && heartT > 6))){ hearts = walker.shown ? hearts + 1 : maxHearts(); heartT = 0; }
     hudHearts(); }
   // With the survival knife and a foe within its reach, the button shows the knife: it stabs, or throws the knife.
-  { const t = fgScene ? null : spearTarget(), show = t ? (ctf ? 'strike' : knifeUse(armour, Math.hypot(t.x - walker.x, t.y - walker.y)) ? 'knife' : 'spear') : harpoonTarget() ? 'harpoon' : null;
-    if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', show === 'harpoon'); elThrow.classList.toggle('knife', show === 'knife' || show === 'strike');
-      if (show) elThrow.setAttribute('aria-label', show === 'harpoon' ? 'Fire the harpoon' : show === 'knife' ? 'Use the knife' : show === 'strike' ? 'Strike' : 'Throw the spear'); }
+  // In a battle it strikes, or for a healer throws (its own icon, so the healer knows it reaches).
+  { const t = fgScene ? null : spearTarget(), show = t ? (ctf ? (ctf.you.kit.thrown ? 'fling' : 'strike') : knifeUse(armour, Math.hypot(t.x - walker.x, t.y - walker.y)) ? 'knife' : 'spear') : harpoonTarget() ? 'harpoon' : null;
+    if (show !== throwShown){ throwShown = show; elThrow.hidden = !show; elThrow.classList.toggle('harpoon', show === 'harpoon'); elThrow.classList.toggle('knife', show === 'knife' || show === 'strike'); elThrow.classList.toggle('fling', show === 'fling');
+      if (show) elThrow.setAttribute('aria-label', show === 'harpoon' ? 'Fire the harpoon' : show === 'knife' ? 'Use the knife' : show === 'strike' ? 'Strike' : show === 'fling' ? 'Throw' : 'Throw the spear'); }
     const wait = !!show && T < (show === 'harpoon' ? harpoonAt : reloadAt);
     if (wait !== throwWait){ throwWait = wait; elThrow.classList.toggle('wait', wait); } }
   { const show = !!scanning || !!scanTarget(); if (show !== scanShown){ scanShown = show; elScan.hidden = !show; } elScan.classList.toggle('busy', !!scanning); }
