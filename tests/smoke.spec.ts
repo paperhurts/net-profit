@@ -7852,6 +7852,14 @@ test('Badges II and III: the badge card counts your marks, a Swashbuckler at Bad
   await expect(page.locator('#ability2')).toBeVisible();
   await expect(page.locator('#ability3')).toBeHidden();
   await toFight();
+  // Your armour: a 1 on you is half a heart, and the heart row shows the half.
+  await page.evaluate(() => {
+    const c = window.__np.ctf as Ctf & { hurt(f: CtfFighter, n: number): void };
+    c.hurt(c.you, 1);
+  });
+  await page.waitForFunction(() => window.__np.hearts === 7.5, null, { timeout: 3000 });
+  await expect(page.locator('#hearts svg')).toHaveCount(8);
+  await expect(page.locator('#hearts path[d$="V13z"]')).toHaveCount(1);
   // Swing In: over to a foe out of the blade's reach, and the walker goes with you.
   const tank = await placeFoe('tank', -110, 20);
   const from = await page.evaluate(() => [window.__np.walker.x, window.__np.walker.y]);
@@ -7870,7 +7878,8 @@ test('Badges II and III: the badge card counts your marks, a Swashbuckler at Bad
     };
   }, tank);
   expect(swung.d).toBeLessThan(40);
-  expect(swung.hp).toBeLessThanOrEqual(5);
+  // Its 3, less a heart for a tank's armour.
+  expect(swung.hp).toBeLessThanOrEqual(6);
   expect(
     Math.hypot(swung.wx - (from[0] as number), swung.wy - (from[1] as number)),
   ).toBeGreaterThan(60);

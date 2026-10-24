@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY, BADGE_MARKS, badgeOf, CTF, KITS, TEAM } from '../../src/data/battle';
+import {
+  ABILITIES,
+  ABILITY,
+  ARMOUR,
+  BADGE_MARKS,
+  badgeOf,
+  CTF,
+  KITS,
+  TEAM,
+} from '../../src/data/battle';
 import { Ctf, type Fighter, flagHome, gateSpot, graveSpot, inFort } from '../../src/entities/ctf';
 import { onHalf, SIDES } from '../../src/world/endless';
 import { distOf, flowTo, walkable } from '../../src/world/endlessnav';
@@ -229,11 +238,38 @@ describe('a Capture the Flag battle', () => {
     g.update(0.05, [nu, nv + 10]);
     g.flags.pirate.at = 'dropped';
     g.flags.pirate.t = 9999;
-    g.hurt(you, 1);
+    // A 2, less a heart for your armour; then a minute on, a heart more.
+    g.hurt(you, 2);
     expect(you.hp).toBe(KITS.damage.hearts - 1);
     run(g, CTF.bothOut + 0.5, 0.5, () => [you.u, you.v]);
-    g.hurt(you, 1);
+    g.hurt(you, 2);
     expect(you.hp).toBe(KITS.damage.hearts - 3);
+  });
+
+  it('gives the tanks armour, and you yours in any place: a heart off every hit, never under half', () => {
+    const g = new Ctf('pirate', 12, 1.12, 'healer');
+    open(g);
+    const you = g.you as Fighter;
+    const tank = g.team('ninja').find((f) => f.role === 'tank') as Fighter;
+    const dmg = g.team('ninja').find((f) => f.role === 'damage') as Fighter;
+    only(g, [you, tank, dmg]);
+    g.hurt(tank, 2);
+    g.hurt(tank, 1);
+    g.hurt(dmg, 2);
+    expect([tank.hp, dmg.hp]).toEqual([KITS.tank.hearts - 1.5, KITS.damage.hearts - 2]);
+    // You, the healer: their 2 is 1, their 1 half a heart, a keg's 5 is 4.
+    g.hurt(you, 2);
+    g.hurt(you, 1);
+    expect(you.hp).toBe(KITS.healer.hearts - 1.5);
+    g.hurt(you, ABILITY.bomb.hit);
+    expect(you.hp).toBe(KITS.healer.hearts - 1.5 - (ABILITY.bomb.hit - ARMOUR.less));
+    // You as the tank: the armour once, not twice.
+    const t = new Ctf('pirate', 12, 1.12, 'tank');
+    open(t);
+    const me = t.you as Fighter;
+    only(t, [me]);
+    t.hurt(me, 2);
+    expect(me.hp).toBe(KITS.tank.hearts - 1);
   });
 
   it('never sets more than two of their bots on you at once, unless you have their flag', () => {
@@ -408,12 +444,13 @@ describe('Badges II and III', () => {
     place(you, 0);
     expect(g.ability(you, 1)).toBe('guard');
     expect(g.events.some((e) => e.k === 'guard' && e.f === you)).toBe(true);
+    // Halved to 1, then the armour takes it to half a heart; after, the armour alone takes 2 to 1.
     g.hurt(you, 2);
-    expect(you.hp).toBe(KITS.tank.hearts - 1);
+    expect(you.hp).toBe(KITS.tank.hearts - 0.5);
     expect(g.ability(you, 1)).toBeNull();
     run(g, ABILITY.guard.lasts + 0.1, 0.1, at);
     g.hurt(you, 2);
-    expect(you.hp).toBe(KITS.tank.hearts - 3);
+    expect(you.hp).toBe(KITS.tank.hearts - 1.5);
   });
 
   it("the tank's stomp winds up in its ring, then hits and stuns every foe close round it", () => {

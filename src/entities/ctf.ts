@@ -13,6 +13,7 @@ import {
   ABILITIES,
   ABILITY,
   type Ability,
+  ARMOUR,
   type Badge,
   BOT_NAMES,
   CTF,
@@ -477,11 +478,13 @@ export class Ctf {
   }
 
   /** Hearts off a fighter: from a foe's blow, or from your minion. A carrier takes one more once both flags have been
-   * out a while. */
+   * out a while; a guard halves it; then a tank's armour, or yours, takes a heart off it. */
   hurt(f: Fighter, n: number, by: Fighter | null = null): void {
     if (f.state !== 'live' || this.phase !== 'fight') return;
     const extra = f.carrying && this.bothOutT >= CTF.bothOut ? 1 : 0;
-    const k = (n + extra) * (f.guardT > 0 ? ABILITY.guard.take : 1);
+    const guarded = (n + extra) * (f.guardT > 0 ? ABILITY.guard.take : 1);
+    const k =
+      f.role === 'tank' || f === this.you ? Math.max(ARMOUR.least, guarded - ARMOUR.less) : guarded;
     f.hp = Math.max(0, f.hp - k);
     f.hurtT = 0;
     this.events.push({ k: 'hit', f, by, n: k });
