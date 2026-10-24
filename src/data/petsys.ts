@@ -125,10 +125,12 @@ export type PetSave = {
   eggs: Egg[];
   /** The pets hatched from them, oldest first. */
   hatched: HatchedPet[];
+  /** The pet house is built on the home island (world/pethouse.ts): your own pets not walking with you live there. */
+  house: boolean;
 };
 
 export function noPets(): PetSave {
-  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [] };
+  return { nm: {}, drawn: [], walk: null, eggs: [], hatched: [], house: false };
 }
 
 const isBookKey = (v: string): v is BookKey => (BOOK_KEYS as readonly string[]).includes(v);
@@ -184,6 +186,7 @@ export function parsePets(v: unknown): PetSave {
   }
   const walk = (v as { walk?: unknown }).walk;
   if (typeof walk === 'string' && isOwnKey(walk) && ownOf(p, walk)) p.walk = walk;
+  p.house = (v as { house?: unknown }).house === true;
   return p;
 }
 
@@ -195,6 +198,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (p.walk) out.walk = p.walk;
   if (p.eggs.length) out.eggs = p.eggs;
   if (p.hatched.length) out.hatched = p.hatched;
+  if (p.house) out.house = true;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -365,7 +369,9 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       where:
         p.walk === drawnKey(d.id)
           ? 'Walks with you, ashore and aboard. Tap it to pet it.'
-          : 'In your pet book. Take it along and it walks with you.',
+          : p.house
+            ? 'Lives at your pet house on the home island, playing in its yard.'
+            : 'In your pet book. Take it along and it walks with you.',
       walking: p.walk === drawnKey(d.id),
       doodle: d.d,
     }),
@@ -384,7 +390,9 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       where:
         p.walk === hatchedKey(h.id)
           ? 'Walks with you, ashore and aboard. Tap it to pet it.'
-          : 'In your pet book. Take it along and it walks with you.',
+          : p.house
+            ? 'Lives at your pet house on the home island, playing in its yard.'
+            : 'In your pet book. Take it along and it walks with you.',
       walking: p.walk === hatchedKey(h.id),
       doodle: HATCHLING_ART[h.sp],
     };
