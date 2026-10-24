@@ -156,7 +156,14 @@ type Np = {
   DOCK12: { x: number; y: number; r: number };
   TOWER12_DOOR: { x: number; y: number };
   fromSkull: (u: number, v: number) => [number, number];
-  gardenIsle: { seen: boolean };
+  gardenIsle: {
+    seen: boolean;
+    beds?: ({ crop: string; ripe: number } | null)[];
+    seeds?: Record<string, number>;
+    basket?: Record<string, number>;
+  };
+  gardenSkew: number;
+  gardenSeed: string | null;
   DOCK14: { x: number; y: number; r: number };
   fromGarden: (u: number, v: number) => [number, number];
   farFarOpen: boolean;
@@ -885,6 +892,8 @@ type Np = {
   catAt: [number, number] | null;
   king: { fighting: boolean; state: string; t: number; resolve: number };
   fireHarpoon(): void;
+  /** The pet system (data/petsys.ts): what it saves, and whether the pet book is open. */
+  pets: { save: { nm: Record<string, string> }; open: boolean };
 };
 
 /** One of the Battle Barge's own groups: its gorillas, its gators or its lancers. */
@@ -13354,7 +13363,73 @@ test('the sirens and the charm: their song cannot pull a boat that wears it, and
   expect(errors).toEqual([]);
 });
 
-test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore to the plot and the shut stalls', async ({
+test('the pet book: everyone who is yours on two shelves, drawn, and a name kept for the Baby Reaper', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    isle6Stage: 2,
+    reaperEgg: 3,
+    crows: 2,
+    feederFull: true,
+    leggy: 3,
+    stay: ['cat'],
+  });
+  await page.waitForFunction(() => document.getElementById('petsBtn')?.hidden === false, null, {
+    timeout: 4000,
+  });
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await expect(page.locator('#petBook')).toBeVisible();
+  const cards = page.locator('#petBookList .pet');
+  await expect(cards).toHaveCount(6);
+  expect(await cards.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.pet))).toEqual([
+    'dog',
+    'crows',
+    'muffins',
+    'cat',
+    'warrior',
+    'baby',
+  ]);
+  await expect(page.locator('[data-pet="cat"] .now')).toContainText('castle');
+  await expect(page.locator('[data-pet="crows"] [data-rename]')).toHaveCount(0);
+  // Every picture is drawn: something on each canvas.
+  await page.waitForTimeout(300);
+  const inked = await page.locator('#petBookList .petpic').evaluateAll((els) =>
+    els.map((el) => {
+      const c = el as HTMLCanvasElement;
+      const d = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data ?? [];
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if ((d[i] ?? 0) > 0) n++;
+      return n > 50;
+    }),
+  );
+  expect(inked).toEqual([true, true, true, true, true, true]);
+  // A name, typed: the keys go to the name, not the boat.
+  await page.locator('[data-rename="baby"]').click();
+  const box = page.locator('#petName');
+  await expect(box).toBeFocused();
+  const h0 = await page.evaluate(() => window.__np.boat.h);
+  await box.fill('');
+  await box.pressSequentially('Chomp');
+  await box.press('Enter');
+  await expect(page.locator('[data-pet="baby"] b')).toHaveText('Chomp');
+  await expect(page.locator('[data-pet="baby"] .was')).toContainText('Baby Reaper');
+  expect(await page.evaluate(() => window.__np.pets.save.nm)).toEqual({ baby: 'Chomp' });
+  expect(await page.evaluate(() => window.__np.boat.h)).toBeCloseTo(h0, 5);
+  await page.locator('#petBookClose').click();
+  await expect(page.locator('#petBook')).toBeHidden();
+  // Kept.
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.pets?.save.nm.baby === 'Chomp', null, {
+    timeout: 5000,
+  });
+  expect(errors).toEqual([]);
+});
+
+test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore to the plot and the stalls', async ({
   context,
   page,
 }) => {
@@ -13426,5 +13501,89 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
     () => JSON.parse(localStorage.getItem('netprofit.v1') || '{}').garden,
   );
   expect(saved).toEqual({ seen: true });
+  expect(errors).toEqual([]);
+});
+
+test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait, pick it and sell the basket", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 500,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  const climb = page.locator('#climb');
+  // The seed stall: two carrot seeds and a strawberry seed.
+  await standAt(232, -84);
+  await expect(climb).toHaveText('Look at the seeds', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#gardenCard')).toBeVisible();
+  await expect(page.locator('#gardenShelf [data-seed]')).toHaveCount(3);
+  await page.locator('[data-seed="carrot"]').dispatchEvent('click');
+  await page.locator('[data-seed="carrot"]').dispatchEvent('click');
+  await page.locator('[data-seed="strawberry"]').dispatchEvent('click');
+  expect(await page.evaluate(() => [window.__np.coins, window.__np.gardenIsle.seeds])).toEqual([
+    500 - 10 - 10 - 40,
+    { carrot: 2, strawberry: 1 },
+  ]);
+  await page.click('#gardenClose');
+  await expect(page.locator('#gardenCard')).toBeHidden();
+  // The tray shows the seeds held, carrot chosen; plant one in the bed nearest the pier.
+  await expect(page.locator('#seedTray')).toBeVisible();
+  await expect(page.locator('#seedTray .seed')).toHaveCount(2);
+  await standAt(172, 30);
+  await expect(climb).toHaveText('Plant a carrot', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(climb).toHaveText(/Carrot: ripe in \d+ s/, { timeout: 4000 });
+  // Choose the strawberry in the tray and plant it next door.
+  await page.locator('#seedTray [data-pick="strawberry"]').dispatchEvent('click');
+  await standAt(128, 30);
+  await expect(climb).toHaveText('Plant a strawberry', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  // A minute later, as if the game had been closed: the carrot is ripe.
+  await page.evaluate(() => {
+    window.__np.gardenSkew = 61_000;
+  });
+  await standAt(172, 30);
+  await expect(climb).toHaveText('Pick a carrot', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  expect(await page.evaluate(() => window.__np.gardenIsle.basket)).toEqual({ carrot: 1 });
+  await expect(page.locator('#seedTray .basket')).toContainText('1/50');
+  // Sold at the stand.
+  await standAt(222, 86);
+  await expect(climb).toHaveText('Sell your basket for 16', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.coins === 440 + 16, null, { timeout: 3000 });
+  // The strawberry plant is kept through a reload, and has grown on.
+  await page.waitForTimeout(300);
+  await page.reload();
+  await page.waitForTimeout(400);
+  await page.click('#go');
+  const beds = await page.evaluate(() => window.__np.gardenIsle.beds?.map((b) => b?.crop ?? null));
+  expect(beds?.slice(0, 2)).toEqual([null, 'strawberry']);
   expect(errors).toEqual([]);
 });
