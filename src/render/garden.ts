@@ -2,11 +2,13 @@
  * Drawing the Garden Isle (world/garden.ts): its shallows following the shore, a ring of sand and then grass, lush and
  * soft, with sandy paths from the pier's root to the plot and the stalls. The plot is edged with low planks; six beds are
  * dug, dark soil in rows, and the rest are staked out with string. The seed stall has a green-and-cream awning, the sell
- * stand a blue one with baskets, the gear shed a red roof; all three are shut for now, a cloth down over the counter.
- * A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
+ * stand a blue one with baskets, the gear shed a red roof, its door shut until a later piece opens it. Planted beds grow
+ * their plants (gardenPlantSolids), from a sprout to a full plant with its fruit on it. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
  */
 
+import { type CropId, type Garden, growBed, grownOf, secondsLeft } from '../data/garden';
 import type { DrawView } from '../entities/entity';
+import { clockText } from '../ui/garden';
 import {
   BED,
   BEDS,
@@ -288,7 +290,7 @@ type StallLook = { wall: string; top: string; a: string; b: string };
 const SEED_LOOK: StallLook = { wall: '#B9874F', top: '#D9A86A', a: '#5BAF5A', b: '#FFF6E5' };
 const SELL_LOOK: StallLook = { wall: '#A87B48', top: '#D2A266', a: '#3E8FD0', b: '#FFF6E5' };
 
-/** A stall: a wooden counter, an awning in stripes over it on poles, and a cloth down over the front, shut for now. */
+/** A stall: a wooden counter, and an awning in stripes over it on poles. */
 function drawStall(v: DrawView, s: Stall, look: StallLook): void {
   const { ctx, px, py } = v;
   const Z = v.zoom;
@@ -334,28 +336,6 @@ function drawStall(v: DrawView, s: Stall, look: StallLook): void {
     ctx.arc(px(x, y), py(x, y, 36), 3.2 * Z, 0, Math.PI);
     ctx.fill();
   }
-  // The cloth down over the counter's front: shut.
-  framePoly(
-    v,
-    [
-      [s.u - s.hu + 2, fv + 1],
-      [s.u + s.hu - 2, fv + 1],
-    ],
-    0,
-  );
-  const [ax, ay] = fromGarden(s.u - s.hu + 2, fv + 1);
-  const [bx, by] = fromGarden(s.u + s.hu - 2, fv + 1);
-  ctx.beginPath();
-  ctx.moveTo(px(ax, ay), py(ax, ay, 15));
-  ctx.lineTo(px(bx, by), py(bx, by, 15));
-  ctx.lineTo(px(bx, by), py(bx, by, 3));
-  ctx.lineTo(px(ax, ay), py(ax, ay, 3));
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(232,214,180,.95)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(122,82,48,.6)';
-  ctx.lineWidth = 1 * Z;
-  ctx.stroke();
 }
 
 /** The seed stall, with seed packets pinned along its awning's poles. */
@@ -372,7 +352,7 @@ function drawSeedStall(v: DrawView): void {
   });
 }
 
-/** The sell stand, with empty baskets on its counter, waiting. */
+/** The sell stand, with baskets on its counter. */
 function drawSellStand(v: DrawView): void {
   drawStall(v, SELL_STAND, SELL_LOOK);
   const { ctx, px, py } = v;
@@ -624,5 +604,167 @@ export function gardenSolids(v: DrawView): Solid[] {
     out.push({ d: depth(SCARECROW.u, SCARECROW.v), f: () => drawScarecrow(v) });
   if (v.onScreen(CRATES14.x, CRATES14.y, 40 * v.zoom))
     out.push({ d: CRATES14.x + CRATES14.y + 10, f: () => drawCrates14(v) });
+  return out;
+}
+
+/** A plant in a bed, at screen x, y: grown this far (0 to 1), with this many ripe fruit on it, swaying a little. */
+function drawPlant(
+  v: DrawView,
+  k: CropId,
+  sx: number,
+  sy: number,
+  f: number,
+  ripe: number,
+  T: number,
+  i: number,
+): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sway = Math.sin(T * 1.6 + i * 1.3) * 1.2 * Z;
+  const s = (0.35 + 0.65 * f) * 1.4 * Z;
+  const leaf = (dx: number, dy: number, rx: number, ry: number, a: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.ellipse(sx + dx * s + sway * (-dy / 20), sy + dy * s, rx * s, ry * s, a, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  if (k === 'carrot') {
+    // Feathery tops; once ripe, the orange shoulder shows at the soil.
+    if (ripe) {
+      ctx.fillStyle = '#F28C28';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 1 * Z, 5 * Z, 3 * Z, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#4E9A3E';
+    ctx.lineWidth = 2 * Z;
+    ctx.lineCap = 'round';
+    for (const a of [-0.7, -0.3, 0, 0.35, 0.7]) {
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 2 * Z);
+      ctx.quadraticCurveTo(
+        sx + Math.sin(a) * 6 * s + sway,
+        sy - 10 * s,
+        sx + Math.sin(a) * 9 * s + sway * 1.6,
+        sy - 18 * s,
+      );
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    return;
+  }
+  if (k === 'strawberry') {
+    // A low clump of leaves, its berries round the edge: green while growing, red when ripe.
+    for (const [dx, dy, a] of [
+      [-6, -4, -0.5],
+      [6, -4, 0.5],
+      [0, -8, 0],
+      [-3, -1, -0.2],
+      [4, -1, 0.3],
+    ] as const)
+      leaf(dx, dy, 5, 3.4, a, dy < -6 ? '#5FAE4E' : '#4E9A3E');
+    if (f >= 1) {
+      const spots: [number, number][] = [
+        [-9, 1],
+        [9, 1],
+        [-3, 3],
+        [4, 3],
+      ];
+      spots.forEach(([dx, dy], j) => {
+        ctx.fillStyle = j < ripe ? '#E4413A' : '#CFE7A5';
+        ctx.beginPath();
+        ctx.arc(sx + dx * s, sy + dy * s, (j < ripe ? 2.8 : 1.8) * s, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    return;
+  }
+  // Blueberry: a little round bush, berries in clusters, pale until ripe.
+  ctx.fillStyle = '#7A5230';
+  ctx.fillRect(sx - 1.2 * s, sy - 8 * s, 2.4 * s, 8 * s);
+  leaf(0, -16, 11, 9, 0, '#3F8A44');
+  leaf(-4, -19, 7, 6, 0, '#4E9A4E');
+  if (f >= 1) {
+    const spots: [number, number][] = [
+      [-6, -14],
+      [5, -12],
+      [1, -20],
+      [7, -19],
+    ];
+    spots.forEach(([dx, dy], j) => {
+      const on = j < ripe;
+      ctx.fillStyle = on ? '#3E5FB8' : '#C9D7A0';
+      for (const [ox, oy] of [
+        [0, 0],
+        [2.2, 1],
+        [-1.6, 1.6],
+      ] as const) {
+        ctx.beginPath();
+        ctx.arc(
+          sx + (dx + ox) * s + sway,
+          sy + (dy + oy) * s,
+          (on ? 1.9 : 1.3) * s,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    });
+  }
+}
+
+/** A small pill over a growing bed saying how long it has to go. */
+function drawTimer(v: DrawView, sx: number, sy: number, text: string): void {
+  const { ctx } = v;
+  ctx.font = '800 11px Grandstander, system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 12;
+  const h = 16;
+  const x = sx - w / 2;
+  const y = sy - h;
+  ctx.fillStyle = 'rgba(18,48,58,.78)';
+  ctx.beginPath();
+  ctx.moveTo(x + 8, y);
+  ctx.lineTo(x + w - 8, y);
+  ctx.arc(x + w - 8, y + 8, 8, -Math.PI / 2, Math.PI / 2);
+  ctx.lineTo(x + 8, y + h);
+  ctx.arc(x + 8, y + 8, 8, Math.PI / 2, (3 * Math.PI) / 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFF6E5';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, sx, y + h / 2 + 1);
+}
+
+/**
+ * The plants in the beds, each a solid for the scene to sort, at the time now. With timers on (ashore on the isle), a
+ * growing bed says how long it has to go and a ripe one twinkles.
+ */
+export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: boolean): Solid[] {
+  if (!near(v, 1000) || !g.beds) return [];
+  const out: Solid[] = [];
+  g.beds.forEach((b, i) => {
+    const at = BEDS[i];
+    if (!b || !at) return;
+    const [x, y] = fromGarden(at.u, at.v);
+    if (!v.onScreen(x, y, 60 * v.zoom)) return;
+    growBed(b, now);
+    out.push({
+      d: x + y + 1,
+      f: () => {
+        const sx = v.px(x, y);
+        const sy = v.py(x, y, 2);
+        drawPlant(v, b.crop, sx, sy, grownOf(b, now), b.ripe, v.T, i);
+        if (!timers) return;
+        if (b.ripe > 0) {
+          const k = 0.5 + 0.5 * Math.sin(v.T * 4 + i);
+          v.ctx.fillStyle = `rgba(255,236,150,${0.45 + 0.5 * k})`;
+          v.star(sx + 10 * v.zoom, sy - 26 * v.zoom - k * 3 * v.zoom, (4.5 + 2.5 * k) * v.zoom);
+        } else {
+          const left = secondsLeft(b, now);
+          if (left > 0) drawTimer(v, sx, sy - 26 * v.zoom, clockText(left));
+        }
+      },
+    });
+  });
   return out;
 }
