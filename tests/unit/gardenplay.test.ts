@@ -34,6 +34,10 @@ import {
   stockToday,
   TIERS,
   untouchedGarden,
+  VARIANTS,
+  variantOf,
+  variantsOn,
+  variantTimes,
 } from '../../src/data/garden';
 import { gardenLights, gardenPlantSolids } from '../../src/render/garden';
 import {
@@ -156,11 +160,16 @@ describe("the garden's pay: the owner's 'rival the boat'", () => {
   let total = 0;
   const N = 40000;
   for (let i = 0; i < N; i++) total += Math.max(SIZE.floor, sizeOf(T0 + i * 7919, i % 9)) ** 2;
-  const EV = total / N;
+  // And Gold and Rainbow, at their odds.
+  const EV =
+    (total / N) *
+    (1 +
+      (VARIANTS.gold.times - 1) / VARIANTS.gold.odds +
+      (VARIANTS.rainbow.times - 1) / VARIANTS.rainbow.odds);
   it('a full plot of the best crop that keeps fruiting, left overnight, pays three to five abyss holds', () => {
     const best = Math.max(...keeps.map((c) => BEDS_ALL * c.holds * c.sell * EV));
     expect(EV).toBeGreaterThan(1);
-    expect(EV).toBeLessThan(1.15);
+    expect(EV).toBeLessThan(1.45);
     expect(best).toBeGreaterThanOrEqual(GUARD.overnightMin);
     expect(best).toBeLessThanOrEqual(GUARD.overnightMax);
   });
@@ -478,5 +487,75 @@ describe('fruit size and giants', () => {
       { c: 'carrot', m: 5 },
       { c: 'tomato', m: 1 },
     ]);
+  });
+});
+
+describe('Gold and Rainbow', () => {
+  it('one fruit in 100 is Gold and one in 1,000 Rainbow, never both, the same every time', () => {
+    let gold = 0;
+    let rainbow = 0;
+    const N = 200000;
+    for (let i = 0; i < N; i++) {
+      const v = variantOf(T0 + i * 7919, i % 11);
+      expect(variantOf(T0 + i * 7919, i % 11)).toBe(v);
+      if (v === 'gold') gold++;
+      if (v === 'rainbow') rainbow++;
+    }
+    expect(gold).toBeGreaterThan((N / VARIANTS.gold.odds) * 0.85);
+    expect(gold).toBeLessThan((N / VARIANTS.gold.odds) * 1.15);
+    expect(rainbow).toBeGreaterThan((N / VARIANTS.rainbow.odds) * 0.7);
+    expect(rainbow).toBeLessThan((N / VARIANTS.rainbow.odds) * 1.3);
+  });
+
+  it('a Gold fruit sells for 20 times as much and a Rainbow one 50, size and all, never past the most one fruit pays', () => {
+    expect(variantTimes('')).toBe(1);
+    expect(fruitValue('tomato', 1, 'gold')).toBe(60 * 20);
+    expect(fruitValue('tomato', 1, 'rainbow')).toBe(60 * 50);
+    expect(fruitValue('tomato', 1.2, 'gold')).toBe(Math.round(60 * 1.44 * 20));
+    expect(fruitValue('lantern', 1, 'rainbow')).toBe(FRUIT_MAX / 4);
+    expect(fruitValue('kraken', 1, 'gold')).toBe(FRUIT_MAX);
+  });
+
+  it("carries each fruit's Gold or Rainbow from the plant into the basket and the save", () => {
+    // Find a plant whose first four fruit hold a Gold one.
+    let t = T0;
+    while (![0, 1, 2, 3].some((n) => variantOf(t, n))) t += 1000;
+    const g: Garden = { seen: true, seeds: { strawberry: 1 } };
+    plant(g, 0, 'strawberry', t);
+    const b = bedAt(g, 0);
+    if (!b) throw new Error('no bed');
+    growBed(b, t + 300000);
+    const vs = variantsOn(b);
+    expect(vs).toEqual([0, 1, 2, 3].map((n) => variantOf(t, n)));
+    const back = parseGarden(JSON.parse(JSON.stringify(g)));
+    expect(back.beds?.[0]?.v).toEqual(vs);
+    const got = pick(g, 0, t + 300000);
+    expect(got.map((f) => f.v ?? '')).toEqual(vs);
+    expect(parseGarden(JSON.parse(JSON.stringify(g))).bag).toEqual(g.bag);
+    // Odd values read as neither.
+    expect(parseGarden({ bag: [{ c: 'carrot', m: 1, v: 'platinum' }] }).bag).toEqual([
+      { c: 'carrot', m: 1 },
+    ]);
+  });
+
+  it('draws a Gold and a Rainbow fruit, with their sparkle', () => {
+    const g: Garden = {
+      seen: true,
+      beds: [
+        {
+          crop: 'tomato',
+          planted: T0,
+          ripe: 3,
+          next: 0,
+          w: [1, 1, 1],
+          v: ['gold', 'rainbow', ''],
+          born: 3,
+        },
+      ],
+    };
+    const f = fakeView();
+    const solids = gardenPlantSolids(f.v, g, sec(4000), false);
+    for (const x of solids) x.f();
+    expect(f.calls.star ?? 0).toBe(2);
   });
 });

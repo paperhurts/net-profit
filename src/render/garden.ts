@@ -6,7 +6,16 @@
  * their plants (gardenPlantSolids), from a sprout to a full plant with its fruit on it. A windmill turns at the back, fruit trees stand round it, and a scarecrow keeps watch over the staked-out corner.
  */
 
-import { type CropId, type Garden, growBed, grownOf, secondsLeft, sizesOn } from '../data/garden';
+import {
+  type CropId,
+  type Garden,
+  growBed,
+  grownOf,
+  secondsLeft,
+  sizesOn,
+  type Variant,
+  variantsOn,
+} from '../data/garden';
 import type { DrawView } from '../entities/entity';
 import { clockText } from '../ui/garden';
 import {
@@ -624,6 +633,7 @@ function drawPlant(
   f: number,
   ripe: number,
   w: readonly number[],
+  vs: readonly Variant[],
   T: number,
   i: number,
 ): void {
@@ -632,6 +642,13 @@ function drawPlant(
   const sway = Math.sin(T * 1.6 + i * 1.3) * 1.2 * Z;
   // Each ripe fruit drawn at its own size; a giant bigger, but kept to its bed.
   const sz = (j: number) => Math.min(2.2, w[j] ?? 1);
+  // A Gold fruit is gold, a Rainbow one runs through every colour.
+  const tint = (j: number, base: string) =>
+    vs[j] === 'gold'
+      ? '#F5C542'
+      : vs[j] === 'rainbow'
+        ? `hsl(${Math.round((T * 140 + j * 70) % 360)}, 85%, 60%)`
+        : base;
   // The low crops a little larger than life, so they read on a phone; the tall ones as they are, so they keep to their beds.
   const s = (0.35 + 0.65 * f) * (TALL.has(k) ? 1 : 1.4) * Z;
   const leaf = (dx: number, dy: number, rx: number, ry: number, a: number, c: string) => {
@@ -643,7 +660,7 @@ function drawPlant(
   if (k === 'carrot') {
     // Feathery tops; once ripe, the orange shoulder shows at the soil.
     if (ripe) {
-      ctx.fillStyle = '#F28C28';
+      ctx.fillStyle = tint(0, '#F28C28');
       ctx.beginPath();
       ctx.ellipse(sx, sy - 1 * Z, 5 * Z * sz(0), 3 * Z * sz(0), 0, 0, Math.PI * 2);
       ctx.fill();
@@ -683,7 +700,7 @@ function drawPlant(
         [4, 3],
       ];
       spots.forEach(([dx, dy], j) => {
-        ctx.fillStyle = j < ripe ? '#E4413A' : '#CFE7A5';
+        ctx.fillStyle = j < ripe ? tint(j, '#E4413A') : '#CFE7A5';
         ctx.beginPath();
         ctx.arc(sx + dx * s, sy + dy * s, (j < ripe ? 2.8 * sz(j) : 1.8) * s, 0, Math.PI * 2);
         ctx.fill();
@@ -720,12 +737,12 @@ function drawPlant(
   ) => {
     if (f < 1) return;
     spots.forEach(([dx, dy], j) => {
-      ball(dx, dy, j < ripe ? r * sz(j) : r * 0.6, j < ripe ? on : off);
+      ball(dx, dy, j < ripe ? r * sz(j) : r * 0.6, j < ripe ? tint(j, on) : off);
     });
   };
   if (k === 'sweetpotato') {
     // A low spreading vine, heart-shaped leaves; ripe, a purple tuber shows at the soil.
-    if (ripe) ball(0, 0, 5 * sz(0), '#B4566B');
+    if (ripe) ball(0, 0, 5 * sz(0), tint(0, '#B4566B'));
     for (const [dx, dy, a] of [
       [-8, -3, -0.6],
       [8, -3, 0.6],
@@ -799,7 +816,7 @@ function drawPlant(
           2.4 * (j < ripe ? sz(j) : 1),
           5 * (j < ripe ? sz(j) : 1),
           0.2,
-          j < ripe ? '#F2C94C' : '#B7D98A',
+          j < ripe ? tint(j, '#F2C94C') : '#B7D98A',
         );
       });
     return;
@@ -816,7 +833,14 @@ function drawPlant(
         '#4E8F4A',
       );
     if (f >= 1) {
-      leaf(0, -9, 5 * (ripe ? sz(0) : 1), 7 * (ripe ? sz(0) : 1), 0, ripe ? '#F2B33D' : '#8DBE5A');
+      leaf(
+        0,
+        -9,
+        5 * (ripe ? sz(0) : 1),
+        7 * (ripe ? sz(0) : 1),
+        0,
+        ripe ? tint(0, '#F2B33D') : '#8DBE5A',
+      );
       line(
         [
           [0, -16],
@@ -930,7 +954,7 @@ function drawPlant(
           on ? 4 * sz(j) : 2.4,
           on ? 4.6 * sz(j) : 2.8,
           0,
-          on ? '#F7A93B' : '#B7D98A',
+          on ? tint(j, '#F7A93B') : '#B7D98A',
         );
       });
     return;
@@ -956,7 +980,7 @@ function drawPlant(
       (6 + 5 * f) * (ripe ? sz(0) : 1),
       (5 + 4 * f) * (ripe ? sz(0) : 1),
       0,
-      ripe ? '#7E4FB0' : '#8E6FB8',
+      ripe ? tint(0, '#7E4FB0') : '#8E6FB8',
     );
     leaf(-2, -8 - 2 * f, 3 * f, 2 * f, 0, 'rgba(255,255,255,.25)');
     return;
@@ -975,7 +999,7 @@ function drawPlant(
     ];
     spots.forEach(([dx, dy], j) => {
       const on = j < ripe;
-      ctx.fillStyle = on ? '#3E5FB8' : '#C9D7A0';
+      ctx.fillStyle = on ? tint(j, '#3E5FB8') : '#C9D7A0';
       for (const [ox, oy] of [
         [0, 0],
         [2.2, 1],
@@ -1035,7 +1059,17 @@ export function gardenPlantSolids(v: DrawView, g: Garden, now: number, timers: b
       f: () => {
         const sx = v.px(x, y);
         const sy = v.py(x, y, 2);
-        drawPlant(v, b.crop, sx, sy, grownOf(b, now), b.ripe, sizesOn(b), v.T, i);
+        drawPlant(v, b.crop, sx, sy, grownOf(b, now), b.ripe, sizesOn(b), variantsOn(b), v.T, i);
+        // Gold and Rainbow fruit sparkle, ashore or not.
+        variantsOn(b).forEach((vt, j) => {
+          if (!vt) return;
+          const k = 0.5 + 0.5 * Math.sin(v.T * 6 + j * 2 + i);
+          v.ctx.fillStyle =
+            vt === 'gold'
+              ? `rgba(255,236,150,${0.5 + 0.5 * k})`
+              : `rgba(255,255,255,${0.5 + 0.5 * k})`;
+          v.star(sx + (j - 1) * 8 * v.zoom, sy - (18 + 6 * k) * v.zoom, (3 + 2 * k) * v.zoom);
+        });
         if (!timers) return;
         if (b.ripe > 0) {
           const k = 0.5 + 0.5 * Math.sin(v.T * 4 + i);
