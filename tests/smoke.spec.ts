@@ -180,6 +180,8 @@ type Np = {
     gear?: Record<string, number>;
     gearStock?: { day: number; n: Record<string, number> };
     koi?: { night: number; n: number };
+    bin?: Record<string, number>;
+    binKeep?: Record<string, boolean>;
   };
   gardenSkew: number;
   gardenSeed: string | null;
@@ -14810,5 +14812,64 @@ test("the Garden Isle's Moonkoi: after dark, a Moonlit dragon fruit on the hook,
   expect(await page.evaluate(() => window.__np.gardenIsle.koi?.n)).toBe(1);
   // Once a night: the Moonlit fruit cast is gone until tomorrow night, and the strawberry is for carp.
   await expect(cast).toHaveText('Cast with a strawberry');
+  expect(errors).toEqual([]);
+});
+
+test("the Garden Isle's compost bin: tie up with fish aboard, the bin keeps them, plant a carrot over one", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true, seeds: { carrot: 2 }, binKeep: { common: true } },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [5] },
+  });
+  // Tied up at the isle: the bin keeps the sardines before the crates can buy them.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await expect(page.locator('#toast')).toContainText('The compost bin keeps 5 fish', {
+    timeout: 6000,
+  });
+  expect(await page.evaluate(() => window.__np.gardenIsle.bin)).toEqual({ common: 5 });
+  expect(await page.evaluate(() => window.__np.hold)).toBe(0);
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  const climb = page.locator('#climb');
+  // The bin's card says what it keeps.
+  await standAt(285 - 14, 40 + 24);
+  await expect(climb).toHaveText('Look in the compost bin', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#gardenTitle')).toHaveText('The compost bin');
+  await expect(page.locator('[data-keep="common"]')).toContainText('Keeping');
+  await page.click('#gardenClose');
+  // A fish from the tray in hand, plant a carrot over it.
+  await page.locator('#seedTray [data-tool="fish-common"]').dispatchEvent('click');
+  await standAt(172, 30);
+  await expect(climb).toHaveText('Plant a carrot over a common fish', { timeout: 4000 });
+  await climb.dispatchEvent('click');
+  await expect(page.locator('#toast')).toContainText('a quarter faster');
+  expect(
+    await page.evaluate(() => [
+      window.__np.gardenIsle.bin,
+      (window.__np.gardenIsle.beds?.[0] as { fed?: string } | null)?.fed,
+    ]),
+  ).toEqual([{ common: 4 }, 'common']);
   expect(errors).toEqual([]);
 });

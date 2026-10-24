@@ -116,7 +116,16 @@ export type Stall = {
 export const SEED_STALL: Stall = { u: 232, v: -112, hu: 22, hv: 16, front: { u: 232, v: -84 } };
 export const SELL_STAND: Stall = { u: 222, v: 112, hu: 20, hv: 14, front: { u: 222, v: 86 } };
 export const GEAR_SHED: Stall = { u: -50, v: -168, hu: 26, hv: 20, front: { u: -50, v: -136 } };
-export const STALLS: readonly Stall[] = [SEED_STALL, SELL_STAND, GEAR_SHED];
+/** The compost bin (part ten), on the grass by the pier's root across from the crates: it keeps fish from the hold
+ * for the beds. */
+export const COMPOST_BIN: Stall = {
+  u: PIER14.u0 - 14,
+  v: PIER14.v + 46,
+  hu: 12,
+  hv: 10,
+  front: { u: PIER14.u0 - 14, v: PIER14.v + 24 },
+};
+export const STALLS: readonly Stall[] = [SEED_STALL, SELL_STAND, GEAR_SHED, COMPOST_BIN];
 /** The windmill, round, and how tall; the scarecrow in the staked-out corner of the plot. */
 export const WINDMILL = { u: -205, v: -30, r: 30, h: 150 } as const;
 export const SCARECROW = { u: 40, v: -190 } as const;

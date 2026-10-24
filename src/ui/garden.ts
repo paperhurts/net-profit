@@ -10,10 +10,13 @@ import {
   basketCount,
   basketValue,
   bedAt,
+  binOf,
   CROP_IDS,
   CROPS,
   type CropId,
   canWater,
+  FISH_CLASSES,
+  type FishClass,
   type Garden,
   GEAR,
   GEAR_IDS,
@@ -32,6 +35,7 @@ import {
 import {
   BEDS_START,
   bedUnder,
+  COMPOST_BIN,
   GEAR_SHED,
   inPlot14,
   SEED_STALL,
@@ -51,12 +55,13 @@ export function gardenAction(
   y: number,
   seed: CropId | null,
   now: number,
-  tool: GearId | null = null,
+  tool: Tool | null = null,
 ): string | null {
   const st = stallAt(x, y);
   if (st === SEED_STALL) return 'g-seeds';
   if (st === SELL_STAND) return 'g-sell';
   if (st === GEAR_SHED) return 'g-gear';
+  if (st === COMPOST_BIN) return 'g-bin';
   const i = bedUnder(x, y);
   const b = i >= 0 && i < BEDS_START ? bedAt(g, i) : null;
   if (b) growBed(b, now);
@@ -97,10 +102,11 @@ export function gardenLabel(
   code: string,
   selected: CropId | null,
   now: number,
-  tool: GearId | null = null,
+  tool: Tool | null = null,
 ): string {
   if (code === 'g-seeds') return 'Look at the seeds';
   if (code === 'g-gear') return 'Look at the gear';
+  if (code === 'g-bin') return 'Look in the compost bin';
   if (code === 'g-spr')
     return `Set your ${tool === 'goldsprinkler' ? 'gold sprinkler' : 'sprinkler'} down here`;
   if (code === 'g-sell') {
@@ -110,7 +116,12 @@ export function gardenLabel(
   if (code === 'g-noseed') return 'No seeds: the seed stall has them';
   const i = bedOf(code);
   const b = bedAt(g, i);
-  if (code.startsWith('g-plant-') && selected) return `Plant a ${CROPS[selected].name}`;
+  if (code.startsWith('g-plant-') && selected) {
+    const fish = fishOfTool(tool);
+    return fish && binOf(g, fish) > 0
+      ? `Plant a ${CROPS[selected].name} over a ${FISH_WORDS[fish].one}`
+      : `Plant a ${CROPS[selected].name}`;
+  }
   if (!b) return 'An empty bed';
   if (code.startsWith('g-pick-')) {
     const room = BASKET_MAX - basketCount(g);
@@ -221,11 +232,7 @@ export function gearShelfHtml(g: Garden, coins: number): string {
  * The seed tray: a button for each seed held and each piece of gear, the one in hand marked (the gear, or else the seed
  * chosen), and the basket.
  */
-export function seedTrayHtml(
-  g: Garden,
-  selected: CropId | null,
-  tool: GearId | null = null,
-): string {
+export function seedTrayHtml(g: Garden, selected: CropId | null, tool: Tool | null = null): string {
   const seeds = ALL_CROP_IDS.filter((k) => seedsOf(g, k) > 0)
     .map((k) => {
       const on = k === selected && !tool;
@@ -239,7 +246,53 @@ export function seedTrayHtml(
       return `<button class="seed gear${on ? ' on' : ''}" data-tool="${k}" aria-pressed="${on}" aria-label="${GEAR[k].name}${n ? `, ${n}` : ''}">${GEAR_SVG[k]}<span>${n}</span></button>`;
     })
     .join('');
-  return `${seeds}${gear}<span class="basket" aria-label="Basket">${BASKET_SVG}<span>${basketCount(g)}/${BASKET_MAX}</span></span>`;
+  const fish = FISH_CLASSES.filter((k) => binOf(g, k) > 0)
+    .map((k) => {
+      const t: Tool = `fish-${k}`;
+      const on = t === tool;
+      return `<button class="seed gear${on ? ' on' : ''}" data-tool="${t}" aria-pressed="${on}" aria-label="${FISH_WORDS[k].many}, ${binOf(g, k)}">${FISH_SVG[k]}<span>${binOf(g, k)}</span></button>`;
+    })
+    .join('');
+  return `${seeds}${gear}${fish}<span class="basket" aria-label="Basket">${BASKET_SVG}<span>${basketCount(g)}/${BASKET_MAX}</span></span>`;
+}
+
+/** What can be in hand from the tray: a piece of gear, or a fish from the compost bin to bury as a bed is planted. */
+export type Tool = GearId | `fish-${FishClass}`;
+/** The fish in hand, if a fish is. */
+export function fishOfTool(tool: Tool | null): FishClass | null {
+  return tool?.startsWith('fish-') ? (tool.slice(5) as FishClass) : null;
+}
+/** The bin's kinds of fish, in words. */
+export const FISH_WORDS: Record<FishClass, { one: string; many: string; does: string }> = {
+  common: {
+    one: 'common fish',
+    many: 'Common fish',
+    does: 'Any fish from inside the buoys. Buried under a plant, it grows a quarter faster to its first fruit.',
+  },
+  rare: {
+    one: 'dawn or dusk rare',
+    many: 'Dawn and dusk rares',
+    does: "The sunrise koi and the dusk ray. Its plant's first fruit come up Gold one time in 50, not 100.",
+  },
+  deep: {
+    one: 'deep fish',
+    many: 'Deep fish',
+    does: "Fish from past the buoys and the abyss. Its plant's first fruit grow a tenth bigger.",
+  },
+};
+const FISH_SVG: Record<FishClass, string> = {
+  common:
+    '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="15" rx="9" ry="4.5" fill="#9DB8C4"/><path d="M22 15l6-5v10z" fill="#9DB8C4"/><circle cx="9" cy="14" r="1.2" fill="#1E2E4A"/></svg>',
+  rare: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="15" rx="9" ry="5" fill="#F28C5A"/><path d="M22 15l6-5v10z" fill="#F28C5A"/><circle cx="9" cy="14" r="1.2" fill="#1E2E4A"/><path d="M24 5l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="#FFE07A"/></svg>',
+  deep: '<svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><ellipse cx="14" cy="15" rx="9" ry="4.5" fill="#3E5F8A"/><path d="M22 15l6-5v10z" fill="#3E5F8A"/><circle cx="9" cy="14" r="1.6" fill="#BFE6FF"/></svg>',
+};
+
+/** The compost bin's card: each kind of fish, how many it holds, what it does buried, and whether the bin keeps it. */
+export function binShelfHtml(g: Garden): string {
+  return FISH_CLASSES.map((k) => {
+    const keep = !!g.binKeep?.[k];
+    return `<button class="item" data-keep="${k}" aria-pressed="${keep}">${FISH_SVG[k]}<span><b>${FISH_WORDS[k].many}</b><small>${FISH_WORDS[k].does} In the bin: ${binOf(g, k)}.</small></span><span class="buy${keep ? '' : ' off'}">${keep ? 'Keeping' : 'Not keeping'}</span></button>`;
+  }).join('');
 }
 
 const BASKET_SVG =
