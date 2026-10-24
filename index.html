@@ -202,10 +202,10 @@ body.inside.tarsail #hull:not([hidden]){display:flex}
 #radioBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #radioBtn[hidden]{display:none}
 #mend[aria-disabled="true"]{opacity:.75}
-#rodcast,#pondcast,#tarcast,#droneDrop,#merSing{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+#rodcast,#pondcast,#lilycast,#tarcast,#droneDrop,#merSing{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
-#rodcast:active,#pondcast:active,#tarcast:active,#droneDrop:active,#merSing:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
-#rodcast.bite,#pondcast.bite,#tarcast.bite,#droneDrop.bite{background:#F0C544;color:#2A1E08;animation:rodpulse .35s ease-in-out infinite alternate}
+#rodcast:active,#pondcast:active,#lilycast:active,#tarcast:active,#droneDrop:active,#merSing:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#rodcast.bite,#pondcast.bite,#lilycast.bite,#tarcast.bite,#droneDrop.bite{background:#F0C544;color:#2A1E08;animation:rodpulse .35s ease-in-out infinite alternate}
 #merSing{background:#8A68D8;color:#FFF6E5}
 /* Singing with the mermaids: four shells in their notes' colours, low to high, on a cream card above the bottom edge. */
 #shells{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4;width:min(360px,calc(100vw - 24px));
@@ -733,6 +733,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 <button class="pill" id="radioBtn" hidden>Call the coast guard</button>
 <button class="pill" id="rodcast" hidden>Cast for lionfish</button>
 <button class="pill" id="pondcast" hidden>Cast into the pond</button>
+<button class="pill" id="lilycast" hidden>Cast into the pond</button>
 <button class="pill" id="tarcast" hidden>Cast for tar fish</button>
 <button class="pill" id="aboard" hidden>Back aboard</button>
 <button class="pill" id="climb" hidden>Climb the tower</button>

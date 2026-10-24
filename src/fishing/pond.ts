@@ -7,7 +7,7 @@
  * the smaller: bluegills, yellow perch, largemouth bass and the odd channel catfish.
  */
 
-import { BASS, BLUEGILL, CATFISH, PERCH } from '../data/tuning';
+import { BASS, BLUEGILL, CARP, CATFISH, MIRROR_CARP, PERCH } from '../data/tuning';
 
 /** Within this of the pond's edge, ashore, there is a cast to be had. */
 export const POND_REACH = 30;
@@ -27,15 +27,34 @@ export const POND_FISH: readonly { sp: number; w: number }[] = [
   { sp: CATFISH, w: 1 },
 ];
 
-/** Which fish takes the bait, from r in 0..1. */
-export function pondFish(r: number): number {
-  const total = POND_FISH.reduce((s, f) => s + f.w, 0);
+/** Which of a pond's fish takes the bait, from r in 0..1, by their weights. */
+function pickFish(fish: readonly { sp: number; w: number }[], r: number): number {
+  const total = fish.reduce((s, f) => s + f.w, 0);
   let at = r * total;
-  for (const f of POND_FISH) {
+  for (const f of fish) {
     if (at < f.w) return f.sp;
     at -= f.w;
   }
-  return BLUEGILL;
+  return fish[0]?.sp ?? BLUEGILL;
+}
+
+/** Which fish takes the bait, from r in 0..1. */
+export function pondFish(r: number): number {
+  return pickFish(POND_FISH, r);
+}
+
+/**
+ * The Garden Isle's lily pond's fish (part eight), with a fruit from the basket for bait: common carp, and one bite in
+ * four a mirror carp.
+ */
+export const LILY_FISH: readonly { sp: number; w: number }[] = [
+  { sp: CARP, w: 3 },
+  { sp: MIRROR_CARP, w: 1 },
+];
+
+/** Which of the lily pond's fish takes the bait, from r in 0..1. */
+export function lilyFish(r: number): number {
+  return pickFish(LILY_FISH, r);
 }
 
 /** Where the float lands from a figure at x, y by a round pond, or null if the figure is not at its edge. */
@@ -53,6 +72,8 @@ export function castSpot(
 export type PondState = 'idle' | 'wait' | 'nibble' | 'bite';
 
 export class PondLine {
+  /** Which fish takes the bait, from r in 0..1: island 10's pond's, unless another pond's is given. */
+  constructor(private readonly pick: (r: number) => number = pondFish) {}
   state: PondState = 'idle';
   /** Seconds into the state. */
   t = 0;
@@ -94,7 +115,7 @@ export class PondLine {
     if (this.state === 'wait' && this.t >= this.wait) {
       this.state = 'nibble';
       this.t = 0;
-      this.sp = pondFish(r1);
+      this.sp = this.pick(r1);
       return 'nibble';
     }
     if (this.state === 'nibble' && this.t >= NIBBLE_T) {
