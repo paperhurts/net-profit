@@ -2041,6 +2041,7 @@ const ARMY_SIZE = {tarling: 8, bun: 9, cat: 10, warrior: 13, naga: 14, bones: 14
 function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build), all = [warlock, tarling, cat, warrior, bonesPal, naga, necroPal, baby, caterman, bunSan];
   const size = (b) => ARMY_SIZE[b === warlock ? 'warlock' : b === tarling ? 'tarling' : b.kind] ?? 0;
   const list = walker.state === 'ashore' ? all.filter(b => b === tarling ? tarling.with : b.shown) : [];
+  palsAshore = list.length;
   for (const b of all) if (!list.includes(b)){ b.heelAt = null; b.lead = null; }
   if (!list.length) return;
   if (inFight()){ for (const b of list){ b.heelAt = null; b.lead = null; } spreadOut(list, walker, dt, step); return; }
@@ -2048,14 +2049,12 @@ function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build),
   const lawn = walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) ? gardenLawn : null;
   const at = lawn ?? walker;
   for (const b of list) b.lead = lawn;
-  // Queued, not pushed in front: the plot's own first words come first.
-  if (lawn && !lawnTold && gardenTold.has('plot')){ lawnTold = true; toast('Your companions wait on the lawn while you work the beds. Step out of the plot and they come back to you.', 3600, 1); }
   list.sort((a, b) => size(a) - size(b));
   const places = assignSlots(list, formation(list.length, (dx, dy) => walkable(at.x + dx, at.y + dy, build) && !(lawn && inPlot14(at.x + dx, at.y + dy))), at);
   list.forEach((b, i) => { const s = places[i]; b.heelAt = s ? s.r + 8 : null; });
   if (lawn || Math.hypot(walker.vx, walker.vy) < 15) formUp(list, places, at, dt, step);
   else spreadOut(list, walker, dt, step); }
-let lawnTold = false;
+let palsAshore = 0;
 const gardenLawn = (() => { const [x, y] = fromGarden(LAWN14.u, LAWN14.v); return {x, y, vx: 0, vy: 0}; })();
 function hurtWarlock(dt){ for (const h of IN_THE_WAY) hurtHelper(h, dt);
   for (const a of allies.list) hurtHelper({shown: a.state === 'fight', x: a.x, y: a.y, key: a, hurt: () => allies.hurt(a)}, dt); }
@@ -2265,7 +2264,7 @@ function updateGardenIsle(){ if (walker.state !== 'ashore' || walker.dock !== GA
   const st = stallAt(walker.x, walker.y);
   if (st && !gardenTold.has(st)){ gardenTold.add(st); toast(GARDEN_STALL_SAYS.get(st), 4200, 1); }
   if (!gardenTold.has('plot') && inPlot14(walker.x, walker.y)){ gardenTold.add('plot');
-    toast(`Your plot: ${bedsOpen(gardenIsle)} beds to plant${nextDig(gardenIsle) ? `, and ${24 - bedsOpen(gardenIsle)} more staked out: stand on one to dig more` : ''}. Choose a seed in the tray, stand on a bed and plant it.`, 4200, 1); } }
+    toast(`Your plot: ${bedsOpen(gardenIsle)} beds to plant${nextDig(gardenIsle) ? `, and ${24 - bedsOpen(gardenIsle)} more staked out: stand on one to dig more` : ''}. Choose a seed in the tray, stand on a bed and plant it.${palsAshore ? ' Your companions wait on the lawn below while you work, and come back when you step out.' : ''}`, 5200, 1); } }
 // The Garden Isle's first harvest (data/garden.ts): seeds from the stall, planted in the beds with the action button,
 // growing in real time from saved timestamps, picked into the basket and sold at the stand. gardenSkew moves the
 // garden's clock for the tests.
