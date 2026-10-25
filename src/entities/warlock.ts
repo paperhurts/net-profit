@@ -68,6 +68,11 @@ export class Warlock implements Entity {
   private blockedT = 0;
   /** Where it stops following: its place in the army's rings, when the game gives it one (spread.ts); else its heel. */
   heelAt: number | null = null;
+  /**
+   * Somewhere to wait instead of at the figure's heel, while the game gives one (the Garden Isle's lawn while the
+   * figure works the plot); null to follow the figure. Only ashore: aboard it is ignored.
+   */
+  lead: { x: number; y: number; vx: number; vy: number } | null = null;
   private hadFigure = false;
   /** The nearest thing in reach to cast at, which the game finds. */
   findTarget: ((x: number, y: number, range: number) => Target | null) | null = null;
@@ -160,7 +165,7 @@ export class Warlock implements Entity {
       }
     }
     if (!this.free) return;
-    const f = w.figure;
+    const f = w.figure && this.lead ? this.lead : w.figure;
     const landed = !!f && !this.hadFigure;
     this.hadFigure = !!f;
     this.invuln = Math.max(0, this.invuln - dt);
