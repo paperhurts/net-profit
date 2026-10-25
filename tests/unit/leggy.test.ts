@@ -91,3 +91,32 @@ describe('leggy muffins on foot', () => {
     expect(g.list[0]?.hop).toBe(1);
   });
 });
+
+describe('muffins waiting somewhere (the Garden Isle lawn)', () => {
+  it('with a lead they waddle off to huddle there, and back along the ground once it clears, never popping', () => {
+    const g = new LeggyMuffins();
+    g.count = 3;
+    g.update(DT, onFoot(0, 0));
+    expect(g.list).toHaveLength(3);
+    g.lead = { x: 200, y: 0 };
+    const maxStep = (fig: [number, number], frames: number) => {
+      let most = 0;
+      for (let f = 0; f < frames; f++) {
+        const before = g.list.map((m) => [m.x, m.y] as const);
+        g.update(DT, onFoot(...fig));
+        g.list.forEach((m, i) => {
+          const [bx, by] = before[i] ?? [m.x, m.y];
+          most = Math.max(most, Math.hypot(m.x - bx, m.y - by));
+        });
+      }
+      return most;
+    };
+    // Well past JUMP away, still a waddle, frame by frame.
+    expect(maxStep([0, 0], 300)).toBeLessThan(2);
+    for (const m of g.list) expect(Math.hypot(m.x - 200, m.y)).toBeLessThan(20);
+    // The lead clears: they walk back to the figure the same way.
+    g.lead = null;
+    expect(maxStep([0, 0], 300)).toBeLessThan(2.5);
+    for (const m of g.list) expect(Math.hypot(m.x, m.y)).toBeLessThan(FIRST + 3 * GAP + JUMP / 2);
+  });
+});

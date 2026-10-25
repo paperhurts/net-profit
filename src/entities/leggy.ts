@@ -22,6 +22,14 @@ export const GAP = 13;
 export const JUMP = 60;
 /** How fast they close on their place, as a share of the gap a second. */
 const CATCH = 12;
+/**
+ * Waiting somewhere (the Garden Isle's lawn): how fast they waddle there, how fast they scurry back (faster than the
+ * figure walks, so they catch up), how near their place in the line before they fall in, and how far apart they sit.
+ */
+export const WADDLE = 70;
+export const SCURRY = 130;
+const FALL_IN = 8;
+const HUDDLE = 9;
 
 /** One muffin on its legs: where, which way, how far its legs have gone, its hop. */
 export type Leggy = { x: number; y: number; h: number; stride: number; hop: number };
@@ -42,6 +50,13 @@ export class LeggyMuffins implements Entity {
   private trail: { x: number; y: number }[] = [];
   /** The figure on foot last frame. */
   private onFoot = false;
+  /**
+   * Somewhere to wait instead of at the figure's heels, while the game gives one (the Garden Isle's lawn while the
+   * figure works the plot): they huddle there in a row, and waddle back along the ground, not popping, once it clears.
+   */
+  lead: { x: number; y: number } | null = null;
+  /** Walking back from where they waited, until each is near its place in the line. */
+  private returning = false;
 
   /**
    * One more grows legs, at x, y. True if that made seven, and the oldest wandered off into the sea; then it is gone
@@ -89,6 +104,7 @@ export class LeggyMuffins implements Entity {
     if (!f) {
       // Aboard: into the crate.
       this.onFoot = false;
+      this.returning = false;
       this.list.length = 0;
       this.trail.length = 0;
       return;
@@ -97,6 +113,7 @@ export class LeggyMuffins implements Entity {
     if (!this.onFoot || !head || Math.hypot(f.x - head.x, f.y - head.y) > JUMP) {
       // Just stepped off, or through a door: they tumble out round the figure, and the trail starts again.
       this.onFoot = true;
+      this.returning = false;
       this.trail = [{ x: f.x, y: f.y }];
       this.list.length = 0;
       for (let i = 0; i < this.count; i++)
@@ -111,12 +128,29 @@ export class LeggyMuffins implements Entity {
     }
     const keep = Math.ceil((FIRST + LEGGY_MAX * GAP) / STEP) + 2;
     if (this.trail.length > keep) this.trail.length = keep;
+    const lead = this.lead;
+    if (lead) this.returning = true;
+    let far = false;
     this.list.forEach((m, i) => {
-      const p = this.place(i);
+      const p = lead
+        ? { x: lead.x + (i - (this.list.length - 1) / 2) * HUDDLE, y: lead.y + HUDDLE }
+        : this.place(i);
       if (!p) return;
       const dx = p.x - m.x;
       const dy = p.y - m.y;
       const d = Math.hypot(dx, dy);
+      if (lead || (this.returning && d > FALL_IN)) {
+        // On their way to the huddle, or back from it: on their legs, never a pop.
+        if (!lead) far = true;
+        const go = Math.min(d, (lead ? WADDLE : SCURRY) * dt);
+        if (go > 0.05) {
+          m.x += (dx / d) * go;
+          m.y += (dy / d) * go;
+          m.h = Math.atan2(dy, dx);
+          m.stride += go * 0.6;
+        }
+        return;
+      }
       if (d > JUMP) {
         m.x = p.x;
         m.y = p.y;
@@ -129,6 +163,7 @@ export class LeggyMuffins implements Entity {
       if (moved > 0.05) m.h = Math.atan2(dy, dx);
       m.stride += moved * 0.6;
     });
+    if (!lead && !far) this.returning = false;
   }
 
   /** The game draws them (render/leggy.ts): sorted with the figure ashore, in their crate aboard. */
