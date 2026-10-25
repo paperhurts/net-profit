@@ -214,6 +214,7 @@ import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions'
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
 import { bedsInReach, COMPOST_BIN, LAWN14, PLOT_LIFT, PLOT_ZOOM, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
 import { drawGardenBolt, drawGardenFlat, drawGardenSplash, drawKoiShadow, drawMoonkoi, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
+import { BIG_HAUL, chatter, greeting, soldLine } from './data/keepers';
 import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin, bedsOpen, buyBasket, digBeds, nextDig } from './data/garden';
 import { bedOf, binShelfHtml, KEEPERS, FISH_WORDS, journalPagesHtml, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
 import { drawCrew, SIDE_COLOUR } from './render/crew';
@@ -2257,14 +2258,26 @@ function updateIsle12(){ boneMen.here = displacers.here = walker.state === 'asho
     toast('An eye socket of the giant skull. There is no bottom to it, only a red glow, far, far down. Do not fall in.', 4200, 1); } }
 // Ashore on the Garden Isle (world/garden.ts), the plot and each stall say what they are, once a landing.
 const gardenTold = new Set();
+// What each stall is for, said the first time it is walked up to in a session; the keepers' own words come with it,
+// and on later visits on their own (data/keepers.ts: each keeper has a way of being, and turns over their lines).
 const GARDEN_STALL_SAYS = new Map([
   [SEED_STALL, `The seed stall, kept by ${KEEPERS.seeds.name} the ${KEEPERS.seeds.kind}. Buy seeds here, then plant them in your beds by the pier. They grow even while you are away.`],
   [SELL_STAND, `The sell stand, kept by ${KEEPERS.sell.name}. Pick what is ripe into your basket, and she buys the lot.`],
   [GEAR_SHED, `The gear shed, kept by ${KEEPERS.gear.name} the ${KEEPERS.gear.kind}. Watering cans, sprinklers and a shovel, new in at every dawn. Take one from your tray to use it.`],
   [COMPOST_BIN, 'The compost bin. It can keep fish from your hold for your beds: plant a seed over one and it feeds the first harvest.']]);
+const STALL_KEEPER = new Map([[SEED_STALL, 'seeds'], [SELL_STAND, 'sell'], [GEAR_SHED, 'gear']]);
+const keeperTalk = {seeds: 0, sell: 0, gear: 0}, keeperMet = new Set(), keeperSaidAt = new Map();
+let stallWas = null;
+// Walking up to a stall: its keeper says hello, in their own way, at most once in twenty seconds a stall.
+function greetAt(st){ const k = STALL_KEEPER.get(st), now = performance.now()/1000;
+  if (!k){ if (!gardenTold.has(st)){ gardenTold.add(st); toast(GARDEN_STALL_SAYS.get(st), 4200, 1); } return; }
+  if (now - (keeperSaidAt.get(k) ?? -99) < 20) return; keeperSaidAt.set(k, now);
+  const line = `\u201c${greeting(k, phase, keeperTalk[k]++)}\u201d`;
+  if (!keeperMet.has(k)){ keeperMet.add(k); toast(`${GARDEN_STALL_SAYS.get(st)} ${line}`, 5200, 1); } else toast(`${KEEPERS[k].name}: ${line}`, 3200, 0); }
 function updateGardenIsle(){ if (walker.state !== 'ashore' || walker.dock !== GARDEN_DOCK){ if (walker.aboard) gardenTold.clear(); return; }
   const st = stallAt(walker.x, walker.y);
-  if (st && !gardenTold.has(st)){ gardenTold.add(st); toast(GARDEN_STALL_SAYS.get(st), 4200, 1); }
+  if (st && st !== stallWas) greetAt(st);
+  stallWas = st;
   if (!gardenTold.has('plot') && inPlot14(walker.x, walker.y)){ gardenTold.add('plot');
     toast(`Your plot: ${bedsOpen(gardenIsle)} beds to plant${nextDig(gardenIsle) ? `, and ${24 - bedsOpen(gardenIsle)} more staked out: stand on one to dig more` : ''}. Choose a seed in the tray, stand on a bed and plant it.${palsAshore ? ' Your companions wait on the lawn below while you work, and come back when you step out.' : ''}`, 5200, 1); } }
 // The Garden Isle's first harvest (data/garden.ts): seeds from the stall, planted in the beds with the action button,
@@ -2292,9 +2305,10 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
     if (!(k in SPRINKLERS) || !setSprinkler(gardenIsle, k, u, v, bedsInReach(u, v), now)){ sfx.denied(); toasts.clear(); toast('No room for another sprinkler: wait for one to run out.', 2400); return; }
     sfx.splash(); save(); if (!gearOf(gardenIsle, k)) gardenTool = null; toasts.clear();
     toast(`Your ${GARDEN_GEAR[k].name} is on for ${SPRINKLERS[k].ms / 60000} minutes. The beds in its spray grow ${k === 'goldsprinkler' ? 'twice as fast, and some fruit ripen Wet' : 'half as fast again'}.`, 3600); return; }
-  if (a === 'g-sell'){ const got = sellBasket(gardenIsle); toasts.clear();
-    if (!got.n){ sfx.denied(); toast('Nothing in your basket yet. Pick what is ripe in your beds, then sell it here.', 2600); return; }
-    coins += got.coins; earned += got.coins; sfx.sold(); hud(); save(); toast(`Sold ${got.n} fruit to ${KEEPERS.sell.name} for ${got.coins} coins.`, 2400); return; }
+  if (a === 'g-sell'){ const bag = gardenIsle.bag ?? [], got = sellBasket(gardenIsle), say = (h) => `${KEEPERS.sell.name}: \u201c${soldLine(h, keeperTalk.sell++)}\u201d`; toasts.clear();
+    if (!got.n){ sfx.denied(); toast(`${say({n: 0, coins: 0, gold: 0, rainbow: 0, giants: 0})} Pick what is ripe in your beds, then sell it here.`, 3200); return; }
+    const haul = {...got, gold: bag.filter(f => f.v === 'gold').length, rainbow: bag.filter(f => f.v === 'rainbow').length, giants: bag.filter(f => isGiant(f.m)).length};
+    coins += got.coins; earned += got.coins; sfx.sold(); hud(); save(); toast(`Sold ${got.n} fruit for ${got.coins} coins. ${say(haul)}`, haul.rainbow || haul.gold || haul.n >= BIG_HAUL.n ? 3600 : 2800); return; }
   if (a === 'g-noseed'){ sfx.denied(); toasts.clear(); toast('No seeds to plant. The seed stall, up by the pier, sells them.', 2600); return; }
   if (a === 'g-nolegend'){ sfx.denied(); toasts.clear(); toast(`The ${CROPS.starfall.name} only sprouts over a legendary fish: the Remoro, the attack nibbler or the Moonkoi. Set the compost bin to keep them, and tie up here with one in your hold.`, 4200, 1); return; }
   if (a.startsWith('g-plant-')){ const k = gardenChoice(), fish = fishOfTool(gardenTool), had = fish ? binOf(gardenIsle, fish) : 0; if (k && plantBed(gardenIsle, i, k, now, fish ?? undefined)){ sfx.hop(); gardenSeed = gardenChoice() ?? k; save();
@@ -2316,12 +2330,12 @@ function useGarden(a){ const now = gardenNow(), i = bedOf(a);
 // first time the stall is opened on a new day and saved at once, so a reload cannot roll it again.
 // The gear shed (part seven) opens the same card with its own shelf, on the same dawn restock.
 let seedStallOpen = null;
-const GARDEN_SHOPS = {seeds: ['The seed stall', `${KEEPERS.seeds.name}: \u201cSeeds for sale! Plant seeds in your beds by the pier. They grow even while the game is closed. New seeds come in at every dawn, and the rarer a seed, the less often it is in.\u201d`],
-  gear: ['The gear shed', `${KEEPERS.gear.name}: \u201cTake gear from your tray and use it on your beds. New gear comes in at every dawn.\u201d`],
+const GARDEN_SHOPS = {seeds: ['The seed stall', () => `${KEEPERS.seeds.name}: \u201c${chatter('seeds', keeperTalk.seeds++)}\u201d Plant seeds in your beds by the pier. They grow even while the game is closed. New seeds come in at every dawn, and the rarer a seed, the less often it is in.`],
+  gear: ['The gear shed', () => `${KEEPERS.gear.name}: \u201c${chatter('gear', keeperTalk.gear++)}\u201d Take gear from your tray and use it on your beds. New gear comes in at every dawn.`],
   bin: ['The compost bin', 'Choose which fish the bin keeps. When you tie up here, it takes those from your hold before the crates buy them, ten at most. Take one from your tray and plant over it: it feeds the plant\u2019s first harvest.']};
 function openGardenShop(k){ seedStallOpen = k; sfx.hop(); const fresh = k === 'seeds' ? gardenIsle.stock?.day !== day : k === 'gear' && gardenIsle.gearStock?.day !== day;
   if (k === 'seeds') stockToday(gardenIsle, day); else if (k === 'gear') gearToday(gardenIsle, day); if (fresh) save();
-  $('gardenTitle').textContent = GARDEN_SHOPS[k][0]; $('gardenNote').textContent = GARDEN_SHOPS[k][1]; $('gardenClose').setAttribute('aria-label', `Close ${GARDEN_SHOPS[k][0].toLowerCase()}`); $('gardenCard').setAttribute('aria-label', GARDEN_SHOPS[k][0]);
+  $('gardenTitle').textContent = GARDEN_SHOPS[k][0]; $('gardenNote').textContent = typeof GARDEN_SHOPS[k][1] === 'function' ? GARDEN_SHOPS[k][1]() : GARDEN_SHOPS[k][1]; $('gardenClose').setAttribute('aria-label', `Close ${GARDEN_SHOPS[k][0].toLowerCase()}`); $('gardenCard').setAttribute('aria-label', GARDEN_SHOPS[k][0]);
   renderSeedStall(); $('gardenCard').hidden = false; }
 function openSeedStall(){ openGardenShop('seeds'); }
 function openGearShed(){ openGardenShop('gear'); }

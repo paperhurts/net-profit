@@ -24,11 +24,15 @@ export function drawCapybara(v: DrawView, sx: number, sy: number): void {
   ctx.beginPath();
   ctx.roundRect(sx + 2 * Z, sy - 13 * Z + b, 6 * Z, 6 * Z, 2.5 * Z);
   ctx.fill();
+  // His eyes: open, or shut a long, slow while (he is resting them; he is very good at it).
   ctx.fillStyle = '#3A2414';
-  ctx.beginPath();
-  ctx.arc(sx + 6.5 * Z, sy - 11.5 * Z + b, 0.9 * Z, 0, Math.PI * 2);
-  ctx.arc(sx + 1 * Z, sy - 14 * Z + b, 0.9 * Z, 0, Math.PI * 2);
-  ctx.fill();
+  if (dozing(T)) ctx.fillRect(sx + 0.2 * Z, sy - 14.2 * Z + b, 1.6 * Z, 0.5 * Z);
+  else {
+    ctx.beginPath();
+    ctx.arc(sx + 6.5 * Z, sy - 11.5 * Z + b, 0.9 * Z, 0, Math.PI * 2);
+    ctx.arc(sx + 1 * Z, sy - 14 * Z + b, 0.9 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Ears, and the straw hat over them.
   ctx.fillStyle = '#7E5530';
   ctx.beginPath();
@@ -43,6 +47,33 @@ export function drawCapybara(v: DrawView, sx: number, sy: number): void {
   ctx.fill();
   ctx.fillStyle = '#5BAF5A';
   ctx.fillRect(sx - 5 * Z, sy - 19.5 * Z + b, 10 * Z, 1.4 * Z);
+  // The little bird that lives on his hat, some of the time.
+  if (birdOn(T)) {
+    const hop = Math.max(0, Math.sin(T * 9)) * 1.2 * Z;
+    ctx.fillStyle = '#E8A33D';
+    ctx.beginPath();
+    ctx.ellipse(sx + 1 * Z, sy - 25.5 * Z + b - hop, 2.4 * Z, 1.8 * Z, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(sx + 3 * Z, sy - 27 * Z + b - hop, 1.3 * Z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3A2414';
+    ctx.fillRect(sx + 4.1 * Z, sy - 27.2 * Z + b - hop, 1 * Z, 0.5 * Z);
+  }
+}
+
+/** Capy Barrow's eyes shut: for two seconds in every seven. */
+export function dozing(T: number): boolean {
+  return T % 7 > 5;
+}
+/** The bird on his hat: there for eight seconds in every twenty. */
+export function birdOn(T: number): boolean {
+  return T % 20 < 8;
+}
+/** Penny's coin, flipped up and caught every four seconds: how high it is, 0 in her paw. */
+export function coinUp(T: number): number {
+  const t = T % 4;
+  return t < 0.8 ? Math.sin((t / 0.8) * Math.PI) : 0;
 }
 
 /** Penny Platypus, behind the sell stand's counter: brown and sleek, a flat grey bill, a coin held up in a paw. */
@@ -71,12 +102,23 @@ export function drawPlatypus(v: DrawView, sx: number, sy: number): void {
   ctx.beginPath();
   ctx.ellipse(sx + 1 * Z, sy - 3 * Z + b, 4 * Z, 5 * Z, 0, 0, Math.PI * 2);
   ctx.fill();
+  // The coin she can't stop flipping: up, spinning, and back into her paw.
+  const up = coinUp(T) * 12 * Z;
+  const spin = Math.max(0.15, Math.abs(Math.cos(T * 14)));
   ctx.fillStyle = '#FFC53D';
   ctx.beginPath();
-  ctx.arc(sx - 6 * Z, sy - 10 * Z + b * 2, 2.6 * Z, 0, Math.PI * 2);
+  ctx.ellipse(
+    sx - 6 * Z,
+    sy - 10 * Z + b * 2 - up,
+    2.6 * Z * (up > 0 ? spin : 1),
+    2.6 * Z,
+    0,
+    0,
+    Math.PI * 2,
+  );
   ctx.fill();
   ctx.fillStyle = '#E0A62A';
-  ctx.fillRect(sx - 6.5 * Z, sy - 11.2 * Z + b * 2, 1 * Z, 2.4 * Z);
+  if (up === 0) ctx.fillRect(sx - 6.5 * Z, sy - 11.2 * Z + b * 2, 1 * Z, 2.4 * Z);
 }
 
 /**
@@ -134,4 +176,9 @@ export function drawTilcayo(v: DrawView, sx: number, sy: number): void {
   ctx.moveTo(sx + 3 * Z, sy - 5 * Z + b);
   ctx.lineTo(sx + 5 * Z, sy - 1 * Z + b);
   ctx.stroke();
+  // Something on the go, as ever: a spark off whatever he is fixing, every three seconds.
+  if (T % 3 < 0.35) {
+    ctx.fillStyle = '#FFE07A';
+    v.star(sx + 8 * Z, sy - 8 * Z, (2 + (T % 3) * 6) * Z);
+  }
 }
