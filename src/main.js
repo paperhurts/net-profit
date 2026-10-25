@@ -212,7 +212,7 @@ import { atHalf, atLift, atTree, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, from
 import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_GOLD, LEADER_SAYS, LEADER_TITLED, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
-import { bedsInReach, COMPOST_BIN, LAWN14, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
+import { bedsInReach, COMPOST_BIN, LAWN14, PLOT_LIFT, PLOT_ZOOM, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
 import { drawGardenBolt, drawGardenFlat, drawGardenSplash, drawKoiShadow, drawMoonkoi, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
 import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin, bedsOpen, buyBasket, digBeds, nextDig } from './data/garden';
 import { bedOf, binShelfHtml, KEEPERS, FISH_WORDS, journalPagesHtml, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
@@ -3970,6 +3970,7 @@ $('petHouseBtn').addEventListener('click', () => { audio();
 // where a trainer's pet fights one of yours. You steer your pet with the stick; Bite and its special are the buttons
 // (E and R, or Space to bite). The other pet shows its big moves in red on the ground first. A win gives your pet
 // experience and you a few coins; a loss costs nothing, and the pet is back at the house, fine at once.
+let plotView = 0;
 let petFight = null, pfView = 0, pfKey = null, pfRigs = null, pfShown = '', ringSt = null;
 const pfStick = [0, 0];
 // Who can battle: your own pets, and the friends you won (the dog, the otter, Neil, the crows), the muffins aside.
@@ -6556,7 +6557,7 @@ function update(dt){
   if (seaFight){ const f = seaFrame(seaFramePoints(), W, H), zSea = Zbase*(1 - .02*tier());
     seaCam.k += (clamp(f.zoom/zSea, SEA_ZOOM_MIN, SEA_ZOOM_MAX) - seaCam.k)*Math.min(1, dt*1.2);
     seaCam.x += (f.dx - seaCam.x)*Math.min(1, dt*2); seaCam.y += (f.dy - seaCam.y)*Math.min(1, dt*2); }
-  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + PF_ZOOM*pfView)*(1 + (cine && cine.kind === 'egg' ? 2.2*cineK() : 0))*(1 - (1 - bargeZoom(ROOMS[BARGE.first]?.r ?? 150))*bargeView)*(1 - (1 - seaCam.k)*seaView)*(1 - (1 - (revealAt === 'endless' ? revealZoom13(W, H, Zbase) : revealZoom12(W, Zbase)))*revealView) - Z)*Math.min(1, dt*4);
+  Z += (Zbase*(1 - .02*tier())*(1 - .2*dockView)*(1 + WALK_ZOOM*walkView)*(1 + PF_ZOOM*pfView)*(1 + PLOT_ZOOM*plotView)*(1 + (cine && cine.kind === 'egg' ? 2.2*cineK() : 0))*(1 - (1 - bargeZoom(ROOMS[BARGE.first]?.r ?? 150))*bargeView)*(1 - (1 - seaCam.k)*seaView)*(1 - (1 - (revealAt === 'endless' ? revealZoom13(W, H, Zbase) : revealZoom12(W, Zbase)))*revealView) - Z)*Math.min(1, dt*4);
 
   /* bits */
   wakeT -= dt;
@@ -6593,8 +6594,10 @@ function update(dt){
   if (tunnels && tunnels.kickT >= 0){ const c = clamp(tunnels.kickT/.8, 0, 1)*.7, ex = PORTAL_AT.x + TOWER_H, ey = PORTAL_AT.y + TOWER_H; lx = lx*(1-c) + ex*c; ly = ly*(1-c) + ey*c; }
   // A pet battle: the ring in the middle, closer in.
   pfView += ((petFight ? 1 : 0) - pfView)*Math.min(1, dt*3);
+  // Working the Garden Isle's beds, the camera comes in closer (the owner's: "it's tiny"), and back out off the plot.
+  plotView += ((walker.state === 'ashore' && walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) ? 1 : 0) - plotView)*Math.min(1, dt*2);
   if (pfView > .001){ lx += (PET_RING.x - lx)*pfView; ly += (PET_RING.y - ly)*pfView; }
-  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK()) + H*BARGE_DROP*bargeView - H*FRAME_MID*seaView + H*WALK_DROP*walkView*(1 - bargeView) + H*.12*revealView - H*PF_LIFT*pfView;
+  viewDY = -Math.min(150, H*.17)*dockView*(1 - cineK()) + H*BARGE_DROP*bargeView - H*FRAME_MID*seaView + H*WALK_DROP*walkView*(1 - bargeView) - H*PLOT_LIFT*plotView + H*.12*revealView - H*PF_LIFT*pfView;
   cam.x += (lx-cam.x)*Math.min(1, dt*3.5); cam.y += (ly-cam.y)*Math.min(1, dt*3.5);
 }
 

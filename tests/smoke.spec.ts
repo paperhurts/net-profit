@@ -15292,6 +15292,60 @@ test("the Garden Isle's lawn: your companions wait off the plot while you work t
   expect(errors).toEqual([]);
 });
 
+test("the Garden Isle's plot: the camera comes in closer while you work the beds, and back out after", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle4Stage: 1,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await page.locator('#ashore').waitFor({ state: 'visible', timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  // How far apart two neighbouring beds are on the screen: the zoom.
+  const bedGap = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const [ax, ay] = n.fromGarden(172, 30);
+      const [bx, by] = n.fromGarden(128, 30);
+      const [px, py] = n.screenOf(ax, ay);
+      const [qx, qy] = n.screenOf(bx, by);
+      return Math.hypot(px - qx, py - qy);
+    });
+  await standAt(232, 20);
+  await page.waitForTimeout(2500);
+  const out = await bedGap();
+  await standAt(128, -14);
+  await page.waitForTimeout(2500);
+  const inPlot = await bedGap();
+  expect(inPlot / out).toBeGreaterThan(1.35);
+  await standAt(232, 20);
+  await page.waitForTimeout(2500);
+  expect((await bedGap()) / out).toBeLessThan(1.05);
+  expect(errors).toEqual([]);
+});
+
 test("the Garden Isle's plot grows: dig six more beds and plant in one, and buy the bigger basket", async ({
   context,
   page,
