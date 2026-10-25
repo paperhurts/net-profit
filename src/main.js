@@ -43,7 +43,7 @@ import { BITE_COOL as PF_BITE_COOL, OVER_T as PF_OVER_T, PetFight } from './enti
 import { drawFighter, drawFightGround, drawRing as drawPetRing } from './render/petfight';
 import { ringHtml, ringReady } from './ui/petring';
 import { EGG_HATCH_MS, eggDue as petEggDue, eggLeft, HATCHLING_ART, HATCHLING_NAMES, layEgg } from './data/eggs';
-import { COLOUR_NAMES, COLOURS, decode as decodeDoodle, Pad, rig as rigDoodle } from './data/doodle';
+import { COLOUR_NAMES, COLOURS, decode as decodeDoodle, Pad, rig as rigDoodle, SHAPE_NAMES as PAD_SHAPE_NAMES, SHAPES as PAD_SHAPES } from './data/doodle';
 import { drawDoodle, drawEgg, drawNestCrate, drawPad, drawPetHouse, drawPetPortrait, drawWalking, PIC_ZOOM, PORTRAIT_ZOOM, portraitView } from './render/petsys';
 import { LOVE_T as PET_LOVE_T, WalkingPet } from './entities/petwalk';
 import { bookHtml, esc } from './ui/petbook';
@@ -3856,7 +3856,12 @@ window.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (
 // small for the save. Done asks for a name, with the drawing walking over it; Keep it puts it in the book. Closed
 // before then, the drawing waits on the padModel for next time.
 const padModel = new Pad();
+let padRubbing = false; // the eraser is down on the pad
 let padOpen = false, padNaming = false;
+// The pen, the eraser and the shapes (data/doodle.ts), each a button with its picture.
+const PAD_TOOL_ICONS = {pen: '<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>', eraser: '<path d="M10 19L3.5 12.5 12 4l7 7-8 8z"/><path d="M10 19h10M7.5 8.5l7 7"/>', line: '<path d="M5 19L19 5"/>', circle: '<circle cx="12" cy="12" r="7.5"/>', square: '<rect x="5" y="5" width="14" height="14" rx="1"/>', triangle: '<path d="M12 4.5L20 19H4z"/>', heart: '<path d="M12 19.5S4 14.5 4 9.3A4 4 0 0 1 12 7.6a4 4 0 0 1 8 1.7c0 5.2-8 10.2-8 10.2z"/>', star: '<path d="M12 3.8l2.4 5.1 5.5.6-4.1 3.8 1.2 5.5L12 16l-5 2.8 1.2-5.5-4.1-3.8 5.5-.6z"/>'};
+$('padTools').innerHTML = ['pen', 'eraser', ...PAD_SHAPES].map(t => `<button class="tool" data-tool="${t}" aria-label="${t === 'pen' ? 'Pen' : t === 'eraser' ? 'Eraser' : PAD_SHAPE_NAMES[t]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${PAD_TOOL_ICONS[t]}</svg></button>`).join('');
+$('padTools').addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; padModel.tool = b.dataset.tool; sfx.click(); drawPadNow(); });
 $('padColours').innerHTML = COLOURS.map((c, i) => `<button class="sw" style="background:${c}" data-colour="${i}" aria-label="${COLOUR_NAMES[i]}"></button>`).join('');
 function padCanvasFit(el){ const dpr = Math.min(2, window.devicePixelRatio || 1), w = el.clientWidth || 300, h = el.clientHeight || w;
   if (el.width !== Math.round(w*dpr) || el.height !== Math.round(h*dpr)){ el.width = Math.round(w*dpr); el.height = Math.round(h*dpr); }
@@ -3864,17 +3869,20 @@ function padCanvasFit(el){ const dpr = Math.min(2, window.devicePixelRatio || 1)
 function drawPadNow(){ const [c2, w] = padCanvasFit($('padCanvas')); drawPad(c2, w, padModel.strokes, padModel.cur);
   $('padInk').style.width = `${Math.round(padModel.inkLeft*100)}%`;
   $('padDone').setAttribute('aria-disabled', padModel.strokes.length ? 'false' : 'true');
-  for (const b of $('padColours').children) b.classList.toggle('on', +b.dataset.colour === padModel.colour); }
+  for (const b of $('padColours').children) b.classList.toggle('on', +b.dataset.colour === padModel.colour);
+  for (const b of $('padTools').children){ const on = b.dataset.tool === padModel.tool; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  $('padUndo').setAttribute('aria-disabled', padModel.canUndo ? 'false' : 'true'); }
 function openPad(){ padOpen = true; padNaming = false; $('padDraw').hidden = false; $('padName').hidden = true; $('petPad').hidden = false; sfx.click(); requestAnimationFrame(drawPadNow); }
 function closePad(){ padOpen = padNaming = false; $('petPad').hidden = true; sfx.click(); }
 function padAt(e){ const r = $('padCanvas').getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
 $('padCanvas').addEventListener('pointerdown', (e) => { e.preventDefault(); const [u, v] = padAt(e);
-  if (!padModel.begin(u, v)){ sfx.denied(); toast('The ink has run out. Undo gives some back.', 2200); return; }
+  if (!padModel.begin(u, v)){ sfx.denied(); toast('The ink has run out. Undo or the eraser gives some back.', 2200); return; }
+  padRubbing = padModel.tool === 'eraser';
   $('padCanvas').setPointerCapture(e.pointerId); drawPadNow(); });
-$('padCanvas').addEventListener('pointermove', (e) => { if (!padModel.cur) return; const [u, v] = padAt(e); padModel.move(u, v); drawPadNow(); });
-for (const ev of ['pointerup', 'pointercancel']) $('padCanvas').addEventListener(ev, () => { if (!padModel.cur) return; padModel.end(); drawPadNow(); });
-$('padColours').addEventListener('click', (e) => { const b = e.target.closest('[data-colour]'); if (!b) return; padModel.colour = +b.dataset.colour; sfx.click(); drawPadNow(); });
-$('padUndo').addEventListener('click', () => { padModel.undo(); sfx.click(); drawPadNow(); });
+$('padCanvas').addEventListener('pointermove', (e) => { if (!padModel.cur && !padRubbing) return; const [u, v] = padAt(e); padModel.move(u, v); drawPadNow(); });
+for (const ev of ['pointerup', 'pointercancel']) $('padCanvas').addEventListener(ev, () => { if (!padModel.cur && !padRubbing) return; padRubbing = false; padModel.end(); drawPadNow(); });
+$('padColours').addEventListener('click', (e) => { const b = e.target.closest('[data-colour]'); if (!b) return; padModel.colour = +b.dataset.colour; if (padModel.tool === 'eraser') padModel.tool = 'pen'; sfx.click(); drawPadNow(); });
+$('padUndo').addEventListener('click', () => { if (!padModel.canUndo){ sfx.denied(); return; } padModel.undo(); sfx.click(); drawPadNow(); });
 $('padClear').addEventListener('click', () => { padModel.clear(); sfx.click(); drawPadNow(); });
 $('padDone').addEventListener('click', () => { if (!padModel.strokes.length){ sfx.denied(); return; }
   padNaming = true; $('padDraw').hidden = true; $('padName').hidden = false; $('padNameIn').value = ''; sfx.click(); requestAnimationFrame(drawPadPreview);
@@ -3888,7 +3896,7 @@ function drawPadPreview(){ if (!padNaming) return; const [c2, w, h] = padCanvasF
   requestAnimationFrame(drawPadPreview); }
 $('padBack').addEventListener('click', () => { padNaming = false; $('padName').hidden = true; $('padDraw').hidden = false; sfx.click(); requestAnimationFrame(drawPadNow); });
 function keepDrawn(){ const d = addDrawn(petSave, padModel.strokes, $('padNameIn').value, Date.now()); if (!d){ sfx.denied(); return; }
-  padModel.clear(); closePad(); save(); sfx.build(); toast(`${d.nm} is yours. It's in your pet book.`, 2800, 1); if (petBookOpen) renderPetBook(); }
+  padModel.reset(); closePad(); save(); sfx.build(); toast(`${d.nm} is yours. It's in your pet book.`, 2800, 1); if (petBookOpen) renderPetBook(); }
 $('padKeep').addEventListener('click', keepDrawn);
 $('petPadClose').addEventListener('click', closePad);
 // Typing a name is not steering here either.
@@ -5882,7 +5890,7 @@ elRst.addEventListener('click', () => {
   sharksEntity.reset();
   boat.x = DOCK.x+125; boat.y = IY+125; boat.h = .45; boat.v = 0; resetNet();
   wood = 0; build = 0; carry = 0; hudWood(); levSeen = false; whaleSeen = false; mantaSeen = false; cthuluSeen = false; anglerSeen = false; petted = false; isle2Seen = false; isle3Seen = false; isle3Stage = 0; isle4Stage = 0; isle5Seen = false; isle5Stage = 0; isle6Seen = false; chests6 = 0; isle6Stage = 0; isle7Seen = false; soulArmour = false; isle7Stage = 0; portalOpen = 0; deep.state = 'sleep'; deep.reset(); cth.state = 'wait'; cth.reset(); king.state = 'wait'; king.reset(); anchorer.state = 'lurk'; anchorer.reset(); flag = null; gulperSeen = false; meteorSeen = false; reaperSeen = false; reaperLandSeen = false; reaperRematch = false; oldOwed = false; kingOwed = false; snacks = noSnacks(); bugSpray = 0; honey = 0; hiveDay = 0; pelicanBeaten = false; bread = 0; feederFull = false; crowsOwned = 0; crows.clear(); closeCrowCard(true); finder = false; sunkenDay = 0; sunkenFound = 0; sunkenListDay = -1; badges = noBadges(); wearBadges(); sub = false; subFound = noSubFound(); appleT = 0; carrotT = 0; reaperEgg = 0; eggDay = 0; Object.assign(crew, DEFAULT_CREW); junk = 0; muffins = []; leggy.count = 0; hudJunk(); hatchT = -1; baby.free = false; baby.state = 'away'; baby.swimming = false; landReaper.state = 'sleep'; landReaper.reset(); iceSeen = false; iceRuns = 0; if (icing) endIce(); reaper.state = 'roam'; reaper.reset(); lionSeen = false; lionCaught = 0; aquarium = false; bases = noBases(); pots = []; potHaul = 0; potTold = false; if (diving) endDive(true); trenchSeen = false; abyssSeen = false; bridgeSeen = false; bridgeIn = false; stealth1 = false; invis = false; stay = new Set(); if (rosterOpen) closeRoster(); if (tarAshore) setWalkLand(null); tarAshore = false; tarFolk.here = false; tarLeader.here = false; tarDragon.here = false; tarDragon.reset(); tarLeaderBeaten = false; tarLeader.beaten = false; eelStage = 0; tarEel.state = 'away'; tarEel.reset(); chemHp = HP_MAX; document.body.classList.remove('tarsail'); tarSail = null; tarDay = 0; tarTaken = 0; tarBucket = 0; tarCaught = 0; tarIsleSeen = false; tarRod.stop(); tarRodAt = null; hudTarCast(false); hudTar(); abyssDown = false; remoroDay = 0; hunterDay = 0; hq = noHq(); gardenDay = 0; sharp = false; trenchDeep = 0; trenchLoot = 0; iceLoot = 0; pearlDay = 0; wreckChest = false; stormSeen = false; Object.assign(storm, new Storm()); stormE = 0; lurkerSeen = false; lurkerStung = 0; charter = null; charterOffer = null; chartersRun = 0; hudCharter(); if (tankOpen) closeTank(); nagaFree = false; nagaCage = 0; isle8Seen = false; isle10Seen = false; isle11Seen = false; isle12Seen = false; catermanFree = false; catermanT = -1; skullKey = false; cryptWon = false; skrillBeaten = false; krakenBeaten = false; krakenFoot = false; castleHQ = false; scanner = 0; scanned = []; saveCode = newCode(); codeTold = 0; cloudSent = ''; cloudOffered = false; barge = defaultBarge(); bargeWins = 0; caterman.free = false; caterman.state = 'away'; brother.reset(); guide.reset(); heronStage = 0; heronFled = false; charLook = {...SKIPPER}; otter.set(0); neil.set(0); radioDay = 0; coastGuard.reset(); neilTold = false; naga.free = false; naga.state = 'away'; necroPal.free = false; necroPal.state = 'away'; lionfish.reset(); stowSeine(); seineTold = false; mendT = 0; rod.stop(); rodAt = null; serpent.state = 'haunt'; serpent.reset(); spear = 0; armour = 0; sailed.fill(0); masks = 0; towerTaken = false; turtleSeen = false; turtleSwims = 0; if (droneFly) endDrone(true); if (droneFish) endDroneFish(true); if (droneOpen) closeDroneCard(true); drone = {owned: false, colour: 0, flights: 0, bestRings: 0, traps: noTraps(), beetles: 0, up: noUpgrades()}; mer = {seen: false, pearls: 0, given: 0, night: -1, charm: false, sirens: false}; endless = {seen: false, pirate: false, ninja: false}; gardenIsle = {seen: false}; gardenSeed = null; gardenTool = null; endMerSong(); mermaids.reset(); sirens.reset(); rockBumpT = 0; sirenPullT = -99; merSpookTold = false; merSeenT = -99; merToldNight = -1; Object.assign(driven, noDriven()); harpoonAt = 0; leaveTower(false); monkeys.reset(); monkeys7.reset(); hired8.reset(); hired9.reset(); hiredBoats.reset(); hearts = maxHearts(); shallows.reset(); hp = HP_MAX; swallowT = 0; pets.hint = true; Object.assign(gear, noGear()); Object.assign(snook, {casts:0, landed:0, kept:0, giant:0, best:0, firstDay:0}); fight = null; rareEntity.reset(); jellies.reset(); pets.reset(); clock = .13;
-  if (petFight) endPetFight(false, true); closeRing(); toasts.clear(); petSave = noPets(); petAwayUps = []; petWalk.on = false; hatching = null; $('hatchCard').hidden = true; padModel.clear(); if (padOpen) closePad(); if (petBookOpen) closePetBook();
+  if (petFight) endPetFight(false, true); closeRing(); toasts.clear(); petSave = noPets(); petAwayUps = []; petWalk.on = false; hatching = null; $('hatchCard').hidden = true; padModel.reset(); if (padOpen) closePad(); if (petBookOpen) closePetBook();
   endCtf(); pirateEntity.reset(); walker.reset();
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);

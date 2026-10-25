@@ -104,15 +104,156 @@ export function decode(s: unknown): Stroke[] {
  * The pad, as a finger uses it: a stroke begun, drawn on, and ended (thinned, and cut to the ink left), undone or all
  * cleared. Pure: the game feeds it points on the pad, 0 to 1 each way, and draws what it holds.
  */
+/** The shapes the pad can draw: each fits the box dragged out from one corner to the other. */
+export const SHAPES = ['line', 'circle', 'square', 'triangle', 'heart', 'star'] as const;
+export type Shape = (typeof SHAPES)[number];
+export const SHAPE_NAMES: Readonly<Record<Shape, string>> = {
+  line: 'Line',
+  circle: 'Circle',
+  square: 'Square',
+  triangle: 'Triangle',
+  heart: 'Heart',
+  star: 'Star',
+};
+/** What the finger does: draws, rubs out, or drags out a shape. */
+export type Tool = 'pen' | 'eraser' | Shape;
+
+/** How wide the eraser rubs, in grid cells either side of the finger. */
+export const ERASER = 2.6;
+/** How many changes Undo can step back through. */
+export const UNDO_MAX = 40;
+
+/**
+ * A shape's outline as points in the box from a to b (grid cells), going round and back to its start: a line is just
+ * its two ends. Points next to each other that round to the same cell are kept once.
+ */
+export function shapePoints(shape: Shape, a: Pt, b: Pt): Pt[] {
+  const x0 = Math.min(a[0], b[0]);
+  const y0 = Math.min(a[1], b[1]);
+  const w = Math.abs(b[0] - a[0]);
+  const h = Math.abs(b[1] - a[1]);
+  const at = (u: number, v: number): Pt => [x0 + u * w, y0 + v * h];
+  let raw: Pt[];
+  switch (shape) {
+    case 'line':
+      raw = [a, b];
+      break;
+    case 'square':
+      raw = [at(0, 0), at(1, 0), at(1, 1), at(0, 1), at(0, 0)];
+      break;
+    case 'triangle':
+      raw = [at(0.5, 0), at(1, 1), at(0, 1), at(0.5, 0)];
+      break;
+    case 'circle':
+      raw = Array.from({ length: 17 }, (_, i) => {
+        const q = (i / 16) * Math.PI * 2;
+        return at(0.5 + 0.5 * Math.cos(q), 0.5 + 0.5 * Math.sin(q));
+      });
+      break;
+    case 'heart':
+      // The classic heart curve, its dip at the top and its point at the bottom, fitted to the box.
+      raw = Array.from({ length: 17 }, (_, i) => {
+        const t = (i / 16) * Math.PI * 2;
+        const hx = 16 * Math.sin(t) ** 3;
+        const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+        return at(0.5 + hx / 34, (12 - hy) / 29);
+      });
+      break;
+    case 'star':
+      raw = Array.from({ length: 11 }, (_, i) => {
+        const q = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+        const r = i % 2 ? 0.2 : 0.5;
+        return at(0.5 + r * Math.cos(q), 0.53 + r * Math.sin(q));
+      });
+      break;
+  }
+  const out: Pt[] = [];
+  for (const [x, y] of raw) {
+    const g: Pt = [
+      Math.max(0, Math.min(GRID - 1, Math.round(x))),
+      Math.max(0, Math.min(GRID - 1, Math.round(y))),
+    ];
+    const last = out[out.length - 1];
+    if (!last || last[0] !== g[0] || last[1] !== g[1]) out.push(g);
+  }
+  return out;
+}
+
+/** A line's points every grid cell or so along it, so rubbing out its middle has points there to take away. */
+function dense(p: readonly Pt[]): [number, number][] {
+  const out: [number, number][] = [];
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i] as Pt;
+    const b = p[i + 1];
+    out.push([a[0], a[1]]);
+    if (!b) break;
+    const n = Math.floor(Math.hypot(b[0] - a[0], b[1] - a[1]));
+    for (let k = 1; k < n; k++)
+      out.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+  }
+  return out;
+}
+
+/** How far point p is from the segment a to b. */
+function toSegment(p: readonly [number, number], a: Pt, b: Pt): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const l = dx * dx + dy * dy;
+  const t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l)) : 0;
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/**
+ * The strokes rubbed out along the eraser's way from a to b: whatever lies under it goes, and a stroke rubbed through
+ * in the middle is left as two. What is left is thinned again, so rubbing out never costs more ink than it gives back
+ * by much; a scrap of a single point is dropped.
+ */
+export function erase(strokes: readonly Stroke[], a: Pt, b: Pt, r = ERASER): Stroke[] {
+  const out: Stroke[] = [];
+  for (const s of strokes) {
+    if (s.p.length === 1) {
+      if (toSegment(s.p[0] as Pt, a, b) > r) out.push(s);
+      continue;
+    }
+    const pts = dense(s.p);
+    if (pts.every((q) => toSegment(q, a, b) > r)) {
+      out.push(s);
+      continue;
+    }
+    let run: Pt[] = [];
+    const flush = () => {
+      const kept = thin(run.map(([x, y]): Pt => [Math.round(x), Math.round(y)]));
+      // Keep what is left only if it still goes somewhere: a scrap rubbed down to one cell goes too.
+      const [first] = kept;
+      if (first && kept.some((q) => q[0] !== first[0] || q[1] !== first[1]))
+        out.push({ c: s.c, p: kept });
+      run = [];
+    };
+    for (const q of pts) {
+      if (toSegment(q, a, b) > r) run.push(q);
+      else flush();
+    }
+    flush();
+  }
+  return out;
+}
+
 export class Pad {
   strokes: Stroke[] = [];
-  /** The stroke the finger is drawing, unthinned. */
+  /** The stroke the finger is drawing, unthinned, or the shape being dragged out. */
   cur: Stroke | null = null;
   colour = 0;
+  tool: Tool = 'pen';
+  /** The drawing as it was before each change, for Undo, newest last. */
+  private history: Stroke[][] = [];
+  /** Where the finger went down, for a shape; where it last was, for the eraser. */
+  private anchor: Pt | null = null;
 
   /** The ink left, 0 to 1, counting the stroke being drawn as it will be once thinned (at least its two ends). */
   get inkLeft(): number {
-    const now = this.cur ? Math.min(2, this.cur.p.length) : 0;
+    const now = this.cur
+      ? Math.min(this.tool === 'pen' ? 2 : this.cur.p.length, this.cur.p.length)
+      : 0;
     return Math.max(0, 1 - (inkUsed(this.strokes) + now) / INK);
   }
 
@@ -120,40 +261,108 @@ export class Pad {
     return !this.strokes.length && !this.cur;
   }
 
-  /** A finger down. Says whether it draws: not once the ink has run out. */
+  /** Whether there is a change to step back from. */
+  get canUndo(): boolean {
+    return this.history.length > 0;
+  }
+
+  private remember(): void {
+    this.history.push(this.strokes.map((s) => ({ c: s.c, p: s.p.slice() })));
+    if (this.history.length > UNDO_MAX) this.history.shift();
+  }
+
+  /** Rubbed out from a to b; never left needing more ink than the pot holds, which the save could not keep. */
+  private rub(a: Pt, b: Pt): void {
+    const left = erase(this.strokes, a, b);
+    if (inkUsed(left) <= INK) this.strokes = left;
+  }
+
+  /** A finger down. Says whether it does anything: drawing stops once the ink has run out; rubbing out never does. */
   begin(u: number, v: number): boolean {
+    const g = toGrid(u, v);
+    if (this.tool === 'eraser') {
+      this.remember();
+      this.anchor = g;
+      this.rub(g, g);
+      return true;
+    }
     if (inkUsed(this.strokes) >= INK) return false;
-    this.cur = { c: this.colour, p: [toGrid(u, v)] };
+    this.remember();
+    if (this.tool === 'pen') this.cur = { c: this.colour, p: [g] };
+    else {
+      this.anchor = g;
+      this.cur = { c: this.colour, p: shapePoints(this.tool, g, g) };
+    }
     return true;
   }
 
   move(u: number, v: number): void {
+    const g = toGrid(u, v);
+    if (this.tool === 'eraser') {
+      if (!this.anchor) return;
+      this.rub(this.anchor, g);
+      this.anchor = g;
+      return;
+    }
     const c = this.cur;
     if (!c) return;
-    const g = toGrid(u, v);
+    if (this.tool !== 'pen' && this.anchor) {
+      c.p = shapePoints(this.tool, this.anchor, g);
+      return;
+    }
     const last = c.p[c.p.length - 1];
     if (!last || last[0] !== g[0] || last[1] !== g[1]) c.p.push(g);
   }
 
   end(): void {
+    const was = this.history[this.history.length - 1];
+    if (this.tool === 'eraser') {
+      this.anchor = null;
+      // Nothing rubbed out: nothing to undo.
+      if (was && was.length === this.strokes.length && encode(was) === encode(this.strokes))
+        this.history.pop();
+      return;
+    }
     const c = this.cur;
+    this.anchor = null;
     if (!c) return;
     this.cur = null;
     const room = INK - inkUsed(this.strokes);
-    if (room <= 0) return;
-    let p = thin(c.p);
+    // A shape too small to see, or one the ink will not stretch to, is not kept.
+    if (this.tool !== 'pen' && (c.p.length < 2 || c.p.length > room)) {
+      this.history.pop();
+      return;
+    }
+    if (room <= 0) {
+      this.history.pop();
+      return;
+    }
+    let p = this.tool === 'pen' ? thin(c.p) : c.p;
     if (p.length > room) p = p.slice(0, room);
     this.strokes.push({ c: c.c, p });
   }
 
+  /** Back one change: a line, a shape, some rubbing out, or Clear. */
   undo(): void {
     this.cur = null;
-    this.strokes.pop();
+    this.anchor = null;
+    const was = this.history.pop();
+    if (was) this.strokes = was;
   }
 
   clear(): void {
     this.cur = null;
+    this.anchor = null;
+    if (this.strokes.length) this.remember();
     this.strokes = [];
+  }
+
+  /** A fresh pad, nothing to undo: once a drawing is kept, or the game starts over. */
+  reset(): void {
+    this.cur = null;
+    this.anchor = null;
+    this.strokes = [];
+    this.history = [];
   }
 }
 
