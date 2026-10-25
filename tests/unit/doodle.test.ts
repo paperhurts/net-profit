@@ -154,6 +154,12 @@ describe('shapes on the pad', () => {
     expect(up[0]).toEqual([25, 12]);
     expect(down[0]).toEqual([25, 50]);
     expect(down.slice(1, 3).every(([, y]) => y === 12)).toBe(true);
+    // So do the heart and the star: dragged upwards, each is the other way up.
+    for (const sh of ['heart', 'star'] as const) {
+      const down = shapePoints(sh, [10, 12], [40, 50]);
+      const flipped = shapePoints(sh, [10, 50], [40, 12]);
+      expect(flipped.map(([x, y]) => [x, 62 - y])).toEqual(down);
+    }
     // Dragged backwards, the same shape.
     expect(shapePoints('square', [40, 50], [10, 12])).toEqual(
       shapePoints('square', [10, 12], [40, 50]),
