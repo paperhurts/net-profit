@@ -964,7 +964,12 @@ type Np = {
     hatching: unknown;
     walker: { on: boolean; ashore: boolean; x: number; y: number; love: number };
     walkAt: [number, number] | null;
-    pad: { strokes: unknown[]; inkLeft: number };
+    pad: {
+      strokes: { c: number; p: [number, number][] }[];
+      inkLeft: number;
+      tool: string;
+      canUndo: boolean;
+    };
   };
 };
 
@@ -14357,6 +14362,84 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   await page.click('#go');
   const beds = await page.evaluate(() => window.__np.gardenIsle.beds?.map((b) => b?.crop ?? null));
   expect(beds?.slice(0, 2)).toEqual([null, 'strawberry']);
+  expect(errors).toEqual([]);
+});
+
+test('the drawing pad: shapes dragged out, rubbed out with the eraser, and every change undone', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true });
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await page.locator('#petDraw').click();
+  await expect(page.locator('#petPad')).toBeVisible();
+  await expect(page.locator('#padTools .tool')).toHaveCount(8);
+  await expect(page.locator('[data-tool="pen"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#padUndo')).toHaveAttribute('aria-disabled', 'true');
+  // The tools fit a phone's width, in one row.
+  const tops = new Set<number>();
+  for (const b of await page.locator('#padTools .tool').all()) {
+    const r = await b.boundingBox();
+    if (!r) throw new Error('no tool');
+    expect(r.x + r.width).toBeLessThanOrEqual(390);
+    tops.add(Math.round(r.y));
+  }
+  expect(tops.size).toBe(1);
+  const box = await page.locator('#padCanvas').boundingBox();
+  if (!box) throw new Error('no pad');
+  const at = (u: number, v: number) => [box.x + u * box.width, box.y + v * box.height] as const;
+  const drag = async (a: readonly [number, number], b: readonly [number, number]) => {
+    await page.mouse.move(...at(...a));
+    await page.mouse.down();
+    await page.mouse.move(...at(...b), { steps: 8 });
+    await page.mouse.up();
+  };
+  // A blue circle for a body, dragged out corner to corner.
+  await page.locator('[data-colour="4"]').click();
+  await page.locator('[data-tool="circle"]').click();
+  await drag([0.2, 0.2], [0.8, 0.65]);
+  let strokes = await page.evaluate(() => window.__np.pets.pad.strokes);
+  expect(strokes).toHaveLength(1);
+  expect(strokes[0]?.c).toBe(4);
+  expect(strokes[0]?.p.length).toBeGreaterThan(10);
+  // A line across it, then the eraser through the line's middle: two pieces left.
+  await page.locator('[data-tool="line"]').click();
+  await drag([0.1, 0.85], [0.9, 0.85]);
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(2);
+  await page.locator('[data-tool="eraser"]').click();
+  await expect(page.locator('[data-tool="eraser"]')).toHaveAttribute('aria-pressed', 'true');
+  await drag([0.5, 0.78], [0.5, 0.95]);
+  strokes = await page.evaluate(() => window.__np.pets.pad.strokes);
+  expect(strokes).toHaveLength(3);
+  // Undo puts the line back whole; Clear, then Undo, brings the drawing back.
+  await page.locator('#padUndo').click();
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(2);
+  await page.locator('#padClear').click();
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(0);
+  await page.locator('#padUndo').click();
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(2);
+  // Picking a colour while rubbing out goes back to the pen.
+  await page.locator('[data-tool="eraser"]').click();
+  await page.locator('[data-colour="1"]').click();
+  expect(await page.evaluate(() => window.__np.pets.pad.tool)).toBe('pen');
+  // A heart and a star, then kept as a pet.
+  for (const t of ['heart', 'star'] as const) {
+    await page.locator(`[data-tool="${t}"]`).click();
+    await drag(
+      t === 'heart' ? [0.05, 0.05] : [0.7, 0.05],
+      t === 'heart' ? [0.3, 0.3] : [0.95, 0.3],
+    );
+  }
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes.length)).toBe(4);
+  await page.locator('#padDone').click();
+  await page.locator('#padNameIn').pressSequentially('Shapes');
+  await page.locator('#padKeep').click();
+  await expect(page.locator('#petPad')).toBeHidden();
+  const d = await page.evaluate(() => window.__np.pets.save.drawn);
+  expect(d.map((x) => x.nm)).toEqual(['Shapes']);
+  // A fresh pad next time: nothing to undo.
+  await page.locator('#petDraw').click();
+  await expect(page.locator('#padUndo')).toHaveAttribute('aria-disabled', 'true');
   expect(errors).toEqual([]);
 });
 

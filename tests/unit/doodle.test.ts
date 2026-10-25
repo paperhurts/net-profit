@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   COLOURS,
   decode,
+  ERASER,
   encode,
+  erase,
   GRID,
   INK,
   inkUsed,
   Pad,
   rig,
+  SHAPES,
   type Stroke,
+  shapePoints,
   thin,
   toGrid,
 } from '../../src/data/doodle';
@@ -123,5 +127,148 @@ describe('the drawing pad', () => {
     expect(r.legs.get(1)?.top).toEqual([30, 30]);
     // One stroke alone has no legs: it slides along like a slug.
     expect(rig([body]).legs.size).toBe(0);
+  });
+});
+
+describe('shapes on the pad', () => {
+  it('fit the box dragged out, go back to where they start, and cost little ink', () => {
+    for (const sh of SHAPES) {
+      const p = shapePoints(sh, [10, 12], [40, 50]);
+      for (const [x, y] of p) {
+        expect(x).toBeGreaterThanOrEqual(10);
+        expect(x).toBeLessThanOrEqual(40);
+        expect(y).toBeGreaterThanOrEqual(12);
+        expect(y).toBeLessThanOrEqual(50);
+      }
+      expect(p.length).toBeLessThanOrEqual(17);
+      if (sh === 'line')
+        expect(p).toEqual([
+          [10, 12],
+          [40, 50],
+        ]);
+      else expect(p[p.length - 1]).toEqual(p[0]);
+    }
+    // Dragged backwards, the same shape.
+    expect(shapePoints('square', [40, 50], [10, 12])).toEqual(
+      shapePoints('square', [10, 12], [40, 50]),
+    );
+    // Off the pad's edge, it stays on the pad.
+    for (const [x, y] of shapePoints('circle', [0, 0], [GRID - 1, GRID - 1])) {
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(y).toBeLessThanOrEqual(GRID - 1);
+    }
+  });
+
+  it('are dragged out on the pad, shown as they go, and kept on letting go', () => {
+    const pad = new Pad();
+    pad.tool = 'circle';
+    pad.colour = 4;
+    expect(pad.begin(0.2, 0.2)).toBe(true);
+    pad.move(0.5, 0.4);
+    expect(pad.cur?.p.length).toBeGreaterThan(8);
+    pad.move(0.8, 0.8);
+    pad.end();
+    expect(pad.strokes).toHaveLength(1);
+    expect(pad.strokes[0]?.c).toBe(4);
+    // A tap is not a shape.
+    pad.begin(0.5, 0.5);
+    pad.end();
+    expect(pad.strokes).toHaveLength(1);
+    // It round-trips in the save.
+    expect(decode(encode(pad.strokes))).toEqual(pad.strokes);
+  });
+});
+
+describe('the eraser', () => {
+  it('rubs out the middle of a line and leaves its two ends', () => {
+    const left = erase(
+      [
+        {
+          c: 1,
+          p: [
+            [10, 30],
+            [50, 30],
+          ],
+        },
+      ],
+      [30, 20],
+      [30, 40],
+    );
+    expect(left).toHaveLength(2);
+    for (const s of left) {
+      expect(s.c).toBe(1);
+      for (const [x] of s.p) expect(Math.abs(x - 30)).toBeGreaterThan(ERASER - 1);
+    }
+  });
+
+  it('leaves alone what it does not touch, and takes away dots and scraps under it', () => {
+    const line = {
+      c: 0,
+      p: [
+        [5, 5],
+        [5, 40],
+      ] as [number, number][],
+    };
+    const dot = { c: 2, p: [[30, 30]] as [number, number][] };
+    expect(erase([line, dot], [50, 50], [60, 60])).toEqual([line, dot]);
+    expect(erase([line, dot], [30, 30], [30, 30])).toEqual([line]);
+    expect(
+      erase(
+        [
+          {
+            c: 0,
+            p: [
+              [30, 30],
+              [31, 30],
+            ],
+          },
+        ],
+        [30, 30],
+        [31, 30],
+      ),
+    ).toEqual([]);
+  });
+
+  it('is undone in one step, and Undo also brings back a cleared drawing', () => {
+    const pad = new Pad();
+    pad.begin(0.1, 0.5);
+    pad.move(0.9, 0.5);
+    pad.end();
+    const drawn = encode(pad.strokes);
+    pad.tool = 'eraser';
+    pad.begin(0.5, 0.3);
+    pad.move(0.5, 0.7);
+    pad.end();
+    expect(pad.strokes).toHaveLength(2);
+    pad.undo();
+    expect(encode(pad.strokes)).toBe(drawn);
+    // Rubbing out nothing leaves nothing to undo.
+    pad.begin(0.1, 0.1);
+    pad.end();
+    pad.clear();
+    expect(pad.strokes).toHaveLength(0);
+    pad.undo();
+    expect(encode(pad.strokes)).toBe(drawn);
+    pad.undo();
+    expect(pad.strokes).toHaveLength(0);
+    expect(pad.canUndo).toBe(false);
+  });
+
+  it('never makes a drawing too big for the save', () => {
+    const pad = new Pad();
+    for (let k = 0; k < 60 && inkUsed(pad.strokes) < INK - 4; k++) {
+      pad.tool = 'star';
+      pad.begin((k % 8) / 8, Math.floor(k / 8) / 8);
+      pad.move((k % 8) / 8 + 0.12, Math.floor(k / 8) / 8 + 0.12);
+      pad.end();
+    }
+    pad.tool = 'eraser';
+    for (let y = 0.05; y < 1; y += 0.1) {
+      pad.begin(0, y);
+      pad.move(1, y + 0.03);
+      pad.end();
+    }
+    expect(inkUsed(pad.strokes)).toBeLessThanOrEqual(INK);
+    expect(decode(encode(pad.strokes))).toEqual(pad.strokes);
   });
 });
