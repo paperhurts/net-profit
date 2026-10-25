@@ -56,7 +56,16 @@ import {
   seedShelfHtml,
   seedTrayHtml,
 } from '../../src/ui/garden';
-import { BEDS, BEDS_START, fromGarden, SEED_STALL, SELL_STAND } from '../../src/world/garden';
+import {
+  BEDS,
+  BEDS_START,
+  fromGarden,
+  onIsle14Ground,
+  SEED_STALL,
+  SELL_STAND,
+  STALLS,
+  stallAt,
+} from '../../src/world/garden';
 import { fakeView } from './helpers/view';
 
 const T0 = 1_800_000_000_000;
@@ -701,5 +710,16 @@ describe('the weather on the garden', () => {
     off.onScreen = false;
     drawGardenBolt(off.v, 0, 0.5);
     expect(off.calls.stroke ?? 0).toBe(0);
+  });
+});
+
+describe('the stalls: each served from its counter side', () => {
+  it('every stall is used from in front of it, toward you, on the island, and not from behind', () => {
+    for (const s of STALLS) {
+      expect(s.front.v).toBeGreaterThan(s.v + s.hv);
+      expect(onIsle14Ground(...fromGarden(s.front.u, s.front.v))).toBe(true);
+      // From right behind it, nothing.
+      expect(stallAt(...fromGarden(s.u, s.v - s.hv - 12))).toBeNull();
+    }
   });
 });
