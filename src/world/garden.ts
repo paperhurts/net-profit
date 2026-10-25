@@ -231,6 +231,10 @@ export function stallAt(x: number, y: number): Stall | null {
  * back to you once you step out of it.
  */
 export const LAWN14 = { u: 80, v: 170 } as const;
+/** How much closer the camera comes while the figure works the plot, on top of the usual ashore zoom. */
+export const PLOT_ZOOM = 0.5;
+/** And how far the view lifts then, as a share of the screen's height, so the beds near you clear the seed tray. */
+export const PLOT_LIFT = 0.1;
 
 /** In the plot, inside its edging. */
 export function inPlot14(x: number, y: number): boolean {
