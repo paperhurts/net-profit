@@ -3872,17 +3872,17 @@ window.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (
 // small for the save. Done asks for a name, with the drawing walking over it; Keep it puts it in the book. Closed
 // before then, the drawing waits on the padModel for next time.
 const padModel = new Pad();
-let padRubbing = false; // the eraser is down on the pad
+let padDown = false; // a finger is down on the pad, rubbing out or moving a piece as well as drawing
 let padOpen = false, padNaming = false;
 // The pen, the eraser and the shapes (data/doodle.ts), each a button with its picture.
-const PAD_TOOL_ICONS = {pen: '<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>', eraser: '<path d="M10 19L3.5 12.5 12 4l7 7-8 8z"/><path d="M10 19h10M7.5 8.5l7 7"/>', line: '<path d="M5 19L19 5"/>', circle: '<circle cx="12" cy="12" r="7.5"/>', square: '<rect x="5" y="5" width="14" height="14" rx="1"/>', triangle: '<path d="M12 4.5L20 19H4z"/>', heart: '<path d="M12 19.5S4 14.5 4 9.3A4 4 0 0 1 12 7.6a4 4 0 0 1 8 1.7c0 5.2-8 10.2-8 10.2z"/>', star: '<path d="M12 3.8l2.4 5.1 5.5.6-4.1 3.8 1.2 5.5L12 16l-5 2.8 1.2-5.5-4.1-3.8 5.5-.6z"/>'};
-$('padTools').innerHTML = ['pen', 'eraser', ...PAD_SHAPES].map(t => `<button class="tool" data-tool="${t}" aria-label="${t === 'pen' ? 'Pen' : t === 'eraser' ? 'Eraser' : PAD_SHAPE_NAMES[t]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${PAD_TOOL_ICONS[t]}</svg></button>`).join('');
-$('padTools').addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; padModel.tool = b.dataset.tool; sfx.click(); drawPadNow(); });
+const PAD_TOOL_ICONS = {move: '<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>', pen: '<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>', eraser: '<path d="M10 19L3.5 12.5 12 4l7 7-8 8z"/><path d="M10 19h10M7.5 8.5l7 7"/>', line: '<path d="M5 19L19 5"/>', circle: '<circle cx="12" cy="12" r="7.5"/>', square: '<rect x="5" y="5" width="14" height="14" rx="1"/>', triangle: '<path d="M12 4.5L20 19H4z"/>', heart: '<path d="M12 19.5S4 14.5 4 9.3A4 4 0 0 1 12 7.6a4 4 0 0 1 8 1.7c0 5.2-8 10.2-8 10.2z"/>', star: '<path d="M12 3.8l2.4 5.1 5.5.6-4.1 3.8 1.2 5.5L12 16l-5 2.8 1.2-5.5-4.1-3.8 5.5-.6z"/>'};
+$('padTools').innerHTML = ['pen', 'eraser', 'move', ...PAD_SHAPES].map(t => `<button class="tool" data-tool="${t}" aria-label="${t === 'pen' ? 'Pen' : t === 'eraser' ? 'Eraser' : t === 'move' ? 'Move and resize' : PAD_SHAPE_NAMES[t]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${PAD_TOOL_ICONS[t]}</svg></button>`).join('');
+$('padTools').addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; padModel.setTool(b.dataset.tool); sfx.click(); drawPadNow(); });
 $('padColours').innerHTML = COLOURS.map((c, i) => `<button class="sw" style="background:${c}" data-colour="${i}" aria-label="${COLOUR_NAMES[i]}"></button>`).join('');
 function padCanvasFit(el){ const dpr = Math.min(2, window.devicePixelRatio || 1), w = el.clientWidth || 300, h = el.clientHeight || w;
   if (el.width !== Math.round(w*dpr) || el.height !== Math.round(h*dpr)){ el.width = Math.round(w*dpr); el.height = Math.round(h*dpr); }
   const c2 = el.getContext('2d'); c2.setTransform(dpr, 0, 0, dpr, 0, 0); return [c2, w, h]; }
-function drawPadNow(){ const [c2, w] = padCanvasFit($('padCanvas')); drawPad(c2, w, padModel.strokes, padModel.cur);
+function drawPadNow(){ const [c2, w] = padCanvasFit($('padCanvas')); drawPad(c2, w, padModel.strokes, padModel.cur, padModel.selBox);
   $('padInk').style.width = `${Math.round(padModel.inkLeft*100)}%`;
   $('padDone').setAttribute('aria-disabled', padModel.strokes.length ? 'false' : 'true');
   for (const b of $('padColours').children) b.classList.toggle('on', +b.dataset.colour === padModel.colour);
@@ -3893,11 +3893,11 @@ function closePad(){ padOpen = padNaming = false; $('petPad').hidden = true; sfx
 function padAt(e){ const r = $('padCanvas').getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
 $('padCanvas').addEventListener('pointerdown', (e) => { e.preventDefault(); const [u, v] = padAt(e);
   if (!padModel.begin(u, v)){ sfx.denied(); toast('The ink has run out. Undo or the eraser gives some back.', 2200); return; }
-  padRubbing = padModel.tool === 'eraser';
+  padDown = true;
   $('padCanvas').setPointerCapture(e.pointerId); drawPadNow(); });
-$('padCanvas').addEventListener('pointermove', (e) => { if (!padModel.cur && !padRubbing) return; const [u, v] = padAt(e); padModel.move(u, v); drawPadNow(); });
-for (const ev of ['pointerup', 'pointercancel']) $('padCanvas').addEventListener(ev, () => { if (!padModel.cur && !padRubbing) return; padRubbing = false; padModel.end(); drawPadNow(); });
-$('padColours').addEventListener('click', (e) => { const b = e.target.closest('[data-colour]'); if (!b) return; padModel.colour = +b.dataset.colour; if (padModel.tool === 'eraser') padModel.tool = 'pen'; sfx.click(); drawPadNow(); });
+$('padCanvas').addEventListener('pointermove', (e) => { if (!padDown) return; const [u, v] = padAt(e); padModel.move(u, v); drawPadNow(); });
+for (const ev of ['pointerup', 'pointercancel']) $('padCanvas').addEventListener(ev, () => { if (!padDown) return; padDown = false; padModel.end(); drawPadNow(); });
+$('padColours').addEventListener('click', (e) => { const b = e.target.closest('[data-colour]'); if (!b) return; padModel.colour = +b.dataset.colour; if (padModel.tool === 'move') padModel.recolour(padModel.colour); else if (padModel.tool === 'eraser') padModel.setTool('pen'); sfx.click(); drawPadNow(); });
 $('padUndo').addEventListener('click', () => { if (!padModel.canUndo){ sfx.denied(); return; } padModel.undo(); sfx.click(); drawPadNow(); });
 $('padClear').addEventListener('click', () => { padModel.clear(); sfx.click(); drawPadNow(); });
 $('padDone').addEventListener('click', () => { if (!padModel.strokes.length){ sfx.denied(); return; }

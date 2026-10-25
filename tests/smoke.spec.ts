@@ -969,6 +969,8 @@ type Np = {
       inkLeft: number;
       tool: string;
       canUndo: boolean;
+      sel: number | null;
+      selBox: { x0: number; y0: number; x1: number; y1: number } | null;
     };
   };
 };
@@ -14373,7 +14375,7 @@ test('the drawing pad: shapes dragged out, rubbed out with the eraser, and every
   await page.locator('#petsBtn').dispatchEvent('click');
   await page.locator('#petDraw').click();
   await expect(page.locator('#petPad')).toBeVisible();
-  await expect(page.locator('#padTools .tool')).toHaveCount(8);
+  await expect(page.locator('#padTools .tool')).toHaveCount(9);
   await expect(page.locator('[data-tool="pen"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#padUndo')).toHaveAttribute('aria-disabled', 'true');
   // The tools fit a phone's width, in one row.
@@ -14446,6 +14448,58 @@ test('the drawing pad: shapes dragged out, rubbed out with the eraser, and every
   // A fresh pad next time: nothing to undo.
   await page.locator('#petDraw').click();
   await expect(page.locator('#padUndo')).toHaveAttribute('aria-disabled', 'true');
+  expect(errors).toEqual([]);
+});
+
+test('the drawing pad: a piece picked up, moved, resized by its corner and repainted', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true });
+  await page.locator('#petsBtn').dispatchEvent('click');
+  await page.locator('#petDraw').click();
+  await expect(page.locator('#padTools .tool')).toHaveCount(9);
+  const box = await page.locator('#padCanvas').boundingBox();
+  if (!box) throw new Error('no pad');
+  const at = (u: number, v: number) => [box.x + u * box.width, box.y + v * box.height] as const;
+  const cell = (g: number) => g / 63;
+  const drag = async (a: readonly [number, number], b: readonly [number, number]) => {
+    await page.mouse.move(...at(...a));
+    await page.mouse.down();
+    await page.mouse.move(...at(...b), { steps: 8 });
+    await page.mouse.up();
+  };
+  await page.locator('[data-tool="square"]').click();
+  await drag([0.2, 0.2], [0.45, 0.45]);
+  const sq0 = await page.evaluate(() => window.__np.pets.pad.strokes[0]?.p ?? []);
+  // Pick it up by its edge and drag it down and to the right.
+  await page.locator('[data-tool="move"]').click();
+  await drag([0.2, 0.3], [0.4, 0.5]);
+  expect(await page.evaluate(() => window.__np.pets.pad.sel)).toBe(0);
+  const sq1 = await page.evaluate(() => window.__np.pets.pad.strokes[0]?.p ?? []);
+  expect(sq1[0]?.[0]).toBeGreaterThan(sq0[0]?.[0] ?? 99);
+  expect(sq1[0]?.[1]).toBeGreaterThan(sq0[0]?.[1] ?? 99);
+  // Pull its corner out: it grows.
+  const b = await page.evaluate(() => window.__np.pets.pad.selBox);
+  if (!b) throw new Error('no selection');
+  await drag([cell(b.x1), cell(b.y1)], [cell(b.x1 + 12), cell(b.y1 + 6)]);
+  const b2 = await page.evaluate(() => window.__np.pets.pad.selBox);
+  expect((b2?.x1 ?? 0) - (b2?.x0 ?? 0)).toBeGreaterThan(b.x1 - b.x0 + 8);
+  // A colour paints it.
+  await page.locator('[data-colour="3"]').click();
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes[0]?.c)).toBe(3);
+  // Three steps of Undo: back as it was drawn.
+  for (let i = 0; i < 3; i++) await page.locator('#padUndo').click();
+  expect(await page.evaluate(() => window.__np.pets.pad.strokes[0]?.p)).toEqual(sq0);
+  // The tools still fit one row at phone width.
+  const tops = new Set<number>();
+  for (const t of await page.locator('#padTools .tool').all()) {
+    const r = await t.boundingBox();
+    if (!r) throw new Error('no tool');
+    expect(r.x + r.width).toBeLessThanOrEqual(390);
+    tops.add(Math.round(r.y));
+  }
+  expect(tops.size).toBe(1);
   expect(errors).toEqual([]);
 });
 

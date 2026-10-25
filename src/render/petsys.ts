@@ -6,7 +6,7 @@
  */
 
 import { K as ISO_K } from '../core/iso';
-import { COLOURS, GRID, PEN, type Pt, type Rig, type Stroke } from '../data/doodle';
+import { type Box, COLOURS, GRID, PEN, type Pt, type Rig, type Stroke } from '../data/doodle';
 import type { EggKind } from '../data/eggs';
 import type { PetKey } from '../data/petsys';
 import type { DrawView } from '../entities/entity';
@@ -177,6 +177,7 @@ export function drawPad(
   w: number,
   strokes: readonly Stroke[],
   cur: Stroke | null,
+  sel: Box | null = null,
 ): void {
   const k = w / (GRID - 1);
   ctx.clearRect(0, 0, w, w);
@@ -203,6 +204,27 @@ export function drawPad(
     }
     ctx.stroke();
   }
+  if (!sel) return;
+  // The piece picked up: a dashed box round it, and the handle at its corner to resize it by.
+  const pad = PEN;
+  ctx.save();
+  ctx.setLineDash([6, 5]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#2B8A99';
+  ctx.strokeRect(
+    (sel.x0 - pad) * k,
+    (sel.y0 - pad) * k,
+    (sel.x1 - sel.x0 + pad * 2) * k,
+    (sel.y1 - sel.y0 + pad * 2) * k,
+  );
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#FFFDF7';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc((sel.x1 + pad) * k, (sel.y1 + pad) * k, Math.max(9, 2.2 * k), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** A walking pet's longer side, in world units: a little bigger than the dog, so a drawing reads on a phone. */
