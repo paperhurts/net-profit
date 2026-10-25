@@ -14346,7 +14346,7 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   const worth = Math.round(16 * Math.max(0.9, m) ** 2);
   await expect(page.locator('#seedTray .basket')).toContainText('1/50');
   // Sold at the stand.
-  await standAt(222, 86);
+  await standAt(222, 138);
   await expect(climb).toHaveText(`Sell your basket for ${worth}`, { timeout: 4000 });
   await climb.dispatchEvent('click');
   await page.waitForFunction((w) => window.__np.coins === 440 + w, worth, { timeout: 3000 });
@@ -15128,7 +15128,7 @@ test("the Garden Isle's compost bin: tie up with fish aboard, the bin keeps them
     );
   const climb = page.locator('#climb');
   // The bin's card says what it keeps.
-  await standAt(285 - 14, 40 + 24);
+  await standAt(285 - 14, 40 + 68);
   await expect(climb).toHaveText('Look in the compost bin', { timeout: 4000 });
   await climb.dispatchEvent('click');
   await expect(page.locator('#gardenTitle')).toHaveText('The compost bin');

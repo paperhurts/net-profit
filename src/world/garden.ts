@@ -114,7 +114,8 @@ export type Stall = {
   front: { u: number; v: number };
 };
 export const SEED_STALL: Stall = { u: 232, v: -112, hu: 22, hv: 16, front: { u: 232, v: -84 } };
-export const SELL_STAND: Stall = { u: 222, v: 112, hu: 20, hv: 14, front: { u: 222, v: 86 } };
+// Its front is the counter's side, toward you, as the seed stall's is (it was behind the stand: the owner's, 2026-10-25).
+export const SELL_STAND: Stall = { u: 222, v: 112, hu: 20, hv: 14, front: { u: 222, v: 138 } };
 export const GEAR_SHED: Stall = { u: -50, v: -168, hu: 26, hv: 20, front: { u: -50, v: -136 } };
 /** The compost bin (part ten), on the grass by the pier's root across from the crates: it keeps fish from the hold
  * for the beds. */
@@ -123,7 +124,8 @@ export const COMPOST_BIN: Stall = {
   v: PIER14.v + 46,
   hu: 12,
   hv: 10,
-  front: { u: PIER14.u0 - 14, v: PIER14.v + 24 },
+  // Its slatted side, toward you, as the stalls' are; the lid is propped at the back.
+  front: { u: PIER14.u0 - 14, v: PIER14.v + 68 },
 };
 export const STALLS: readonly Stall[] = [SEED_STALL, SELL_STAND, GEAR_SHED, COMPOST_BIN];
 /** The windmill, round, and how tall. */
