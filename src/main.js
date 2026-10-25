@@ -2040,6 +2040,8 @@ warlock.onArrive = () => { if (!warlockTold){ warlockTold = true; toast('The war
 const ARMY_SIZE = {tarling: 8, bun: 9, cat: 10, warrior: 13, naga: 14, bones: 14, warlock: 15, necro: 15, baby: 24, caterman: 13};
 function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build), all = [warlock, tarling, cat, warrior, bonesPal, naga, necroPal, baby, caterman, bunSan];
   const size = (b) => ARMY_SIZE[b === warlock ? 'warlock' : b === tarling ? 'tarling' : b.kind] ?? 0;
+  // The leggy muffins wait on the Garden Isle's lawn too, with or without any companions.
+  leggy.lead = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) ? gardenLawn : null;
   const list = walker.state === 'ashore' ? all.filter(b => b === tarling ? tarling.with : b.shown) : [];
   palsAshore = list.length;
   for (const b of all) if (!list.includes(b)){ b.heelAt = null; b.lead = null; }
