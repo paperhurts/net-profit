@@ -225,6 +225,13 @@ export function stallAt(x: number, y: number): Stall | null {
   return STALLS.find((s) => Math.hypot(u - s.front.u, v - s.front.v) < 26) ?? null;
 }
 
+/**
+ * Where your companions wait while you work the plot (the owner's "very harassed by all my companions"): out on the
+ * lawn below it, short of the two trees, so the beds are yours. They gather round it, never in the plot, and come
+ * back to you once you step out of it.
+ */
+export const LAWN14 = { u: 80, v: 170 } as const;
+
 /** In the plot, inside its edging. */
 export function inPlot14(x: number, y: number): boolean {
   const [u, v] = toGarden(x, y);

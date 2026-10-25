@@ -15213,6 +15213,85 @@ test("the Garden Isle's starfall melon: the bin keeps a Moonkoi, and the melon s
   expect(errors).toEqual([]);
 });
 
+test("the Garden Isle's lawn: your companions wait off the plot while you work the beds, and come back after", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    isle3Stage: 3,
+    isle4Stage: 1,
+    isle6Stage: 2,
+    lv: { net: 5, hold: 5, engine: 5 },
+    garden: { seen: true },
+    trip: { x: -1200, y: 5600, h: Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.DOCK14.x;
+    n.boat.y = n.DOCK14.y;
+    n.boat.v = 0;
+    n.boat.h = (3 * Math.PI) / 4;
+  });
+  await page.locator('#ashore').waitFor({ state: 'visible', timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const standAt = (u: number, v: number) =>
+    page.evaluate(
+      ([a, b]) => {
+        const n = window.__np;
+        const [x, y] = n.fromGarden(a, b);
+        n.walker.x = x;
+        n.walker.y = y;
+      },
+      [u, v] as const,
+    );
+  // Where the warrior is, from the figure and from the lawn below the plot.
+  const apart = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const w = n.warriorPal as unknown as { x: number; y: number };
+      const [lx, ly] = n.fromGarden(80, 170);
+      return {
+        figure: Math.hypot(w.x - n.walker.x, w.y - n.walker.y),
+        lawn: Math.hypot(w.x - lx, w.y - ly),
+      };
+    });
+  await standAt(230, 20);
+  await page.waitForFunction(
+    () => (window.__np.warriorPal as unknown as { state: string }).state === 'with',
+    null,
+    {
+      timeout: 4000,
+    },
+  );
+  // Into the plot: they go and wait on the lawn.
+  await standAt(128, -102);
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      const w = n.warriorPal as unknown as { x: number; y: number };
+      const [lx, ly] = n.fromGarden(80, 170);
+      return Math.hypot(w.x - lx, w.y - ly) < 120;
+    },
+    null,
+    { timeout: 8000 },
+  );
+  expect((await apart()).figure).toBeGreaterThan(150);
+  // Out of it again: back to your side.
+  await standAt(230, 20);
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      const w = n.warriorPal as unknown as { x: number; y: number };
+      return Math.hypot(w.x - n.walker.x, w.y - n.walker.y) < 120;
+    },
+    null,
+    { timeout: 10000 },
+  );
+  expect(errors).toEqual([]);
+});
+
 test("the Garden Isle's plot grows: dig six more beds and plant in one, and buy the bigger basket", async ({
   context,
   page,

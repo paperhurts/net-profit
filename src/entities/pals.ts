@@ -220,6 +220,11 @@ export class Pal implements Entity {
   private blockedT = 0;
   /** Where it stops following: its place in the army's rings, when the game gives it one (spread.ts); else its heel. */
   heelAt: number | null = null;
+  /**
+   * Somewhere to wait instead of at the figure's heel, while the game gives one (the Garden Isle's lawn while the
+   * figure works the plot); null to follow the figure. Only ashore: aboard it is ignored.
+   */
+  lead: { x: number; y: number; vx: number; vy: number } | null = null;
 
   constructor(readonly kind: PalKind) {
     this.hp = this.maxHp;
@@ -412,7 +417,7 @@ export class Pal implements Entity {
       this.parrot(dt, w);
       return;
     }
-    const f = w.figure;
+    const f = w.figure && this.lead ? this.lead : w.figure;
     if (this.poofT >= 0) {
       this.poofT += dt;
       if (this.poofT < POOF_T) return;

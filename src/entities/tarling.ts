@@ -58,6 +58,11 @@ export class Tarling implements Entity {
   private blockedT = 0;
   /** Where it stops following: its place in the army's rings, when the game gives it one (spread.ts); else its heel. */
   heelAt: number | null = null;
+  /**
+   * Somewhere to wait instead of at the figure's heel, while the game gives one (the Garden Isle's lawn while the
+   * figure works the plot); null to follow the figure. Only ashore: aboard it is ignored.
+   */
+  lead: { x: number; y: number; vx: number; vy: number } | null = null;
   /** What it can spit at, nearest, within reach; the game knows. */
   findTarget: ((x: number, y: number, range: number) => SpitTarget | null) | null = null;
   /** It spat. */
@@ -112,7 +117,7 @@ export class Tarling implements Entity {
       if (q.t <= 0) this.stuck.splice(i, 1);
     }
     if (!this.free) return;
-    const f = w.figure;
+    const f = w.figure && this.lead ? this.lead : w.figure;
     if (!f) {
       this.with = false;
       this.spits.length = 0;

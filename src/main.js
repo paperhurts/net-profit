@@ -212,7 +212,7 @@ import { atHalf, atLift, atTree, CRATES13, DOCK13, ENDLESS13, FORT, LIFT13, from
 import { bleepsIn, CHATTER, LEADER_AFTER, LEADER_BADGE, LEADER_NAME, LEADER_PICK, LEADER_PICK_FORTS, LEADER_GOLD, LEADER_SAYS, LEADER_TITLED, MINION_NAME, nextLine, PARROT_LINES, SQUAWK_T, squawkParts } from './data/endlessfolk';
 import { drawCaptain, drawMaster, drawPoof, drawSquawk } from './render/minions';
 import { drawBattleFlag, endlessSolids, drawEndlessFlat, drawEndlessSea } from './render/endless';
-import { bedsInReach, COMPOST_BIN, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
+import { bedsInReach, COMPOST_BIN, LAWN14, CRATES14, DOCK14, fromGarden, LILY_POND, inPlot14, insideIsle14, ISLE14, gardenOutline, GEAR_SHED, nearIsle14, pushOffIsle14, SEED_STALL, SELL_STAND, SIGHT14, stallAt, toGarden } from './world/garden';
 import { drawGardenBolt, drawGardenFlat, drawGardenSplash, drawKoiShadow, drawMoonkoi, drawGardenSea, gardenLights, gardenPlantSolids, gardenSolids } from './render/garden';
 import { ALL_CROP_IDS, baitOf, bedAt as gardenBed, buyGear, buySeeds, CROPS, dig as digBed, fruitKg, fruitValue, GEAR as GARDEN_GEAR, gearOf, gearToday, growAll as growGarden, isGiant, MUTATIONS, pick as pickBed, plant as plantBed, seedsOf, sellBasket, setSprinkler, shockGarden, SPRINKLERS, stockToday, takeBait, water as waterBed, wetGarden, koiTonight, koiRose, landKoi, binOf, fillBin, bedsOpen, buyBasket, digBeds, nextDig } from './data/garden';
 import { bedOf, binShelfHtml, KEEPERS, FISH_WORDS, journalPagesHtml, fishOfTool, gardenAction, gardenLabel, gearShelfHtml, howMany, seedShelfHtml, seedTrayHtml } from './ui/garden';
@@ -2041,14 +2041,22 @@ const ARMY_SIZE = {tarling: 8, bun: 9, cat: 10, warrior: 13, naga: 14, bones: 14
 function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build), all = [warlock, tarling, cat, warrior, bonesPal, naga, necroPal, baby, caterman, bunSan];
   const size = (b) => ARMY_SIZE[b === warlock ? 'warlock' : b === tarling ? 'tarling' : b.kind] ?? 0;
   const list = walker.state === 'ashore' ? all.filter(b => b === tarling ? tarling.with : b.shown) : [];
-  for (const b of all) if (!list.includes(b)) b.heelAt = null;
+  for (const b of all) if (!list.includes(b)){ b.heelAt = null; b.lead = null; }
   if (!list.length) return;
-  if (inFight()){ for (const b of list) b.heelAt = null; spreadOut(list, walker, dt, step); return; }
+  if (inFight()){ for (const b of list){ b.heelAt = null; b.lead = null; } spreadOut(list, walker, dt, step); return; }
+  // In the Garden Isle's plot, they wait for you on the lawn below it, out of the beds, and come back as you step out.
+  const lawn = walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) ? gardenLawn : null;
+  const at = lawn ?? walker;
+  for (const b of list) b.lead = lawn;
+  // Queued, not pushed in front: the plot's own first words come first.
+  if (lawn && !lawnTold && gardenTold.has('plot')){ lawnTold = true; toast('Your companions wait on the lawn while you work the beds. Step out of the plot and they come back to you.', 3600, 1); }
   list.sort((a, b) => size(a) - size(b));
-  const places = assignSlots(list, formation(list.length, (dx, dy) => walkable(walker.x + dx, walker.y + dy, build)), walker);
+  const places = assignSlots(list, formation(list.length, (dx, dy) => walkable(at.x + dx, at.y + dy, build) && !(lawn && inPlot14(at.x + dx, at.y + dy))), at);
   list.forEach((b, i) => { const s = places[i]; b.heelAt = s ? s.r + 8 : null; });
-  if (Math.hypot(walker.vx, walker.vy) < 15) formUp(list, places, walker, dt, step);
+  if (lawn || Math.hypot(walker.vx, walker.vy) < 15) formUp(list, places, at, dt, step);
   else spreadOut(list, walker, dt, step); }
+let lawnTold = false;
+const gardenLawn = (() => { const [x, y] = fromGarden(LAWN14.u, LAWN14.v); return {x, y, vx: 0, vy: 0}; })();
 function hurtWarlock(dt){ for (const h of IN_THE_WAY) hurtHelper(h, dt);
   for (const a of allies.list) hurtHelper({shown: a.state === 'fight', x: a.x, y: a.y, key: a, hurt: () => allies.hurt(a)}, dt); }
 // What would hurt the figure hurts a helper in the way: the warlock, the cat, the warrior or the bones.
