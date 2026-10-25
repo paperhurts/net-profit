@@ -148,6 +148,12 @@ describe('shapes on the pad', () => {
         ]);
       else expect(p[p.length - 1]).toEqual(p[0]);
     }
+    // A triangle points where the drag began: up when dragged down, down when dragged up.
+    const up = shapePoints('triangle', [10, 12], [40, 50]);
+    const down = shapePoints('triangle', [10, 50], [40, 12]);
+    expect(up[0]).toEqual([25, 12]);
+    expect(down[0]).toEqual([25, 50]);
+    expect(down.slice(1, 3).every(([, y]) => y === 12)).toBe(true);
     // Dragged backwards, the same shape.
     expect(shapePoints('square', [40, 50], [10, 12])).toEqual(
       shapePoints('square', [10, 12], [40, 50]),
