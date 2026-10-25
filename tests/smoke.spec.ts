@@ -14422,6 +14422,12 @@ test('the drawing pad: shapes dragged out, rubbed out with the eraser, and every
   await page.locator('[data-tool="eraser"]').click();
   await page.locator('[data-colour="1"]').click();
   expect(await page.evaluate(() => window.__np.pets.pad.tool)).toBe('pen');
+  // A triangle dragged upwards points down.
+  await page.locator('[data-tool="triangle"]').click();
+  await drag([0.4, 0.95], [0.6, 0.7]);
+  const tri = await page.evaluate(() => window.__np.pets.pad.strokes.at(-1)?.p ?? []);
+  expect(tri[0]?.[1]).toBeGreaterThan(tri[1]?.[1] ?? 99);
+  await page.locator('#padUndo').click();
   // A heart and a star, then kept as a pet.
   for (const t of ['heart', 'star'] as const) {
     await page.locator(`[data-tool="${t}"]`).click();

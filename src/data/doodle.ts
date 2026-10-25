@@ -125,7 +125,7 @@ export const UNDO_MAX = 40;
 
 /**
  * A shape's outline as points in the box from a to b (grid cells), going round and back to its start: a line is just
- * its two ends. Points next to each other that round to the same cell are kept once.
+ * its two ends, and a triangle points the way the drag began, so it can be flipped. Points next to each other that round to the same cell are kept once.
  */
 export function shapePoints(shape: Shape, a: Pt, b: Pt): Pt[] {
   const x0 = Math.min(a[0], b[0]);
@@ -141,9 +141,12 @@ export function shapePoints(shape: Shape, a: Pt, b: Pt): Pt[] {
     case 'square':
       raw = [at(0, 0), at(1, 0), at(1, 1), at(0, 1), at(0, 0)];
       break;
-    case 'triangle':
-      raw = [at(0.5, 0), at(1, 1), at(0, 1), at(0.5, 0)];
+    case 'triangle': {
+      // Its point is where the drag starts: dragged down it points up, dragged up it points down.
+      const tip = b[1] >= a[1] ? 0 : 1;
+      raw = [at(0.5, tip), at(1, 1 - tip), at(0, 1 - tip), at(0.5, tip)];
       break;
+    }
     case 'circle':
       raw = Array.from({ length: 17 }, (_, i) => {
         const q = (i / 16) * Math.PI * 2;
