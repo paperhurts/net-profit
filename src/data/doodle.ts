@@ -115,8 +115,80 @@ export const SHAPE_NAMES: Readonly<Record<Shape, string>> = {
   heart: 'Heart',
   star: 'Star',
 };
-/** What the finger does: draws, rubs out, or drags out a shape. */
-export type Tool = 'pen' | 'eraser' | Shape;
+/** What the finger does: draws, rubs out, drags out a shape, or picks up a piece to move or resize it. */
+export type Tool = 'pen' | 'eraser' | 'move' | Shape;
+
+/** How near a piece a tap picks it up, and how near the corner handle a finger takes hold of it, in grid cells. */
+export const PICK = 4;
+export const HANDLE = 5;
+/** The smallest a piece can be squeezed to, in grid cells, each way that it had any size. */
+export const SMALLEST = 2;
+
+/** A box on the pad, in grid cells. */
+export type Box = { x0: number; y0: number; x1: number; y1: number };
+
+/** The box round a piece's points. */
+export function boxOf(p: readonly Pt[]): Box {
+  let x0 = GRID;
+  let y0 = GRID;
+  let x1 = 0;
+  let y1 = 0;
+  for (const [x, y] of p) {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  }
+  return { x0, y0, x1, y1 };
+}
+
+/** The piece a tap at g picks up: the one drawn last that passes near it, or whose box it is inside; none if none. */
+export function pickAt(strokes: readonly Stroke[], g: Pt): number | null {
+  for (let i = strokes.length - 1; i >= 0; i--) {
+    const p = (strokes[i] as Stroke).p;
+    const near =
+      p.length === 1
+        ? Math.hypot(g[0] - (p[0] as Pt)[0], g[1] - (p[0] as Pt)[1]) <= PICK
+        : p.some((a, k) => k > 0 && toSegment(g, p[k - 1] as Pt, a) <= PICK);
+    if (near) return i;
+  }
+  for (let i = strokes.length - 1; i >= 0; i--) {
+    const b = boxOf((strokes[i] as Stroke).p);
+    if (g[0] >= b.x0 && g[0] <= b.x1 && g[1] >= b.y0 && g[1] <= b.y1) return i;
+  }
+  return null;
+}
+
+/** A piece's points moved by dx, dy, kept on the pad whole: it stops at the edge rather than going over. */
+export function moved(p: readonly Pt[], dx: number, dy: number): Pt[] {
+  const b = boxOf(p);
+  const mx = Math.max(-b.x0, Math.min(GRID - 1 - b.x1, Math.round(dx)));
+  const my = Math.max(-b.y0, Math.min(GRID - 1 - b.y1, Math.round(dy)));
+  return p.map(([x, y]): Pt => [x + mx, y + my]);
+}
+
+/**
+ * A piece's points resized: its top-left corner stays where it is and its bottom-right goes to (x, y), squeezed no
+ * smaller than SMALLEST and no further than the pad's edge. A flat line stays flat. Points that land on the same cell
+ * as the one before are kept once, so a piece never costs more ink than it did.
+ */
+export function resized(p: readonly Pt[], x: number, y: number): Pt[] {
+  const b = boxOf(p);
+  const w = b.x1 - b.x0;
+  const h = b.y1 - b.y0;
+  const nw = w ? Math.max(SMALLEST, Math.min(GRID - 1, Math.round(x)) - b.x0) : 0;
+  const nh = h ? Math.max(SMALLEST, Math.min(GRID - 1, Math.round(y)) - b.y0) : 0;
+  const out: Pt[] = [];
+  for (const [px, py] of p) {
+    const q: Pt = [
+      w ? b.x0 + Math.round(((px - b.x0) * nw) / w) : px,
+      h ? b.y0 + Math.round(((py - b.y0) * nh) / h) : py,
+    ];
+    const last = out[out.length - 1];
+    if (!last || last[0] !== q[0] || last[1] !== q[1]) out.push(q);
+  }
+  return out;
+}
 
 /** How wide the eraser rubs, in grid cells either side of the finger. */
 export const ERASER = 2.6;
@@ -247,6 +319,10 @@ export class Pad {
   cur: Stroke | null = null;
   colour = 0;
   tool: Tool = 'pen';
+  /** The piece picked up with Move, by its place in the drawing; none if none. */
+  sel: number | null = null;
+  /** What the finger is doing with it: moving it or resizing it, from its points and the finger's start. */
+  private grab: { mode: 'move' | 'size'; from: Pt[]; at: Pt } | null = null;
   /** The drawing as it was before each change, for Undo, newest last. */
   private history: Stroke[][] = [];
   /** Where the finger went down, for a shape; where it last was, for the eraser. */
@@ -280,9 +356,36 @@ export class Pad {
     if (inkUsed(left) <= INK) this.strokes = left;
   }
 
+  /** Pick a tool; leaving Move puts down whatever was picked up. */
+  setTool(t: Tool): void {
+    this.tool = t;
+    if (t !== 'move') this.sel = null;
+  }
+
+  /** The box round the piece picked up, to draw with its corner handle; none if none. */
+  get selBox(): Box | null {
+    const s = this.sel === null ? undefined : this.strokes[this.sel];
+    return s ? boxOf(s.p) : null;
+  }
+
   /** A finger down. Says whether it does anything: drawing stops once the ink has run out; rubbing out never does. */
   begin(u: number, v: number): boolean {
     const g = toGrid(u, v);
+    if (this.tool === 'move') {
+      const box = this.selBox;
+      const sel = this.sel;
+      if (box && sel !== null && Math.hypot(g[0] - box.x1, g[1] - box.y1) <= HANDLE) {
+        this.remember();
+        this.grab = { mode: 'size', from: (this.strokes[sel] as Stroke).p.slice(), at: g };
+        return true;
+      }
+      this.sel = pickAt(this.strokes, g);
+      if (this.sel === null) return true;
+      this.remember();
+      this.grab = { mode: 'move', from: (this.strokes[this.sel] as Stroke).p.slice(), at: g };
+      return true;
+    }
+    this.sel = null;
     if (this.tool === 'eraser') {
       this.remember();
       this.anchor = g;
@@ -301,6 +404,18 @@ export class Pad {
 
   move(u: number, v: number): void {
     const g = toGrid(u, v);
+    if (this.tool === 'move') {
+      const s = this.sel === null ? undefined : this.strokes[this.sel];
+      const gr = this.grab;
+      if (!s || !gr) return;
+      if (gr.mode === 'move') s.p = moved(gr.from, g[0] - gr.at[0], g[1] - gr.at[1]);
+      else {
+        // The handle follows the finger from where it took hold.
+        const b = boxOf(gr.from);
+        s.p = resized(gr.from, b.x1 + g[0] - gr.at[0], b.y1 + g[1] - gr.at[1]);
+      }
+      return;
+    }
     if (this.tool === 'eraser') {
       if (!this.anchor) return;
       this.rub(this.anchor, g);
@@ -319,6 +434,12 @@ export class Pad {
 
   end(): void {
     const was = this.history[this.history.length - 1];
+    if (this.tool === 'move') {
+      // Picked up and put down where it was: nothing to undo.
+      if (this.grab && was && encode(was) === encode(this.strokes)) this.history.pop();
+      this.grab = null;
+      return;
+    }
     if (this.tool === 'eraser') {
       this.anchor = null;
       // Nothing rubbed out: nothing to undo.
@@ -345,10 +466,20 @@ export class Pad {
     this.strokes.push({ c: c.c, p });
   }
 
+  /** The piece picked up, painted another colour; one step of Undo. */
+  recolour(c: number): void {
+    const s = this.sel === null ? undefined : this.strokes[this.sel];
+    if (!s || s.c === c) return;
+    this.remember();
+    s.c = c;
+  }
+
   /** Back one change: a line, a shape, some rubbing out, or Clear. */
   undo(): void {
     this.cur = null;
     this.anchor = null;
+    this.sel = null;
+    this.grab = null;
     const was = this.history.pop();
     if (was) this.strokes = was;
   }
@@ -356,6 +487,8 @@ export class Pad {
   clear(): void {
     this.cur = null;
     this.anchor = null;
+    this.sel = null;
+    this.grab = null;
     if (this.strokes.length) this.remember();
     this.strokes = [];
   }
@@ -364,6 +497,8 @@ export class Pad {
   reset(): void {
     this.cur = null;
     this.anchor = null;
+    this.sel = null;
+    this.grab = null;
     this.strokes = [];
     this.history = [];
   }

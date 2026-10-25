@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  boxOf,
   COLOURS,
   decode,
   ERASER,
@@ -8,7 +9,10 @@ import {
   GRID,
   INK,
   inkUsed,
+  moved,
   Pad,
+  pickAt,
+  resized,
   rig,
   SHAPES,
   type Stroke,
@@ -282,5 +286,95 @@ describe('the eraser', () => {
     }
     expect(inkUsed(pad.strokes)).toBeLessThanOrEqual(INK);
     expect(decode(encode(pad.strokes))).toEqual(pad.strokes);
+  });
+});
+
+describe('moving and resizing a piece', () => {
+  const line = {
+    c: 0,
+    p: [
+      [10, 10],
+      [30, 10],
+    ] as [number, number][],
+  };
+  const ring = {
+    c: 4,
+    p: [
+      [20, 20],
+      [40, 20],
+      [40, 40],
+      [20, 40],
+      [20, 20],
+    ] as [number, number][],
+  };
+
+  it('picks up the piece a tap is on or near, the one drawn last first', () => {
+    expect(pickAt([line, ring], [20, 12])).toBe(0);
+    expect(pickAt([line, ring], [40, 30])).toBe(1);
+    // Inside a shape's box counts too.
+    expect(pickAt([line, ring], [30, 30])).toBe(1);
+    expect(pickAt([line, ring], [55, 55])).toBeNull();
+  });
+
+  it("moves a piece whole, and stops it at the pad's edge", () => {
+    expect(moved(ring.p, 5, -3)).toEqual(ring.p.map(([x, y]) => [x + 5, y - 3]));
+    const b = boxOf(moved(ring.p, 100, -100));
+    expect([b.x0, b.y0, b.x1, b.y1]).toEqual([GRID - 1 - 20, 0, GRID - 1, 20]);
+  });
+
+  it('resizes from its top-left corner, wide or tall, no smaller than a little, and a flat line stays flat', () => {
+    const big = boxOf(resized(ring.p, 60, 50));
+    expect([big.x0, big.y0, big.x1, big.y1]).toEqual([20, 20, 60, 50]);
+    const tiny = boxOf(resized(ring.p, 0, 0));
+    expect([tiny.x1 - tiny.x0, tiny.y1 - tiny.y0]).toEqual([2, 2]);
+    expect(resized(line.p, 50, 40)).toEqual([
+      [10, 10],
+      [50, 10],
+    ]);
+    expect(resized(ring.p, 21, 21).length).toBeLessThanOrEqual(ring.p.length);
+  });
+
+  it('on the pad: tap to pick up, drag to move, drag the corner to resize, each one step of Undo', () => {
+    const pad = new Pad();
+    pad.setTool('square');
+    pad.begin(0.2, 0.2);
+    pad.move(0.5, 0.5);
+    pad.end();
+    const before = JSON.stringify(pad.strokes);
+    pad.setTool('move');
+    // Tap on it, drag it right.
+    pad.begin(0.2, 0.35);
+    expect(pad.sel).toBe(0);
+    pad.move(0.4, 0.35);
+    pad.end();
+    const box = pad.selBox;
+    expect(box?.x0).toBeGreaterThan(boxOf(JSON.parse(before)[0].p).x0);
+    // Take hold of the corner and pull it out.
+    if (!box) throw new Error('no box');
+    pad.begin(box.x1 / (GRID - 1), box.y1 / (GRID - 1));
+    pad.move((box.x1 + 10) / (GRID - 1), (box.y1 + 6) / (GRID - 1));
+    pad.end();
+    const after = pad.selBox;
+    expect(after && after.x1 - after.x0).toBeGreaterThan(box.x1 - box.x0);
+    pad.undo();
+    pad.undo();
+    expect(JSON.stringify(pad.strokes)).toBe(before);
+    // A tap on nothing puts it down; picking another tool does too.
+    pad.begin(0.95, 0.95);
+    pad.end();
+    expect(pad.sel).toBeNull();
+    expect(pad.canUndo).toBe(true);
+    pad.begin(0.2, 0.35);
+    pad.end();
+    expect(pad.sel).toBe(0);
+    // A colour tapped with a piece picked up paints it; one step of Undo.
+    pad.recolour(5);
+    expect(pad.strokes[0]?.c).toBe(5);
+    pad.undo();
+    expect(pad.strokes[0]?.c).toBe(0);
+    pad.begin(0.2, 0.35);
+    pad.end();
+    pad.setTool('pen');
+    expect(pad.sel).toBeNull();
   });
 });
