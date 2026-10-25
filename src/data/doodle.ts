@@ -125,14 +125,17 @@ export const UNDO_MAX = 40;
 
 /**
  * A shape's outline as points in the box from a to b (grid cells), going round and back to its start: a line is just
- * its two ends, and a triangle points the way the drag began, so it can be flipped. Points next to each other that round to the same cell are kept once.
+ * its two ends, and a triangle, a heart or a star points the way the drag began, so it can be flipped. Points next to each other that round to the same cell are kept once.
  */
 export function shapePoints(shape: Shape, a: Pt, b: Pt): Pt[] {
   const x0 = Math.min(a[0], b[0]);
   const y0 = Math.min(a[1], b[1]);
   const w = Math.abs(b[0] - a[0]);
   const h = Math.abs(b[1] - a[1]);
+  // Dragged upwards, the triangle, the heart and the star come out upside down: each points the way the drag began.
+  const flip = b[1] < a[1];
   const at = (u: number, v: number): Pt => [x0 + u * w, y0 + v * h];
+  const up = (u: number, v: number): Pt => at(u, flip ? 1 - v : v);
   let raw: Pt[];
   switch (shape) {
     case 'line':
@@ -141,12 +144,9 @@ export function shapePoints(shape: Shape, a: Pt, b: Pt): Pt[] {
     case 'square':
       raw = [at(0, 0), at(1, 0), at(1, 1), at(0, 1), at(0, 0)];
       break;
-    case 'triangle': {
-      // Its point is where the drag starts: dragged down it points up, dragged up it points down.
-      const tip = b[1] >= a[1] ? 0 : 1;
-      raw = [at(0.5, tip), at(1, 1 - tip), at(0, 1 - tip), at(0.5, tip)];
+    case 'triangle':
+      raw = [up(0.5, 0), up(1, 1), up(0, 1), up(0.5, 0)];
       break;
-    }
     case 'circle':
       raw = Array.from({ length: 17 }, (_, i) => {
         const q = (i / 16) * Math.PI * 2;
@@ -159,14 +159,14 @@ export function shapePoints(shape: Shape, a: Pt, b: Pt): Pt[] {
         const t = (i / 16) * Math.PI * 2;
         const hx = 16 * Math.sin(t) ** 3;
         const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-        return at(0.5 + hx / 34, (12 - hy) / 29);
+        return up(0.5 + hx / 34, (12 - hy) / 29);
       });
       break;
     case 'star':
       raw = Array.from({ length: 11 }, (_, i) => {
         const q = -Math.PI / 2 + (i / 10) * Math.PI * 2;
         const r = i % 2 ? 0.2 : 0.5;
-        return at(0.5 + r * Math.cos(q), 0.53 + r * Math.sin(q));
+        return up(0.5 + r * Math.cos(q), 0.53 + r * Math.sin(q));
       });
       break;
   }
