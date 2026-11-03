@@ -47,6 +47,7 @@ import {
 } from '../world/endless';
 import { berth14, CRATES14, DOCK14, groundZ14, LANDING14, onIsle14 } from '../world/garden';
 import { COLUMNS, POOL, SEAT } from '../world/gigantis';
+import { berth15, DOCK15, LANDING15, onIsle15 } from '../world/goatisle';
 import {
   BEACH,
   BRIDGE,
@@ -308,6 +309,14 @@ export const GARDEN_DOCK: Dock = {
   berth: berth14,
   landing: LANDING14,
 };
+/** Goat Isle's beach, where the boat runs up onto the sand on the side toward home. */
+export const GOAT_DOCK: Dock = {
+  x: DOCK15.x,
+  y: DOCK15.y,
+  r: DOCK15.r,
+  berth: berth15,
+  landing: LANDING15,
+};
 export const DOCKS: readonly Dock[] = [
   HOME_DOCK,
   ISLE2_DOCK,
@@ -321,6 +330,7 @@ export const DOCKS: readonly Dock[] = [
   ENDLESS_P_DOCK,
   ENDLESS_N_DOCK,
   GARDEN_DOCK,
+  GOAT_DOCK,
 ];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
@@ -411,6 +421,7 @@ export function onLand(x: number, y: number): boolean {
   if (onIsle12(x, y)) return true;
   if (onEndless(x, y)) return true;
   if (onIsle14(x, y)) return true;
+  if (onIsle15(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
