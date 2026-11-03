@@ -453,6 +453,11 @@ export const cues = {
     tone(900, 0.16, 'triangle', 0.045, 0.8);
     tone(1100, 0.1, 'sine', 0.02, 0.85, 0.02);
   },
+  /** A fainting goat: a startled, wobbling bleat that cuts off, and a soft thud as it goes over. */
+  faint(): void {
+    for (let i = 0; i < 3; i++) tone(760 - i * 70, 0.07, 'sawtooth', 0.022, 0.9, i * 0.075);
+    tone(90, 0.12, 'sine', 0.06, 0.6, 0.3);
+  },
   /** The swamp monster roaring: deep, wobbling and long. */
   blargh(): void {
     tone(65, 1.1, 'sawtooth', 0.09, 0.8);

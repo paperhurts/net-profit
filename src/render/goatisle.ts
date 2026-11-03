@@ -8,6 +8,7 @@
  * standing, walking, or fainted stiff on its side with its legs straight out.
  */
 import type { DrawView } from '../entities/entity';
+import type { Goat } from '../entities/goats';
 import {
   at15,
   CRATES15,
@@ -56,7 +57,8 @@ export function drawGoat(
   ctx.scale(face < 0 ? -k : k, k);
   // Fainted, it tips over backwards about its feet, all four legs go straight, and it lies on its side.
   if (faint > 0) {
-    ctx.translate(0, -2.6 * faint);
+    // Lifted as it goes, so on its side its body rests on the ground and its legs stick straight out.
+    ctx.translate(0, -5.4 * faint);
     ctx.rotate((-Math.PI / 2) * faint);
   }
   const swing = faint > 0 ? 0 : Math.sin(step) * 1.6;
@@ -622,4 +624,44 @@ export function drawGoatFog(v: DrawView, k: number): void {
     ctx.fill();
   }
   ctx.restore();
+}
+
+/**
+ * The fainting goats (entities/goats.ts), each sorted on its own: a shadow, the goat standing, ambling, or over on its
+ * side with its legs stiff, and a "!" over one in the moment it is startled. A goat lying stiff quivers a little.
+ */
+export function goatHerdSolids(v: DrawView, goats: readonly Goat[]): Solid[] {
+  if (!near(v, GOAT_ISLE.r + 120)) return [];
+  const out: Solid[] = [];
+  for (const g of goats) {
+    if (!v.onScreen(g.x, g.y, 40 * v.zoom)) continue;
+    out.push({
+      d: g.x + g.y,
+      f: () => {
+        const { ctx } = v;
+        const Z = v.zoom;
+        v.isoEllipse(g.x, g.y, 5 + g.k * 3);
+        ctx.fillStyle = 'rgba(0,0,0,.15)';
+        ctx.fill();
+        const face = faceOf(Math.cos(g.h), Math.sin(g.h));
+        const quiver = g.k >= 1 ? Math.sin(v.T * 40 + g.look) * 0.4 * Z : 0;
+        const look = COATS[g.look % COATS.length] ?? PLAIN_GOAT;
+        const sx = v.px(g.x, g.y) + quiver;
+        const sy = v.py(g.x, g.y);
+        drawGoat(ctx, sx, sy, Z, face, look, g.state === 'walk' ? g.step : 0, g.k);
+        if (g.state === 'startled') {
+          ctx.save();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#3A2614';
+          ctx.lineWidth = 2.2 * Z;
+          ctx.font = `900 ${11 * Z}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.strokeText('!', sx, sy - 18 * Z);
+          ctx.fillText('!', sx, sy - 18 * Z);
+          ctx.restore();
+        }
+      },
+    });
+  }
+  return out;
 }

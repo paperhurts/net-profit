@@ -119,6 +119,15 @@ export const SIGNS15: readonly { x: number; y: number; text: string }[] = [
 /** The Kid Zone: a little fenced pen where the kids (the baby goats) play, its middle and how far its fence runs. */
 export const KID_ZONE = { x: at15(-12, 70)[0], y: at15(-12, 70)[1], r: 30 } as const;
 
+/**
+ * The fainting goats' meadows (part two): where each herd grazes, how far from there it wanders, and how many goats
+ * it has. One on the open grass to the right of the village, one by the harbourmaster's below the path.
+ */
+export const HERDS15: readonly { x: number; y: number; r: number; n: number }[] = [
+  { x: at15(70, -10)[0], y: at15(70, -10)[1], r: 46, n: 6 },
+  { x: at15(-150, 20)[0], y: at15(-150, 20)[1], r: 34, n: 4 },
+];
+
 /** How far in from the waterline the figure can walk. */
 export const SHORE_IN15 = 12;
 

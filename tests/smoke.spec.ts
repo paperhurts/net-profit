@@ -120,6 +120,10 @@ type Np = {
   goatIsle: { up: boolean; seen: boolean };
   riseGoatIsle(): void;
   GOAT_DOCK: { x: number; y: number };
+  goatHerds: {
+    down: number;
+    goats: { x: number; y: number; hx: number; hy: number; state: string; t: number }[];
+  };
   endless: {
     seen: boolean;
     pirate: boolean;
@@ -1062,6 +1066,48 @@ test('Goat Isle: sail into the fog and it lifts, tie up on its beach, and walk u
     () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').goat,
   );
   expect(saved).toEqual({ up: true, seen: true });
+  expect(errors).toEqual([]);
+});
+
+test('Goat Isle: the fainting goats go over at a boo, the herd like dominoes, and all get back up', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: true },
+    trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 6000 });
+  // Huddle the big herd close round a spot on its meadow, and stand the figure just off it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g0 = n.goatHerds.goats[0];
+    if (!g0) return;
+    n.goatHerds.goats.slice(0, 6).forEach((g, i) => {
+      g.x = g0.hx + (i % 3) * 9;
+      g.y = g0.hy + Math.floor(i / 3) * 9;
+      g.state = 'graze';
+      g.t = 60;
+    });
+    n.walker.x = g0.hx - 26;
+    n.walker.y = g0.hy + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Boo!', { timeout: 6000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('It fainted', { timeout: 6000 });
+  await page.waitForFunction(() => window.__np.goatHerds.down >= 6, null, { timeout: 4000 });
+  // And up they all get.
+  await page.waitForFunction(() => window.__np.goatHerds.down === 0, null, { timeout: 9000 });
   expect(errors).toEqual([]);
 });
 
