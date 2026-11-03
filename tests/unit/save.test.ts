@@ -1437,3 +1437,26 @@ describe('the Garden Isle', () => {
     }
   });
 });
+
+describe('Goat Isle', () => {
+  it('an old save has not seen it rise; risen and seen, it keeps both, and it is left out until it has risen', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.goat).toEqual({ up: false, seen: false });
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('goat');
+    s.goat = { up: true, seen: false };
+    expect(parseSave(serializeSave(s), bounds).goat).toEqual({ up: true, seen: false });
+    s.goat = { up: true, seen: true };
+    expect(parseSave(serializeSave(s), bounds).goat).toEqual({ up: true, seen: true });
+    // Seen means it is up, whatever else the save says.
+    expect(parseSave(JSON.stringify({ ...s, goat: { seen: true } }), bounds).goat).toEqual({
+      up: true,
+      seen: true,
+    });
+    // Anything odd under its key reads as neither, and the rest of the save loads as before.
+    for (const odd of ['yes', 1, null, [], { up: 'yes' }, { seen: 1 }]) {
+      const got = parseSave(JSON.stringify({ ...s, goat: odd }), bounds);
+      expect(got.goat).toEqual({ up: false, seen: false });
+      expect(got.coins).toBe(s.coins);
+    }
+  });
+});

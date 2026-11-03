@@ -117,6 +117,9 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
+  goatIsle: { up: boolean; seen: boolean };
+  riseGoatIsle(): void;
+  GOAT_DOCK: { x: number; y: number };
   endless: {
     seen: boolean;
     pirate: boolean;
@@ -995,6 +998,73 @@ const ISLAND = 2400;
 const DINGHY_RANGE = 1150;
 
 /** Seed a save, load the game, press Go, and return the page-error log. */
+test('Goat Isle: it rises in fog the first dawn with the flagship, the fog lifts as you sail close, and you land among the goats', async ({
+  context,
+  page,
+}) => {
+  // A dinghy's dawn raises nothing; the flagship's does.
+  const errors = await boot(context, page, { muted: true, lv: { net: 5, hold: 5, engine: 5 } });
+  expect(await page.evaluate(() => window.__np.goatIsle.up)).toBe(false);
+  await page.evaluate(() => {
+    window.__np.clock = 0.999;
+  });
+  await page.waitForFunction(() => window.__np.phase === 'Dawn', null, { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.goatIsle)).toEqual({ up: true, seen: false });
+  await expect(page.locator('#toast')).toContainText('baaa', { timeout: 8000 });
+  expect(errors).toEqual([]);
+});
+
+test('Goat Isle: sail into the fog and it lifts, tie up on its beach, and walk up into the village', async ({
+  context,
+  page,
+}) => {
+  // Risen, unseen, the flagship sailing at it across the deep.
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: false },
+    trip: { x: 2970, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.goatIsle.seen)).toBe(false);
+  await page.evaluate(() => {
+    window.__np.boat.v = 150;
+  });
+  await expect(page.locator('#toast')).toContainText('Welcome to Goat Isle', { timeout: 8000 });
+  expect(await page.evaluate(() => window.__np.goatIsle)).toEqual({ up: true, seen: true });
+  await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
+  await page.waitForFunction(() => window.__np.revealView < 0.1, null, { timeout: 9000 });
+  // Into the dock ring on the side toward home, stopped.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Ashore on Goat Isle');
+  // Up the screen and to the right, along the path, it is solid ground.
+  const start = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX + 40, CY - 40, { steps: 3 });
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  const moved = await page.evaluate(
+    (s) => Math.hypot(window.__np.walker.x - s.x, window.__np.walker.y - s.y),
+    start,
+  );
+  expect(moved).toBeGreaterThan(80);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  // It is saved, and on the map.
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').goat,
+  );
+  expect(saved).toEqual({ up: true, seen: true });
+  expect(errors).toEqual([]);
+});
+
 async function boot(
   context: BrowserContext,
   page: Page,

@@ -404,6 +404,12 @@ export type SaveData = {
    * left out of the save until it is seen.
    */
   garden: Garden;
+  /**
+   * Goat Isle (world/goatisle.ts): whether it has risen out of the sea (the first dawn with the flagship owned) and
+   * whether the boat has sailed close enough to lift its fog. Missing in old saves and read as neither; left out of the
+   * save until it has risen.
+   */
+  goat: { up: boolean; seen: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -590,6 +596,7 @@ export function defaultSave(b: Bounds): SaveData {
     endless: { seen: false, pirate: false, ninja: false },
     pets: noPets(),
     garden: noGarden(),
+    goat: { up: false, seen: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -887,6 +894,11 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   }
   d.pets = parsePets(o.pets);
   d.garden = parseGarden(o.garden);
+  if (o.goat && typeof o.goat === 'object') {
+    const g = o.goat as Record<string, unknown>;
+    // Seen means it is up, whatever the save says.
+    d.goat = { up: g.up === true || g.seen === true, seen: g.seen === true };
+  }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
     for (const f of ['casts', 'landed', 'kept', 'giant', 'best', 'firstDay'] as const) {
@@ -1056,6 +1068,7 @@ export function serializeSave(d: SaveData): string {
     endless: d.endless.seen || d.endless.pirate || d.endless.ninja ? d.endless : undefined,
     pets: petsForSave(d.pets),
     garden: untouchedGarden(d.garden) ? undefined : d.garden,
+    goat: d.goat.up ? d.goat : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
