@@ -1,6 +1,6 @@
 /**
  * Inside the metal bridge (world/metalbridge.ts), the kid's facility, from his drawing of its inside and his answers in
- * his own tab, "the bridge for rowan" (2026-10-18): in through its door on the sea side from the boat, the round room
+ * his own tab, "the bridge" (2026-10-18): in through its door on the sea side from the boat, the round room
  * in its middle is the observatory, and off it are your room ("your character"), the science room where the scientist
  * is, the missions room with a hologram of the tar eel, the news room with news about the tar and a tentacle for
  * testing, and the dock on the tar side, where a tar animal with tentacles stays in the water. Up a ladder from the

@@ -1,6 +1,6 @@
 /**
  * The tar ocean, the kid's (his tab 17, 2026-10-18: "I want the tar ocean now the size of this oceane", and his
- * answers in his tab "tar ocean for rowan"): past the metal bridge, as big as the whole sea out to the white buoys,
+ * answers in his tab "tar ocean"): past the metal bridge, as big as the whole sea out to the white buoys,
  * black tar from side to side, and only the chemistry boat goes on it ("only tar boat chemichcstrey"). It lies north
  * of the bridge, across the same width as the sea and as deep again; you sail out from the tar dock at the bridge's
  * back, where the chemistry boat is kept, and back in there. Its fish, its island with the tower, the tar eel and the

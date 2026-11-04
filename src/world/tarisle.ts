@@ -1,6 +1,6 @@
 /**
- * The tar island, the kid's "island 2 (new)" of the tar ocean (his answers in his tabs "stealth mission for rowan" and
- * "tar ocean for rowan"; his sixth list's drawing: "on the tar side an island with a tower on a hill"). It lies out on
+ * The tar island, the kid's "island 2 (new)" of the tar ocean (his answers in his tabs "stealth mission" and
+ * "tar ocean"; his sixth list's drawing: "on the tar side an island with a tower on a hill"). It lies out on
  * the tar north of the bridge, near enough to see through the observatory's telescope: black rock, a hill in its middle,
  * and on top of the hill the sorcerer's old tower, the one he was kicked off in mission 1. The chemistry boat ties up
  * at a jetty on its south side, toward the bridge, and the figure walks ashore. Its tar creatures and their leader up

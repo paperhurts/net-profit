@@ -1,6 +1,6 @@
 /**
  * The Endless Isle's folk, the kid's: the pirates' captain and the ninjas' master on their piers, and the minion each
- * side gives you for joining it. The kid named them all (2026-10-23, his tab "doom island for rowan"): the parrot is
+ * side gives you for joining it. The kid named them all (2026-10-23, his tab "doom island"): the parrot is
  * Jacks Parrow, the ninja-bun Bun-San, the captain Captain Cappy and the master Master Sensei. Why do the two sides
  * fight? The kid: "to stimulate the economy".
  *

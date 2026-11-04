@@ -1,8 +1,8 @@
 /**
  * Skull Island, island 12, the kid's (his sixth list: Skull Island, Skrill's island, its men in skeleton armour, the
- * displacer beasts, Skrill's tower with the orb, five monkeys and a portal; his answers in his tab "skull island for
- * rowan": "at bottom of white buyes", "Shaped like skull its SUPER SUPER DUPER GINORMAS", reached "both" by sailing to
- * its dock and by something taking you there). The owner: shape it like a skull, about twice island 11 across.
+ * displacer beasts, Skrill's tower with the orb, five monkeys and a portal; his answers in his tab "skull island":
+ * "at bottom of white buyes", "Shaped like skull its SUPER SUPER DUPER GINORMAS", reached "both" by sailing to its
+ * dock and by something taking you there). The owner: shape it like a skull, about twice island 11 across.
  *
  * It lies in the far far sea's bottom corner (+x, +y), out where the white buoys meet at the bottom of the map, a whole
  * island of bone-white rock in the shape of a giant skull looking up out of the sea at you: its great round cranium at
