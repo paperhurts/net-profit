@@ -119,10 +119,26 @@ export const CRATES15 = { x: at15(-150, 112)[0], y: at15(-150, 112)[1] } as cons
 
 /** The pun signs on posts about the island, each where it makes the joke: The Udder Side on the far shore. */
 export const SIGNS15: readonly { x: number; y: number; text: string }[] = [
-  { x: at15(170, -110)[0], y: at15(170, -110)[1], text: 'The Udder Side' },
+  { x: at15(135, -85)[0], y: at15(135, -85)[1], text: 'The Udder Side' },
   { x: at15(-40, 46)[0], y: at15(-40, 46)[1], text: 'The Kid Zone' },
   { x: at15(-120, 150)[0], y: at15(-120, 150)[1], text: 'Welcome to Goat Isle' },
 ];
+
+/**
+ * The Goat-yard's headstones (data/goatyard.ts), behind The Udder Side's sign along the far shore: in two crooked rows
+ * round the shore, a little out of line each. Each stone's middle, which way it leans, and where the figure stands to
+ * read it, in front of it toward the middle of the island.
+ */
+export const GRAVES15: readonly { x: number; y: number; lean: number; rx: number; ry: number }[] =
+  Array.from({ length: 18 }, (_, i) => {
+    const a = (-84 + (i * 96) / 17) * (Math.PI / 180);
+    const r = i % 2 ? 200 : 182;
+    const [x, y] = at15(Math.cos(a) * r, Math.sin(a) * r);
+    const [rx, ry] = at15(Math.cos(a) * (r - 16), Math.sin(a) * (r - 16));
+    return { x, y, lean: Math.sin(i * 2.7) * 0.18, rx, ry };
+  });
+/** How near a headstone the figure can stand. */
+export const GRAVE_R = 5;
 
 /** The Kid Zone: a little fenced pen where the kids (the baby goats) play, its middle and how far its fence runs. */
 export const KID_ZONE = { x: at15(-12, 70)[0], y: at15(-12, 70)[1], r: 30 } as const;
@@ -149,6 +165,7 @@ export function onIsle15(x: number, y: number): boolean {
   if (Math.hypot(x - GOAT_ISLE.x, y - GOAT_ISLE.y) > GOAT_ISLE.r - SHORE_IN15) return false;
   if (inHouse15(x, y)) return false;
   if (inCastle15(x, y)) return false;
+  if (GRAVES15.some((g) => Math.hypot(x - g.x, y - g.y) < GRAVE_R)) return false;
   const k = Math.hypot(x - KID_ZONE.x, y - KID_ZONE.y);
   return k < KID_ZONE.r - 4 || k > KID_ZONE.r + 4;
 }
