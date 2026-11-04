@@ -1,0 +1,148 @@
+import { describe, expect, it } from 'vitest';
+import { ROOM1 } from '../../src/data/goatcave';
+import { type CaveEvent, FAINT_T, GoatCave, LIE_H } from '../../src/entities/goatcave';
+
+const DT = 1 / 60;
+/** A cave with its goats out of the way unless placed, and the events it gave. */
+function cave() {
+  const c = new GoatCave(ROOM1, () => 0.5);
+  const seen: CaveEvent[] = [];
+  c.onEvent = (e) => seen.push(e);
+  for (const g of c.goats) {
+    g.state = 'pause';
+    g.t = 1e9;
+  }
+  return { c, seen };
+}
+const run = (c: GoatCave, secs: number, sx = 0) => {
+  for (let t = 0; t < secs; t += DT) c.step(DT, sx);
+};
+/** Walk the figure to x, on whatever it stands on. */
+const walkTo = (c: GoatCave, x: number) => {
+  for (let i = 0; i < 600 && Math.abs(c.x - x) > 1; i++) c.step(DT, Math.sign(x - c.x));
+};
+/** A jump, holding a way, until the figure is on its feet again. */
+const hop = (c: GoatCave, sx: number, holdFor = 9) => {
+  c.press();
+  c.step(DT, sx);
+  // Holding the way only so long, as a player lets go to land on something.
+  for (let i = 0; i < 180 && !c.ground; i++) c.step(DT, i < holdFor * 60 ? sx : 0);
+};
+const park = (c: GoatCave, keep: number[]) =>
+  c.goats.forEach((g, i) => {
+    if (!keep.includes(i)) {
+      g.x = -1000;
+      g.y = -1000;
+      g.sx = g.sy = -1000;
+    }
+  });
+
+describe('the goat cave', () => {
+  it('starts at the door, standing on the floor', () => {
+    const { c } = cave();
+    run(c, 0.5);
+    expect(c.y).toBe(0);
+    expect(c.ground).toBe(true);
+  });
+
+  it("can't jump up onto the high ledge from the floor", () => {
+    const { c } = cave();
+    park(c, []);
+    walkTo(c, 168);
+    for (let k = 0; k < 6; k++) {
+      c.press();
+      run(c, 0.9, 1);
+    }
+    expect(c.y).toBe(0);
+    expect(c.x).toBeLessThan(175);
+  });
+
+  it('bumping a goat makes it faint stiff as a plank, and it gets up again later', () => {
+    const { c, seen } = cave();
+    park(c, [0]);
+    const g = c.goats[0];
+    if (!g) throw new Error('no goat');
+    walkTo(c, g.x - 20);
+    run(c, 1, 1);
+    expect(seen).toContain('faint');
+    expect(g.state).toBe('faint');
+    run(c, FAINT_T + 1);
+    expect(g.state).not.toBe('faint');
+    expect(seen).toContain('rise');
+  });
+
+  it('a fainted goat shoved to the foot of the ledge is a step up onto it', () => {
+    const { c, seen } = cave();
+    park(c, [0]);
+    const g = c.goats[0];
+    if (!g) throw new Error('no goat');
+    walkTo(c, g.x - 20);
+    run(c, 0.8, 1);
+    expect(g.state).toBe('faint');
+    // Push it on along the floor until it is up against the ledge's face.
+    run(c, 3, 1);
+    expect(seen).toContain('push');
+    expect(g.x).toBeGreaterThan(160);
+    // Up onto it, and from it up onto the ledge.
+    hop(c, 1);
+    expect(c.y).toBeCloseTo(LIE_H, 5);
+    hop(c, 1);
+    expect(c.y).toBe(30);
+    expect(c.x).toBeGreaterThan(175);
+  });
+
+  it('falling in the fondue is a splosh and back to the door; the pit is too wide to jump', () => {
+    const { c, seen } = cave();
+    park(c, []);
+    c.x = 236;
+    c.y = 30;
+    run(c, 0.1);
+    c.press();
+    for (let i = 0; i < 120 && !seen.includes('splosh'); i++) c.step(DT, 1);
+    expect(seen).toContain('splosh');
+    expect(c.x).toBe(ROOM1.door.x);
+  });
+
+  it('a fainted goat pushed out over the edge bridges the pit, and across it is the pygmy goat', () => {
+    const { c, seen } = cave();
+    park(c, [2]);
+    const g = c.goats[2];
+    if (!g) throw new Error('no goat');
+    // Up on the high ledge, behind the goat.
+    c.x = 182;
+    c.y = 30;
+    g.x = 205;
+    run(c, 1.2, 1);
+    expect(g.state).toBe('faint');
+    // Shove it out over the pit as far as it will go and still rest on the edge.
+    run(c, 3, 1);
+    expect(g.x).toBeGreaterThan(245);
+    expect(g.y).toBe(30);
+    // Onto it, out to its far end, and jump.
+    hop(c, 1, 0.2);
+    expect(c.y).toBeCloseTo(30 + LIE_H, 5);
+    walkTo(c, g.x + 8);
+    hop(c, 1);
+    expect(seen).not.toContain('splosh');
+    expect(c.y).toBe(30);
+    expect(c.x).toBeGreaterThan(295);
+    run(c, 1, 1);
+    expect(seen).toContain('found');
+    expect(c.found).toBe(true);
+  });
+
+  it('a goat going over startles the goat standing right where it falls', () => {
+    const { c } = cave();
+    park(c, [0, 1]);
+    const [a, b] = c.goats;
+    if (!a || !b) throw new Error('no goats');
+    a.x = 100;
+    b.x = 120;
+    c.x = 80;
+    run(c, 0.1);
+    c.startle(a, 80);
+    run(c, 1.5);
+    expect(a.state).toBe('faint');
+    expect(b.state).toBe('faint');
+  });
+});

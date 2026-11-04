@@ -109,6 +109,17 @@ export const HOUSES15: readonly GoatHouse[] = [
 /** Sir Bucksworth's cheese-wheel castle on the hill at the back (part three, world/goatcastle.ts): middle, radius, height. */
 export const CASTLE15 = { x: at15(-30, -130)[0], y: at15(-30, -130)[1], r: 44, h: 40 } as const;
 
+/**
+ * The goat cave's mouth on the hill beside the castle (part four, data/goatcave.ts): a mound of rock, not ground to
+ * stand on, its dark doorway toward the viewer and the doorstep in front of it, and its sign.
+ */
+export const CAVE15 = { x: at15(-125, -140)[0], y: at15(-125, -140)[1], r: 24 } as const;
+export const CAVE15_DOOR = {
+  x: CAVE15.x + (CAVE15.r + 10) * Math.SQRT1_2,
+  y: CAVE15.y + (CAVE15.r + 10) * Math.SQRT1_2,
+} as const;
+export const CAVE15_REACH = 20;
+
 /** Inside the castle's walls, with a little room round them: not ground to stand on. */
 export function inCastle15(x: number, y: number, pad = 3): boolean {
   return Math.hypot(x - CASTLE15.x, y - CASTLE15.y) < CASTLE15.r + pad;
@@ -121,6 +132,7 @@ export const CRATES15 = { x: at15(-150, 112)[0], y: at15(-150, 112)[1] } as cons
 export const SIGNS15: readonly { x: number; y: number; text: string }[] = [
   { x: at15(135, -85)[0], y: at15(135, -85)[1], text: 'The Udder Side' },
   { x: at15(-40, 46)[0], y: at15(-40, 46)[1], text: 'The Kid Zone' },
+  { x: at15(-100, -128)[0], y: at15(-100, -128)[1], text: 'No Kidding Allowed' },
   { x: at15(-120, 150)[0], y: at15(-120, 150)[1], text: 'Welcome to Goat Isle' },
 ];
 
@@ -165,6 +177,7 @@ export function onIsle15(x: number, y: number): boolean {
   if (Math.hypot(x - GOAT_ISLE.x, y - GOAT_ISLE.y) > GOAT_ISLE.r - SHORE_IN15) return false;
   if (inHouse15(x, y)) return false;
   if (inCastle15(x, y)) return false;
+  if (Math.hypot(x - CAVE15.x, y - CAVE15.y) < CAVE15.r + 3) return false;
   if (GRAVES15.some((g) => Math.hypot(x - g.x, y - g.y) < GRAVE_R)) return false;
   const k = Math.hypot(x - KID_ZONE.x, y - KID_ZONE.y);
   return k < KID_ZONE.r - 4 || k > KID_ZONE.r + 4;
