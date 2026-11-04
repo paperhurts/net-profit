@@ -208,8 +208,9 @@ function goatFrame(
   ctx.translate(sx, sy);
   ctx.scale(face < 0 ? -k : k, k);
   if (faint > 0) {
-    ctx.translate(0, -5.4 * faint);
-    ctx.rotate((-Math.PI / 2) * faint);
+    ctx.translate(0, 1.6 * faint - 6.2);
+    ctx.rotate(-Math.PI * faint);
+    ctx.translate(0, 6.2);
   }
 }
 

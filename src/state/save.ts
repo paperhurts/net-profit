@@ -20,6 +20,7 @@ import {
 } from '../data/drone';
 import { type Flag, OLD_START_FLAG, parseFlag, sameFlag } from '../data/flag';
 import { type Garden, noGarden, parseGarden, untouchedGarden } from '../data/garden';
+import { KIND_NAMES } from '../data/goatcave';
 import { type Driven, noDriven, parseDriven } from '../data/harpoon';
 import { type HqBuilt, noHq, parseHq } from '../data/hq';
 import { JUNK_MAX, parseMuffins } from '../data/junk';
@@ -408,9 +409,10 @@ export type SaveData = {
    * Goat Isle (world/goatisle.ts): whether it has risen out of the sea (the first dawn with the flagship owned) and
    * whether the boat has sailed close enough to lift its fog. Missing in old saves and read as neither; left out of the
    * save until it has risen. jokes is how many of Sir Bucksworth's jokes he has told, round his book
-   * (data/bucksworth.ts), there once he has told one.
+   * (data/bucksworth.ts), there once he has told one. kinds are the kinds of goat found in the goat cave
+   * (data/goatcave.ts), for the Goat Almanac, there once one is found.
    */
-  goat: { up: boolean; seen: boolean; jokes?: number };
+  goat: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -901,6 +903,12 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     d.goat = { up: g.up === true || g.seen === true, seen: g.seen === true };
     const jokes = int(g.jokes);
     if (jokes > 0 && jokes <= 999) d.goat.jokes = jokes;
+    if (Array.isArray(g.kinds)) {
+      const kinds = [
+        ...new Set(g.kinds.filter((k): k is string => typeof k === 'string' && k in KIND_NAMES)),
+      ];
+      if (kinds.length) d.goat.kinds = kinds;
+    }
   }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;

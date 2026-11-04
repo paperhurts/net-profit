@@ -1450,6 +1450,18 @@ describe('Goat Isle', () => {
     // How many of the king's jokes he has told, kept once he has told one.
     s.goat = { up: true, seen: true, jokes: 7 };
     expect(parseSave(serializeSave(s), bounds).goat).toEqual({ up: true, seen: true, jokes: 7 });
+    // The kinds of goat found in the cave; anything that is not a kind, or found twice, is dropped.
+    s.goat = { up: true, seen: true, kinds: ['pygmy'] };
+    expect(parseSave(serializeSave(s), bounds).goat).toEqual({
+      up: true,
+      seen: true,
+      kinds: ['pygmy'],
+    });
+    const odd = {
+      ...JSON.parse(serializeSave(s)),
+      goat: { up: true, seen: true, kinds: ['pygmy', 'pygmy', 'dragon', 4] },
+    };
+    expect(parseSave(JSON.stringify(odd), bounds).goat.kinds).toEqual(['pygmy']);
     // Seen means it is up, whatever else the save says.
     expect(parseSave(JSON.stringify({ ...s, goat: { seen: true } }), bounds).goat).toEqual({
       up: true,

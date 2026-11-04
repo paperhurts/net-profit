@@ -14,6 +14,7 @@ import type { Goat } from '../entities/goats';
 import { CASTLE15_DOOR } from '../world/goatcastle';
 import {
   at15,
+  CAVE15,
   CRATES15,
   FOG15,
   GOAT_ISLE,
@@ -43,7 +44,7 @@ const COATS: readonly GoatLook[] = [PLAIN_GOAT, BROWN_GOAT, PIED_GOAT];
 
 /**
  * A goat, at screen x, y (where its feet are), at this zoom, facing right (1) or left (-1). step is its walk's phase;
- * faint, from 0 to 1, tips it over onto its side, stiff, its legs straight out.
+ * faint, from 0 to 1, tips it over onto its back, stiff, its legs straight up.
  */
 export function drawGoat(
   ctx: CanvasRenderingContext2D,
@@ -61,9 +62,11 @@ export function drawGoat(
   ctx.scale(face < 0 ? -k : k, k);
   // Fainted, it tips over backwards about its feet, all four legs go straight, and it lies on its side.
   if (faint > 0) {
-    // Lifted as it goes, so on its side its body rests on the ground and its legs stick straight out.
-    ctx.translate(0, -5.4 * faint);
-    ctx.rotate((-Math.PI / 2) * faint);
+    // Over onto its back, turning about the middle of its body, and down so its back rests on the ground: its legs
+    // stick straight up.
+    ctx.translate(0, 1.6 * faint - 6.2);
+    ctx.rotate(-Math.PI * faint);
+    ctx.translate(0, 6.2);
   }
   const swing = faint > 0 ? 0 : Math.sin(step) * 1.6;
   ctx.lineCap = 'round';
@@ -600,6 +603,7 @@ export function goatSolids(v: DrawView): Solid[] {
     });
   });
   for (const s of SIGNS15) out.push({ d: s.x + s.y, f: () => drawSign(v, s.x, s.y, s.text) });
+  out.push({ d: CAVE15.x + CAVE15.y + CAVE15.r * 0.7, f: () => drawCaveMouth(v) });
   out.push(...drawKidZone(v));
   out.push({ d: CRATES15.x + CRATES15.y + 8, f: () => drawCrates15(v) });
   return out;
@@ -764,4 +768,42 @@ export function goatyardSolids(v: DrawView, gotcha: number): Solid[] {
     });
   });
   return out;
+}
+
+/** The goat cave's mouth: a mound of grey rock with moss on top, and a dark arched doorway in its front. */
+function drawCaveMouth(v: DrawView): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const { x, y, r } = CAVE15;
+  v.isoEllipse(x, y, r + 4);
+  ctx.fillStyle = 'rgba(0,0,0,.16)';
+  ctx.fill();
+  // The mound, in rings of rock getting smaller as they go up.
+  const rings: [number, number, string][] = [
+    [r, 0, '#7E7670'],
+    [r * 0.82, 10, '#8C847D'],
+    [r * 0.6, 19, '#9A928A'],
+    [r * 0.34, 26, '#7FA35E'],
+  ];
+  for (const [rr, z, c] of rings) {
+    v.isoEllipse(x, y, rr, z);
+    ctx.fillStyle = c;
+    ctx.fill();
+  }
+  // The doorway, toward the viewer.
+  const dx = x + r * Math.SQRT1_2;
+  const dy = y + r * Math.SQRT1_2;
+  const sx = v.px(dx, dy);
+  const sy = v.py(dx, dy, 0);
+  ctx.fillStyle = '#1A1218';
+  ctx.beginPath();
+  ctx.moveTo(sx - 7 * Z, sy);
+  ctx.lineTo(sx - 7 * Z, sy - 9 * Z);
+  ctx.arc(sx, sy - 9 * Z, 7 * Z, Math.PI, 0);
+  ctx.lineTo(sx + 7 * Z, sy);
+  ctx.closePath();
+  ctx.fill();
+  // A glint of cheese crystal inside.
+  ctx.fillStyle = 'rgba(255,214,90,.8)';
+  ctx.fillRect(sx - 1 * Z, sy - 10 * Z, 2 * Z, 2 * Z);
 }

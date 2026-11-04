@@ -120,6 +120,12 @@ type Np = {
   goatIsle: { up: boolean; seen: boolean; jokes?: number };
   CASTLE15_DOOR: { x: number; y: number };
   GRAVES15: { x: number; y: number; rx: number; ry: number }[];
+  CAVE15_DOOR: { x: number; y: number };
+  gc: {
+    x: number;
+    y: number;
+    goats: { x: number; state: string; t: number }[];
+  } | null;
   GOAT_HALL: number;
   GOAT_THRONE: number;
   riseGoatIsle(): void;
@@ -1245,6 +1251,67 @@ test("Goat Isle: the Goat-yard's headstones read from in front, and the jester's
   await page.click('#climb');
   await expect(page.locator('#toast')).toContainText("This one isn't a joke");
   await expect(page.locator('#toast')).toContainText('Gotcha', { timeout: 6000 });
+  expect(errors).toEqual([]);
+});
+
+test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it faints stiff, and out again', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: true },
+    trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 6000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.CAVE15_DOOR.x + 4;
+    n.walker.y = n.CAVE15_DOOR.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the cave', { timeout: 6000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => !!window.__np.gc, null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('goat cave');
+  await expect(page.locator('#leave')).toHaveText('Leave the cave');
+  await expect(page.locator('#thJump')).toBeVisible();
+  // A goat just ahead, held still: walk into it with the arrow key, and over it goes.
+  await page.evaluate(() => {
+    const c = window.__np.gc;
+    if (!c) return;
+    const g = c.goats[0];
+    if (!g) return;
+    g.state = 'pause';
+    g.t = 99;
+    g.x = 60;
+    c.x = 40;
+  });
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => window.__np.gc?.goats[0]?.state === 'faint', null, {
+    timeout: 4000,
+  });
+  await page.keyboard.up('ArrowRight');
+  // The jump button jumps.
+  await page.locator('#thJump').dispatchEvent('pointerdown');
+  await page.waitForFunction(() => (window.__np.gc?.y ?? 0) > 5, null, { timeout: 2000 });
+  // Out again, at the cave's mouth.
+  await page.click('#leave');
+  await page.waitForFunction(() => !window.__np.gc, null, { timeout: 4000 });
+  const at = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.walker.x - n.CAVE15_DOOR.x, n.walker.y - n.CAVE15_DOOR.y);
+  });
+  expect(at).toBeLessThan(2);
   expect(errors).toEqual([]);
 });
 
