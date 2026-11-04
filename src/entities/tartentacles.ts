@@ -1,5 +1,5 @@
 /**
- * The red tar tentacles, the kid's (his answers in his tab "monkey and tentacles for rowan": they are on "all" the tar,
+ * The red tar tentacles, the kid's (his answers in his tab "monkey and tentacles": they are on "all" the tar,
  * "tar tentacles that do 4dm and 2hp"). Out on the tar ocean they come up in the chemistry boat's way as it sails: first
  * the tar bubbles in a red ring ahead of it, then a red tentacle, pale-suckered, rises out of the black and sways. A boat
  * that comes near, it draws back over while a red ring shows on the tar where the boat is, then slaps down there: four

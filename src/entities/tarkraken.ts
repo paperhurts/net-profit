@@ -1,5 +1,5 @@
 /**
- * The tar kraken, the kid's (his answers in his tab "tar kraken ideas for rowan": a "mix" of three of the four ideas
+ * The tar kraken, the kid's (his answers in his tab "tar kraken ideas": a "mix" of three of the four ideas
  * put to him. It is the boss of the whole tar ocean, its arms coming up out of the tar, "but not red": not the red tar
  * tentacles. The evil monkey in the bridge's cage made the tar spread and woke it. And it is so huge you never see all
  * of it: one giant eye in the tar, and its arms all round the boat; harpoon the eye when it opens. Nine hits, "10 dm to

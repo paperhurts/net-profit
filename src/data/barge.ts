@@ -478,7 +478,7 @@ export function seaIsleTap(
 }
 
 /**
- * Tar on the kid's map too (Rowan, 2026-10-17: "ok" to slow patches the boat can push through and the bosses cannot
+ * Tar on the kid's map too (his answer, 2026-10-17: "ok" to slow patches the boat can push through and the bosses cannot
  * go in): round patches of it, SEA_TAR_R of the ring across from their middles, up to SEA_TARS_MAX. A patch may go
  * nearer the buoys than an island, since the boat can push through it, but not over where the boat comes in, nor
  * on an island or another patch.

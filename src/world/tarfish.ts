@@ -1,6 +1,6 @@
 /**
  * The tar ocean's fish, the kid's (his tab 17: "tar fish 250 coins and can only be sold at the facility", and his
- * answers in his tab "tar ocean for rowan"): black fish ("black fish"), caught on a rod from the chemistry boat
+ * answers in his tab "tar ocean"): black fish ("black fish"), caught on a rod from the chemistry boat
  * ("spear of fishing rod"), and only the scientist on the bridge buys them ("scientest"). A dozen a day, in four small
  * schools scattered across the tar, a new four each morning, the first never far from the tar dock. Caught, they keep
  * in the chemistry boat's tar bucket until the scientist has them.

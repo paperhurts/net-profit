@@ -1,5 +1,5 @@
 /**
- * The tar eel, the kid's (his answers in his tab "tar eel for rowan": twice the leviathan; all over the tar ocean; it
+ * The tar eel, the kid's (his answers in his tab "tar eel": twice the leviathan; all over the tar ocean; it
  * "bites and wraps", "bringing under, which brings you to the nearest area"; 6 hits and "20 dm"; fought with "a
  * harpoon on boat"; the owner's call that the chemistry boat gets a health bar, a bite taking 20 of its 100). Its
  * hologram turns over the table in the bridge's missions room, and beating it is mission 2.
