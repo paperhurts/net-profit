@@ -3467,7 +3467,9 @@ test('the abyss: out of the cage a gulper comes and bites air, and back in the c
   }
   await expect(page.locator('#toast')).toContainText('Gulp! The gulper bit your tank');
   expect(await page.evaluate(() => window.__np.diver.air)).toBeLessThan(air - 20);
-  // Back in the cage, it lets you be, and the tank fills again.
+  // Back in the cage, it lets you be, and the tank fills again. Still, as hold() leaves the diver: a bite landing
+  // in the loop's last wait knocks the diver at 160 a second, and carried into the cage that would shoot it straight
+  // back out past the bars.
   await page.evaluate(() => {
     const { diver: d } = window.__np;
     const c = d.cage;
@@ -3475,6 +3477,8 @@ test('the abyss: out of the cage a gulper comes and bites air, and back in the c
       d.x = c.x;
       d.y = c.y;
     }
+    d.vx = 0;
+    d.vy = 0;
     window.__np.floorGulper.wait = 100;
   });
   await page.waitForTimeout(3500);
