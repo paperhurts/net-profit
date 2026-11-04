@@ -5400,6 +5400,9 @@ const EXTRAS = [['coins', '+10,000 coins'], ['wood', '+100 driftwood'], ['unfog'
   ['sub', 'The treasure submarine', () => sub], ['pirate', 'Endless Isle: joined the pirates, Jacks Parrow with you', () => endless.pirate], ['ninja', 'Endless Isle: joined the ninjas, Bun-San with you', () => endless.ninja], ['ctfwin', 'Endless Isle: win the battle you are in'], ['badges', 'All three badges, the shield upgraded', () => badges.shield >= 2 && badges.damage && badges.heal], ['finder', 'The radar and the treasure finder', () => finder && gear.radar], ['crows', "Island 10's three crows, on the rail", () => crowsOwned >= CROWS], ['bread', 'The giant pelican beaten, and its bread for the birdfeeder', () => pelicanBeaten && (bread >= 1 || feederFull)], ['otter', 'The otter', () => otter.free], ['neil', 'Neil the seal', () => neil.free], ['naga', 'The naga', () => nagaFree], ['junk', 'A bucket of junk, for the muffin man'], ['stale', 'A fish muffin about to grow legs'], ['leggy', 'Six leggy muffins', () => leggy.count >= LEGGY_MAX], ['mend', 'Mend the boat, fill the hearts'], ['snacks', "A bag of snacks and bug spray from island 10's old man", () => SNACK_KINDS.every(k => snacks[k] >= 3) && bugSpray >= 12]];
 // The pet system's: a garden egg, ready to hatch the next time all is calm aboard.
 EXTRAS.push(['petegg', 'A garden egg, ready to hatch', () => petSave.eggs.some(e => petEggDue(e, Date.now()))]);
+// Goat Isle's: risen in its fog with the flagship to reach it, so the owner can sail in and see it surface as her kid will.
+// Its button never names it: the panel has been on the kid's device too, and the island is a surprise.
+EXTRAS.push(['goatisle', 'A surprise in the deep, and the flagship to reach it', () => goatIsle.up && tier() === TIER_NAME.length-1]);
 function renderExtras(){ $('testerExtras').innerHTML = EXTRAS.map(([k, l, has]) => { const got = has && has();
   return `<button class="tstep${got ? ' done' : ''}" data-extra="${k}"><span>${l}</span><span class="tk">${got ? 'Have it' : 'Add'}</span></button>`; }).join(''); }
 $('testerBtn').addEventListener('click', openTester);
@@ -5708,6 +5711,7 @@ $('testerExtras').addEventListener('click', (e) => { const b = e.target.closest(
   else if (k === 'stale'){ if (muffins.length >= MUFFIN_BOX) muffins.shift(); muffins.unshift(day + clock - LEGS_AFTER + 4/DAY_LEN); hudJunk(); }
   else if (k === 'leggy'){ while (leggy.count < LEGGY_MAX) leggy.sprout(walker.x, walker.y); }
   else if (k === 'petegg') layEgg(petSave, 'common', 'garden', Date.now() - EGG_HATCH_MS.common);
+  else if (k === 'goatisle'){ for (const p of ['net', 'hold', 'engine']) lv[p] = Math.max(lv[p], MAXLV); goatIsle = {...goatIsle, up: true}; }
   else if (k === 'mend'){ hp = HP_MAX; hearts = maxHearts(); hudHull(); hudHearts(); }
   else if (k === 'snacks'){ for (const s of SNACK_KINDS) snacks[s] = Math.max(snacks[s], 3); bugSpray = Math.max(bugSpray, 12); honey = Math.max(honey, 3); hudSnacks(); }
   sfx.upgrade(); save(); refreshShop();
