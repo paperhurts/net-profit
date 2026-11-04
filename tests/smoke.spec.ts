@@ -119,6 +119,7 @@ type Np = {
   isle12Seen: boolean;
   goatIsle: { up: boolean; seen: boolean; jokes?: number };
   CASTLE15_DOOR: { x: number; y: number };
+  GRAVES15: { x: number; y: number; rx: number; ry: number }[];
   GOAT_HALL: number;
   GOAT_THRONE: number;
   riseGoatIsle(): void;
@@ -1203,6 +1204,47 @@ test("Goat Isle: Sir Bucksworth's cheese castle, its portraits' plaques, his thr
     return Math.hypot(n.walker.x - n.CASTLE15_DOOR.x, n.walker.y - n.CASTLE15_DOOR.y);
   });
   expect(at).toBeLessThan(5);
+  expect(errors).toEqual([]);
+});
+
+test("Goat Isle: the Goat-yard's headstones read from in front, and the jester's stone says Gotcha", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: true },
+    trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 6000 });
+  await page.waitForTimeout(1500);
+  const stand = (i: number) =>
+    page.evaluate((k) => {
+      const n = window.__np;
+      const g = n.GRAVES15[k];
+      if (!g) return;
+      n.walker.x = g.rx;
+      n.walker.y = g.ry;
+    }, i);
+  await stand(0);
+  await expect(page.locator('#toast')).toContainText('Goat-yard', { timeout: 6000 });
+  await expect(page.locator('#climb')).toHaveText('Read the headstone', { timeout: 4000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Rest in Brie');
+  await stand(17);
+  await page.waitForTimeout(400);
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText("This one isn't a joke");
+  await expect(page.locator('#toast')).toContainText('Gotcha', { timeout: 6000 });
   expect(errors).toEqual([]);
 });
 

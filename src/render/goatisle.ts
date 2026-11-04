@@ -7,6 +7,8 @@
  * The goat is drawn here once, in screen space, so the later pieces (fainting goats, the king, the cave) can use it:
  * standing, walking, or fainted stiff on its side with its legs straight out.
  */
+
+import { HEADSTONES } from '../data/goatyard';
 import type { DrawView } from '../entities/entity';
 import type { Goat } from '../entities/goats';
 import { CASTLE15_DOOR } from '../world/goatcastle';
@@ -16,6 +18,7 @@ import {
   FOG15,
   GOAT_ISLE,
   type GoatHouse,
+  GRAVES15,
   HOUSES15,
   KID_ZONE,
   LANDING15,
@@ -671,5 +674,94 @@ export function goatHerdSolids(v: DrawView, goats: readonly Goat[]): Solid[] {
       },
     });
   }
+  return out;
+}
+
+/** A ghost goat: pale, see-through, a wisp for legs. */
+const GHOST: GoatLook = { coat: '#EAF4FF', dark: '#B7C8DC' };
+
+/**
+ * The Goat-yard (data/goatyard.ts): crooked grey headstones in two rows along the far shore, Tiny's the biggest, a
+ * little mound of grass before each. A friendly ghost goat bobs over three of them, waving, brighter at night; the
+ * jester's ghost pops up out of his for a few seconds after his stone is read (gotcha from 1 down to 0).
+ */
+export function goatyardSolids(v: DrawView, gotcha: number): Solid[] {
+  if (!near(v, GOAT_ISLE.r + 120)) return [];
+  const out: Solid[] = [];
+  GRAVES15.forEach((g, i) => {
+    if (!v.onScreen(g.x, g.y, 50 * v.zoom)) return;
+    const h = HEADSTONES[i];
+    if (!h) return;
+    out.push({
+      d: g.x + g.y,
+      f: () => {
+        const { ctx } = v;
+        const Z = v.zoom;
+        const k = h.big ? 1.7 : 1;
+        v.isoEllipse(g.x + 3, g.y + 3, 6 * k);
+        ctx.fillStyle = '#6FAE5E';
+        ctx.fill();
+        const sx = v.px(g.x, g.y);
+        const sy = v.py(g.x, g.y);
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(g.lean);
+        const w = 9 * k * Z;
+        const hh = 12 * k * Z;
+        // Its side, a little darker, then its face with a rounded top.
+        ctx.fillStyle = '#7E878B';
+        ctx.beginPath();
+        ctx.moveTo(-w / 2 + 2 * Z, 0);
+        ctx.lineTo(-w / 2 + 2 * Z, -hh + w / 2);
+        ctx.arc(2 * Z, -hh + w / 2 - 1.5 * Z, w / 2, Math.PI, 0);
+        ctx.lineTo(w / 2 + 2 * Z, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#A4ADB1';
+        ctx.beginPath();
+        ctx.moveTo(-w / 2, 0);
+        ctx.lineTo(-w / 2, -hh + w / 2);
+        ctx.arc(0, -hh + w / 2, w / 2, Math.PI, 0);
+        ctx.lineTo(w / 2, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#5E676B';
+        ctx.font = `800 ${2.6 * k * Z}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('RIP', 0, -hh + w / 2 + 1 * Z);
+        ctx.restore();
+        // A ghost on it, or the jester's popping up.
+        const pop = h.gotcha ? gotcha : 0;
+        if (h.ghost || pop > 0) {
+          const bob = Math.sin(v.T * 2 + i) * 2.5 * Z;
+          const rise = h.gotcha ? (1 - (1 - Math.min(1, (1 - pop) * 4)) ** 2) * 10 * Z : 0;
+          ctx.save();
+          ctx.globalAlpha = (h.gotcha ? Math.min(1, pop * 3) : 1) * (0.5 + 0.3 * v.dark);
+          const gx = sx + 3 * Z;
+          const gy = sy - hh - 4 * Z + bob - rise;
+          // A wavy wisp under it instead of legs, then the goat, and a hoof up, waving.
+          ctx.fillStyle = GHOST.coat;
+          ctx.beginPath();
+          ctx.moveTo(gx - 6 * Z, gy - 4 * Z);
+          for (let t = 0; t <= 6; t++) ctx.lineTo(gx - 6 * Z + t * 2 * Z, gy + (t % 2 ? 3 : 0) * Z);
+          ctx.lineTo(gx + 6 * Z, gy - 4 * Z);
+          ctx.closePath();
+          ctx.fill();
+          drawGoat(ctx, gx, gy, Z, i % 2 ? 1 : -1, GHOST);
+          ctx.strokeStyle = GHOST.coat;
+          ctx.lineWidth = 1.6 * Z;
+          ctx.lineCap = 'round';
+          const wave = Math.sin(v.T * 6 + i) * 0.5;
+          const dir = i % 2 ? 1 : -1;
+          ctx.beginPath();
+          ctx.moveTo(gx + dir * 3 * Z, gy - 7 * Z);
+          ctx.lineTo(gx + dir * (6 + wave * 2) * Z, gy - 12 * Z);
+          ctx.stroke();
+          ctx.restore();
+        }
+      },
+    });
+  });
   return out;
 }
