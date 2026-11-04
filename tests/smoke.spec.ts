@@ -1111,6 +1111,25 @@ test('Goat Isle: the fainting goats go over at a boo, the herd like dominoes, an
   expect(errors).toEqual([]);
 });
 
+test('tester: Goat Isle risen in its fog, with the flagship to reach it, from a new game', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, { muted: true }, './#tester');
+  await page.locator('#testerBtn').dispatchEvent('click');
+  await expect(page.locator('#tester')).toBeVisible();
+  await page.locator('#testerExtras [data-extra="goatisle"]').click();
+  await expect(page.locator('#testerExtras [data-extra="goatisle"]')).toContainText('Added');
+  expect(await page.evaluate(() => window.__np.goatIsle)).toEqual({ up: true, seen: false });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}'));
+  expect(saved.goat).toEqual({ up: true, seen: false });
+  expect(saved.lv).toEqual({ net: 5, hold: 5, engine: 5 });
+  await expect(page.locator('#testerExtras [data-extra="goatisle"]')).toContainText('Have it', {
+    timeout: 3000,
+  });
+  expect(errors).toEqual([]);
+});
+
 async function boot(
   context: BrowserContext,
   page: Page,
