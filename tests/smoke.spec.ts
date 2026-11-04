@@ -117,7 +117,10 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
-  goatIsle: { up: boolean; seen: boolean };
+  goatIsle: { up: boolean; seen: boolean; jokes?: number };
+  CASTLE15_DOOR: { x: number; y: number };
+  GOAT_HALL: number;
+  GOAT_THRONE: number;
   riseGoatIsle(): void;
   GOAT_DOCK: { x: number; y: number };
   goatHerds: {
@@ -1127,6 +1130,79 @@ test('tester: Goat Isle risen in its fog, with the flagship to reach it, from a 
   await expect(page.locator('#testerExtras [data-extra="goatisle"]')).toContainText('Have it', {
     timeout: 3000,
   });
+  expect(errors).toEqual([]);
+});
+
+test("Goat Isle: Sir Bucksworth's cheese castle, its portraits' plaques, his throne room and a joke, and out again", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: true },
+    trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 6000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.CASTLE15_DOOR.x + 4;
+    n.walker.y = n.CASTLE15_DOOR.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the castle', { timeout: 6000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.GOAT_HALL, null, {
+    timeout: 4000,
+  });
+  await expect(page.locator('#toast')).toContainText('Hall of Portraits');
+  await expect(page.locator('#leave')).toHaveText('Leave the castle');
+  // The first portrait, at the left, and its plaque.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = -25000 - 122;
+    n.walker.y = -6000 + 30;
+  });
+  await expect(page.locator('#climb')).toHaveText('Read the plaque', { timeout: 4000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Sir Bucksworth the First');
+  // Through the back door to the throne room, where he greets you.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = -25000 - 90;
+    n.walker.y = -6000 - 90;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the throne room', { timeout: 4000 });
+  await page.click('#climb');
+  await page.waitForFunction(() => window.__np.floor === window.__np.GOAT_THRONE, null, {
+    timeout: 4000,
+  });
+  await expect(page.locator('#toast')).toContainText('GOAT-ed');
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = -25000 - 60;
+    n.walker.y = -7000 - 60;
+  });
+  await expect(page.locator('#climb')).toHaveText('Ask for a joke', { timeout: 4000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Sir Bucksworth XIV');
+  expect(await page.evaluate(() => window.__np.goatIsle.jokes)).toBe(1);
+  // Out from anywhere inside, to the gate.
+  await page.click('#leave');
+  await page.waitForFunction(() => window.__np.floor < 0, null, { timeout: 4000 });
+  const at = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.walker.x - n.CASTLE15_DOOR.x, n.walker.y - n.CASTLE15_DOOR.y);
+  });
+  expect(at).toBeLessThan(5);
   expect(errors).toEqual([]);
 });
 

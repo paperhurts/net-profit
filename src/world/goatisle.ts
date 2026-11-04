@@ -106,6 +106,14 @@ export const HOUSES15: readonly GoatHouse[] = [
   house(118, -18, 156, 16, 13, '#EBDDC2', '#7A5A3A', 2),
 ];
 
+/** Sir Bucksworth's cheese-wheel castle on the hill at the back (part three, world/goatcastle.ts): middle, radius, height. */
+export const CASTLE15 = { x: at15(-30, -130)[0], y: at15(-30, -130)[1], r: 44, h: 40 } as const;
+
+/** Inside the castle's walls, with a little room round them: not ground to stand on. */
+export function inCastle15(x: number, y: number, pad = 3): boolean {
+  return Math.hypot(x - CASTLE15.x, y - CASTLE15.y) < CASTLE15.r + pad;
+}
+
 /** The harbourmaster's crates, by the landing, where the catch is sold. */
 export const CRATES15 = { x: at15(-150, 112)[0], y: at15(-150, 112)[1] } as const;
 
@@ -140,6 +148,7 @@ export function inHouse15(x: number, y: number, pad = 3): boolean {
 export function onIsle15(x: number, y: number): boolean {
   if (Math.hypot(x - GOAT_ISLE.x, y - GOAT_ISLE.y) > GOAT_ISLE.r - SHORE_IN15) return false;
   if (inHouse15(x, y)) return false;
+  if (inCastle15(x, y)) return false;
   const k = Math.hypot(x - KID_ZONE.x, y - KID_ZONE.y);
   return k < KID_ZONE.r - 4 || k > KID_ZONE.r + 4;
 }
