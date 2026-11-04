@@ -33,7 +33,9 @@ export type RoomKind =
   | 'arena'
   | 'bridge'
   | 'skull'
-  | 'skrill';
+  | 'skrill'
+  | 'cheese'
+  | 'cheesethrone';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -97,6 +99,10 @@ export const ROOMS: readonly Room[] = [
   { x: -21000, y: -9100, r: 150, roof: false, kind: 'bridge' },
   // Through Skrill's own door at the top of his fourth floor: the open top of his tower, where he waits.
   { x: -23500, y: -9700, r: ROOM_R + 80, roof: true, kind: 'skrill' },
+  // Inside Sir Bucksworth XIV's cheese-wheel castle on Goat Isle (world/goatcastle.ts): the Hall of Portraits, and
+  // through the door at its back, his throne room.
+  { x: -25000, y: -6000, r: 150, roof: false, kind: 'cheese' },
+  { x: -25000, y: -7000, r: 150, roof: false, kind: 'cheesethrone' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -136,6 +142,9 @@ export const BRIDGE_ROOF = 38;
 export const SKULL_FLOORS: readonly number[] = [34, 35, 36, 37];
 /** Through it, the top of his tower, open to the sky: Skrill's own floor, the fifth. */
 export const SKRILL_TOP = 39;
+/** Inside Goat Isle's cheese-wheel castle: the Hall of Portraits, then the throne room. */
+export const GOAT_HALL = 40;
+export const GOAT_THRONE = 41;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },

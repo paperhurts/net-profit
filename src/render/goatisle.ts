@@ -9,6 +9,7 @@
  */
 import type { DrawView } from '../entities/entity';
 import type { Goat } from '../entities/goats';
+import { CASTLE15_DOOR } from '../world/goatcastle';
 import {
   at15,
   CRATES15,
@@ -226,6 +227,13 @@ export function drawGoatFlat(v: DrawView, foam: string, sand: string): void {
     if (i === 0) ctx.moveTo(v.px(px, py), v.py(px, py));
     else ctx.lineTo(v.px(px, py), v.py(px, py));
   });
+  ctx.stroke();
+  // And up the hill to the castle's gate.
+  ctx.lineWidth = 11 * Z;
+  ctx.beginPath();
+  const [bx, by] = at15(-50, 30);
+  ctx.moveTo(v.px(bx, by), v.py(bx, by));
+  ctx.lineTo(v.px(CASTLE15_DOOR.x, CASTLE15_DOOR.y), v.py(CASTLE15_DOOR.x, CASTLE15_DOOR.y));
   ctx.stroke();
   ctx.lineCap = 'butt';
   // The Kid Zone's patch, trodden to dirt.

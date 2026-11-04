@@ -1447,6 +1447,9 @@ describe('Goat Isle', () => {
     expect(parseSave(serializeSave(s), bounds).goat).toEqual({ up: true, seen: false });
     s.goat = { up: true, seen: true };
     expect(parseSave(serializeSave(s), bounds).goat).toEqual({ up: true, seen: true });
+    // How many of the king's jokes he has told, kept once he has told one.
+    s.goat = { up: true, seen: true, jokes: 7 };
+    expect(parseSave(serializeSave(s), bounds).goat).toEqual({ up: true, seen: true, jokes: 7 });
     // Seen means it is up, whatever else the save says.
     expect(parseSave(JSON.stringify({ ...s, goat: { seen: true } }), bounds).goat).toEqual({
       up: true,

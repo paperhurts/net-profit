@@ -407,9 +407,10 @@ export type SaveData = {
   /**
    * Goat Isle (world/goatisle.ts): whether it has risen out of the sea (the first dawn with the flagship owned) and
    * whether the boat has sailed close enough to lift its fog. Missing in old saves and read as neither; left out of the
-   * save until it has risen.
+   * save until it has risen. jokes is how many of Sir Bucksworth's jokes he has told, round his book
+   * (data/bucksworth.ts), there once he has told one.
    */
-  goat: { up: boolean; seen: boolean };
+  goat: { up: boolean; seen: boolean; jokes?: number };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -898,6 +899,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     const g = o.goat as Record<string, unknown>;
     // Seen means it is up, whatever the save says.
     d.goat = { up: g.up === true || g.seen === true, seen: g.seen === true };
+    const jokes = int(g.jokes);
+    if (jokes > 0 && jokes <= 999) d.goat.jokes = jokes;
   }
   if (o.snook && typeof o.snook === 'object') {
     const k = o.snook as Record<string, unknown>;
