@@ -126,6 +126,7 @@ import { cheeseCastleSolid, drawCheeseRoomBack, throneSolids } from './render/go
 import { GREETING, nextJoke, PORTRAITS } from './data/bucksworth';
 import { GOTCHA, HEADSTONES } from './data/goatyard';
 import { KIND_NAMES, ROOM1 } from './data/goatcave';
+import { almanacPagesHtml, kindsFound } from './ui/almanac';
 import { GoatCave } from './entities/goatcave';
 import { caveFrame, drawCave } from './render/goatcave';
 import { ARENAS, BRIDGE_MISSIONS, BRIDGE_OBS, BRIDGE_ROOF, BRIDGE_TARDOCK, CAGE, CRYPT, DEMON, DOOR, entry, GATE, HALL, HALL_A, HALL_B, NEST9, ROOF, ROOF3, ROOF7, ROOF8, ROOF10, ROOMS, onFloor, RUINS, SKRILL_TOP, SKULL_FLOORS, STEP, stairs, TEMPLE6, THRONE, TOWERS } from './world/tower';
@@ -1431,7 +1432,7 @@ function startCave(){ audio(); if (gc || th || ski || droneFly || droneFish || c
     else if (what === 'goatsplosh') sfx.splash();
     else if (what === 'found'){ const kind = ROOM1.find.kind, had = (goatIsle.kinds ?? []).includes(kind); sfx.rareCaught(); toasts.clear();
       if (!had){ goatIsle = {...goatIsle, kinds: [...(goatIsle.kinds ?? []), kind]}; save(); }
-      toast(`${ROOM1.find.says} ${had ? '' : `Found: the ${KIND_NAMES[kind].toLowerCase()}!`}`.trim(), 5200, 2); } };
+      toast(`${ROOM1.find.says} ${had ? '' : `Found: the ${KIND_NAMES[kind].toLowerCase()}! It is in your Goat Almanac, in the field guide.`}`.trim(), 6000, 2); } };
   document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false;
   gcTop = wayOutUp('Leave the cave', 'cave'); gcRoom = thPadRoom();
   if (!goatTold.has('cave')){ goatTold.add('cave'); toast('The goat cave! The arrows walk and the jump button jumps. Bump into a goat and it faints, stiff as a plank: stand on it, or walk into it to shove it along. Something is waiting across the room.', 7000, 2); } }
@@ -5399,6 +5400,8 @@ function renderGuide(){
   if (snook.giant) pages.push(`<article class="page gold">${FISH_SVG('#F0C544')}<b>Grampy's Snook</b><small>Over forty inches, which is over the slot, so back she went. The photo is on the wall.</small><div class="facts"><span>Landed ${snook.giant}</span><span>One keeper in five, they say</span></div></article>`);
   // The Garden Isle's crops, once it has been found (part twelve).
   if (gardenIsle.seen) pages.push(journalPagesHtml(gardenIsle));
+  // The Goat Almanac, once Goat Isle has been found: never before, it is a surprise.
+  if (goatIsle.seen) pages.push(almanacPagesHtml(kindsFound(goatIsle.seen, goatIsle.kinds)));
   $('pages').innerHTML = pages.join('');
 }
 function openGuide(){ audio(); sfx.click(); renderGuide(); elGuide.hidden = false; }
@@ -6057,7 +6060,11 @@ function kingFaintK(){ if (kingFaint < 0) return 0; const t = T - kingFaint; ret
 let gotchaAt = -1, gotchaT = 0;
 function graveNear(){ if (walker.state !== 'ashore' || walker.dock !== GOAT_DOCK || floor >= 0) return -1; let best = -1, bd = 16;
   GRAVES15.forEach((g, i) => { const d = Math.min(Math.hypot(walker.x - g.rx, walker.y - g.ry), Math.hypot(walker.x - g.x, walker.y - g.y) + 4); if (d < bd){ bd = d; best = i; } }); return best; }
-function readGrave(i){ const h = HEADSTONES[i]; if (!h) return; sfx.click(); toasts.clear(); toast(`The headstone reads: ${h.text}`, Math.max(3400, h.text.length * 65), 1);
+function readGrave(i){ const h = HEADSTONES[i]; if (!h) return; sfx.click(); toasts.clear();
+  // A ghost on the stone read is the Goat Almanac's ghost goat, found.
+  const ghost = h.ghost && !(goatIsle.kinds ?? []).includes('ghost');
+  if (ghost){ goatIsle = {...goatIsle, kinds: [...(goatIsle.kinds ?? []), 'ghost']}; save(); sfx.rareCaught(); }
+  toast(`The headstone reads: ${h.text}${ghost ? ' Its ghost waves at you. Found: the ghost goat! It is in your Goat Almanac, in the field guide.' : ''}`, Math.max(3400, h.text.length * 65 + (ghost ? 3000 : 0)), 1);
   if (h.gotcha && gotchaAt < 0 && gotchaT <= 0) gotchaAt = T + 2.4; }
 function updateGoatyard(dt){ gotchaT = Math.max(0, gotchaT - dt / 3);
   if (gotchaAt >= 0 && T >= gotchaAt){ gotchaAt = -1; gotchaT = 1; sfx.bleat(); toasts.clear(); toast(`A voice from the jester's stone: \u201c${GOTCHA}\u201d His ghost pops out, laughing.`, 3600, 1); }
