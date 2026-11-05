@@ -117,7 +117,7 @@ type Np = {
   isle10Seen: boolean;
   isle11Seen: boolean;
   isle12Seen: boolean;
-  goatIsle: { up: boolean; seen: boolean; jokes?: number };
+  goatIsle: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
   CASTLE15_DOOR: { x: number; y: number };
   GRAVES15: { x: number; y: number; rx: number; ry: number }[];
   CAVE15_DOOR: { x: number; y: number };
@@ -1312,6 +1312,59 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
     return Math.hypot(n.walker.x - n.CAVE15_DOOR.x, n.walker.y - n.CAVE15_DOOR.y);
   });
   expect(at).toBeLessThan(2);
+  expect(errors).toEqual([]);
+});
+
+test('the Goat Almanac: in the field guide only once Goat Isle is found, and a ghost on a headstone is found in it', async ({
+  context,
+  page,
+}) => {
+  // Not found yet: no sign of it in the field guide, as the island is a surprise.
+  const errors = await boot(context, page, { muted: true, goat: { up: true, seen: false } });
+  await page.locator('#log').dispatchEvent('click');
+  await expect(page.locator('#guide')).toBeVisible();
+  await expect(page.locator('#pages')).not.toContainText('Goat Almanac');
+  expect(errors).toEqual([]);
+});
+
+test("the Goat Almanac: the pygmy goat found, and reading a ghost's headstone finds the ghost goat", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: true, kinds: ['pygmy'] },
+    trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 6000 });
+  await page.waitForTimeout(1500);
+  // The third headstone has a ghost on it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const g = n.GRAVES15[2];
+    if (!g) return;
+    n.walker.x = g.rx;
+    n.walker.y = g.ry;
+  });
+  await expect(page.locator('#climb')).toHaveText('Read the headstone', { timeout: 6000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Found: the ghost goat!');
+  expect(await page.evaluate(() => window.__np.goatIsle.kinds)).toEqual(['pygmy', 'ghost']);
+  await page.locator('#log').dispatchEvent('click');
+  await expect(page.locator('#guide')).toBeVisible();
+  await expect(page.locator('#pages')).toContainText('The Goat Almanac');
+  await expect(page.locator('#pages')).toContainText('3 of 11 found');
+  await expect(page.locator('#pages article[data-kind="ghost"]')).toContainText('ghost pepper');
+  await expect(page.locator('#pages article[data-kind="angora"]')).toContainText('Not found yet');
   expect(errors).toEqual([]);
 });
 
