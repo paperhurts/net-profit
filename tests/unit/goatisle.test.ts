@@ -95,3 +95,14 @@ describe('Goat Isle', () => {
     }
   });
 });
+
+describe('the goats on the roofs', () => {
+  it('each keeps its own coat as it walks, so none of them blinks from colour to colour', async () => {
+    const { roofGoats } = await import('../../src/render/goatisle');
+    HOUSES15.forEach((h, i) => {
+      const coats = (T: number) => roofGoats(h, i, T).map((g) => g.coat);
+      const first = coats(0);
+      for (const T of [0.05, 0.13, 1.7, 9.4, 61]) expect(coats(T)).toEqual(first);
+    });
+  });
+});

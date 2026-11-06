@@ -408,13 +408,20 @@ function drawHouse(v: DrawView, h: GoatHouse): void {
 const faceOf = (dx: number, dy: number) => (dx - dy >= 0 ? 1 : -1);
 
 /** Where each goat on a roof is now: walking up and down its ridge, turning at the ends. */
-export function roofGoats(
-  h: GoatHouse,
-  i: number,
-  T: number,
-): { x: number; y: number; z: number; face: number; step: number; still: boolean }[] {
+/** A goat on a roof: where it stands, which way it faces, its stride, whether it stands still, and its coat (fixed). */
+export type RoofGoat = {
+  x: number;
+  y: number;
+  z: number;
+  face: number;
+  step: number;
+  still: boolean;
+  coat: number;
+};
+
+export function roofGoats(h: GoatHouse, i: number, T: number): RoofGoat[] {
   const r = ridgeOf(h);
-  const out: { x: number; y: number; z: number; face: number; step: number; still: boolean }[] = [];
+  const out: RoofGoat[] = [];
   // The harbourmaster's goat stands at the end toward the sea and looks out at whoever is coming.
   if (i === 0) {
     const t = 0.82;
@@ -425,6 +432,7 @@ export function roofGoats(
       face: -1,
       step: 0,
       still: true,
+      coat: 0,
     });
     return out;
   }
@@ -442,6 +450,7 @@ export function roofGoats(
       face: faceOf((r.bx - r.ax) * dir, (r.by - r.ay) * dir),
       step: T * 8 + g,
       still: false,
+      coat: i + g,
     });
   }
   return out;
@@ -588,7 +597,7 @@ export function goatSolids(v: DrawView): Solid[] {
           );
         if (i === 2) drawWeathervane(v, h);
         for (const g of roofGoats(h, i, v.T)) {
-          const look = COATS[((i + g.step) % COATS.length) | 0] ?? PLAIN_GOAT;
+          const look = COATS[g.coat % COATS.length] ?? PLAIN_GOAT;
           drawGoat(
             v.ctx,
             v.px(g.x, g.y),
