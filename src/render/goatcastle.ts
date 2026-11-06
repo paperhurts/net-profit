@@ -7,7 +7,14 @@
  */
 import { PORTRAITS } from '../data/bucksworth';
 import type { DrawView } from '../entities/entity';
-import { HALL_DOOR_A, onWall15, PORTRAIT_AT, PORTRAIT_Z, THRONE_AT } from '../world/goatcastle';
+import {
+  HALL_DOOR_A,
+  HALL_WALL_H,
+  onWall15,
+  PORTRAIT_AT,
+  PORTRAIT_Z,
+  THRONE_AT,
+} from '../world/goatcastle';
 import { CASTLE15 } from '../world/goatisle';
 import { GOAT_HALL, GOAT_THRONE, type Room } from '../world/tower';
 import { drawGoat, type GoatLook, PLAIN_GOAT } from './goatisle';
@@ -293,6 +300,8 @@ function backArc(v: DrawView, R: Room, z: number, reverse = false): void {
 }
 
 const WALL_H = 70;
+/** A room's wall height: the hall's is taller, for its three rows of portraits. */
+const wallH = (i: number): number => (i === GOAT_HALL ? HALL_WALL_H : WALL_H);
 
 /** A room inside the castle: the dark round it, a cheese floor, its back wall of cheese with holes, and what hangs on it. */
 export function drawCheeseRoomBack(v: DrawView, R: Room, i: number, W: number, H: number): void {
@@ -302,10 +311,11 @@ export function drawCheeseRoomBack(v: DrawView, R: Room, i: number, W: number, H
   ctx.fillRect(0, 0, W, H);
   // The back wall.
   ctx.beginPath();
+  const wh = wallH(i);
   backArc(v, R, 0);
-  backArc(v, R, WALL_H, true);
+  backArc(v, R, wh, true);
   ctx.closePath();
-  const g = ctx.createLinearGradient(0, v.py(R.x, R.y, WALL_H) - R.r * Z, 0, v.py(R.x, R.y, 0));
+  const g = ctx.createLinearGradient(0, v.py(R.x, R.y, wh) - R.r * Z, 0, v.py(R.x, R.y, 0));
   g.addColorStop(0, CHEESE_SIDE);
   g.addColorStop(1, CHEESE);
   ctx.fillStyle = g;
@@ -331,7 +341,7 @@ export function drawCheeseRoomBack(v: DrawView, R: Room, i: number, W: number, H
   ctx.fillStyle = HOLE;
   for (let k = 0; k < 9; k++) {
     const a = (3 * Math.PI) / 4 + ((k * 0.37) % 1) * Math.PI;
-    const z = 8 + ((k * 23) % 50);
+    const z = 8 + ((k * 23) % (wallH(i) - 20));
     const wx = R.x + Math.cos(a) * R.r;
     const wy = R.y + Math.sin(a) * R.r;
     ctx.beginPath();
@@ -373,10 +383,13 @@ function drawPortrait(v: DrawView, a: number, k: number): void {
   const at = onWall15(GOAT_HALL, a, 0);
   const sx = v.px(at.x, at.y);
   const mid = v.py(at.x, at.y, PORTRAIT_Z[k] ?? 40);
-  const w = 13 * Z;
-  const h = 17 * Z;
+  const w = 18 * Z;
+  const h = 22 * Z;
   ctx.fillStyle = GILT;
   ctx.fillRect(sx - w / 2 - 2 * Z, mid - h / 2 - 2 * Z, w + 4 * Z, h + 4 * Z);
+  ctx.strokeStyle = '#7A5410';
+  ctx.lineWidth = Math.max(1, 0.6 * Z);
+  ctx.strokeRect(sx - w / 2 - 2 * Z, mid - h / 2 - 2 * Z, w + 4 * Z, h + 4 * Z);
   ctx.fillStyle = ['#3E5A7A', '#6E3A4A', '#3E6A4A', '#5A4A7A'][k % 4] as string;
   ctx.fillRect(sx - w / 2, mid - h / 2, w, h);
   // The goat in it, head and shoulders, facing in toward the middle of the hall.
@@ -386,17 +399,24 @@ function drawPortrait(v: DrawView, a: number, k: number): void {
   ctx.clip();
   const face = Math.cos(a) - Math.sin(a) < 0 ? 1 : -1;
   const look: GoatLook = p.who === 'Dog' ? { coat: '#7A5A3A', dark: '#4A3424' } : PLAIN_GOAT;
-  drawGoat(ctx, sx - face * 6 * Z, mid + 15 * Z, Z * 1.25, face, look);
-  if (p.crown) drawCrown(ctx, sx + face * 1.5 * Z, mid - 6.5 * Z, 2.6 * Z, face * 0.2);
+  drawGoat(ctx, sx - face * 8 * Z, mid + 20 * Z, Z * 1.7, face, look);
+  if (p.crown) drawCrown(ctx, sx + face * 2 * Z, mid - 8.5 * Z, 3.4 * Z, face * 0.2);
   ctx.restore();
-  // Its plaque, a gilt strip with its number.
+  // Its plaque, a gilt strip with its name, the words big enough to read on a phone whatever the zoom.
+  const px = Math.max(10, 4.2 * Z);
+  ctx.font = `800 ${px}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
+  const tw = ctx.measureText(p.who).width + px * 0.9;
+  const ph = px * 1.45;
+  // Across the foot of the frame, so it never reaches down into the row below.
+  const top = mid + h / 2 + 2 * Z - ph / 2;
   ctx.fillStyle = '#B88A2A';
-  ctx.fillRect(sx - 7 * Z, mid + h / 2 + 4 * Z, 14 * Z, 5 * Z);
+  ctx.fillRect(sx - tw / 2, top, tw, ph);
+  ctx.strokeStyle = '#7A5410';
+  ctx.strokeRect(sx - tw / 2, top, tw, ph);
   ctx.fillStyle = '#2B1A0E';
-  ctx.font = `700 ${3.6 * Z}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(p.who, sx, mid + h / 2 + 6.6 * Z);
+  ctx.fillText(p.who, sx, top + ph / 2 + 0.5);
 }
 
 /** The arched door at the back of the hall, into the throne room. */

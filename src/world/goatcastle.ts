@@ -33,7 +33,7 @@ export function onWall15(i: number, a: number, d: number): { x: number; y: numbe
 }
 
 /**
- * The portraits round the hall's back wall, oldest at the left, hung in two staggered rows the way a crowded gallery
+ * The portraits round the hall's back wall, oldest at the left, hung in three staggered rows the way a crowded gallery
  * hangs them, so all nineteen fit across a phone's narrow screen. Spaced evenly across the screen rather than round the
  * wall, which would bunch them up at the sides; the middle of the back is left for the door to the throne room.
  * Each is an angle round the wall and a height on it.
@@ -50,8 +50,16 @@ export const PORTRAIT_AT: readonly number[] = (() => {
     return 2 * Math.PI - Math.acos(u) - Math.PI / 4;
   });
 })();
-/** How high each portrait hangs: the two rows, by turns. */
-export const PORTRAIT_Z: readonly number[] = PORTRAITS.map((_, i) => (i % 2 ? 22 : 46));
+/**
+ * How high each portrait hangs: three rows, by turns, so neighbours in a row stand far enough apart for big frames and
+ * plaques a phone can read (the owner, 2026-11-06: two rows of small ones were "hard to read").
+ */
+export const PORTRAIT_ROWS: readonly number[] = [30, 66, 102];
+export const PORTRAIT_Z: readonly number[] = PORTRAITS.map(
+  (_, i) => PORTRAIT_ROWS[[0, 2, 1][i % 3] as number] as number,
+);
+/** How tall the hall's wall stands, to hang the top row. */
+export const HALL_WALL_H = 126;
 /** The door at the back of the hall into the throne room: the middle of the back wall. */
 export const HALL_DOOR_A = (5 * Math.PI) / 4;
 /** The throne, at the back of the throne room, and where Sir Bucksworth is asked for a joke. */
