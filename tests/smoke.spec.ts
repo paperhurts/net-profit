@@ -1137,6 +1137,9 @@ test('tester: Goat Isle risen in its fog, with the flagship to reach it, from a 
   await expect(page.locator('#testerExtras [data-extra="goatisle"]')).toContainText('Have it', {
     timeout: 3000,
   });
+  // Closing the panel, the radio says where the fog bank is, as it does at the dawn it rises.
+  await page.locator('#testerClose').click();
+  await expect(page.locator('#toast')).toContainText('A fog bank has rolled in', { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 

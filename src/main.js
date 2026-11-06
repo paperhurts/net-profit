@@ -5444,7 +5444,9 @@ EXTRAS.push(['goatisle', 'A surprise in the deep, and the flagship to reach it',
 function renderExtras(){ $('testerExtras').innerHTML = EXTRAS.map(([k, l, has]) => { const got = has && has();
   return `<button class="tstep${got ? ' done' : ''}" data-extra="${k}"><span>${l}</span><span class="tk">${got ? 'Have it' : 'Add'}</span></button>`; }).join(''); }
 $('testerBtn').addEventListener('click', openTester);
-$('testerClose').addEventListener('click', () => { sfx.click(); $('tester').hidden = true; });
+$('testerClose').addEventListener('click', () => { sfx.click(); $('tester').hidden = true;
+  // The tester's surprise in the deep raised the island with no dawn to say where: the radio says so now the panel is out of the way.
+  if (goatRadioOwed){ goatRadioOwed = false; goatRadio(); } });
 // The Battle Barge, the kid's (data/barge.ts): from anywhere, aboard or ashore, a card to pick an arena and up to ten
 // on-foot enemies, and Fight! puts the figure on the barge with them, and the army with it. Beat them all for a coin;
 // bonked out, or leaving, back where it was. While it is out there, the sea's hunters leave the boat alone.
@@ -5749,7 +5751,7 @@ $('testerExtras').addEventListener('click', (e) => { const b = e.target.closest(
   else if (k === 'stale'){ if (muffins.length >= MUFFIN_BOX) muffins.shift(); muffins.unshift(day + clock - LEGS_AFTER + 4/DAY_LEN); hudJunk(); }
   else if (k === 'leggy'){ while (leggy.count < LEGGY_MAX) leggy.sprout(walker.x, walker.y); }
   else if (k === 'petegg') layEgg(petSave, 'common', 'garden', Date.now() - EGG_HATCH_MS.common);
-  else if (k === 'goatisle'){ for (const p of ['net', 'hold', 'engine']) lv[p] = Math.max(lv[p], MAXLV); goatIsle = {...goatIsle, up: true}; }
+  else if (k === 'goatisle'){ for (const p of ['net', 'hold', 'engine']) lv[p] = Math.max(lv[p], MAXLV); goatIsle = {...goatIsle, up: true}; goatRadioOwed = !goatIsle.seen; }
   else if (k === 'mend'){ hp = HP_MAX; hearts = maxHearts(); hudHull(); hudHearts(); }
   else if (k === 'snacks'){ for (const s of SNACK_KINDS) snacks[s] = Math.max(snacks[s], 3); bugSpray = Math.max(bugSpray, 12); honey = Math.max(honey, 3); hudSnacks(); }
   sfx.upgrade(); save(); refreshShop();
@@ -6030,7 +6032,10 @@ function updateClock(dt){
 // until the boat sails close. Only the flagship crosses the buoys, so it is in reach the morning it appears.
 function riseGoatIsle(){ if (goatIsle.up || tier() !== TIER_NAME.length-1) return;
   goatIsle = {...goatIsle, up: true}; save();
-  setTimeout(() => { toasts.clear(); sfx.bleat(); toast('The radio crackles: \u201c...baaa...?\u201d A fog bank has rolled in out in the deep, up and to the right of home on the map, where there was open water.', 6000, 2); }, 3600); }
+  setTimeout(goatRadio, 3600); }
+/** The radio's hint where the fog bank is, as it rises (and from the tester's button, as its panel closes). */
+function goatRadio(){ toasts.clear(); sfx.bleat(); toast('The radio crackles: \u201c...baaa...?\u201d A fog bank has rolled in out in the deep, up and to the right of home on the map, where there was open water.', 6000, 2); }
+let goatRadioOwed = false;
 // The fainting goats graze while the island is in view, and go over when the figure, ashore there, runs at them,
 // bumps into one, or says boo. The first faint says what they are; a big pile-up is cheered.
 function updateGoats(dt){ if (!goatIsle.seen || !nearIsle15(boat.x, boat.y, 900) && !(walker.state === 'ashore' && walker.dock === GOAT_DOCK)) return;
