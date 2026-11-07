@@ -37,6 +37,8 @@ export const HATCHLING_NAMES: Readonly<Record<string, string>> = {
   hedgehog: 'Hedgehog',
   fox: 'Fox',
   moth: 'Lantern moth',
+  // Not from an egg: the pet house keeper's gift (data/petsys.ts giveGift), the owner's (2026-11-07: "I want a black cat").
+  blackcat: 'Black cat',
 };
 
 /**
@@ -52,7 +54,12 @@ export const HATCHLING_ART: Readonly<Record<string, string>> = {
   hedgehog: 'AOqOnRiaemfriunuq.AQkMcUgUWaeeUhenWogucuk.Aum2quu.A2q3q.Avowo.AWxW3.Aeye4.Amxm3',
   fox: 'BroqrhwbwWuSrRoSlbghgmiqlro.Boiyesmoi.BqgqWuc.BueyWye.Augvg.Azf0f.BSmIeGoRq.CIeGi.BXvW3.Bcwc4.Biwj4.Bnup2',
   moth: 'Ekmjshwfwcmdgfchckm.FdgMUIico.Fjg0U4iko.CcqQwY2eu.Ckqwwo2iu.AecaS.AicmS.Aefff.Aifjf',
+  // Drawn by the game, not in strokes (render/petsys.ts drawPainted): a real cat, as she asked, not a doodle of one.
+  blackcat: '@blackcat',
 };
+
+/** Whether a pet's look is one the game paints (an "@kind"), not a drawing in the pad's strokes. */
+export const painted = (art: string | undefined): boolean => !!art && art.startsWith('@');
 
 /** The most eggs kept at once: the nest crate aboard holds three. */
 export const EGG_ROOM = 3;

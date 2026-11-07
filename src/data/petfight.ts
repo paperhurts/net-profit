@@ -55,6 +55,7 @@ export const KIND_FIGHT: Readonly<
   Record<string, { build: Build; special: Special; name: string }>
 > = {
   bunny: { build: 'speedy', special: 'pounce', name: 'Hop' },
+  blackcat: { build: 'speedy', special: 'pounce', name: 'Pounce' },
   frog: { build: 'speedy', special: 'spit', name: 'Spit' },
   ladybird: { build: 'tough', special: 'spit', name: 'Spot shot' },
   hedgehog: { build: 'tough', special: 'curl', name: 'Curl' },

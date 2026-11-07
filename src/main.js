@@ -36,13 +36,13 @@ import { LENS, LEVIATHANS, nextSeen, SCOPE_AT, SCOPE_REACH, SCOPE_SWING, seaZone
 import { CASTLE_LANDING, LANDING_R, LANDING_REACH, LANDING_STOP, FORGE_AT, FORGE_REACH, GARDEN_AT, BIG_TOWER_AT, BIG_TOWER_DOOR, BIG_TOWER_REACH, gardenReady, HQ, HQ_KINDS, noHq, PICK_REACH, PLANS_AT, PLANS_REACH, SHARP_RELOAD, sharpened } from './data/hq';
 import { drawForge, drawGardenPlant, drawHqTower, drawLanding, drawPlans, drawRoster } from './render/hq';
 import { COMPANION_BLURBS, COMPANION_NAMES, COMPANIONS, ROSTER_AT, ROSTER_REACH, WAIT_AT } from './data/stay';
-import { addDrawn, addXp, artOf, bookEntries, canDraw, fightOf, hatchEgg, letGo as letGoPet, nameOf, noPets, ownOf, pickFight, rename as renamePet, toggleWalk, xpOf } from './data/petsys';
+import { addDrawn, addXp, artOf, bookEntries, canDraw, fightOf, giveGift, gifted, hatchEgg, letGo as letGoPet, nameOf, noPets, ownOf, pickFight, rename as renamePet, toggleWalk, xpOf } from './data/petsys';
 import { levelOf as petLevelOf, levelUpLine, train as trainPets } from './data/training';
 import { FRIEND_KEYS, petStats, SPECIAL_COOL as PF_SPECIAL_COOL, trainerOpen, TRAINERS as PET_TRAINERS } from './data/petfight';
 import { BITE_COOL as PF_BITE_COOL, OVER_T as PF_OVER_T, PetFight } from './entities/petfight';
 import { drawFighter, drawFightGround, drawRing as drawPetRing } from './render/petfight';
 import { ringHtml, ringReady } from './ui/petring';
-import { EGG_HATCH_MS, eggDue as petEggDue, eggLeft, HATCHLING_ART, HATCHLING_NAMES, layEgg } from './data/eggs';
+import { EGG_HATCH_MS, eggDue as petEggDue, eggLeft, HATCHLING_ART, HATCHLING_NAMES, layEgg, painted as petPainted } from './data/eggs';
 import { COLOUR_NAMES, COLOURS, decode as decodeDoodle, Pad, rig as rigDoodle, SHAPE_NAMES as PAD_SHAPE_NAMES, SHAPES as PAD_SHAPES } from './data/doodle';
 import { drawDoodle, drawEgg, drawNestCrate, drawPad, drawPetHouse, drawPetPortrait, drawWalking, PIC_ZOOM, PORTRAIT_ZOOM, portraitView } from './render/petsys';
 import { LOVE_T as PET_LOVE_T, WalkingPet } from './entities/petwalk';
@@ -2108,6 +2108,9 @@ function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build),
   const size = (b) => ARMY_SIZE[b === warlock ? 'warlock' : b === tarling ? 'tarling' : b.kind] ?? 0;
   // The leggy muffins wait on the Garden Isle's lawn too, with or without any companions.
   leggy.lead = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) ? gardenLawn : null;
+  // And the black cat, if it is the pet walking with you (the owner's call): beside the muffins, not among them. A pet
+  // you drew stays at your heel.
+  petWalk.lead = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) && walkingDrawn() === HATCHLING_ART.blackcat ? catLawn : null;
   const list = walker.state === 'ashore' ? all.filter(b => b === tarling ? tarling.with : b.shown) : [];
   palsAshore = list.length;
   for (const b of all) if (!list.includes(b)){ b.heelAt = null; b.lead = null; }
@@ -2124,6 +2127,7 @@ function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build),
   else spreadOut(list, walker, dt, step); }
 let palsAshore = 0;
 const gardenLawn = (() => { const [x, y] = fromGarden(LAWN14.u, LAWN14.v); return {x, y, vx: 0, vy: 0}; })();
+const catLawn = (() => { const [x, y] = fromGarden(LAWN14.u - 16, LAWN14.v + 8); return {x, y}; })();
 function hurtWarlock(dt){ for (const h of IN_THE_WAY) hurtHelper(h, dt);
   for (const a of allies.list) hurtHelper({shown: a.state === 'fight', x: a.x, y: a.y, key: a, hurt: () => allies.hurt(a)}, dt); }
 // What would hurt the figure hurts a helper in the way: the warlock, the cat, the warrior or the bones.
@@ -3900,7 +3904,8 @@ function renderPetBook(){ $('petBookList').innerHTML = bookHtml(bookEntries(petS
   const i = $('petName'); if (i){ i.focus(); i.select(); } }
 // A drawing made ready to walk, kept while its text is the same.
 const DOODLE_RIGS = new Map();
-function doodleRig(d){ let r = DOODLE_RIGS.get(d); if (!r){ r = rigDoodle(decodeDoodle(d)); DOODLE_RIGS.set(d, r); } return r; }
+// A pet the game paints (the black cat's "@blackcat") has no strokes, only its kind, which drawDoodle paints instead.
+function doodleRig(d){ let r = DOODLE_RIGS.get(d); if (!r){ r = petPainted(d) ? {strokes: [], x0: 0, y0: 0, x1: 32, y1: 32, legs: new Map(), painted: d.slice(1)} : rigDoodle(decodeDoodle(d)); DOODLE_RIGS.set(d, r); } return r; }
 // Each card's picture, drawn while the book is open: a pet by its own renderer, a companion as it waits at the castle,
 // a drawn pet walking on the spot.
 function drawPetPics(){ if (!petBookOpen) return; const T0 = performance.now()/1000, dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -3994,10 +3999,11 @@ function petHatchCalm(){ return started && walker.state === 'aboard' && !cine &&
 function updatePetEggs(dt){ for (const [k, t] of yardLove){ if (t - dt <= 0) yardLove.delete(k); else yardLove.set(k, t - dt); }
   updatePetTraining(dt);
   if (hatching){ updateHatching(dt); return; }
+  if (updateCatGift(dt)) return;
   if (!petSave.eggs.some(e => petEggDue(e, Date.now())) || !petHatchCalm()){ petHatchT = 0; return; }
   petHatchT += dt; if (petHatchT < 2) return; petHatchT = 0;
   const out = hatchEgg(petSave, Date.now()); if (!out) return; save();
-  hatching = {t: 0, cue: 0, egg: out.egg, pet: out.pet, rig: rigDoodle(decodeDoodle(HATCHLING_ART[out.pet.sp] ?? ''))};
+  hatching = {t: 0, cue: 0, egg: out.egg, pet: out.pet, rig: doodleRig(HATCHLING_ART[out.pet.sp] ?? '')};
   $('hatchWord').textContent = 'An egg is shaking...'; $('hatchName').hidden = true; $('hatchCard').hidden = false; sfx.click(); requestAnimationFrame(drawHatching); }
 // Training at the pet house (data/training.ts): counted every few seconds while playing, and what was done while the
 // game was shut told a moment after it opens. Only pets at the house train; the one walking with you does not.
@@ -4005,15 +4011,30 @@ function updatePetTraining(dt){ petTrainT += dt; if (petTrainT < 5) return; petT
   if (petAwayUps.length){ toast(levelUpLine(petAwayUps, true), 4200, 1); sfx.tierUp(); petAwayUps = []; if (petBookOpen) renderPetBook(); return; }
   const ups = trainPets(petSave, Date.now()); if (!ups.length) return;
   toast(levelUpLine(ups, false), 3200, 1); sfx.tierUp(); save(); if (petBookOpen) renderPetBook(); }
+// The pet house keeper's gift, the owner's (2026-11-07: "I want a black cat"): the first time you walk up to the pet
+// house once it is built, the keeper gives you a black cat, named on the hatch card as a hatchling is (no egg).
+let catGiftT = 0;
+function updateCatGift(dt){
+  const here = started && petSave.house && !gifted(petSave, 'blackcat') && walker.state === 'ashore' && walker.dock === HOME_DOCK && floor < 0 && nearPetHouse(walker.x, walker.y)
+    && !cine && !mapOpen && !padOpen && !petBookOpen && !petFight && !ringSt;
+  if (!here){ catGiftT = 0; return false; }
+  catGiftT += dt; if (catGiftT < .8) return false; catGiftT = 0;
+  const pet = giveGift(petSave, 'blackcat', Date.now()); if (!pet) return false; save();
+  hatching = {t: HATCH_POP + .01, cue: HATCH_CRACKS.length + 1, egg: null, pet, rig: doodleRig(HATCHLING_ART.blackcat), gift: true};
+  $('hatchName').hidden = true; $('hatchCard').hidden = false; sfx.tierUp(); showHatchName(); requestAnimationFrame(drawHatching);
+  return true; }
 function updateHatching(dt){ const h = hatching; h.t += dt;
   while (h.cue < HATCH_CRACKS.length && h.t >= HATCH_CRACKS[h.cue]){ h.cue++; sfx.eggCrack(); $('hatchWord').textContent = h.cue < 3 ? 'Crack!' : 'Crrrrack!'; }
   if (h.cue === HATCH_CRACKS.length && h.t >= HATCH_POP){ h.cue++; sfx.tierUp(); $('hatchWord').textContent = `It's a ${(HATCHLING_NAMES[h.pet.sp] ?? h.pet.sp).toLowerCase()}!`; }
   if (h.t >= HATCH_NAME && $('hatchName').hidden) showHatchName(); }
 function showHatchName(){ const h = hatching; if (!h) return; h.t = Math.max(h.t, HATCH_POP + .01); h.cue = HATCH_CRACKS.length + 1;
-  $('hatchWord').textContent = `It's a ${(HATCHLING_NAMES[h.pet.sp] ?? h.pet.sp).toLowerCase()}!`; $('hatchNameIn').value = ''; $('hatchNameIn').placeholder = h.pet.nm; $('hatchName').hidden = false; }
+  $('hatchWord').textContent = h.gift ? 'The pet house keeper has a black cat for you! It has been waiting by the door.' : `It's a ${(HATCHLING_NAMES[h.pet.sp] ?? h.pet.sp).toLowerCase()}!`; $('hatchNameIn').value = ''; $('hatchNameIn').placeholder = h.pet.nm; $('hatchName').hidden = false; }
 function drawHatching(){ const h = hatching; if (!h) return; const [c2, w] = padCanvasFit($('hatchCanvas')), t = h.t; c2.clearRect(0, 0, w, w);
   const cx = w/2, foot = w*.78;
-  if (t < HATCH_POP){ const shake = (h.cue + 1) * .05 * Math.sin(t * (18 + h.cue*6)), swell = 1 + h.cue * .04;
+  if (h.gift){ const look = reduceMotion ? 1 : Math.sin(t*.8) >= 0 ? 1 : -1;
+    c2.fillStyle = 'rgba(0,0,0,.18)'; c2.beginPath(); c2.ellipse(cx, foot, w*.2, w*.045, 0, 0, Math.PI*2); c2.fill();
+    drawDoodle(c2, h.rig, cx, foot, w*.56, look, t*6, reduceMotion ? 0 : .4); }
+  else if (t < HATCH_POP){ const shake = (h.cue + 1) * .05 * Math.sin(t * (18 + h.cue*6)), swell = 1 + h.cue * .04;
     c2.fillStyle = 'rgba(0,0,0,.18)'; c2.beginPath(); c2.ellipse(cx, foot, w*.16, w*.04, 0, 0, Math.PI*2); c2.fill();
     drawEgg(c2, h.egg.k, cx, foot, w*.42*swell, reduceMotion ? 0 : shake, h.cue); }
   else { const u = Math.min(1, (t - HATCH_POP) / .5), hop = reduceMotion ? 0 : Math.abs(Math.sin((t - HATCH_POP) * 5)) * w*.05 * (1 - Math.min(1, (t - HATCH_POP) / 3));
