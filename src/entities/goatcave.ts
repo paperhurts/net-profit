@@ -29,7 +29,8 @@ export const LIE_H = 7;
 /** How long it freezes before it goes over, how long tipping takes, and how long it lies stiff. */
 export const FREEZE_T = 0.22;
 export const TIP_T = 0.28;
-export const FAINT_T = 8;
+/** Lying stiff long enough for a child to shove it, climb it and cross it (it was 8, too short, 2026-11-07). */
+export const FAINT_T = 14;
 /** After getting up, how long before it can be startled again. */
 export const CALM_T = 2;
 /** Going over, it startles a goat standing this far along the way it falls. */
@@ -89,6 +90,10 @@ export class GoatCave {
   face = 1;
   goats: CaveGoat[] = [];
   found = false;
+  /** Whether the figure has stood up on the checkpoint's ledge, so a splosh puts it back there. */
+  reached = false;
+  /** How many times it has gone in the fondue, for the hints. */
+  sploshes = 0;
   t = 0;
   onEvent: (e: CaveEvent) => void = () => {};
   private coyote = 0;
@@ -214,11 +219,25 @@ export class GoatCave {
       }
       this.vy = 0;
     } else this.y += dy;
-    // The fondue.
+    // Standing up on the high ledge, anywhere before the pit: from now on a splosh comes back up here.
+    const cp = this.room.checkpoint;
     const p = this.room.pit;
+    if (this.ground && this.y >= cp.y - 0.5 && this.x < (p ? p.x0 : Number.POSITIVE_INFINITY))
+      this.reached = true;
+    // The fondue.
     if (p && this.x > p.x0 && this.x < p.x1 && this.y < p.y1) {
+      this.sploshes++;
       this.onEvent('splosh');
       this.toDoor();
+      if (this.reached) {
+        this.x = cp.x;
+        this.y = cp.y;
+        // A goat standing (or lying) there: up on top of it instead of inside it.
+        for (const g of this.goats) {
+          const gb = goatBox(g);
+          if (overlap(this.figBox(), gb)) this.y = gb.y1;
+        }
+      }
     }
   }
 
