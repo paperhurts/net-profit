@@ -1424,19 +1424,37 @@ function endTreehouse(quiet = false){ const c = th; if (!c) return; th = null;
 let gc = null, gcT = 0, gcTop = 64, gcRoom = PAD_ROOM, gcCam = 0;
 function caveDoorNear(){ return walker.state === 'ashore' && walker.dock === GOAT_DOCK && floor < 0 && Math.hypot(walker.x - CAVE15_DOOR.x, walker.y - CAVE15_DOOR.y) < CAVE15_REACH; }
 function startCave(){ audio(); if (gc || th || ski || droneFly || droneFish || ctf) return;
-  gc = new GoatCave(ROOM1); gcT = 0; gcCam = gc.x; joy.on = false; toasts.clear(); sfx.whump();
+  gc = new GoatCave(ROOM1); gcT = 0; gcStuck = 0; gcUp = false; gcCam = gc.x; joy.on = false; toasts.clear(); sfx.whump();
   gc.onEvent = (what) => {
     if (what === 'jump') sfx.hop();
     else if (what === 'faint') sfx.faint();
-    else if (what === 'splosh'){ sfx.splash(); toasts.clear(); toast('Splosh! Into the warm fondue... and out again at the door, a bit cheesier.', 2600, 1); }
+    else if (what === 'splosh'){ sfx.splash(); toasts.clear();
+      if (gc.reached && !goatTold.has('caveGap')){ goatTold.add('caveGap'); toast(CAVE_GAP_HINT, 8000, 2); }
+      else toast(`Splosh! Into the warm fondue... and out again ${gc.reached ? 'up on the ledge' : 'at the door'}, a bit cheesier.`, 2600, 1); }
     else if (what === 'goatsplosh') sfx.splash();
     else if (what === 'found'){ const kind = ROOM1.find.kind, had = (goatIsle.kinds ?? []).includes(kind); sfx.rareCaught(); toasts.clear();
       if (!had){ goatIsle = {...goatIsle, kinds: [...(goatIsle.kinds ?? []), kind]}; save(); }
       toast(`${ROOM1.find.says} ${had ? '' : `Found: the ${KIND_NAMES[kind].toLowerCase()}! It is in your Goat Almanac, in the field guide.`}`.trim(), 6000, 2); } };
   document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false;
   gcTop = wayOutUp('Leave the cave', 'cave'); gcRoom = thPadRoom();
-  if (!goatTold.has('cave')){ goatTold.add('cave'); toast('The goat cave! The arrows walk and the jump button jumps. Bump into a goat and it faints, stiff as a plank: stand on it, or walk into it to shove it along. Something is waiting across the room.', 7000, 2); } }
-function updateCave(dt){ gcT += dt; const [sx] = thArrows(); gc.step(Math.min(dt, 1/30), sx); gcCam += (gc.x - gcCam) * Math.min(1, 4*dt); }
+  if (!goatTold.has('cave')){ goatTold.add('cave'); toast('The goat cave! The arrows walk, and the jump button (or the up arrow) jumps. Bump into a goat and it faints, stiff as a plank: stand on it, or walk into it to shove it along. Something is waiting across the room.', 7000, 2); } }
+// The hints, the first time a player stands stuck at either of the room's two puzzles (the owner, 2026-11-07: "We can't
+// get past the first lava").
+const CAVE_HIGH_HINT = 'Too high to jump! Bump a goat so it faints, shove it up against the ledge, then hop on it and up from there.';
+const CAVE_GAP_HINT = "Too far to jump! Bump the goat up here so it faints the way you're going, and keep pushing it out over the edge till it stops. Then hop on it, run to its far end and jump.";
+let gcStuck = 0;
+function caveHints(dt){ const c = gc, p = ROOM1.pit;
+  const high = !c.reached && c.ground && c.y < 1 && c.x > 140, gap = c.reached && c.ground && Math.abs(c.y - 30) < 0.5 && p && c.x > p.x0 - 22 && c.x < p.x0;
+  gcStuck = high || gap ? gcStuck + dt : 0;
+  if (gcStuck < 2.5) return;
+  const k = high ? 'caveHigh' : 'caveGap';
+  if (goatTold.has(k)) return;
+  goatTold.add(k); toasts.clear(); toast(high ? CAVE_HIGH_HINT : CAVE_GAP_HINT, 8000, 2); }
+// The up arrow jumps too, in the cave (where it does nothing else), since it is the first thing a child presses to go
+// up: once each time it goes down, like the button.
+let gcUp = false;
+function updateCave(dt){ gcT += dt; const [sx, sy] = thArrows(); const up = sy < -0.5; if (up && !gcUp) gc.press(); gcUp = up;
+  gc.step(Math.min(dt, 1/30), sx); gcCam += (gc.x - gcCam) * Math.min(1, 4*dt); if (gc) caveHints(dt); }
 function endCave(){ if (!gc) return; gc = null;
   document.body.classList.remove('droning'); elThPad.hidden = true; $('thJump').hidden = true; thStick.id = null; thStick.x = thStick.y = 0; thPadLit(); climbShown = undefined; leaveShown = undefined;
   walker.x = CAVE15_DOOR.x; walker.y = CAVE15_DOOR.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); toasts.clear(); toast('Out of the cave, blinking in the daylight.', 2200, 1); }

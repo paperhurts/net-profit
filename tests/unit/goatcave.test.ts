@@ -91,16 +91,49 @@ describe('the goat cave', () => {
     expect(c.x).toBeGreaterThan(175);
   });
 
-  it('falling in the fondue is a splosh and back to the door; the pit is too wide to jump', () => {
+  it('falling in the fondue is a splosh; the pit is too wide to jump, even from the very edge', () => {
     const { c, seen } = cave();
     park(c, []);
-    c.x = 236;
+    c.x = 248;
     c.y = 30;
-    run(c, 0.1);
+    run(c, 0.05);
     c.press();
     for (let i = 0; i < 120 && !seen.includes('splosh'); i++) c.step(DT, 1);
     expect(seen).toContain('splosh');
+    expect(c.sploshes).toBe(1);
+  });
+
+  it('a splosh before the high ledge is back to the door; once up on it, back up there', () => {
+    const { c } = cave();
+    park(c, []);
+    // Dropped straight in, never having stood on the ledge.
+    c.x = 260;
+    c.y = 0;
+    run(c, 0.5);
     expect(c.x).toBe(ROOM1.door.x);
+    expect(c.reached).toBe(false);
+    // Up on the ledge, then off its edge into the fondue.
+    c.x = 200;
+    c.y = 30;
+    run(c, 0.1);
+    expect(c.reached).toBe(true);
+    for (let i = 0; i < 240 && c.x !== ROOM1.checkpoint.x; i++) c.step(DT, 1);
+    expect(c.x).toBe(ROOM1.checkpoint.x);
+    expect(c.y).toBe(ROOM1.checkpoint.y);
+  });
+
+  it('back up on the ledge on top of a goat standing at the checkpoint, not inside it', () => {
+    const { c } = cave();
+    park(c, [2]);
+    const g = c.goats[2];
+    if (!g) throw new Error('no goat');
+    g.x = ROOM1.checkpoint.x;
+    c.x = 225;
+    c.y = 30;
+    run(c, 0.1);
+    for (let i = 0; i < 240 && c.sploshes === 0; i++) c.step(DT, 1);
+    run(c, 0.2);
+    expect(c.y).toBeGreaterThanOrEqual(30 + 7);
   });
 
   it('a fainted goat pushed out over the edge bridges the pit, and across it is the pygmy goat', () => {
@@ -125,10 +158,31 @@ describe('the goat cave', () => {
     hop(c, 1);
     expect(seen).not.toContain('splosh');
     expect(c.y).toBe(30);
-    expect(c.x).toBeGreaterThan(295);
+    expect(c.x).toBeGreaterThan(ROOM1.pit?.x1 ?? 0);
     run(c, 1, 1);
     expect(seen).toContain('found');
     expect(c.found).toBe(true);
+  });
+
+  it('the jump off the bridging goat lands from anywhere on its far half, holding right all the way', () => {
+    for (const along of [0, 4, 8]) {
+      const { c, seen } = cave();
+      park(c, [2]);
+      const g = c.goats[2];
+      if (!g) throw new Error('no goat');
+      c.x = 182;
+      c.y = 30;
+      g.x = 205;
+      run(c, 1.2, 1);
+      run(c, 3, 1);
+      hop(c, 1, 0.2);
+      walkTo(c, g.x + along);
+      hop(c, 1);
+      // On its feet on the far ledge (just its toes on, from the nearest of these), not in the fondue.
+      expect(seen).not.toContain('splosh');
+      expect(c.y).toBe(30);
+      expect(c.x).toBeGreaterThan((ROOM1.pit?.x1 ?? 0) - 4);
+    }
   });
 
   it('a goat going over startles the goat standing right where it falls', () => {

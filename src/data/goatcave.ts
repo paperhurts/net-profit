@@ -7,7 +7,7 @@
  * The first room is the puzzle the plan describes, and all a player needs to learn: a ledge too high to jump to, so
  * startle a goat at its foot and climb it; a gap too wide to jump, so push a fainted goat out over its edge and cross
  * on it. Across the gap is the first new kind of goat to find. Below the gap is a pit of warm cheese fondue: fall in
- * and it is a splosh and back to the door, nothing lost.
+ * and it is a splosh and back to the door (or, once up on the high ledge, back up there), nothing lost.
  */
 
 /** A block of rock: its left, right, bottom and top. */
@@ -51,6 +51,8 @@ export type CaveRoom = {
   pit: Rock | null;
   /** Where the figure comes in, at the door on the left. */
   door: { x: number; y: number };
+  /** Where a splosh puts the figure back, once it has stood on the ledge this is on (at this height, before the pit). */
+  checkpoint: { x: number; y: number };
   /** The fainting goats, where each starts. */
   goats: readonly { x: number; y: number }[];
   /** The goat to find here: its kind, where it stands, and what finding it says. */
@@ -59,7 +61,9 @@ export type CaveRoom = {
 
 /**
  * Room one, "The Way In": the floor from the door, a ledge 30 up (a jump is 26, a fainted goat is 7 tall), the pit
- * 50 across (a running jump is about 38), and the far ledge with a pygmy goat on it.
+ * 50 across (a running jump is about 38), and the far ledge with a pygmy goat on it. 50 is as narrow as it goes: at 48 a
+ * jump from the very edge, left as late as the jump allows, just makes it, and the puzzle is skipped. From a goat shoved
+ * out over the edge, a jump from anywhere on its far half lands.
  */
 export const ROOM1: CaveRoom = {
   name: 'The Way In',
@@ -81,6 +85,7 @@ export const ROOM1: CaveRoom = {
   ],
   pit: { x0: 245, x1: 295, y0: -40, y1: -14 },
   door: { x: 14, y: 0 },
+  checkpoint: { x: 190, y: 30 },
   goats: [
     { x: 70, y: 0 },
     { x: 125, y: 0 },

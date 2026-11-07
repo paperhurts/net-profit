@@ -124,7 +124,10 @@ type Np = {
   gc: {
     x: number;
     y: number;
-    goats: { x: number; state: string; t: number }[];
+    vy: number;
+    ground: boolean;
+    sploshes: number;
+    goats: { x: number; y: number; sx: number; sy: number; state: string; t: number }[];
   } | null;
   GOAT_HALL: number;
   GOAT_THRONE: number;
@@ -1307,6 +1310,25 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
   // The jump button jumps.
   await page.locator('#thJump').dispatchEvent('pointerdown');
   await page.waitForFunction(() => (window.__np.gc?.y ?? 0) > 5, null, { timeout: 2000 });
+  // And so does the up arrow, once it is down again.
+  await page.waitForFunction(() => !!window.__np.gc?.ground, null, { timeout: 3000 });
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(() => (window.__np.gc?.y ?? 0) > 5, null, { timeout: 2000 });
+  await page.keyboard.up('ArrowUp');
+  // Stuck at the edge of the fondue up on the ledge, a hint says how to cross; fall in, and it is back up on the ledge.
+  await page.evaluate(() => {
+    const c = window.__np.gc;
+    if (!c) return;
+    for (const g of c.goats) g.x = g.sx = g.y = g.sy = -1000;
+    c.x = 235;
+    c.y = 30;
+    c.vy = 0;
+  });
+  await expect(page.locator('#toast')).toContainText('Too far to jump', { timeout: 5000 });
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(() => (window.__np.gc?.sploshes ?? 0) > 0, null, { timeout: 3000 });
+  await page.keyboard.up('ArrowRight');
+  expect(await page.evaluate(() => window.__np.gc?.y)).toBe(30);
   // Out again, at the cave's mouth.
   await page.click('#leave');
   await page.waitForFunction(() => !window.__np.gc, null, { timeout: 4000 });
