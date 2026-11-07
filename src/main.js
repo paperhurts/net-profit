@@ -7387,6 +7387,8 @@ function drawWorldObjects(){
   if (build >= SMOKEHOUSE_STAGE) list.push({d: SMOKEHOUSE.x+SMOKEHOUSE.y, f: drawSmokehouse});
   if (build >= AQUARIUM_FROM && onScreen(AQUARIUM_MID.x, AQUARIUM_MID.y, 80*Z)) list.push({d: AQUARIUM_MID.x+AQUARIUM_MID.y, f: drawAquarium});
   if (build >= PET_HOUSE_FROM && onScreen(PET_HOUSE_MID.x, PET_HOUSE_MID.y, 80*Z)) list.push({d: PET_HOUSE_MID.x+PET_HOUSE_MID.y, f: () => drawPetHouse(drawView, petSave.house, PET_HOUSE, PET_HOUSE_WALL, PET_HOUSE_RIDGE, PET_TRAINERS.filter(t => !t.cup && petSave.won.includes(t.id)).map(t => t.ribbon), petSave.won.includes('champ'))});
+  // The sandy ring stands on the grass by the hut whenever the pet house is built, so there is somewhere to go for a battle.
+  if (petSave.house && !petFight && onScreen(PET_RING.x, PET_RING.y, 80*Z)) list.push({d: -Infinity, f: () => drawPetRing(drawView, PET_RING.x, PET_RING.y)});
   if (petFight){ const f = petFight, R = PET_RING, z = groundZ(R.x, R.y), rr = pfRigs;
     list.push({d: -Infinity, f: () => { drawPetRing(drawView, R.x, R.y); drawFightGround(drawView, f, R.x, R.y); }});
     for (const [p, r] of [[f.you, rr.you], [f.foe, rr.foe]]) list.push({d: walkerDepth(R.x + p.x, R.y + p.y, build, pierD, null), f: () => drawFighter(drawView, r, p, R.x, R.y, z, T)}); }
