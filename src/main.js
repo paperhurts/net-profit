@@ -1432,12 +1432,15 @@ function startCave(){ audio(); if (gc || th || ski || droneFly || droneFish || c
       if (gc.reached && !goatTold.has('caveGap')){ goatTold.add('caveGap'); toast(CAVE_GAP_HINT, 8000, 2); }
       else toast(`Splosh! Into the warm fondue... and out again ${gc.reached ? 'up on the ledge' : 'at the door'}, a bit cheesier.`, 2600, 1); }
     else if (what === 'goatsplosh') sfx.splash();
+    else if (what === 'grab') sfx.bleat();
+    else if (what === 'throw' || what === 'drop') sfx.hop();
+    else if (what === 'thud') sfx.whump();
     else if (what === 'found'){ const kind = ROOM1.find.kind, had = (goatIsle.kinds ?? []).includes(kind); sfx.rareCaught(); toasts.clear();
       if (!had){ goatIsle = {...goatIsle, kinds: [...(goatIsle.kinds ?? []), kind]}; save(); }
       toast(`${ROOM1.find.says} ${had ? '' : `Found: the ${KIND_NAMES[kind].toLowerCase()}! It is in your Goat Almanac, in the field guide.`}`.trim(), 6000, 2); } };
-  document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false;
+  document.body.classList.add('droning'); elThPad.hidden = false; $('thJump').hidden = false; elGcGrab.hidden = false; gcGrabLabel = ''; gcGrabShown();
   gcTop = wayOutUp('Leave the cave', 'cave'); gcRoom = thPadRoom();
-  if (!goatTold.has('cave')){ goatTold.add('cave'); toast('The goat cave! The arrows walk, and the jump button (or the up arrow) jumps. Bump into a goat and it faints, stiff as a plank: stand on it, or walk into it to shove it along. Something is waiting across the room.', 7000, 2); } }
+  if (!goatTold.has('cave')){ goatTold.add('cave'); toast('The goat cave! The arrows walk, and the jump button (or the up arrow) jumps. Bump into a goat and it faints, stiff as a plank: stand on it, shove it along, or grab it to carry, throw or stack. Something is waiting across the room.', 7000, 2); } }
 // The hints, the first time a player stands stuck at either of the room's two puzzles (the owner, 2026-11-07: "We can't
 // get past the first lava").
 const CAVE_HIGH_HINT = 'Too high to jump! Bump a goat so it faints, shove it up against the ledge, then hop on it and up from there.';
@@ -1454,9 +1457,15 @@ function caveHints(dt){ const c = gc, p = ROOM1.pit;
 // up: once each time it goes down, like the button.
 let gcUp = false;
 function updateCave(dt){ gcT += dt; const [sx, sy] = thArrows(); const up = sy < -0.5; if (up && !gcUp) gc.press(); gcUp = up;
-  gc.step(Math.min(dt, 1/30), sx); gcCam += (gc.x - gcCam) * Math.min(1, 4*dt); if (gc) caveHints(dt); }
+  gc.step(Math.min(dt, 1/30), sx); gcCam += (gc.x - gcCam) * Math.min(1, 4*dt); if (gc){ caveHints(dt); gcGrabShown(sx); } }
+// The grab button says what it will do: grab, or with a goat held, throw it (walking) or set it down (standing still).
+const elGcGrab = $('gcGrab');
+let gcGrabLabel = '';
+function gcGrabShown(sx = 0){ const t = !gc?.held ? 'Grab' : sx ? 'Throw' : 'Set down'; if (t !== gcGrabLabel){ gcGrabLabel = t; elGcGrab.textContent = t; } }
+function pressGrab(){ audio(); if (gc) gc.grab(); }
+elGcGrab.addEventListener('pointerdown', (e) => { e.preventDefault(); pressGrab(); });
 function endCave(){ if (!gc) return; gc = null;
-  document.body.classList.remove('droning'); elThPad.hidden = true; $('thJump').hidden = true; thStick.id = null; thStick.x = thStick.y = 0; thPadLit(); climbShown = undefined; leaveShown = undefined;
+  document.body.classList.remove('droning'); elThPad.hidden = true; $('thJump').hidden = true; elGcGrab.hidden = true; thStick.id = null; thStick.x = thStick.y = 0; thPadLit(); climbShown = undefined; leaveShown = undefined;
   walker.x = CAVE15_DOOR.x; walker.y = CAVE15_DOOR.y; walker.vx = walker.vy = 0; cam.x = walker.x; cam.y = walker.y; sfx.hop(); toasts.clear(); toast('Out of the cave, blinking in the daylight.', 2200, 1); }
 // The trench from the surface: a patch of darker water with bubbles coming up.
 function drawTrenchMark(){ if (!onScreen(TRENCH.x, TRENCH.y, (TRENCH.r + 60)*Z)) return;
@@ -6346,7 +6355,7 @@ function drawScan(){ if (!scanning) return;
   for (let i=0;i<3;i++){ const u = (T*1.4 + i/3) % 1; ctx.strokeStyle = `rgba(127,224,255,${(1 - u)*.85})`; ctx.lineWidth = 2*Z;
     ctx.beginPath(); ctx.ellipse(tx, ty, (8 + u*34)*Z, (4 + u*17)*Z, 0, 0, Math.PI*2); ctx.stroke(); }
   ctx.restore(); }
-window.addEventListener('keydown', e => { if (e.key !== ' ') return; if (droneFish){ e.preventDefault(); pressDrone(); return; } if (ski){ e.preventDefault(); pressTrick(); return; } if (th || gc){ e.preventDefault(); pressJump(); return; } if (droneFly) return;
+window.addEventListener('keydown', e => { if (gc && !e.repeat && (e.key === 'e' || e.key === 'x')){ e.preventDefault(); pressGrab(); return; } if (e.key !== ' ') return; if (droneFish){ e.preventDefault(); pressDrone(); return; } if (ski){ e.preventDefault(); pressTrick(); return; } if (th || gc){ e.preventDefault(); pressJump(); return; } if (droneFly) return;
   if (diving){ e.preventDefault(); diveThrow(); }
   else if (walker.state === 'ashore'){ e.preventDefault(); throwSpear(); } else if (harpoonTarget()){ e.preventDefault(); fireHarpoon(); } });
 // A tap, not a drag: ashore, a tap on the dog pats it, if the figure is near enough to reach.

@@ -127,6 +127,8 @@ type Np = {
     vy: number;
     ground: boolean;
     sploshes: number;
+    face: number;
+    held: object | null;
     goats: { x: number; y: number; sx: number; sy: number; state: string; t: number }[];
   } | null;
   GOAT_HALL: number;
@@ -1310,6 +1312,28 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
   // The jump button jumps.
   await page.locator('#thJump').dispatchEvent('pointerdown');
   await page.waitForFunction(() => (window.__np.gc?.y ?? 0) > 5, null, { timeout: 2000 });
+  // The grab button picks up a goat in front, and walking it says Throw; thrown, it lands stiff.
+  await expect(page.locator('#gcGrab')).toBeVisible();
+  await page.waitForFunction(() => !!window.__np.gc?.ground, null, { timeout: 3000 });
+  await page.evaluate(() => {
+    const c = window.__np.gc;
+    if (!c) return;
+    const g = c.goats[1];
+    if (!g) return;
+    g.state = 'pause';
+    g.t = 99;
+    g.x = c.x + 14;
+    g.y = c.y;
+    c.face = 1;
+  });
+  await page.locator('#gcGrab').dispatchEvent('pointerdown');
+  await page.waitForFunction(() => !!window.__np.gc?.held, null, { timeout: 2000 });
+  await page.keyboard.down('ArrowRight');
+  await expect(page.locator('#gcGrab')).toHaveText('Throw');
+  await page.locator('#gcGrab').dispatchEvent('pointerdown');
+  await page.keyboard.up('ArrowRight');
+  await page.waitForFunction(() => window.__np.gc?.held === null, null, { timeout: 2000 });
+  await expect(page.locator('#gcGrab')).toHaveText('Grab');
   // And so does the up arrow, once it is down again.
   await page.waitForFunction(() => !!window.__np.gc?.ground, null, { timeout: 3000 });
   await page.keyboard.down('ArrowUp');
