@@ -9,6 +9,12 @@
  * its side shoves it along the ground, out over an edge as far as it still rests on something. After a while it gets
  * up as if nothing happened. Nothing here can hurt the figure: the fondue pit is a splosh and back to the door, and a
  * goat that falls in climbs out at its own start.
+ *
+ * The grab button (the owner, 2026-11-07: "Can we pick up goats and throw them and stack them in the cave") picks up
+ * the goat in front, held stiff over the figure's head (a standing one faints from the fright, right there in its
+ * arms); pressed again while walking it throws it in an arc, and standing still it sets it down just in front, on top
+ * of whatever is there, which is how goats are stacked. A goat lies stiff as long as it is held, and the full time
+ * again from when it is let go; one at the bottom of a stack stays down until whatever is on it gets off.
  */
 import type { CaveRoom, Rock } from '../data/goatcave';
 
@@ -40,10 +46,16 @@ export const AMBLE = 10;
 export const PUSH = 34;
 /** How near the goat to find the figure must come. */
 export const FIND_R = 16;
+/** How far in front the figure reaches for a goat, and how hard it throws one: across and up. */
+export const GRAB_R = 6;
+export const THROW_VX = 90;
+export const THROW_VY = 120;
 
 export type CaveGoat = {
   x: number;
   y: number;
+  /** Flying across, thrown: until it lands or hits something. */
+  vx: number;
   vy: number;
   dir: number;
   state: 'amble' | 'pause' | 'startled' | 'faint';
@@ -66,7 +78,11 @@ export type CaveEvent =
   | 'splosh'
   | 'goatsplosh'
   | 'found'
-  | 'rise';
+  | 'rise'
+  | 'grab'
+  | 'throw'
+  | 'drop'
+  | 'thud';
 
 type Box = { x0: number; x1: number; y0: number; y1: number };
 
@@ -90,6 +106,8 @@ export class GoatCave {
   face = 1;
   goats: CaveGoat[] = [];
   found = false;
+  /** The goat held over the figure's head, if any. */
+  held: CaveGoat | null = null;
   /** Whether the figure has stood up on the checkpoint's ledge, so a splosh puts it back there. */
   reached = false;
   /** How many times it has gone in the fondue, for the hints. */
@@ -98,6 +116,7 @@ export class GoatCave {
   onEvent: (e: CaveEvent) => void = () => {};
   private coyote = 0;
   private buffer = 0;
+  private grabbing = false;
 
   constructor(
     readonly room: CaveRoom,
@@ -107,6 +126,7 @@ export class GoatCave {
     this.goats = room.goats.map((p, i) => ({
       x: p.x,
       y: p.y,
+      vx: 0,
       vy: 0,
       dir: i % 2 ? -1 : 1,
       state: 'pause',
@@ -133,6 +153,91 @@ export class GoatCave {
     this.buffer = BUFFER;
   }
 
+  /** The grab button: pick up the goat in front, or let go of the one held (done on the next step, which knows the arrows). */
+  grab(): void {
+    this.grabbing = true;
+  }
+
+  /** The goat within reach in front of the figure, not one it stands on: the nearest. */
+  private reachable(): CaveGoat | null {
+    let best: CaveGoat | null = null;
+    let bd = Number.POSITIVE_INFINITY;
+    for (const g of this.goats) {
+      if (g === this.held) continue;
+      const b = goatBox(g);
+      // Under its feet: standing on it, so not that one.
+      if (Math.abs(b.y1 - this.y) < 0.6 && b.x0 < this.x + FIG_HW && b.x1 > this.x - FIG_HW)
+        continue;
+      const front = this.face > 0 ? b.x0 - (this.x + FIG_HW) : this.x - FIG_HW - b.x1;
+      const level = b.y1 > this.y - 2 && b.y0 < this.y + FIG_H;
+      if (!level || front > GRAB_R || front < -(b.x1 - b.x0)) continue;
+      const d = Math.abs(g.x - this.x);
+      if (d < bd) {
+        bd = d;
+        best = g;
+      }
+    }
+    return best;
+  }
+
+  private takeOrLetGo(sx: number): void {
+    const h = this.held;
+    if (!h) {
+      const g = this.reachable();
+      if (!g) return;
+      // A standing goat faints stiff from the fright of being picked up.
+      if (g.state !== 'faint') {
+        g.state = 'faint';
+        this.onEvent('faint');
+      }
+      g.k = 1;
+      g.vx = g.vy = 0;
+      this.held = g;
+      this.carry();
+      this.onEvent('grab');
+      return;
+    }
+    // Let go: thrown if walking, set down just in front if standing still.
+    const out = { x0: 0, x1: 0, y0: 0, y1: 0 };
+    const at = (x: number, y: number) => {
+      out.x0 = x - LIE_HW;
+      out.x1 = x + LIE_HW;
+      out.y0 = y;
+      out.y1 = y + LIE_H;
+      return !this.blocked(out, h) && !overlap(out, this.figBox());
+    };
+    if (sx) {
+      if (!at(h.x, h.y)) return;
+      h.vx = this.face * THROW_VX;
+      h.vy = THROW_VY;
+      this.onEvent('throw');
+    } else {
+      // In front at the figure's feet; something there, then on top of it, as high as a stack might be.
+      const x = this.x + this.face * (FIG_HW + LIE_HW + 0.5);
+      let y = this.y;
+      while (y < this.y + 40 && !at(x, y)) y += 1;
+      if (!at(x, y)) return;
+      h.x = x;
+      h.y = y;
+      h.vx = 0;
+      h.vy = 0;
+      this.onEvent('drop');
+    }
+    // Already over, so the full stiff time from now, not the tipping.
+    h.state = 'faint';
+    h.t = FAINT_T;
+    h.k = 1;
+    this.held = null;
+  }
+
+  /** The held goat rides over the figure's head. */
+  private carry(): void {
+    const h = this.held;
+    if (!h) return;
+    h.x = this.x;
+    h.y = this.y + FIG_H + 0.5;
+  }
+
   private figBox(x = this.x, y = this.y): Box {
     return { x0: x - FIG_HW, x1: x + FIG_HW, y0: y, y1: y + FIG_H };
   }
@@ -143,8 +248,15 @@ export class GoatCave {
    */
   private blocked(b: Box, not: CaveGoat | null = null, fig = false): boolean {
     if (this.room.rock.some((r: Rock) => overlap(b, r))) return true;
+    const now = fig ? this.figBox() : null;
     return this.goats.some(
-      (g) => g !== not && (lying(g) || (fig && g.state !== 'faint')) && overlap(b, goatBox(g)),
+      (g) =>
+        g !== not &&
+        g !== this.held &&
+        (lying(g) || (fig && g.state !== 'faint')) &&
+        overlap(b, goatBox(g)) &&
+        // One that came down on top of the figure, it walks out of rather than being stuck in.
+        !(now && overlap(now, goatBox(g))),
     );
   }
 
@@ -159,7 +271,12 @@ export class GoatCave {
   step(dt: number, sx: number): void {
     this.t += dt;
     this.stepFigure(dt, sx);
-    for (const g of this.goats) this.stepGoat(g, dt);
+    if (this.grabbing) {
+      this.grabbing = false;
+      this.takeOrLetGo(sx);
+    }
+    this.carry();
+    for (const g of this.goats) if (g !== this.held) this.stepGoat(g, dt);
     // The goat to find.
     const f = this.room.find;
     if (!this.found && Math.abs(this.x - f.x) < FIND_R && Math.abs(this.y - f.y) < 10) {
@@ -184,7 +301,7 @@ export class GoatCave {
     let dx = want * WALK * dt;
     if (dx) {
       const nb = this.figBox(this.x + dx, this.y);
-      const hit = this.goats.find((g) => lying(g) && overlap(nb, goatBox(g)));
+      const hit = this.goats.find((g) => g !== this.held && lying(g) && overlap(nb, goatBox(g)));
       if (hit && this.y < goatBox(hit).y1 - 1) {
         const push = Math.sign(dx) * PUSH * dt;
         const moved = { ...goatBox(hit), x0: goatBox(hit).x0 + push, x1: goatBox(hit).x1 + push };
@@ -197,7 +314,9 @@ export class GoatCave {
       if (dx) {
         const ahead = this.figBox(this.x + dx, this.y);
         // Bumped into a standing goat: the figure stops, and over it goes.
-        const bumped = this.goats.find((g) => !lying(g) && overlap(ahead, goatBox(g)));
+        const bumped = this.goats.find(
+          (g) => g !== this.held && !lying(g) && overlap(ahead, goatBox(g)),
+        );
         if (bumped) this.startle(bumped, this.x);
         if (!this.blocked(ahead, null, true)) this.x += dx;
       }
@@ -247,7 +366,7 @@ export class GoatCave {
     const under = { ...b, y0: y, y1: b.y0 + 0.01 };
     for (const r of this.room.rock) if (overlap(under, r)) top = Math.max(top, r.y1);
     for (const g of this.goats)
-      if (g !== not && (lying(g) || (fig && g.state !== 'faint'))) {
+      if (g !== not && g !== this.held && (lying(g) || (fig && g.state !== 'faint'))) {
         const gb = goatBox(g);
         if (overlap(under, gb)) top = Math.max(top, gb.y1);
       }
@@ -262,22 +381,43 @@ export class GoatCave {
 
   private stepGoat(g: CaveGoat, dt: number): void {
     g.calm = Math.max(0, g.calm - dt);
-    // Falling, standing or lying.
+    // Thrown: across until it hits something, startling any standing goat it flies into.
+    if (g.vx) {
+      const b = goatBox(g);
+      const nx = g.x + g.vx * dt;
+      const nb = { ...b, x0: b.x0 + g.vx * dt, x1: b.x1 + g.vx * dt };
+      if (this.blocked(nb, g)) {
+        g.vx = 0;
+        this.onEvent('thud');
+      } else g.x = nx;
+      for (const o of this.goats)
+        if (o !== g && standing(o) && overlap(goatBox(g), goatBox(o)))
+          this.startle(o, g.x - g.vx, 0.05);
+    }
+    // Falling (or flying up, thrown), standing or lying.
     const b = goatBox(g);
-    if (!this.restsOn(b, g)) {
+    if (g.vy > 0 || !this.restsOn(b, g)) {
       g.vy -= GRAVITY * dt;
       const ny = g.y + g.vy * dt;
       const nb = { ...b, y0: ny, y1: ny + (b.y1 - b.y0) };
       if (this.blocked(nb, g)) {
-        g.y = this.topUnder(b, ny, g);
+        if (g.vy < 0) {
+          g.y = this.topUnder(b, ny, g);
+          if (g.vx) this.onEvent('thud');
+          g.vx = 0;
+        }
         g.vy = 0;
       } else g.y = ny;
-    } else g.vy = 0;
+    } else {
+      g.vy = 0;
+      g.vx = 0;
+    }
     const p = this.room.pit;
     if (p && g.x > p.x0 && g.x < p.x1 && g.y < p.y1) {
       this.onEvent('goatsplosh');
       g.x = g.sx;
       g.y = g.sy;
+      g.vx = 0;
       g.vy = 0;
       g.state = 'pause';
       g.k = 0;
@@ -337,6 +477,22 @@ export class GoatCave {
       return !this.blocked(b, g) && !overlap(b, this.figBox());
     };
     while (Math.abs(shift) > 0 && !fits(g.x + shift)) shift -= Math.sign(shift);
+    // No room just there (a thrown goat landed on it, say): the nearest room either side, then on top of what is there.
+    for (let d = 1; d <= 2 * LIE_HW && !fits(g.x + shift); d++) {
+      if (fits(g.x + d * g.dir)) shift = d * g.dir;
+      else if (fits(g.x - d * g.dir)) shift = -d * g.dir;
+    }
+    if (!fits(g.x + shift)) {
+      const top = this.topUnder(
+        { x0: g.x - LIE_HW, x1: g.x + LIE_HW, y0: g.y + 40, y1: g.y + 41 },
+        g.y,
+        g,
+      );
+      if (top > g.y && top - g.y <= LIE_H + 0.5) {
+        g.y = top;
+        shift = 0;
+      }
+    }
     if (!fits(g.x + shift)) {
       // No room to lie down here (squeezed between things): it just stays frozen a moment longer.
       g.t = 0.3;
@@ -363,7 +519,7 @@ export class GoatCave {
       this.ground && Math.abs(this.y - (g.y + LIE_H)) < 0.5 && fb.x1 > stand.x0 && fb.x0 < stand.x1;
     if (
       this.blocked(stand, g) ||
-      this.goats.some((o) => o !== g && lying(o) && o.y > g.y && overlap(stand, goatBox(o)))
+      this.goats.some((o) => o !== g && o !== this.held && o.y > g.y && overlap(stand, goatBox(o)))
     ) {
       g.t = 0.5;
       return;

@@ -172,31 +172,43 @@ export function drawCave(
     ctx.textAlign = 'center';
     ctx.fillText(KIND_NAMES[fd.kind], f.X(fd.x - 8), f.Y(fd.y + 22));
   }
-  // The fainting goats.
+  // The fainting goats (the one held over the figure's head after the figure, in front of it).
   for (const gt of c.goats) {
-    const look = COATS[gt.look % COATS.length] ?? PLAIN_GOAT;
-    const quiver = gt.state === 'faint' && gt.k >= 1 ? Math.sin(T * 40 + gt.look) * 0.4 * k : 0;
-    drawGoat(
-      ctx,
-      f.X(gt.x) + quiver,
-      f.Y(gt.y),
-      k * 0.85,
-      gt.dir,
-      look,
-      gt.state === 'amble' ? gt.step : 0,
-      gt.state === 'faint' ? gt.k : 0,
-    );
-    if (gt.state === 'startled') {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.strokeStyle = '#3A2614';
-      ctx.lineWidth = 2 * k;
-      ctx.font = `900 ${10 * k}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.strokeText('!', f.X(gt.x), f.Y(gt.y + 22));
-      ctx.fillText('!', f.X(gt.x), f.Y(gt.y + 22));
-    }
+    if (gt !== c.held) drawCaveGoat(ctx, f, gt, T);
   }
   drawCaver(ctx, f, c, look, T);
+  if (c.held) drawCaveGoat(ctx, f, c.held, T);
+}
+
+/** A goat in the cave: standing, ambling, frozen with a "!", or stiff on its back (quivering), in its coat. */
+function drawCaveGoat(
+  ctx: CanvasRenderingContext2D,
+  f: CaveFrame,
+  gt: GoatCave['goats'][number],
+  T: number,
+): void {
+  const k = f.k;
+  const look = COATS[gt.look % COATS.length] ?? PLAIN_GOAT;
+  const quiver = gt.state === 'faint' && gt.k >= 1 ? Math.sin(T * 40 + gt.look) * 0.4 * k : 0;
+  drawGoat(
+    ctx,
+    f.X(gt.x) + quiver,
+    f.Y(gt.y),
+    k * 0.85,
+    gt.dir,
+    look,
+    gt.state === 'amble' ? gt.step : 0,
+    gt.state === 'faint' ? gt.k : 0,
+  );
+  if (gt.state === 'startled') {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#3A2614';
+    ctx.lineWidth = 2 * k;
+    ctx.font = `900 ${10 * k}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.strokeText('!', f.X(gt.x), f.Y(gt.y + 22));
+    ctx.fillText('!', f.X(gt.x), f.Y(gt.y + 22));
+  }
 }
 
 /** The figure, side-on: legs walking, its shirt, its head, and the yellow hat. */
@@ -224,6 +236,17 @@ function drawCaver(
   ctx.stroke();
   ctx.fillStyle = look.shirt;
   ctx.fillRect(-3, -14, 6, 8);
+  // Arms up, holding a goat over its head.
+  if (c.held) {
+    ctx.strokeStyle = look.skin;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-2.6, -12.5);
+    ctx.lineTo(-4, -16.8);
+    ctx.moveTo(2.6, -12.5);
+    ctx.lineTo(4, -16.8);
+    ctx.stroke();
+  }
   ctx.fillStyle = look.skin;
   ctx.beginPath();
   ctx.arc(0, -16.5, 2.8, 0, Math.PI * 2);

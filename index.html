@@ -490,7 +490,7 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 @keyframes skipulse{to{transform:scale(1.08)}}
 /* The Treehouse Climb's arrows, bottom left, one thumb sliding between them; its jump button, bottom right. */
 #thPad{position:fixed;left:calc(12px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));z-index:3;width:156px;height:156px;touch-action:none;user-select:none;-webkit-user-select:none}
-#thPad[hidden],#thJump[hidden]{display:none}
+#thPad[hidden],#thJump[hidden],#gcGrab[hidden]{display:none}
 #thPad i{position:absolute;width:54px;height:54px;border-radius:15px;background:rgba(42,30,18,.62);box-shadow:0 4px 0 rgba(0,0,0,.25);display:grid;place-items:center;pointer-events:none}
 #thPad i::after{content:'';width:0;height:0;border:0 solid transparent}
 #thPad i[data-d=u]{left:51px;top:0}
@@ -506,6 +506,10 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #thJump{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(26px + env(safe-area-inset-bottom));z-index:3;width:100px;height:100px;border-radius:50%;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:20px;box-shadow:0 4px 0 rgba(0,0,0,.25);touch-action:none;user-select:none;-webkit-user-select:none}
 #thJump:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+/* The goat cave's grab button, beside the jump button: grab a goat, then throw it (walking) or set it down (still). */
+#gcGrab{position:fixed;right:calc(128px + env(safe-area-inset-right));bottom:calc(34px + env(safe-area-inset-bottom));z-index:3;width:80px;height:80px;border-radius:50%;
+  background:#F0C544;color:#3A2614;font-weight:800;font-size:17px;box-shadow:0 4px 0 rgba(0,0,0,.25);touch-action:none;user-select:none;-webkit-user-select:none}
+#gcGrab:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #ability .sweep,.abBtn .sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(8,16,24,.66) calc(var(--cd,0) * 360deg),transparent 0);pointer-events:none}
 .abBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 /* A battle's score along the top, where the order card was, and its result after. */
@@ -807,6 +811,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 <button id="skiTrick" hidden>Trick!</button>
 <div id="thPad" hidden role="group" aria-label="Arrows: walk, and climb the ladders"><i data-d="u"></i><i data-d="l"></i><i data-d="r"></i><i data-d="d"></i></div>
 <button id="thJump" hidden>Jump</button>
+<button id="gcGrab" hidden>Grab</button>
 <button id="ability" class="abBtn" hidden aria-label="Ability"><span class="abIcon" id="abilityIcon"></span><i class="sweep"></i></button>
 <button id="ability2" class="abBtn" hidden aria-label="Ability"><span class="abIcon"></span><i class="sweep"></i></button>
 <button id="ability3" class="abBtn" hidden aria-label="Ability"><span class="abIcon"></span><i class="sweep"></i></button>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROOM1 } from '../../src/data/goatcave';
-import { type CaveEvent, FAINT_T, GoatCave, LIE_H } from '../../src/entities/goatcave';
+import { type CaveEvent, FAINT_T, GoatCave, LIE_H, STAND_H } from '../../src/entities/goatcave';
 
 const DT = 1 / 60;
 /** A cave with its goats out of the way unless placed, and the events it gave. */
@@ -198,5 +198,162 @@ describe('the goat cave', () => {
     run(c, 1.5);
     expect(a.state).toBe('faint');
     expect(b.state).toBe('faint');
+  });
+
+  describe('picking goats up, throwing them and stacking them', () => {
+    /** The figure on the floor at x facing right, with goat i just in front of it, the rest out of the way. */
+    const setUp = (i = 0, x = 60) => {
+      const { c, seen } = cave();
+      park(c, [i]);
+      const g = c.goats[i];
+      if (!g) throw new Error('no goat');
+      g.x = x + 14;
+      g.y = 0;
+      c.x = x;
+      c.face = 1;
+      run(c, 0.05);
+      return { c, seen, g };
+    };
+
+    it('grabbing a standing goat in front: it faints stiff in the arms, held over the head', () => {
+      const { c, seen, g } = setUp();
+      c.grab();
+      run(c, 0.05);
+      expect(c.held).toBe(g);
+      expect(g.state).toBe('faint');
+      expect(seen).toContain('grab');
+      expect(g.y).toBeCloseTo(c.y + 16.5, 5);
+      // Carried along as the figure walks, and stiff all the while, however long.
+      run(c, 1, 1);
+      expect(g.x).toBeCloseTo(c.x, 5);
+      run(c, FAINT_T + 5);
+      expect(c.held).toBe(g);
+      expect(g.state).toBe('faint');
+    });
+
+    it('nothing in reach, nothing grabbed', () => {
+      const { c, seen } = setUp();
+      c.face = -1;
+      c.grab();
+      run(c, 0.05);
+      expect(c.held).toBe(null);
+      expect(seen).not.toContain('grab');
+    });
+
+    it('thrown while walking, it flies in an arc and lands lying stiff, well ahead', () => {
+      const { c, seen, g } = setUp();
+      c.grab();
+      run(c, 0.05);
+      const from = c.x;
+      c.grab();
+      run(c, 0.05, 1);
+      expect(c.held).toBe(null);
+      expect(seen).toContain('throw');
+      run(c, 1.2);
+      expect(g.y).toBe(0);
+      expect(g.vx).toBe(0);
+      expect(g.state).toBe('faint');
+      expect(g.k).toBe(1);
+      expect(g.x).toBeGreaterThan(from + 30);
+      // The full stiff time again from when it was thrown.
+      run(c, FAINT_T - 2);
+      expect(g.state).toBe('faint');
+    });
+
+    it('a thrown goat that flies into a standing goat startles it, and over it goes', () => {
+      const { c } = cave();
+      park(c, [0, 1]);
+      const [a, b] = c.goats;
+      if (!a || !b) throw new Error('no goats');
+      a.x = 74;
+      a.y = 0;
+      b.x = 110;
+      b.y = 0;
+      c.x = 60;
+      c.face = 1;
+      run(c, 0.05);
+      c.grab();
+      run(c, 0.05);
+      c.grab();
+      run(c, 0.05, 1);
+      run(c, 1.5);
+      expect(b.state).toBe('faint');
+    });
+
+    it('set down standing still, it lies just in front; a second set down there goes on top: a stack', () => {
+      const { c } = cave();
+      park(c, [0, 1]);
+      const [a, b] = c.goats;
+      if (!a || !b) throw new Error('no goats');
+      a.x = 74;
+      a.y = 0;
+      b.x = 40;
+      b.y = 0;
+      c.x = 60;
+      c.face = 1;
+      run(c, 0.05);
+      c.grab();
+      run(c, 0.05);
+      c.grab();
+      run(c, 0.05);
+      expect(c.held).toBe(null);
+      expect(a.y).toBe(0);
+      expect(a.x).toBeGreaterThan(c.x);
+      // Turn round for the other, pick it up, turn back and set it down on the first.
+      c.face = -1;
+      c.x = 54;
+      run(c, 0.05);
+      c.grab();
+      run(c, 0.05);
+      expect(c.held).toBe(b);
+      run(c, 0.1, 1);
+      c.x = 60;
+      c.grab();
+      run(c, 0.3);
+      expect(c.held).toBe(null);
+      expect(b.y).toBeCloseTo(LIE_H, 5);
+      // And the stack stands: the figure can climb it, two goats up.
+      walkTo(c, 50);
+      hop(c, 1, 0.25);
+      hop(c, 1, 0.2);
+      expect(c.y).toBeCloseTo(2 * LIE_H, 5);
+    });
+
+    it('the bottom goat of a stack stays down while one lies on it', () => {
+      const { c } = cave();
+      park(c, [0, 1]);
+      const [a, b] = c.goats;
+      if (!a || !b) throw new Error('no goats');
+      for (const g of [a, b]) {
+        g.state = 'faint';
+        g.k = 1;
+        g.x = 100;
+      }
+      a.y = 0;
+      a.t = 0.5;
+      b.y = LIE_H;
+      b.t = 5;
+      run(c, 2);
+      expect(a.state).toBe('faint');
+      run(c, 5);
+      // The top one is up and standing on it, so the bottom one still waits.
+      expect(b.state).not.toBe('faint');
+      expect(b.y).toBeCloseTo(LIE_H, 5);
+      expect(a.state).toBe('faint');
+    });
+
+    it("can't pick up the goat it stands on", () => {
+      const { c, g } = setUp();
+      g.state = 'faint';
+      g.k = 1;
+      g.t = 99;
+      g.x = c.x;
+      c.y = LIE_H;
+      run(c, 0.05);
+      c.grab();
+      run(c, 0.05);
+      expect(c.held).toBe(null);
+      expect(STAND_H).toBeGreaterThan(LIE_H);
+    });
   });
 });
