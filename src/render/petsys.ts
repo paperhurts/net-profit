@@ -134,6 +134,10 @@ export function drawDoodle(
   walk: number,
   hop = 0,
 ): void {
+  if (r.painted) {
+    drawPainted(ctx, r.painted, x, y - hop, size, face, ph, walk);
+    return;
+  }
   if (!r.strokes.length) return;
   const s = size / Math.max(r.x1 - r.x0, r.y1 - r.y0, 16);
   const bob = Math.abs(Math.sin(ph)) * size * 0.04 * walk;
@@ -508,4 +512,145 @@ export function drawPetHouse(
     ctx.quadraticCurveTo(sx - 2.6 * Z, sy - 3.2 * Z, sx - 2.8 * Z, sy - 8 * Z);
     ctx.fill();
   }
+}
+
+/**
+ * A pet the game paints rather than one drawn in strokes, standing in for drawDoodle with the same footing: feet at
+ * screen x, y, `size` pixels across, facing right (1) or left (-1), stepping with `ph` as much as `walk`.
+ */
+export function drawPainted(
+  ctx: CanvasRenderingContext2D,
+  kind: string,
+  x: number,
+  y: number,
+  size: number,
+  face: number,
+  ph: number,
+  walk: number,
+): void {
+  if (kind === 'blackcat') drawBlackCat(ctx, x, y, size, face, ph, walk);
+}
+
+const CAT_FUR = '#1C1A22';
+const CAT_RIM = '#4A4458';
+const CAT_EYE = '#F5C531';
+
+/**
+ * The pet house keeper's black cat (the owner's, 2026-11-07): side-on, black all over with a soft rim so it reads on
+ * dark ground and at night, round yellow eyes with slit pupils, pink inside its ears and on its nose, whiskers, and a
+ * tail that curls over at its tip and sways as it walks. About 24 across in its own units, drawn a little under `size`.
+ */
+export function drawBlackCat(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  face: number,
+  ph: number,
+  walk: number,
+): void {
+  const Z = size / 28;
+  const bob = Math.abs(Math.sin(ph)) * 0.6 * walk;
+  ctx.save();
+  ctx.translate(x, y - bob * Z);
+  ctx.scale(face * Z, Z);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Tail: up behind, curling over at the tip, swaying.
+  const sway = Math.sin(ph * 0.5) * 1.2;
+  ctx.strokeStyle = CAT_RIM;
+  ctx.lineWidth = 3.2;
+  const tail = () => {
+    ctx.beginPath();
+    ctx.moveTo(-6.5, -7);
+    ctx.quadraticCurveTo(-12.5, -8.5, -11.5 + sway * 0.5, -15);
+    ctx.quadraticCurveTo(-10.8 + sway, -19.5, -7.6 + sway, -18.4);
+    ctx.stroke();
+  };
+  tail();
+  ctx.strokeStyle = CAT_FUR;
+  ctx.lineWidth = 2.2;
+  tail();
+  // Legs: the far pair darker behind, the near pair in front, swinging in turn.
+  const swing = Math.sin(ph) * 2 * walk;
+  ctx.lineWidth = 1.9;
+  const legs = (xs: number[], s: number, colour: string) => {
+    ctx.strokeStyle = colour;
+    for (const [i, lx] of xs.entries()) {
+      const d = (i % 2 ? -1 : 1) * s;
+      ctx.beginPath();
+      ctx.moveTo(lx, -5);
+      ctx.lineTo(lx + d, -0.6);
+      ctx.stroke();
+    }
+  };
+  legs([-3.2, 4.6], -swing, '#0E0D12');
+  // Body and head.
+  ctx.fillStyle = CAT_FUR;
+  ctx.strokeStyle = CAT_RIM;
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.ellipse(0, -7, 7.6, 4.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  legs([-4.6, 3.2], swing, CAT_FUR);
+  const hx = 6.4;
+  const hy = -11.6;
+  // Ears, pink inside.
+  for (const e of [-1, 1]) {
+    ctx.fillStyle = CAT_FUR;
+    ctx.beginPath();
+    ctx.moveTo(hx + e * 3.6, hy - 1.6);
+    ctx.lineTo(hx + e * 2.8 + 0.4, hy - 7);
+    ctx.lineTo(hx + e * 0.4, hy - 3.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#C46A86';
+    ctx.beginPath();
+    ctx.moveTo(hx + e * 2.9, hy - 2.4);
+    ctx.lineTo(hx + e * 2.6 + 0.3, hy - 5.4);
+    ctx.lineTo(hx + e * 1.2, hy - 3.6);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = CAT_FUR;
+  ctx.beginPath();
+  ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // Round yellow eyes, slit pupils, a glint.
+  for (const e of [-1, 1]) {
+    const ex = hx + 1 + e * 1.75;
+    const ey = hy - 0.5;
+    ctx.fillStyle = CAT_EYE;
+    ctx.beginPath();
+    ctx.arc(ex, ey, 1.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0B0A0E';
+    ctx.beginPath();
+    ctx.ellipse(ex + 0.25, ey, 0.38, 1.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(ex - 0.4, ey - 0.5, 0.32, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Nose and whiskers.
+  ctx.fillStyle = '#E88AA2';
+  ctx.beginPath();
+  ctx.moveTo(hx + 3.2, hy + 1.3);
+  ctx.lineTo(hx + 4.4, hy + 1.3);
+  ctx.lineTo(hx + 3.8, hy + 2.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(214,208,226,.75)';
+  ctx.lineWidth = 0.35;
+  for (const w of [-0.7, 0.5]) {
+    ctx.beginPath();
+    ctx.moveTo(hx + 3.4, hy + 2);
+    ctx.lineTo(hx + 8.2, hy + 2 + w * 1.6);
+    ctx.stroke();
+  }
+  ctx.restore();
 }

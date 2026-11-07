@@ -15106,6 +15106,38 @@ test('eggs: one due hatches aboard with its reveal and a name, and one still wai
   expect(errors).toEqual([]);
 });
 
+test("the pet house keeper's black cat: given the first time you walk up, named, and it walks at your heel", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    build: 1,
+    trip: { x: 2745 + 30, y: 2400 + 40, h: 2.5, clock: 0.3, hold: [] },
+    pets: { house: true },
+  });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const w = window.__np.walker;
+    const H = window.__np.pets.PET_HOUSE;
+    w.x = (H.x0 + H.x1) / 2;
+    w.y = H.y1 + 10;
+  });
+  await expect(page.locator('#hatchCard')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#hatchWord')).toContainText('black cat');
+  await page.fill('#hatchNameIn', 'Midnight');
+  await page.click('#hatchKeep');
+  await expect(page.locator('#hatchCard')).toBeHidden();
+  const pets = await page.evaluate(() => window.__np.pets.save);
+  expect(pets.hatched.map((h) => [h.sp, h.nm])).toEqual([['blackcat', 'Midnight']]);
+  // Not given again, there or after a reload.
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#hatchCard')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.pets.save.hatched.length)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
 test('the pet house: built from the shop by the hut, its keeper gives an egg, and your pets play in its yard', async ({
   context,
   page,

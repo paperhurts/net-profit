@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { decode, rig } from '../../src/data/doodle';
-import { EGG_HATCH_MS, HATCHLING_ART, HATCHLING_NAMES, layEgg } from '../../src/data/eggs';
-import { FRIEND_KEYS } from '../../src/data/petfight';
+import {
+  EGG_HATCH_MS,
+  EGG_HATCHES,
+  HATCHLING_ART,
+  HATCHLING_NAMES,
+  layEgg,
+  painted,
+} from '../../src/data/eggs';
+import { FRIEND_KEYS, KIND_FIGHT } from '../../src/data/petfight';
 import {
   addDrawn,
   addXp,
@@ -17,6 +24,8 @@ import {
   defaultName,
   drawnKey,
   fightOf,
+  gifted,
+  giveGift,
   hatchEgg,
   letGo,
   NAME_MAX,
@@ -213,9 +222,10 @@ describe('the pet book', () => {
     });
   });
 
-  it('every kind that hatches has a name and a look that is a drawing', () => {
+  it('every kind that hatches has a name and a look that is a drawing, or one the game paints', () => {
     for (const sp of Object.keys(HATCHLING_NAMES))
-      expect(decode(HATCHLING_ART[sp]).length).toBeGreaterThan(2);
+      if (painted(HATCHLING_ART[sp])) expect(HATCHLING_ART[sp]).toBe(`@${sp}`);
+      else expect(decode(HATCHLING_ART[sp]).length).toBeGreaterThan(2);
     expect(
       parsePets({
         hatched: [
@@ -286,5 +296,43 @@ describe('the pet book', () => {
     expect(parsePets({ oxp: { dog: 'lots', muffins: 40, otter: 1e9 } }).oxp).toEqual({
       otter: 4500,
     });
+  });
+});
+
+describe("the pet house keeper's black cat", () => {
+  it('is given once, a pet of your own named for its kind, that saves and loads', () => {
+    const p = noPets();
+    const cat = giveGift(p, 'blackcat', 1000);
+    expect(cat?.nm).toBe('Black cat');
+    expect(cat?.from).toBe('gift');
+    expect(gifted(p, 'blackcat')).toBe(true);
+    expect(giveGift(p, 'blackcat', 2000)).toBe(null);
+    expect(p.hatched).toHaveLength(1);
+    const back = parsePets(JSON.parse(JSON.stringify(petsForSave(p))));
+    expect(back.hatched[0]?.sp).toBe('blackcat');
+    expect(gifted(back, 'blackcat')).toBe(true);
+    expect(artOf(back, 'h1')).toBe('@blackcat');
+  });
+
+  it('let go, it is not given again', () => {
+    const p = noPets();
+    giveGift(p, 'blackcat', 1000);
+    expect(letGo(p, 'h1')).toBe(true);
+    expect(giveGift(p, 'blackcat', 2000)).toBe(null);
+  });
+
+  it('never hatches from an egg, fights like a cat, and says where it came from in the book', () => {
+    for (const k of Object.values(EGG_HATCHES)) expect(k).not.toContain('blackcat');
+    expect(KIND_FIGHT.blackcat?.special).toBe('pounce');
+    const p = noPets();
+    giveGift(p, 'blackcat', 1000);
+    expect(fightOf(p, 'h1')).not.toBe(null);
+    const e = bookEntries(p, facts([])).find((b) => b.key === 'h1');
+    expect(e?.from).toContain('pet house keeper');
+  });
+
+  it('old saves have no gifts and read as none', () => {
+    expect(gifted(parsePets({ hatched: [] }), 'blackcat')).toBe(false);
+    expect(parsePets({ gifts: ['dragon', 'blackcat'] }).gifts).toEqual(['blackcat']);
   });
 });

@@ -166,6 +166,8 @@ export type PetSave = {
   won: string[];
   /** The friends you won (the dog, the otter, Neil, the crows), their experience from battles. */
   oxp: Partial<Record<FriendKey, number>>;
+  /** The kinds the pet house keeper has given (the black cat), each once: missing in old saves, and read as none. */
+  gifts?: string[];
 };
 
 export function noPets(): PetSave {
@@ -255,6 +257,9 @@ export function parsePets(v: unknown): PetSave {
     }
   const won = (v as { won?: unknown }).won;
   if (Array.isArray(won)) p.won = TRAINERS.map((t) => t.id).filter((id) => won.includes(id));
+  const gifts = (v as { gifts?: unknown }).gifts;
+  if (Array.isArray(gifts))
+    p.gifts = Object.keys(HATCHLING_NAMES).filter((sp) => gifts.includes(sp));
   return p;
 }
 
@@ -270,6 +275,7 @@ export function petsForSave(p: PetSave): Partial<PetSave> | undefined {
   if (p.house && p.tr) out.tr = p.tr;
   if (p.won.length) out.won = p.won;
   if (Object.keys(p.oxp).length) out.oxp = p.oxp;
+  if (p.gifts?.length) out.gifts = p.gifts;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -370,6 +376,29 @@ export function hatchEgg(p: PetSave, now: number): { egg: Egg; pet: HatchedPet }
   };
   p.hatched.push(pet);
   return { egg, pet };
+}
+
+/**
+ * A pet given, not hatched: the pet house keeper's black cat (the owner's, 2026-11-07). A pet of your own like any
+ * hatchling, named for its kind; none if there is no room or one of that kind was given already.
+ */
+export function giveGift(p: PetSave, sp: string, now: number): HatchedPet | null {
+  if (!HATCHLING_NAMES[sp] || p.hatched.length >= HATCHED_MAX || gifted(p, sp)) return null;
+  const pet: HatchedPet = {
+    id: p.hatched.reduce((m, q) => Math.max(m, q.id + 1), 1),
+    sp,
+    nm: HATCHLING_NAMES[sp] ?? sp,
+    got: Math.max(0, Math.floor(now)),
+    from: 'gift',
+  };
+  p.hatched.push(pet);
+  p.gifts = [...(p.gifts ?? []), sp];
+  return pet;
+}
+
+/** Whether a kind was given already: kept apart from the pets, so a gift let go is not given again. */
+export function gifted(p: PetSave, sp: string): boolean {
+  return (p.gifts ?? []).includes(sp);
 }
 
 /** Take a pet along, the one that walks with you; or, already walking, leave it in the book. Says whether it walks now. */
@@ -513,9 +542,11 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       name: h.nm,
       was: h.nm === kind ? null : kind,
       from:
-        h.from === 'gift'
-          ? 'Hatched from a gift egg.'
-          : 'Hatched from an egg from the Garden Isle.',
+        h.sp === 'blackcat'
+          ? 'A gift from the pet house keeper, who thought you looked like a cat person.'
+          : h.from === 'gift'
+            ? 'Hatched from a gift egg.'
+            : 'Hatched from an egg from the Garden Isle.',
       ...ownWhere(p, hatchedKey(h.id), h.xp),
       doodle: HATCHLING_ART[h.sp],
     };

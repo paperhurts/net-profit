@@ -17,6 +17,8 @@ export const JUMP = 60;
 const CATCH = 10;
 /** Seconds of a hop and its hearts after a pat. */
 export const LOVE_T = 1.4;
+/** How fast it walks off to a lead and back, a second. */
+export const STROLL = 42;
 
 export class WalkingPet implements Entity {
   /** Whether a pet walks with you at all. */
@@ -32,6 +34,12 @@ export class WalkingPet implements Entity {
   love = 0;
   /** On foot beside the figure, not aboard. */
   ashore = false;
+  /**
+   * Somewhere to go and wait instead of at the figure's heel, as the companions and the muffins do (the Garden Isle's
+   * lawn while the figure works the beds; the black cat's, the owner's call). Cleared, it walks back to the heel.
+   */
+  lead: { x: number; y: number } | null = null;
+  private returning = false;
   private trail: { x: number; y: number }[] = [];
 
   /** A pat: a hop and hearts. */
@@ -47,6 +55,29 @@ export class WalkingPet implements Entity {
       this.trail.length = 0;
       this.walk = Math.max(0, this.walk - dt * 4);
       return;
+    }
+    // Off to wait at its lead, or walking back from it: at a stroll, not a hop.
+    const to = this.lead ?? (this.returning && this.ashore ? f : null);
+    if (to) {
+      if (this.lead) this.returning = true;
+      const dx = to.x - this.x;
+      const dy = to.y - this.y;
+      const d = Math.hypot(dx, dy);
+      const near = this.lead ? 2 : HEEL * 0.6;
+      if (d > near) {
+        const s = Math.min(d, STROLL * dt);
+        this.x += (dx / d) * s;
+        this.y += (dy / d) * s;
+        this.h = Math.atan2(dy, dx);
+        this.walk += (1 - this.walk) * Math.min(1, dt * 8);
+        this.ph += dt * (4 + 6 * this.walk);
+        return;
+      }
+      this.walk = Math.max(0, this.walk - dt * 4);
+      if (this.lead) return;
+      // Back at the heel: the trail starts again from here.
+      this.returning = false;
+      this.trail = [{ x: f.x, y: f.y }];
     }
     const head = this.trail[0];
     if (!this.ashore || !head || Math.hypot(f.x - head.x, f.y - head.y) > JUMP) {

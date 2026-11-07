@@ -512,6 +512,8 @@ export type Rig = {
   x1: number;
   y1: number;
   legs: ReadonlyMap<number, { sign: 1 | -1; top: Pt }>;
+  /** A pet the game paints instead (data/eggs.ts painted): its kind, and no strokes. */
+  painted?: string;
 };
 
 export function rig(strokes: readonly Stroke[]): Rig {
