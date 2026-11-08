@@ -819,17 +819,27 @@ export class Horde implements Entity {
   ): void {
     const { ctx, T } = v;
     const sway = Math.sin(u.ph * 3) * (look.cape ? 0.5 : 1.5) * k;
-    // A vampire's cape behind it, black outside and red within, flaring as it comes.
+    // A vampire's cape behind it, the kid's "look like draclea": black outside and red within, wide to the
+    // ground, flaring as it comes and spread like wings as it lunges.
     if (look.cape) {
-      const flare = u.state === 'walk' ? Math.sin(u.ph * 6) * 1.5 * k : 0;
-      ctx.fillStyle = W('#7A1420');
-      ctx.beginPath();
-      ctx.moveTo(sx - 6 * k, base - 21 * k);
-      ctx.lineTo(sx + 6 * k, base - 21 * k);
-      ctx.lineTo(sx + (9 + flare) * k, base - 1 * k);
-      ctx.lineTo(sx - (9 + flare) * k, base - 1 * k);
-      ctx.closePath();
-      ctx.fill();
+      const flare =
+        (u.state === 'walk' ? Math.sin(u.ph * 6) * 1.5 : 0) + (u.state === 'windup' ? 4 : 0);
+      const cape = (w: number, top: number) => {
+        ctx.beginPath();
+        ctx.moveTo(sx - 6 * k, base - top * k);
+        ctx.lineTo(sx + 6 * k, base - top * k);
+        ctx.lineTo(sx + (w + flare) * k, base - 0.5 * k);
+        ctx.lineTo(sx + w * 0.5 * k, base + 0.8 * k);
+        ctx.lineTo(sx, base - 0.2 * k);
+        ctx.lineTo(sx - w * 0.5 * k, base + 0.8 * k);
+        ctx.lineTo(sx - (w + flare) * k, base - 0.5 * k);
+        ctx.closePath();
+        ctx.fill();
+      };
+      ctx.fillStyle = W('#100D14');
+      cape(11.5, 22);
+      ctx.fillStyle = W('#8E1626');
+      cape(9, 20);
     }
     ctx.lineCap = 'round';
     ctx.strokeStyle = W(look.legs);
@@ -851,6 +861,27 @@ export class Horde implements Entity {
     ctx.lineTo(sx - 5.5 * k, base - 9 * k);
     ctx.closePath();
     ctx.fill();
+    // A vampire's white shirt front, and a gold medallion on a red ribbon.
+    if (look.cape) {
+      ctx.fillStyle = W('#EDE8EE');
+      ctx.beginPath();
+      ctx.moveTo(sx - 2.2 * k + sway, base - 21 * k);
+      ctx.lineTo(sx + 2.2 * k + sway, base - 21 * k);
+      ctx.lineTo(sx + sway * 0.6, base - 14 * k);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = W('#B01E2E');
+      ctx.lineWidth = 0.6 * k;
+      ctx.beginPath();
+      ctx.moveTo(sx - 2.4 * k + sway, base - 21 * k);
+      ctx.lineTo(sx + sway * 0.7, base - 16.6 * k);
+      ctx.lineTo(sx + 2.4 * k + sway, base - 21 * k);
+      ctx.stroke();
+      ctx.fillStyle = W('#E8C04A');
+      ctx.beginPath();
+      ctx.arc(sx + sway * 0.7, base - 16 * k, 1.2 * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // Arms out in front, raised high for the swing.
     const up = u.state === 'windup' ? 7 : u.state === 'swing' ? -2 : 2;
     // A mummy's wrappings across its body.
@@ -864,17 +895,48 @@ export class Horde implements Entity {
       }
       ctx.stroke();
     }
-    ctx.strokeStyle = W(look.skin);
+    // Bare arms; a vampire's in black sleeves, its pale hands clawed.
+    ctx.strokeStyle = W(look.cape ? look.clothes : look.skin);
     ctx.lineWidth = 2.2 * k;
     for (const side of [-1, 1]) {
       ctx.beginPath();
       ctx.moveTo(sx + side * 3.5 * k + sway, base - 18 * k);
       ctx.lineTo(sx + face * 9 * k + side * 1.5 * k + sway, base - (17 + up) * k);
       ctx.stroke();
+      if (look.cape) {
+        ctx.fillStyle = W(look.skin);
+        ctx.beginPath();
+        ctx.arc(
+          sx + face * 9.6 * k + side * 1.5 * k + sway,
+          base - (17 + up) * k,
+          1.2 * k,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
     }
-    // A lolling green head with dark eyes.
-    const hx = sx + sway + Math.sin(T * 2 + u.ph) * 0.8 * k;
+    // A lolling green head with dark eyes (a vampire holds its still).
+    const hx = sx + sway + (look.cape ? 0 : Math.sin(T * 2 + u.ph) * 0.8 * k);
     const hy = base - 25 * k;
+    // A vampire's high stiff collar, standing up behind its head, red within.
+    if (look.cape) {
+      for (const [c, w, t] of [
+        ['#100D14', 7.6, 8.4],
+        ['#8E1626', 6.2, 7],
+      ] as const) {
+        ctx.fillStyle = W(c);
+        ctx.beginPath();
+        ctx.moveTo(hx - 3 * k, base - 20.6 * k);
+        ctx.lineTo(hx - w * k, hy - t * k + 2 * k);
+        ctx.lineTo(hx - 2 * k, hy - 1 * k);
+        ctx.lineTo(hx + 2 * k, hy - 1 * k);
+        ctx.lineTo(hx + w * k, hy - t * k + 2 * k);
+        ctx.lineTo(hx + 3 * k, base - 20.6 * k);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
     ctx.fillStyle = W(look.skin);
     ctx.beginPath();
     ctx.arc(hx, hy, 4.4 * k, 0, Math.PI * 2);
@@ -905,6 +967,19 @@ export class Horde implements Entity {
       ctx.fill();
     }
     ctx.fillRect(hx + face * 0.5 * k - 1.4 * k, hy + 2 * k, 2.8 * k, 0.8 * k);
+    // A vampire's two fangs.
+    if (look.cape) {
+      ctx.fillStyle = W('#FFFFFF');
+      for (const e of [-1, 1]) {
+        const fx = hx + face * 0.5 * k + e * 0.9 * k;
+        ctx.beginPath();
+        ctx.moveTo(fx - 0.45 * k, hy + 2.6 * k);
+        ctx.lineTo(fx + 0.45 * k, hy + 2.6 * k);
+        ctx.lineTo(fx, hy + 3.9 * k);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
     if (look.sword) {
       // A gold band on its brow, and a curved sword held out, raised high for the swing.
       ctx.fillStyle = W('#E2B33C');
