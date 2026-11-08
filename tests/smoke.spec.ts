@@ -1222,6 +1222,40 @@ test('Tomb Island: the undead in the maze wake when you come near, and a coffin 
   expect(errors).toEqual([]);
 });
 
+test('Tomb Island: the elites, the sword mummy at the gate to the castle square and the big necromancer at its door', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true, lever: true },
+    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  const elite = async (kind: string) =>
+    page.evaluate((k) => {
+      const h = window.__np.TOMB_HORDES.find((q) => q.list.some((u) => u.kind === k));
+      return h ? { x: h.room.x, y: h.room.y } : null;
+    }, kind);
+  for (const [kind, says] of [
+    ['mummyElite', 'sword mummy'],
+    ['necroElite', 'big necromancer'],
+  ] as const) {
+    const at = await elite(kind);
+    expect(at).not.toBeNull();
+    await page.evaluate((a) => {
+      const w = window.__np.walker;
+      w.x = (a?.x ?? 0) + 40;
+      w.y = a?.y ?? 0;
+    }, at);
+    await expect(page.locator('#toast')).toContainText(says, { timeout: 3000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 /** Seed a save, load the game, press Go, and return the page-error log. */
 test('Goat Isle: it rises in fog the first dawn with the flagship, the fog lifts as you sail close, and you land among the goats', async ({
   context,

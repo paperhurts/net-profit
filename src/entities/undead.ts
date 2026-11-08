@@ -33,7 +33,9 @@ export type UndeadKind =
   | 'necro'
   | 'lagoon'
   | 'mummy'
-  | 'vampire';
+  | 'vampire'
+  | 'mummyElite'
+  | 'necroElite';
 
 export type UndeadSpec = {
   hp: number;
@@ -156,6 +158,33 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     damage: 1,
     scale: 1.05,
   },
+  // Tomb Island's elites (part five), the kid's: "a mummy elite with a sword", twice a mummy's hits, its sword reaching
+  // further; and "a big necromancer" that "does 1 more damage": it comes at you swinging its staff for two hearts where
+  // a necromancer keeps back, and raises skeletons as it comes.
+  mummyElite: {
+    hp: 16,
+    speed: 34,
+    reach: 28,
+    windup: 0.6,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 0,
+    damage: 1,
+    scale: 1.45,
+  },
+  necroElite: {
+    hp: 14,
+    speed: 40,
+    reach: 26,
+    windup: 0.65,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 6,
+    damage: 2,
+    scale: 1.5,
+  },
 };
 
 /** How a zombie-shaped one looks: a zombie, a mummy in its wrappings, a vampire in its cape. */
@@ -166,6 +195,8 @@ type ZombieLook = {
   eyes: string;
   wraps?: boolean;
   cape?: boolean;
+  /** The mummy elite's: a gold band on its brow, and a sword in its hand. */
+  sword?: boolean;
 };
 const ZOMBIE: ZombieLook = {
   legs: '#4A3E30',
@@ -180,6 +211,7 @@ const MUMMY: ZombieLook = {
   eyes: '#F2C53A',
   wraps: true,
 };
+const MUMMY_ELITE: ZombieLook = { ...MUMMY, clothes: '#C9B98E', sword: true };
 const VAMPIRE: ZombieLook = {
   legs: '#1E1A24',
   clothes: '#1E1A24',
@@ -356,7 +388,7 @@ export class Horde implements Entity {
     let best: Undead | null = null;
     let bd = reach;
     for (const u of this.list) {
-      if (u.kind !== 'necro' || !Horde.up(u)) continue;
+      if ((u.kind !== 'necro' && u.kind !== 'necroElite') || !Horde.up(u)) continue;
       const d = Math.hypot(u.x - x, u.y - y);
       if (d <= bd) {
         bd = d;
@@ -639,10 +671,21 @@ export class Horde implements Entity {
     const moving = u.state === 'walk';
     const stride = moving ? Math.sin(u.ph * 9) * 3 * k : 0;
     if (u.kind === 'ghost') this.drawGhost(v, u, sx, base, k, W);
-    else if (u.kind === 'necro') this.drawNecro(v, u, sx, base, k, W, face);
+    else if (u.kind === 'necro' || u.kind === 'necroElite')
+      this.drawNecro(v, u, sx, base, k, W, face);
     else if (u.kind === 'zombie') this.drawZombie(v, u, sx, base, k, W, face, stride);
-    else if (u.kind === 'mummy' || u.kind === 'vampire')
-      this.drawZombie(v, u, sx, base, k, W, face, stride, u.kind === 'mummy' ? MUMMY : VAMPIRE);
+    else if (u.kind === 'mummy' || u.kind === 'vampire' || u.kind === 'mummyElite')
+      this.drawZombie(
+        v,
+        u,
+        sx,
+        base,
+        k,
+        W,
+        face,
+        stride,
+        u.kind === 'mummy' ? MUMMY : u.kind === 'vampire' ? VAMPIRE : MUMMY_ELITE,
+      );
     else if (u.kind === 'lagoon') this.drawLagoon(v, u, sx, base, k, W, face, stride);
     else this.drawSkeleton(v, u, sx, base, k, W, face, stride);
     if (u.state === 'rise') ctx.restore();
@@ -842,6 +885,31 @@ export class Horde implements Entity {
       ctx.fill();
     }
     ctx.fillRect(hx + face * 0.5 * k - 1.4 * k, hy + 2 * k, 2.8 * k, 0.8 * k);
+    if (look.sword) {
+      // A gold band on its brow, and a curved sword held out, raised high for the swing.
+      ctx.fillStyle = W('#E2B33C');
+      ctx.fillRect(hx - 4.4 * k, hy - 2.6 * k, 8.8 * k, 1.3 * k);
+      const up = u.state === 'windup' ? 1 : u.state === 'swing' ? -0.6 : 0.2;
+      const handX = sx + face * 9 * k + sway;
+      const handY = base - 18 * k;
+      ctx.strokeStyle = W('#C9CED6');
+      ctx.lineWidth = 1.6 * k;
+      ctx.beginPath();
+      ctx.moveTo(handX, handY);
+      ctx.quadraticCurveTo(
+        handX + face * 6 * k,
+        handY - (6 + up * 8) * k,
+        handX + face * 3 * k,
+        handY - (13 + up * 6) * k,
+      );
+      ctx.stroke();
+      ctx.strokeStyle = W('#8A6A2A');
+      ctx.lineWidth = 2 * k;
+      ctx.beginPath();
+      ctx.moveTo(handX - 2 * k, handY + 0.5 * k);
+      ctx.lineTo(handX + 2 * k, handY - 0.5 * k);
+      ctx.stroke();
+    }
   }
 
   /** A lagoon creature: green and scaly, a fin for a crest, big pale eyes, gills, and webbed claws. */
@@ -1024,5 +1092,24 @@ export class Horde implements Entity {
     ctx.beginPath();
     ctx.arc(gx, base - 32 * k, 2.4 * k, 0, Math.PI * 2);
     ctx.fill();
+    // The big necromancer: a crown of bone spikes on its hood, and its staff flaring as it winds up to swing.
+    if (u.kind === 'necroElite') {
+      ctx.fillStyle = W('#EDE8DA');
+      for (let i = -2; i <= 2; i++) {
+        const cx = sx + i * 2 * k;
+        ctx.beginPath();
+        ctx.moveTo(cx - 1 * k, base - 29 * k);
+        ctx.lineTo(cx, base - (32.5 + (i === 0 ? 1.5 : 0)) * k);
+        ctx.lineTo(cx + 1 * k, base - 29 * k);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if (u.state === 'windup') {
+        ctx.fillStyle = rgba('#B8FF7C', 0.35 + 0.25 * Math.sin(T * 20));
+        ctx.beginPath();
+        ctx.arc(gx, base - 32 * k, 8 * k, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 }
