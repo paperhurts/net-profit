@@ -127,6 +127,10 @@ type Np = {
   castleHordes: { list: { state: string }[]; cleared: boolean }[];
   CASTLE16_DOOR: { x: number; y: number };
   stairsHere(): { x: number; y: number };
+  topHorde: {
+    list: { kind: string; state: string; x: number; y: number; guard: boolean }[];
+    hit(u: unknown, power: number, x: number, y: number): boolean;
+  };
   tombFogK: number;
   LEVER16: { x: number; y: number; front: { x: number; y: number } };
   TOMB_DOCK: { x: number; y: number };
@@ -1326,6 +1330,78 @@ test("Tomb Island: past the big necromancer the castle's door opens, its floors 
       return h.cleared;
     }),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: Necromanda at the top of his castle, laughing, his fake tomb, and beaten for good', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true, lever: true },
+    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // In past the big necromancer and up the three floors, as if each were beaten.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const h = n.TOMB_HORDES[n.TOMB_HORDES.length - 1] as unknown as {
+      list: { state: string }[];
+      cleared: boolean;
+      onClear: () => void;
+    };
+    for (const u of h.list) u.state = 'gone';
+    h.cleared = true;
+    h.onClear();
+    n.walker.x = n.CASTLE16_DOOR.x;
+    n.walker.y = n.CASTLE16_DOOR.y + 4;
+  });
+  await expect(page.locator('#climb')).toHaveText('Into the castle', { timeout: 3000 });
+  await page.click('#climb');
+  for (let k = 0; k < 3; k++) {
+    await page.evaluate((k) => {
+      const n = window.__np;
+      const h = n.castleHordes[k];
+      if (!h) return;
+      for (const u of h.list) u.state = 'gone';
+      h.cleared = true;
+      const st = n.stairsHere();
+      n.walker.x = st.x;
+      n.walker.y = st.y;
+    }, k);
+    await expect(page.locator('#climb')).toHaveText('Climb the stairs', { timeout: 3000 });
+    await page.click('#climb');
+  }
+  await expect(page.locator('#toast')).toContainText('Necromanda!', { timeout: 3000 });
+  // The hearts show: this is a fight.
+  await expect(page.locator('#hearts')).toBeVisible();
+  const strike = (n: number) =>
+    page.evaluate((n) => {
+      const h = window.__np.topHorde;
+      for (let i = 0; i < n; i++) {
+        const u = h.list.find(
+          (q) => q.kind === 'necromanda' && !['fall', 'gone', 'rise', 'wait'].includes(q.state),
+        );
+        if (u) h.hit(u, 3, u.x + 20, u.y + 20);
+      }
+    }, n);
+  await page.waitForTimeout(600);
+  await strike(5);
+  await expect(page.locator('#toast')).toContainText('is he beaten?', { timeout: 3000 });
+  await expect(page.locator('#toast')).toContainText('FAKE', { timeout: 6000 });
+  await page.waitForTimeout(1200);
+  await strike(5);
+  // Whatever he raised goes down with him.
+  await expect(page.locator('#toast')).toContainText('beaten, for real', { timeout: 4000 });
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
+  );
+  expect(saved.boss).toBe(true);
   expect(errors).toEqual([]);
 });
 

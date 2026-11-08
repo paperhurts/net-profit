@@ -23,7 +23,7 @@ function skullAt(v: DrawView, sx: number, sy: number, k: number): void {
 }
 
 /** The things that dress a floor, drawn on its floor before anyone stands on it. */
-export function drawTombRoom16(v: DrawView, R: Room, i: number): void {
+export function drawTombRoom16(v: DrawView, R: Room, i: number, lidOff = false): void {
   const { ctx } = v;
   const Z = v.zoom;
   // Upright coffins against the back wall, lids shut, and skulls heaped between them.
@@ -51,7 +51,7 @@ export function drawTombRoom16(v: DrawView, R: Room, i: number): void {
       skullAt(v, v.px(x + dx, y), v.py(x + dx, y, 3 + dz), 1.1);
   }
   if (i === TRAP_FLOOR) drawSpikes(v);
-  if (i === TOMB_TOP) drawTop(v);
+  if (i === TOMB_TOP) drawTop(v, lidOff);
 }
 
 /** The spike plates: iron grates in the floor, their spikes shooting up in turn, a red glint just before. */
@@ -91,7 +91,7 @@ function drawSpikes(v: DrawView): void {
 }
 
 /** The top: his throne of bones at the back, his great tomb, and green fire either side. */
-function drawTop(v: DrawView): void {
+function drawTop(v: DrawView, lidOff: boolean): void {
   const { ctx } = v;
   const Z = v.zoom;
   const t = TOP_THRONE;
@@ -102,16 +102,20 @@ function drawTop(v: DrawView): void {
   for (const dx of [-10, 0, 10])
     skullAt(v, v.px(t.x + dx - 10, t.y - 12), v.py(t.x + dx - 10, t.y - 12, 54), 1.3);
   const g = TOP_TOMB;
-  v.box(g.x - 30, g.y - 16, 60, 32, 0, 14, '#6A6370', '#7E7684');
-  v.box(g.x - 32, g.y - 18, 64, 36, 14, 18, '#7E7684', '#9890A0');
-  ctx.strokeStyle = '#4A4452';
-  ctx.lineWidth = 1.4 * Z;
-  ctx.beginPath();
-  ctx.moveTo(v.px(g.x - 24, g.y), v.py(g.x - 24, g.y, 18));
-  ctx.lineTo(v.px(g.x + 24, g.y), v.py(g.x + 24, g.y, 18));
-  ctx.moveTo(v.px(g.x - 10, g.y - 8), v.py(g.x - 10, g.y - 8, 18));
-  ctx.lineTo(v.px(g.x - 10, g.y + 8), v.py(g.x - 10, g.y + 8, 18));
-  ctx.stroke();
+  // His fake tomb (part seven): once he has climbed out of it, its lid is shoved off askew and it is dark inside.
+  v.box(g.x - 30, g.y - 16, 60, 32, 0, 14, '#6A6370', lidOff ? '#14111A' : '#7E7684');
+  if (lidOff) v.box(g.x - 40, g.y + 6, 64, 36, 0, 4, '#7E7684', '#9890A0');
+  else {
+    v.box(g.x - 32, g.y - 18, 64, 36, 14, 18, '#7E7684', '#9890A0');
+    ctx.strokeStyle = '#4A4452';
+    ctx.lineWidth = 1.4 * Z;
+    ctx.beginPath();
+    ctx.moveTo(v.px(g.x - 24, g.y), v.py(g.x - 24, g.y, 18));
+    ctx.lineTo(v.px(g.x + 24, g.y), v.py(g.x + 24, g.y, 18));
+    ctx.moveTo(v.px(g.x - 10, g.y - 8), v.py(g.x - 10, g.y - 8, 18));
+    ctx.lineTo(v.px(g.x - 10, g.y + 8), v.py(g.x - 10, g.y + 8, 18));
+    ctx.stroke();
+  }
   for (const [dx, dy] of [
     [-60, 30],
     [30, -60],

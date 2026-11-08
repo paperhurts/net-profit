@@ -35,7 +35,8 @@ export type UndeadKind =
   | 'mummy'
   | 'vampire'
   | 'mummyElite'
-  | 'necroElite';
+  | 'necroElite'
+  | 'necromanda';
 
 export type UndeadSpec = {
   hp: number;
@@ -172,6 +173,20 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     summon: 0,
     damage: 3,
     scale: 1.45,
+  },
+  // The boss, the kid's Necromanda (part seven): "2 damage, 10 hits", laughing "ha ha". Ten hits whatever the spear
+  // (Horde.hit counts each as one), a staff swing for two hearts, and skeletons raised as he comes.
+  necromanda: {
+    hp: 10,
+    speed: 44,
+    reach: 30,
+    windup: 0.7,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 7,
+    damage: 2,
+    scale: 1.75,
   },
   necroElite: {
     hp: 14,
@@ -388,7 +403,11 @@ export class Horde implements Entity {
     let best: Undead | null = null;
     let bd = reach;
     for (const u of this.list) {
-      if ((u.kind !== 'necro' && u.kind !== 'necroElite') || !Horde.up(u)) continue;
+      if (
+        (u.kind !== 'necro' && u.kind !== 'necroElite' && u.kind !== 'necromanda') ||
+        !Horde.up(u)
+      )
+        continue;
       const d = Math.hypot(u.x - x, u.y - y);
       if (d <= bd) {
         bd = d;
@@ -425,7 +444,8 @@ export class Horde implements Entity {
       this.onBlock?.(u);
       return true;
     }
-    u.hp = Math.max(0, u.hp - power);
+    // Necromanda takes his ten hits one at a time, whatever strikes them.
+    u.hp = Math.max(0, u.hp - (u.kind === 'necromanda' ? 1 : power));
     u.flash = 0.2;
     const d = Math.hypot(u.x - fx, u.y - fy) || 1;
     walkStep(u, ((u.x - fx) / d) * 8, ((u.y - fy) / d) * 8, 99);
@@ -671,7 +691,7 @@ export class Horde implements Entity {
     const moving = u.state === 'walk';
     const stride = moving ? Math.sin(u.ph * 9) * 3 * k : 0;
     if (u.kind === 'ghost') this.drawGhost(v, u, sx, base, k, W);
-    else if (u.kind === 'necro' || u.kind === 'necroElite')
+    else if (u.kind === 'necro' || u.kind === 'necroElite' || u.kind === 'necromanda')
       this.drawNecro(v, u, sx, base, k, W, face);
     else if (u.kind === 'zombie') this.drawZombie(v, u, sx, base, k, W, face, stride);
     else if (u.kind === 'mummy' || u.kind === 'vampire' || u.kind === 'mummyElite')
@@ -1093,15 +1113,23 @@ export class Horde implements Entity {
     ctx.arc(gx, base - 32 * k, 2.4 * k, 0, Math.PI * 2);
     ctx.fill();
     // The big necromancer: a crown of bone spikes on its hood, and its staff flaring as it winds up to swing.
-    if (u.kind === 'necroElite') {
-      ctx.fillStyle = W('#EDE8DA');
+    // Necromanda's is the same, in gold and taller, a green gem in its middle.
+    if (u.kind === 'necroElite' || u.kind === 'necromanda') {
+      const boss = u.kind === 'necromanda';
+      ctx.fillStyle = W(boss ? '#E2B33C' : '#EDE8DA');
       for (let i = -2; i <= 2; i++) {
         const cx = sx + i * 2 * k;
         ctx.beginPath();
         ctx.moveTo(cx - 1 * k, base - 29 * k);
-        ctx.lineTo(cx, base - (32.5 + (i === 0 ? 1.5 : 0)) * k);
+        ctx.lineTo(cx, base - (32.5 + (i === 0 ? 1.5 : 0) + (boss ? 1.5 : 0)) * k);
         ctx.lineTo(cx + 1 * k, base - 29 * k);
         ctx.closePath();
+        ctx.fill();
+      }
+      if (boss) {
+        ctx.fillStyle = '#7CFF9A';
+        ctx.beginPath();
+        ctx.arc(sx, base - 30.2 * k, 0.9 * k, 0, Math.PI * 2);
         ctx.fill();
       }
       if (u.state === 'windup') {

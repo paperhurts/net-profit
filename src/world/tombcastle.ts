@@ -65,3 +65,12 @@ export function spikeAt(x: number, y: number): { x: number; y: number; set: numb
 /** The top: the necromancer's throne at its back, and the great tomb before it. */
 export const TOP_THRONE = at(TOMB_TOP, -95, -95);
 export const TOP_TOMB = at(TOMB_TOP, -30, -30);
+
+/** Necromanda (part seven): where he waits, before his throne; and where he climbs out of his fake tomb, at its foot. */
+export const NECROMANDA_AT = at(TOMB_TOP, -62, -62);
+export const FAKE_RISE = at(TOMB_TOP, -6, -6);
+/** At this many hits left he falls as if beaten, and this many seconds later climbs out of the tomb. */
+export const FAKE_AT = 5;
+export const FAKE_WAIT = 3.2;
+/** Seconds between his laughs while he stands. */
+export const LAUGH_EVERY = 5;
