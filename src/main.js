@@ -3445,7 +3445,9 @@ const seaWorld = Object.create(world); seaWorld.started = true;
  * moment he first dived, with him frozen out of sight). */
 const SEA_DOWN = ['away', 'dying', 'dead', 'sink'];
 const seaSunk = (b) => b.state === 'down' && !(b instanceof MeteorSerpent);
-const seaOut = (b) => !!b.done || seaSunk(b) || SEA_DOWN.includes(b.state);
+// The Reaper's 'sink' is him going back under after rearing up, whole, not beaten: until 2026-11-08 it counted, so a
+// Reaper who reared and sank could end a Battle Barge fight at sea, and paid a fog sea skeleton's prize unharpooned.
+const seaOut = (b) => !!b.done || seaSunk(b) || (SEA_DOWN.includes(b.state) && !(b instanceof Reaper && b.state === 'sink'));
 // A beaten Cthuluviathan sleeps on in its sunken city, which stays: it is never gone. The leviathan is, once sunk out of sight.
 const seaGone = (b) => b.state === 'dead' || seaSunk(b) || (b.state === 'away' && b.t > 5) || (!!b.done && b.state === 'gone') || b.gone === true;
 /** Where one is: the Cthuluviathan is its city, the leviathan where it has risen, or else its head. */
@@ -3567,7 +3569,8 @@ function boneDown(b){ if (b.boneDone) return; b.boneDone = true; const p = seaAt
 const fogBand = {update(dt){ const here = inFogSea(boat.x, boat.y) && !seaFight && tower !== BARGE;
     if (!here){ fogBones = []; return; }
     if (!fogBones.length) fogBones = BONE_SPOTS.map(fogBoneAt);
-    for (const b of fogBones){ if (seaGone(b)) continue; b.update(dt, world); if (seaOut(b)) boneDown(b); } },
+    // Beaten is only by the harpoon (fireHarpoon calls boneDown): one that only gives up, or goes under, is still up.
+    for (const b of fogBones){ if (seaGone(b)) continue; b.update(dt, world); } },
   draw(v, layer){ if (!fogBones.length) return; const bv = boneView(v); for (const b of fogBones) if (!seaGone(b)) b.draw(bv, layer); },
   radar(blip){ for (const b of fogBones) if (!seaGone(b)) b.radar(blip); }};
 // The summoning staff (data/merchant16.ts STAFF16), bought from Tomb Island's merchant: ashore anywhere, the two round
