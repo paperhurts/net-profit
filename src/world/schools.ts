@@ -8,10 +8,10 @@
  */
 import { clamp, rng } from '../core/math';
 import { DEEP_RINGS, FAR_RINGS, ISLE2_RINGS, ISLE3_RINGS, RINGS, type Ring } from '../data/tuning';
+import { FOG_GATE } from './fogsea';
 import { DEEP, FAR, IX, IY, WS } from './island';
 import { ISLE2 } from './isle2';
 import { ISLE3 } from './isle3';
-import { TOMB_ISLE } from './tombisle';
 
 export type Fish = {
   /** Offset from the school's centre before the school's slow spin. */
@@ -126,12 +126,11 @@ export function createSchools(
 /** The schools past the buoys, out where only the flagship goes. */
 export function createDeepSchools(R: () => number = rng(DEEP_SEED)): School[] {
   const schools = createSchools(R, DEEP_RINGS, MARGIN - DEEP, WS - MARGIN + DEEP);
-  // The west one would swim over Tomb Island: up the deep, past its fog's edge, where the water is open.
+  // The west one would swim in the fog wall to Tomb Island's sea (world/fogsea.ts): up the deep, clear of it.
   for (const sc of schools) {
-    const dy = sc.ay - TOMB_ISLE.y;
-    if (Math.hypot(sc.ax - TOMB_ISLE.x, dy) < TOMB_ISLE.r + sc.r + 120) {
-      sc.ay = TOMB_ISLE.y - TOMB_ISLE.r - sc.r - 220;
-      sc.ax = TOMB_ISLE.x;
+    if (Math.hypot(sc.ax - FOG_GATE.x, sc.ay - FOG_GATE.y) < FOG_GATE.r * 2.4 + sc.r + 200) {
+      sc.ay = FOG_GATE.y - FOG_GATE.r * 2.4 - sc.r - 500;
+      sc.ax = FOG_GATE.x;
       sc.cx = sc.ax;
       sc.cy = sc.ay;
       for (const f of sc.fish) {

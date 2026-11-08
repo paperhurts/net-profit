@@ -1513,3 +1513,15 @@ describe("Tomb Island's merchant", () => {
     expect(odd.tomb).toEqual({ seen: true });
   });
 });
+
+describe('the fog sea', () => {
+  it('keeps a boat saved out in the fog sea there, and still pulls back one saved past the sea it is in', async () => {
+    const { FOG_SEA, FOG_MID } = await import('../../src/world/fogsea');
+    const b = { ...bounds, deep: 5400, pockets: [FOG_SEA] };
+    const s = parseSave(legacy, b);
+    s.trip = { x: FOG_MID.x, y: FOG_MID.y + 1000, h: 0, clock: 0.3, hold: [] };
+    expect(parseSave(serializeSave(s), b).trip?.x).toBe(FOG_MID.x);
+    s.trip = { x: -20000, y: 2400, h: 0, clock: 0.3, hold: [] };
+    expect(parseSave(serializeSave(s), b).trip?.x).toBe(160 - 5400);
+  });
+});

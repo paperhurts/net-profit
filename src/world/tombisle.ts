@@ -8,17 +8,20 @@
  * tombs set into its walls, a way in and a way out, graves along its corridors, stone coffins in its dead ends, and in
  * the middle a square of rows of tombstones round the castle, its door shut. Nothing lives there yet.
  *
- * Where: every corner of the deep is taken, so it stands on the deep's west side, halfway between islands 3 and 2,
- * as big as fits there with water on both sides (my pick, hers to change: TOMB_ISLE is the one constant to move).
+ * Where: at first on the deep's west side, halfway between islands 3 and 2, as big as fitted there. Then the kid's
+ * word through the owner the same day: too small next to island 6, and living in a new ocean area of its own. So it
+ * stands in the middle of the fog sea (world/fogsea.ts), about 1,800 across round a maze the size it was, the new land
+ * round the maze given to fields of tombstones and dead trees.
  *
  * Its frame is the world's, shifted to its middle (u along x, v along y), so the maze's walls stay square to the
  * world, as every building's do, and read as the iso diamonds the rest of the game is drawn in.
  */
 import { rng } from '../core/math';
-import { DEEP, IY, type Point } from './island';
+import { FOG_MID } from './fogsea';
+import type { Point } from './island';
 
 /** Its middle, and how far out its shore can reach. */
-export const TOMB_ISLE = { x: -DEEP / 2, y: IY, r: 480 } as const;
+export const TOMB_ISLE = { x: FOG_MID.x, y: FOG_MID.y, r: 900 } as const;
 
 export const toTomb = (x: number, y: number): [number, number] => [
   x - TOMB_ISLE.x,
@@ -28,7 +31,7 @@ export const fromTomb = (u: number, v: number): Point => [TOMB_ISLE.x + u, TOMB_
 
 /** Its waterline, at an angle round its middle: a rough round of rock and grey sand, never past TOMB_ISLE.r. */
 export function shoreR16(a: number): number {
-  return 460 + 10 * Math.sin(5 * a + 1) + 6 * Math.sin(9 * a + 0.4);
+  return 862 + 18 * Math.sin(5 * a + 1) + 12 * Math.sin(9 * a + 0.4) + 6 * Math.sin(3 * a);
 }
 /** How far in from the waterline the figure can walk. */
 export const SHORE_IN16 = 12;
@@ -276,12 +279,42 @@ export const STONES16: readonly Stone16[] = (() => {
 })();
 
 /**
- * The merchant (part three, data/merchant16.ts): a man in a black cloak under a tattered awning on the beach, just
- * below the outer wall and off to the left of the way up to the Way in. He stands in the way; the figure talks to him
+ * The land round the maze (since the island grew): fields of tombstones in rows on the open ground between the maze's
+ * outer wall and the beach, clear of the paths to the way in and the way out; and dead trees between them. Both stand
+ * in the way.
+ */
+const FIELD_ANGLES = [0.1, 0.65, 1.05, 2.2, 2.7, 3.2, 3.75, 5.35, 5.9];
+export const FIELDS16: readonly Stone16[] = (() => {
+  const out: Stone16[] = [];
+  let n = 0;
+  for (const a of FIELD_ANGLES)
+    for (const dr of [-42, 0, 42])
+      for (let t = -2; t <= 2; t++) {
+        const r = 640 + dr;
+        const b = a + (t * 28) / r;
+        const [x, y] = fromTomb(Math.cos(b) * r, Math.sin(b) * r);
+        out.push({ x, y, lean: Math.sin(n * 2.3) * 0.18, kind: n % 3 });
+        n++;
+      }
+  return out;
+})();
+export const TREES16: readonly { x: number; y: number; h: number; k: number }[] = [
+  0.38, 0.86, 1.7, 2.45, 2.95, 3.48, 4.05, 4.5, 4.95, 5.62,
+].map((a, i) => {
+  const r = i % 2 ? 560 : 760;
+  const [x, y] = fromTomb(Math.cos(a) * r, Math.sin(a) * r);
+  return { x, y, h: 44 + (i % 3) * 10, k: i };
+});
+export const TREE_R = 6;
+
+/**
+ * The merchant (part three, data/merchant16.ts): a man in a black cloak under a tattered awning on the beach at the top
+ * of the jetty, off to the left of the way up to the Way in. He stands in the way; the figure talks to him
  * from anywhere near.
  */
 export const MERCHANT16 = (() => {
-  const [x, y] = fromTomb(-128, WAY_IN16.v + 18);
+  // Since the island grew, at the top of the jetty, the first thing you meet, off to the left of the path.
+  const [x, y] = fromTomb(-62, shoreR16(Math.PI / 2) - 80);
   return { x, y };
 })();
 export const MERCHANT_R = 6;
@@ -463,6 +496,10 @@ export function onIsle16(x: number, y: number): boolean {
   if (Math.hypot(x - LEVER16.x, y - LEVER16.y) < LEVER_R) return false;
   if (Math.hypot(x - MERCHANT16.x, y - MERCHANT16.y) < MERCHANT_R) return false;
   if (STONES16.some((s) => Math.hypot(x - s.x, y - s.y) < STONE_R)) return false;
+  if (d > 420) {
+    if (FIELDS16.some((s) => Math.hypot(x - s.x, y - s.y) < STONE_R)) return false;
+    if (TREES16.some((t) => Math.hypot(x - t.x, y - t.y) < TREE_R)) return false;
+  }
   return !GRAVES16.some((g) => Math.hypot(x - g.hx, y - g.hy) < STONE_R);
 }
 

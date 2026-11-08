@@ -66,28 +66,44 @@ const has = (s: Set<string>, x: number, y: number, step = 4) =>
   );
 
 describe('Tomb Island', () => {
-  it('stands in the deep on its west side, halfway between islands 3 and 2, with water all round it', () => {
-    expect(pastBuoys(TOMB_ISLE.x, TOMB_ISLE.y)).toBe(true);
-    expect(pastFar(TOMB_ISLE.x, TOMB_ISLE.y)).toBe(false);
-    // Its shore and its jetty inside the deep, a channel left between it and the deep's end.
-    expect(TOMB_ISLE.x - TOMB_ISLE.r).toBeGreaterThan(-DEEP + 100);
-    expect(TOMB_ISLE.x + TOMB_ISLE.r).toBeLessThan(-100);
-    expect(Math.abs(from(ISLE3.x, ISLE3.y) - from(ISLE2.x, ISLE2.y))).toBeLessThan(1);
-    for (const i of [ISLE2, ISLE3, ISLE5])
-      expect(from(i.x, i.y)).toBeGreaterThan(i.r + TOMB_ISLE.r + FOG16);
+  it('stands in the middle of a fog sea of its own, far from everything else, its way in a wall of fog in the deep', async () => {
+    const { FOG_EXIT, FOG_GATE, FOG_IN, FOG_OUT, FOG_SEA, inFogSea } = await import(
+      '../../src/world/fogsea'
+    );
+    const { FAR, FARFAR } = await import('../../src/world/island');
+    const { ISLE6 } = await import('../../src/world/isle6');
+    expect(inFogSea(TOMB_ISLE.x, TOMB_ISLE.y)).toBe(true);
+    // The whole island and its fog inside the fog sea; the fog sea well past everything at sea.
+    expect(TOMB_ISLE.x - TOMB_ISLE.r - FOG16).toBeGreaterThan(FOG_SEA.x0);
+    expect(TOMB_ISLE.x + TOMB_ISLE.r + FOG16).toBeLessThan(FOG_SEA.x1);
+    expect(FOG_SEA.x1).toBeLessThan(-(DEEP + FAR + FARFAR) - 1000);
+    // Bigger than island 6 (the kid's ask), round a maze the size it was.
+    expect(TOMB_ISLE.r).toBeGreaterThan(ISLE6.r);
     for (let a = 0; a < Math.PI * 2; a += 0.01)
       expect(shoreR16(a)).toBeLessThanOrEqual(TOMB_ISLE.r);
-    // Its dock is out past the buoys, so only the flagship ties up there.
-    expect(pastBuoys(DOCK16.x - DOCK16.r, DOCK16.y)).toBe(true);
-    expect(pastBuoys(DOCK16.x + DOCK16.r, DOCK16.y)).toBe(true);
-    expect(DOCK16.x + DOCK16.r).toBeLessThan(0);
+    // The way in: a wall of fog in the deep where the island used to stand, in open water.
+    expect(pastBuoys(FOG_GATE.x, FOG_GATE.y)).toBe(true);
+    expect(pastFar(FOG_GATE.x, FOG_GATE.y)).toBe(false);
+    for (const i of [ISLE2, ISLE3, ISLE5])
+      expect(Math.hypot(i.x - FOG_GATE.x, i.y - FOG_GATE.y)).toBeGreaterThan(i.r + 800);
+    // Coming out of either wall lands clear of both walls, so nobody bounces straight back.
+    expect(inFogSea(FOG_IN.x, FOG_IN.y)).toBe(true);
+    expect(Math.hypot(FOG_IN.x - FOG_EXIT.x, FOG_IN.y - FOG_EXIT.y)).toBeGreaterThan(
+      FOG_EXIT.r + 60,
+    );
+    expect(Math.hypot(FOG_OUT.x - FOG_GATE.x, FOG_OUT.y - FOG_GATE.y)).toBeGreaterThan(
+      FOG_GATE.r + 60,
+    );
+    expect(pastBuoys(FOG_OUT.x, FOG_OUT.y)).toBe(true);
+    expect(inFogSea(DOCK16.x, DOCK16.y)).toBe(true);
+    expect(WS).toBe(4800);
   });
 
   it('is big: much bigger than Goat Isle, with a maze of over a hundred corridors', () => {
     let cells = 0;
     for (let i = 0; i < 15; i++) for (let j = 0; j < 15; j++) if (isMaze(i, j)) cells++;
     expect(cells).toBeGreaterThan(100);
-    expect(TOMB_ISLE.r * 2).toBeGreaterThan(900);
+    expect(TOMB_ISLE.r * 2).toBeGreaterThan(1700);
   });
 
   it('lays out the same maze every time, every corridor joined to every other one way only', () => {
@@ -186,9 +202,11 @@ describe('Tomb Island', () => {
     expect(from(p.x, p.y)).toBeGreaterThan(TOMB_ISLE.r);
   });
 
-  it('keeps the deep’s fish schools off it', () => {
+  it('keeps the deep’s fish schools out of the fog wall', async () => {
+    const { FOG_GATE } = await import('../../src/world/fogsea');
     for (const s of createDeepSchools())
-      expect(from(s.ax, s.ay)).toBeGreaterThan(TOMB_ISLE.r + s.r);
-    expect(WS).toBe(4800);
+      expect(Math.hypot(s.ax - FOG_GATE.x, s.ay - FOG_GATE.y)).toBeGreaterThan(
+        FOG_GATE.r * 2.4 + s.r + 60,
+      );
   });
 });
