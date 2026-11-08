@@ -74,6 +74,8 @@ describe("Tomb Island's undead", () => {
   it('makes the elites tougher: the sword mummy twice a mummy, the big necromancer one more damage', () => {
     expect(UNDEAD.mummyElite.hp).toBe(UNDEAD.mummy.hp * 2);
     expect(UNDEAD.mummyElite.reach).toBeGreaterThan(UNDEAD.mummy.reach);
+    // Elite soldiers: three hearts a swing.
+    expect(UNDEAD.mummyElite.damage).toBe(3);
     expect(UNDEAD.necroElite.damage).toBe(UNDEAD.necro.damage + 1);
     expect(UNDEAD.necroElite.summon).toBeGreaterThan(0);
     expect(UNDEAD.necroElite.scale).toBeGreaterThan(UNDEAD.necro.scale);

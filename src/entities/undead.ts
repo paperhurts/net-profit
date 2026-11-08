@@ -159,7 +159,7 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     scale: 1.05,
   },
   // Tomb Island's elites (part five), the kid's: "a mummy elite with a sword", twice a mummy's hits, its sword reaching
-  // further; and "a big necromancer" that "does 1 more damage": it comes at you swinging its staff for two hearts where
+  // further and taking three hearts ("they are elite soldiers", his word through the owner, 2026-11-08); and "a big necromancer" that "does 1 more damage": it comes at you swinging its staff for two hearts where
   // a necromancer keeps back, and raises skeletons as it comes.
   mummyElite: {
     hp: 16,
@@ -170,7 +170,7 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     shoot: 0,
     block: false,
     summon: 0,
-    damage: 1,
+    damage: 3,
     scale: 1.45,
   },
   necroElite: {

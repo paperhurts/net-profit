@@ -3347,7 +3347,7 @@ const UNDEAD_COINS = 15;
 const tombHordes = HAUNTS16.map(h => new Horde(h, h.spawns)), coffinHordes = COFFIN_ROOMS.map(r => new Horde(r, []));
 // The elites (part five): the sword mummy at the gate into the square, the big necromancer before the castle door.
 const eliteHordes = ELITES16.map(h => new Horde(h, h.spawns));
-const ELITE_WAKE = {mummyElite: 'The sword mummy! Twice as tough as a mummy, and its sword reaches further. It guards the way into the castle square.', necroElite: 'The big necromancer! It comes at you swinging its staff, two hearts a hit, and raises skeletons as it comes. Spear it first.'};
+const ELITE_WAKE = {mummyElite: 'The sword mummy! An elite soldier: twice as tough as a mummy, and its sword takes three hearts. It guards the way into the castle square.', necroElite: 'The big necromancer! It comes at you swinging its staff, two hearts a hit, and raises skeletons as it comes. Spear it first.'};
 const ELITE_NAME = {mummyElite: 'The sword mummy', necroElite: 'The big necromancer'};
 const TOMB_HORDES = [...tombHordes, ...coffinHordes, ...eliteHordes];
 const coffinsBurst = new Set(); let tombWoken = false;
