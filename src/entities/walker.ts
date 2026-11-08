@@ -154,6 +154,7 @@ import {
 import { berth12, CRATES12, DOCK12, groundZ12, LANDING12, onIsle12 } from '../world/isle12';
 import { PET_HOUSE, PET_HOUSE_FROM, PET_HOUSE_MID } from '../world/pethouse';
 import { inTunnelBounds, tunnelWalkable } from '../world/stealth';
+import { berth16, boxesNear16, DOCK16, groundZ16, LANDING16, onIsle16 } from '../world/tombisle';
 import { CAGE, onFloor } from '../world/tower';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { BAKERY, DRURY_LANE } from './muffinman';
@@ -317,6 +318,14 @@ export const GOAT_DOCK: Dock = {
   berth: berth15,
   landing: LANDING15,
 };
+/** Tomb Island's jetty, out from the beach below the maze's way in. */
+export const TOMB_DOCK: Dock = {
+  x: DOCK16.x,
+  y: DOCK16.y,
+  r: DOCK16.r,
+  berth: berth16,
+  landing: LANDING16,
+};
 export const DOCKS: readonly Dock[] = [
   HOME_DOCK,
   ISLE2_DOCK,
@@ -331,6 +340,7 @@ export const DOCKS: readonly Dock[] = [
   ENDLESS_N_DOCK,
   GARDEN_DOCK,
   GOAT_DOCK,
+  TOMB_DOCK,
 ];
 
 /** Into the tar round island 4 at an angle round it: wherever the boat meets the black water. */
@@ -422,6 +432,7 @@ export function onLand(x: number, y: number): boolean {
   if (onEndless(x, y)) return true;
   if (onIsle14(x, y)) return true;
   if (onIsle15(x, y)) return true;
+  if (onIsle16(x, y)) return true;
   if (Math.hypot(x - ISLE2.x, y - ISLE2.y) <= ISLE2.r - 12) return true;
   if (onIsle3(x, y)) return true;
   // Room floors, all but the black pool in the ruins behind the throne.
@@ -442,6 +453,7 @@ export function groundZ(x: number, y: number): number {
   if (onIsle12(x, y)) return groundZ12(x, y);
   if (onEndless(x, y)) return groundZ13(x, y);
   if (onIsle14(x, y)) return groundZ14(x, y);
+  if (onIsle16(x, y)) return groundZ16(x, y);
   if (inBox(x, y, PIER_BOX)) return PIER_TOP * clamp((x - PX0) / 6, 0, 1);
   const [t, o] = bridgeFrame(x, y);
   if (t >= 0 && t <= SPAN && Math.abs(o) <= HALF)
@@ -794,6 +806,8 @@ export function walkerDepth(
   for (const p of PROPS) if (p.sort && build >= p.from) box(p.x0, p.y0, p.x1, p.y1, p.d);
   box(PIER_BOX.x0, PIER_BOX.y0, PIER_BOX.x1, PIER_BOX.y1, pierD);
   if (dog) box(dog.x - 9, dog.y - 9, dog.x + 9, dog.y + 9, dog.d);
+  // Tomb Island's maze: its walls, posts, coffins and castle.
+  for (const b of boxesNear16(x, y, SORT_REACH)) box(b.x0, b.y0, b.x1, b.y1, b.d);
   // The bridge's parts: their south sides and island ends look at the viewer.
   for (let i = 0; i < BRIDGE_PARTS; i++) {
     const t0 = i * seg;

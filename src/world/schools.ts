@@ -11,6 +11,7 @@ import { DEEP_RINGS, FAR_RINGS, ISLE2_RINGS, ISLE3_RINGS, RINGS, type Ring } fro
 import { DEEP, FAR, IX, IY, WS } from './island';
 import { ISLE2 } from './isle2';
 import { ISLE3 } from './isle3';
+import { TOMB_ISLE } from './tombisle';
 
 export type Fish = {
   /** Offset from the school's centre before the school's slow spin. */
@@ -124,7 +125,22 @@ export function createSchools(
 
 /** The schools past the buoys, out where only the flagship goes. */
 export function createDeepSchools(R: () => number = rng(DEEP_SEED)): School[] {
-  return createSchools(R, DEEP_RINGS, MARGIN - DEEP, WS - MARGIN + DEEP);
+  const schools = createSchools(R, DEEP_RINGS, MARGIN - DEEP, WS - MARGIN + DEEP);
+  // The west one would swim over Tomb Island: up the deep, past its fog's edge, where the water is open.
+  for (const sc of schools) {
+    const dy = sc.ay - TOMB_ISLE.y;
+    if (Math.hypot(sc.ax - TOMB_ISLE.x, dy) < TOMB_ISLE.r + sc.r + 120) {
+      sc.ay = TOMB_ISLE.y - TOMB_ISLE.r - sc.r - 220;
+      sc.ax = TOMB_ISLE.x;
+      sc.cx = sc.ax;
+      sc.cy = sc.ay;
+      for (const f of sc.fish) {
+        f.x = sc.ax;
+        f.y = sc.ay;
+      }
+    }
+  }
+  return schools;
 }
 
 /** The schools round island 2, out in the far corner of the deep. */
