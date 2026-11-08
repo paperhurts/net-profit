@@ -1062,14 +1062,17 @@ test('Tomb Island: through the wall of fog into its own sea, sight it, tie up at
   context,
   page,
 }) => {
-  // The flagship in the deep below the island, heading up at it, the fog bank ahead.
+  // The flagship past the white buoys (the far deep and the far far sea open: island 4's anchor chain gone, a crow
+  // aboard), due west of home and just short of the wall of fog, heading west at it.
   const errors = await boot(context, page, {
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
-    trip: { x: -220, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
+    isle4Stage: 1,
+    crows: 1,
+    trip: { x: -3820, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
   });
   expect(await page.evaluate(() => window.__np.tombIsle.seen)).toBe(false);
-  // West across the deep into the wall of fog where the island used to stand: through it, into the fog sea.
+  // West into the wall of fog: through it, into the fog sea.
   await page.waitForFunction(
     () => {
       const n = window.__np;

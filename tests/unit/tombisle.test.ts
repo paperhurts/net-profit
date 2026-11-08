@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEEP_WATER, ROUTE } from '../../src/entities/reaper';
 import { DOCKS, onLand, TOMB_DOCK } from '../../src/entities/walker';
-import { DEEP, pastBuoys, pastFar, WS } from '../../src/world/island';
+import { DEEP, FAR, FARFAR, IY, pastFarFar, WS } from '../../src/world/island';
 import { ISLE2 } from '../../src/world/isle2';
 import { ISLE3 } from '../../src/world/isle3';
 import { ISLE5 } from '../../src/world/isle5';
@@ -66,11 +66,10 @@ const has = (s: Set<string>, x: number, y: number, step = 4) =>
   );
 
 describe('Tomb Island', () => {
-  it('stands in the middle of a fog sea of its own, far from everything else, its way in a wall of fog in the deep', async () => {
+  it('stands in the middle of a fog sea of its own, far from everything else, its way in a wall of fog past the white buoys', async () => {
     const { FOG_EXIT, FOG_GATE, FOG_IN, FOG_OUT, FOG_SEA, inFogSea } = await import(
       '../../src/world/fogsea'
     );
-    const { FAR, FARFAR } = await import('../../src/world/island');
     const { ISLE6 } = await import('../../src/world/isle6');
     expect(inFogSea(TOMB_ISLE.x, TOMB_ISLE.y)).toBe(true);
     // The whole island and its fog inside the fog sea; the fog sea well past everything at sea.
@@ -81,10 +80,16 @@ describe('Tomb Island', () => {
     expect(TOMB_ISLE.r).toBeGreaterThan(ISLE6.r);
     for (let a = 0; a < Math.PI * 2; a += 0.01)
       expect(shoreR16(a)).toBeLessThanOrEqual(TOMB_ISLE.r);
-    // The way in: a wall of fog in the deep where the island used to stand, in open water.
-    expect(pastBuoys(FOG_GATE.x, FOG_GATE.y)).toBe(true);
-    expect(pastFar(FOG_GATE.x, FOG_GATE.y)).toBe(false);
-    for (const i of [ISLE2, ISLE3, ISLE5])
+    // The way in: a wall of fog past the white buoys (the kid's word), due west of home, inside the sea's edge and in
+    // open water, well clear of every island out there.
+    expect(pastFarFar(FOG_GATE.x, FOG_GATE.y)).toBe(true);
+    expect(FOG_GATE.x - FOG_GATE.r).toBeGreaterThan(-(DEEP + FAR + FARFAR) + 400);
+    expect(FOG_GATE.y).toBe(IY);
+    const { ISLE14 } = await import('../../src/world/garden');
+    const { ENDLESS13 } = await import('../../src/world/endless');
+    const { ICE_FLOE } = await import('../../src/world/icefloe');
+    const { ISLE12 } = await import('../../src/world/isle12');
+    for (const i of [ISLE2, ISLE3, ISLE5, ISLE14, ENDLESS13, ICE_FLOE, ISLE12])
       expect(Math.hypot(i.x - FOG_GATE.x, i.y - FOG_GATE.y)).toBeGreaterThan(i.r + 800);
     // Coming out of either wall lands clear of both walls, so nobody bounces straight back.
     expect(inFogSea(FOG_IN.x, FOG_IN.y)).toBe(true);
@@ -94,7 +99,7 @@ describe('Tomb Island', () => {
     expect(Math.hypot(FOG_OUT.x - FOG_GATE.x, FOG_OUT.y - FOG_GATE.y)).toBeGreaterThan(
       FOG_GATE.r + 60,
     );
-    expect(pastBuoys(FOG_OUT.x, FOG_OUT.y)).toBe(true);
+    expect(pastFarFar(FOG_OUT.x, FOG_OUT.y)).toBe(true);
     expect(inFogSea(DOCK16.x, DOCK16.y)).toBe(true);
     expect(WS).toBe(4800);
   });
