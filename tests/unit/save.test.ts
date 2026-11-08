@@ -1495,3 +1495,21 @@ describe('Tomb Island', () => {
     expect(odd.coins).toBe(s.coins);
   });
 });
+
+describe("Tomb Island's merchant", () => {
+  it('keeps the torch, the skull cloak and the hints bought, and drops anything odd', () => {
+    const s = parseSave(legacy, bounds);
+    s.tomb = { seen: true, torch: true, skull: true, hints: 3 };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({
+      seen: true,
+      torch: true,
+      skull: true,
+      hints: 3,
+    });
+    const odd = parseSave(
+      JSON.stringify({ ...s, tomb: { seen: true, torch: 'yes', hints: -4 } }),
+      bounds,
+    );
+    expect(odd.tomb).toEqual({ seen: true });
+  });
+});

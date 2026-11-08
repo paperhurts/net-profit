@@ -92,7 +92,12 @@ describe('choose your character', () => {
     }
     // Under a hood the hat is not drawn, nor the hair over it.
     expect(drawn({ ...SKIPPER, outfit: 'ninja', hat: 'cowboy' }).shapes).toBe(ninja.shapes);
-    expect(OUTFITS.map(([k]) => k)).toEqual(['none', 'captain', 'ninja', 'snow']);
+    // The skull cloak, bought on Tomb Island: its own hood, a bone-white skull mask in it, no ninja's headband.
+    const skull = drawn({ ...SKIPPER, outfit: 'skull' });
+    expect(new Set([own.shapes, captain.shapes, ninja.shapes, skull.shapes]).size).toBe(4);
+    expect(skull.fills).toContain(OUTFIT_LOOK.skull.coat);
+    expect(skull.fills).toContain('#ECE5D3');
+    expect(OUTFITS.map(([k]) => k)).toEqual(['none', 'captain', 'ninja', 'snow', 'skull']);
   });
 
   it('knows a look changed from a preset is your own', () => {

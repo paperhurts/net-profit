@@ -118,7 +118,9 @@ type Np = {
   isle11Seen: boolean;
   isle12Seen: boolean;
   goatIsle: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
-  tombIsle: { seen: boolean; lever?: boolean };
+  tombIsle: { seen: boolean; lever?: boolean; torch?: boolean; skull?: boolean; hints?: number };
+  MERCHANT16: { x: number; y: number };
+  store16Open: boolean;
   tombFogK: number;
   LEVER16: { x: number; y: number; front: { x: number; y: number } };
   TOMB_DOCK: { x: number; y: number };
@@ -1117,6 +1119,53 @@ test('Tomb Island: ashore the fog closes in, and the lever in the maze clears it
   await page.reload();
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => window.__np.tombFogK)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: the man in the cloak sneers, sells a torch for the fog and the skull cloak, and what he knows', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 1000,
+    earned: 5000,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true },
+    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.MERCHANT16.x + 24;
+    n.walker.y = n.MERCHANT16.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Talk to the man in the cloak', {
+    timeout: 3000,
+  });
+  await page.click('#climb');
+  await expect(page.locator('#store16')).toBeVisible();
+  // The torch, then the skull cloak: too dear for what is left, so he turns you away.
+  await page.click('[data-buy="torch"]');
+  await expect(page.locator('#store16Say')).toContainText('torch is yours');
+  await page.click('[data-buy="skull"]', { force: true });
+  await expect(page.locator('#store16Say')).toContainText('No coins');
+  // What he knows, for a price.
+  await page.click('[data-buy="hint"]');
+  await expect(page.locator('#store16Say')).toContainText('lever');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(1000 - 300 - 40);
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
+  );
+  expect(saved).toEqual({ seen: true, torch: true, hints: 1 });
+  // Walk away and his stall folds up.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.MERCHANT16.x + 90;
+  });
+  await expect(page.locator('#store16')).toBeHidden({ timeout: 3000 });
   expect(errors).toEqual([]);
 });
 
