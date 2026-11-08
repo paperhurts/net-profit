@@ -1033,7 +1033,7 @@ const CY = 420;
 const ISLAND = 2400;
 const DINGHY_RANGE = 1150;
 
-test("Tomb Island: sail into its fog bank and sight it, tie up at the jetty, and walk up to the maze's way in", async ({
+test('Tomb Island: through the wall of fog into its own sea, sight it, tie up at the jetty, and walk up toward the maze', async ({
   context,
   page,
 }) => {
@@ -1041,9 +1041,28 @@ test("Tomb Island: sail into its fog bank and sight it, tie up at the jetty, and
   const errors = await boot(context, page, {
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
-    trip: { x: -600, y: 3400, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -220, y: 2400, h: Math.PI, clock: 0.3, hold: [] },
   });
   expect(await page.evaluate(() => window.__np.tombIsle.seen)).toBe(false);
+  // West across the deep into the wall of fog where the island used to stand: through it, into the fog sea.
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      n.boat.v = 140;
+      n.boat.h = Math.PI;
+      return n.boat.x < -6000;
+    },
+    null,
+    { timeout: 12000, polling: 100 },
+  );
+  await expect(page.locator('#toast')).toContainText('wall of fog');
+  // Out in the fog sea, below the island, heading up at it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.TOMB_ISLE.x;
+    n.boat.y = n.TOMB_ISLE.y + n.TOMB_ISLE.r + 560;
+    n.boat.h = -Math.PI / 2;
+  });
   await page.waitForFunction(
     () => {
       const n = window.__np;
@@ -1101,7 +1120,7 @@ test('Tomb Island: ashore the fog closes in, and the lever in the maze clears it
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
     tomb: { seen: true },
-    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
@@ -1142,7 +1161,7 @@ test('Tomb Island: the man in the cloak sneers, sells a torch for the fog and th
     earned: 5000,
     lv: { net: 5, hold: 5, engine: 5 },
     tomb: { seen: true },
-    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
@@ -1187,7 +1206,7 @@ test('Tomb Island: the undead in the maze wake when you come near, and a coffin 
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
     tomb: { seen: true, lever: true },
-    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
@@ -1237,7 +1256,7 @@ test('Tomb Island: the elites, the sword mummy at the gate to the castle square 
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
     tomb: { seen: true, lever: true },
-    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
@@ -1272,7 +1291,7 @@ test("Tomb Island: past the big necromancer the castle's door opens, its floors 
     lv: { net: 5, hold: 5, engine: 5 },
     spear: 3,
     tomb: { seen: true, lever: true },
-    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');
@@ -1342,7 +1361,7 @@ test('Tomb Island: Necromanda at the top of his castle, laughing, his fake tomb,
     spear: 3,
     lv: { net: 5, hold: 5, engine: 5 },
     tomb: { seen: true, lever: true },
-    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
   });
   await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
   await page.click('#ashore');

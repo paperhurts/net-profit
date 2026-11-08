@@ -13,6 +13,7 @@ import {
   CASTLE16_BOX,
   COFFINS16,
   type Coffin16,
+  FIELDS16,
   FOG16,
   fromTomb,
   GATE_H,
@@ -33,6 +34,7 @@ import {
   type Stone16,
   shoreR16,
   TOMB_ISLE,
+  TREES16,
   WALL_H,
   WALLS16,
   WAY_IN16,
@@ -665,6 +667,10 @@ export function tombSolids(
   COFFINS16.forEach((c, i) => {
     if (v.onScreen(c.x0, c.y0, m)) out.push({ d: c.d, f: () => drawCoffin(v, c, burst.has(i)) });
   });
+  for (const t of TREES16)
+    if (v.onScreen(t.x, t.y, m)) out.push({ d: t.x + t.y, f: () => drawTree16(v, t) });
+  for (const s of FIELDS16)
+    if (v.onScreen(s.x, s.y, m)) out.push({ d: s.x + s.y, f: () => drawStone(v, s) });
   for (const s of STONES16)
     if (v.onScreen(s.x, s.y, m)) out.push({ d: s.x + s.y, f: () => drawStone(v, s) });
   GRAVES16.forEach((g, i) => {
@@ -933,4 +939,67 @@ export function merchantSolids16(v: DrawView, talking: number): Solid[] {
     { d: MERCHANT16.x + MERCHANT16.y - 10, f: () => drawStall16(v) },
     { d: MERCHANT16.x + MERCHANT16.y, f: () => drawMerchant16(v, talking) },
   ];
+}
+
+/** A dead tree: a grey crooked trunk and bare branches forking up, a crow's nest of twigs in one. */
+function drawTree16(v: DrawView, t: { x: number; y: number; h: number; k: number }): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  v.isoEllipse(t.x + 3, t.y + 3, 8);
+  ctx.fillStyle = 'rgba(25,22,20,.3)';
+  ctx.fill();
+  const sx = v.px(t.x, t.y);
+  const sy = v.py(t.x, t.y);
+  const lean = Math.sin(t.k * 1.7) * 0.25;
+  const top = { x: sx + lean * t.h * Z, y: sy - t.h * Z };
+  ctx.strokeStyle = '#4E4741';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 4 * Z;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.quadraticCurveTo(sx - lean * 10 * Z, sy - t.h * 0.5 * Z, top.x, top.y);
+  ctx.stroke();
+  ctx.lineWidth = 1.8 * Z;
+  ctx.beginPath();
+  for (const [f, a, l] of [
+    [0.55, -0.9, 0.45],
+    [0.7, 0.8, 0.4],
+    [0.9, -0.4, 0.35],
+    [0.95, 0.5, 0.3],
+  ] as const) {
+    const bx = sx + (top.x - sx) * f;
+    const by = sy + (top.y - sy) * f;
+    const ex = bx + Math.sin(a + lean) * l * t.h * Z;
+    const ey = by - Math.cos(a) * l * t.h * Z;
+    ctx.moveTo(bx, by);
+    ctx.lineTo(ex, ey);
+    ctx.lineTo(ex + Math.sin(a * 2) * 4 * Z, ey - 5 * Z);
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+}
+
+/**
+ * A wall of fog (world/fogsea.ts): a tall, dense bank of grey drifting round a point, thick enough that nothing shows
+ * through, the way into the fog sea from the deep and the way back out of it.
+ */
+export function drawFogWall(v: DrawView, at: { x: number; y: number; r: number }): void {
+  const R = at.r * 2.4;
+  if (!v.onScreen(at.x, at.y, (R + 200) * v.zoom)) return;
+  const { ctx } = v;
+  const Z = v.zoom;
+  const img = fogPuff();
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const a = i * 2.39996 + v.T * 0.05;
+    const d = Math.sqrt((i + 0.5) / 26) * R;
+    const x = at.x + Math.cos(a) * d;
+    const y = at.y + Math.sin(a) * d;
+    for (const z of [10, 60, 110]) {
+      const size = (170 - (d / R) * 50) * Z;
+      ctx.globalAlpha = 0.75 * (1 - (d / R) * 0.5) * (z === 110 ? 0.6 : 1);
+      ctx.drawImage(img, v.px(x, y) - size / 2, v.py(x, y, z) - size * 0.4, size, size * 0.8);
+    }
+  }
+  ctx.restore();
 }

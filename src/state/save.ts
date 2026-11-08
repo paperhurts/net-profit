@@ -453,6 +453,11 @@ export type Bounds = {
   worldSize: number;
   /** How far past the buoys a boat can be; a flagship saved out in the deep stays there. */
   deep?: number;
+  /**
+   * Seas of their own, off past the rest (the fog sea, world/fogsea.ts): a boat saved inside one stays there rather than
+   * being pulled back to the edge of the sea it is not in.
+   */
+  pockets?: readonly { x0: number; x1: number; y0: number; y1: number }[];
   /** Hold capacity per hold level, to trim a restored hold that no longer fits. */
   holdCaps: readonly number[];
 };
@@ -682,8 +687,13 @@ function parseTrip(raw: unknown, b: Bounds, holdLevel: number): Trip | null {
   const y = Number(t.y);
   if (Number.isFinite(x) && Number.isFinite(y)) {
     const deep = b.deep ?? 0;
-    trip.x = between(x, 160 - deep, b.worldSize - 160 + deep);
-    trip.y = between(y, 160 - deep, b.worldSize - 160 + deep);
+    const pocket = b.pockets?.find((p) => x > p.x0 && x < p.x1 && y > p.y0 && y < p.y1);
+    trip.x = pocket
+      ? between(x, pocket.x0 + 40, pocket.x1 - 40)
+      : between(x, 160 - deep, b.worldSize - 160 + deep);
+    trip.y = pocket
+      ? between(y, pocket.y0 + 40, pocket.y1 - 40)
+      : between(y, 160 - deep, b.worldSize - 160 + deep);
   }
   const h = Number(t.h);
   if (Number.isFinite(h)) trip.h = h;
