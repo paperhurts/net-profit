@@ -532,7 +532,7 @@ function roof(
 }
 
 /** The castle in the middle: dark stone, a tower at each corner with a pointed roof, battlements, its door shut. */
-function drawCastle(v: DrawView): void {
+function drawCastle(v: DrawView, open = false): void {
   const { ctx } = v;
   const Z = v.zoom;
   const b = CASTLE16_BOX;
@@ -576,7 +576,8 @@ function drawCastle(v: DrawView): void {
     pts.push([mx + Math.cos(a) * dw, b.y1, 18 + Math.sin(a) * 8]);
   }
   pts.push([mx + dw, b.y1, 18], [mx + dw, b.y1, 0]);
-  poly(v, pts, '#3A2A20');
+  // Shut, dark wood banded with iron; open (part six), the black of the hall inside.
+  poly(v, pts, open ? '#0B0A0D' : '#3A2A20');
   ctx.strokeStyle = '#25201D';
   ctx.lineWidth = 1.4 * Z;
   ctx.beginPath();
@@ -645,7 +646,11 @@ function drawSign(v: DrawView, x: number, y: number, text: string): void {
 }
 
 /** Everything that stands on the island, each sorted by its own depth. */
-export function tombSolids(v: DrawView, burst: ReadonlySet<number> = new Set()): Solid[] {
+export function tombSolids(
+  v: DrawView,
+  burst: ReadonlySet<number> = new Set(),
+  open = false,
+): Solid[] {
   if (!near(v, TOMB_ISLE.r + 260)) return [];
   const out: Solid[] = [];
   const m = 60 * v.zoom;
@@ -666,7 +671,7 @@ export function tombSolids(v: DrawView, burst: ReadonlySet<number> = new Set()):
     if (v.onScreen(g.hx, g.hy, m)) out.push({ d: g.hx + g.hy, f: () => drawGraveStone(v, g, i) });
   });
   if (v.onScreen(TOMB_ISLE.x, TOMB_ISLE.y, 200 * v.zoom))
-    out.push({ d: CASTLE16_BOX.d, f: () => drawCastle(v) });
+    out.push({ d: CASTLE16_BOX.d, f: () => drawCastle(v, open) });
   // The signs at the way in and the way out, beside the gap, on the side away from the maze.
   const [ix, iy] = fromTomb(WAY_IN16.u + 38, WAY_IN16.v + 16);
   const [ox, oy] = fromTomb(WAY_OUT16.u + 38, WAY_OUT16.v - 16);
