@@ -448,6 +448,10 @@ body.scoping #leave,body.scoping #climb,body.scoping #mapBtn,body.scoping #throw
 #bargeCard .count .rchip{width:38px;padding:0;font-size:18px}
 #bargeCard .count span{min-width:20px;text-align:center;font-weight:800;font-size:18px}
 #bargeCard #bargeTotal{text-align:center}
+#portalBtn{position:fixed;left:calc(130px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center;color:#B98CFF}
+#portalBtn[hidden]{display:none}
+body.scoping #portalBtn,body.droning #portalBtn{visibility:hidden}
+#labBtn.on .buy{background:#3FB37A;color:#fff}
 #bargeBtn{position:fixed;left:calc(72px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));z-index:3;width:48px;height:48px;padding:0;display:grid;place-items:center}
 #crowCard [hidden]{display:none}
 #endlessCard .say{margin:4px 4px 10px;padding:12px;border-radius:11px;font-size:16px;font-weight:800;line-height:1.35;background:#FFF6DC;color:#4A2E1A;border-left:6px solid #B5342B}
@@ -785,6 +789,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 <div id="toast" role="status"></div>
 <canvas id="radar" hidden aria-hidden="true"></canvas>
 <button class="pill icon" id="bargeBtn" hidden aria-label="Battle Barge" title="Battle Barge"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 16.5L20 4v3.2L9.5 17.7M5 14l5 5M3.6 20.4l3-3M16.5 16.5L4 4v3.2l10.5 10.5M19 14l-5 5M20.4 20.4l-3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button class="pill icon" id="portalBtn" hidden aria-label="Fire the portal gun" title="Fire the portal gun"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="7" ry="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7.5c2.6 0 3.6 2.4 2.2 4.2-1.2 1.5-3.6 1.3-4-.6-.3-1.4 1.2-2.4 2.2-1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
 <button class="pill icon" id="mapBtn" aria-label="Sea map" title="Sea map"><svg width="24" height="22" viewBox="0 0 24 22" aria-hidden="true"><path d="M2 4l6-2 8 3 6-2v15l-6 2-8-3-6 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 2v15M16 5v15" stroke="currentColor" stroke-width="2"/></svg></button>
 <button class="pill" id="cast" hidden>Cast · 10</button>
 <button class="pill" id="mend" hidden>Mend the net</button>
@@ -857,6 +862,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
     <button class="build" id="charBtn"><span><b>Your character</b><small>Who you are, and how you look.</small></span><span class="buy">Open</span></button>
     <button class="build" id="petsBtn"><span><b>Your pets</b><small>Everyone who is yours, their names, and pets you draw.</small></span><span class="buy">Open</span></button>
     <button class="build" id="badgesBtn" hidden><span><b>Badges</b><small>Who wears which badge.</small></span><span class="buy">Open</span></button>
+    <button class="build" id="labBtn" aria-pressed="false"><span><b>Experimental</b><small id="labTxt"></small></span><span class="buy" id="labOn">Off</span></button>
     <button class="build" id="carryBtn"><span><b>Play on another device</b><small>A link to this game, to open there.</small></span><span class="buy">Open</span></button>
     <button class="build" id="testerBtn" hidden><span><b>Tester</b><small>Skip ahead past a boss, or add coins.</small></span><span class="buy">Open</span></button>
   </div>
