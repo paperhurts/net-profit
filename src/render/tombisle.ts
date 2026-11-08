@@ -21,6 +21,7 @@ import {
   type Grave16,
   JETTY16,
   JETTY16_Z,
+  LEVER16,
   lineU,
   MID,
   PLAZA,
@@ -698,9 +699,10 @@ const PUFFS: readonly { u: number; v: number; p: number }[] = (() => {
 
 /**
  * The fog bank: soft grey-white drifts over the island and out round it, thickest in the middle, thinning to
- * nothing within `clear` of whoever is looking (at x, y). Drawn over everything near it.
+ * nothing within `clear` of whoever is looking (at x, y). Over the island itself it is `isle` thick (1 until the
+ * lever is pulled, then 0: a clearing in the bank). Drawn over everything near it.
  */
-export function drawTombFog(v: DrawView, x: number, y: number, clear: number): void {
+export function drawTombFog(v: DrawView, x: number, y: number, clear: number, isle = 1): void {
   const R = TOMB_ISLE.r + FOG16;
   if (!near(v, R + 200)) return;
   const { ctx } = v;
@@ -720,10 +722,91 @@ export function drawTombFog(v: DrawView, x: number, y: number, clear: number): v
       1,
       Math.max(0, (Math.hypot(wx - x, wy - y) - clear * 0.45) / (clear * 0.55)),
     );
-    const a = edge * seen * 0.82;
+    // Over the island, the lever's doing: from its shore in, the fog is as thick as `isle` says.
+    const d = Math.hypot(q.u, q.v);
+    const over = isle + (1 - isle) * Math.min(1, Math.max(0, (d - TOMB_ISLE.r + 40) / 160));
+    const a = edge * seen * over * 0.82;
     if (a < 0.02) continue;
     ctx.globalAlpha = a;
     ctx.drawImage(img, sx - size / 2, sy - size * 0.31, size, size * 0.62);
   }
   ctx.restore();
+}
+
+/**
+ * Ashore in the fog (part two): past `r` round the figure at screen (sx, sy), the fog closes in to almost nothing seen,
+ * a world circle squashed by the view like everything on the ground. k is how thick it is (0 gone, 1 full).
+ */
+export function drawTombSight(v: DrawView, sx: number, sy: number, r: number, k: number): void {
+  if (k <= 0.01) return;
+  const { ctx } = v;
+  const R = r * v.zoom * Math.SQRT2;
+  const far = Math.hypot(ctx.canvas.width, ctx.canvas.height);
+  ctx.save();
+  ctx.globalAlpha = k;
+  ctx.translate(sx, sy);
+  ctx.scale(1, 0.5);
+  const g = ctx.createRadialGradient(0, 0, R * 0.55, 0, 0, R * 1.5);
+  g.addColorStop(0, 'rgba(206,214,212,0)');
+  g.addColorStop(0.45, 'rgba(204,212,210,.78)');
+  g.addColorStop(1, 'rgba(198,207,205,.96)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-far, -far * 2, far * 2, far * 4);
+  ctx.restore();
+}
+
+/** A stone base, an iron handle thrown up (or down, pulled), and a green lamp on a post beside it. */
+function drawLever(v: DrawView, pulled: number): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const { x, y } = LEVER16;
+  v.box(x - 5, y - 4, 10, 8, 0, 6, STONE, STONE_TOP);
+  // The handle swings from up and back (-0.9) to down and forward (0.9) as it is pulled.
+  const a = -0.9 + 1.8 * pulled;
+  const bx = v.px(x, y);
+  const by = v.py(x, y, 6);
+  const ex = bx + Math.sin(a) * 13 * Z;
+  const ey = by - Math.cos(a) * 13 * Z;
+  ctx.strokeStyle = '#3B3A3C';
+  ctx.lineWidth = 2.4 * Z;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.fillStyle = '#8E2E26';
+  ctx.beginPath();
+  ctx.arc(ex, ey, 2.6 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineCap = 'butt';
+  v.box(x + 6, y - 1, 2, 2, 0, 24, '#3A322C', '#3A322C');
+}
+
+/** The lever's lamp: a green glow over the fog, so it can be found from anywhere ashore. Dimmer once pulled. */
+export function drawLeverLamp(v: DrawView, pulled: boolean): void {
+  if (!v.onScreen(LEVER16.x, LEVER16.y, 400 * v.zoom)) return;
+  const { ctx } = v;
+  const Z = v.zoom;
+  const sx = v.px(LEVER16.x + 7, LEVER16.y);
+  const sy = v.py(LEVER16.x + 7, LEVER16.y, 27);
+  const pulse = 0.75 + 0.25 * Math.sin(v.T * 3);
+  ctx.save();
+  if (!pulled) {
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 26 * Z);
+    g.addColorStop(0, `rgba(150,255,130,${0.7 * pulse})`);
+    g.addColorStop(1, 'rgba(150,255,130,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(sx - 26 * Z, sy - 26 * Z, 52 * Z, 52 * Z);
+  }
+  ctx.fillStyle = pulled ? '#5E7A58' : '#B8FF9E';
+  ctx.beginPath();
+  ctx.arc(sx, sy, 2.8 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** The lever as a solid, sorted among the walls. pulled runs 0 (up) to 1 (thrown). */
+export function leverSolid(v: DrawView, pulled: number): Solid | null {
+  if (!v.onScreen(LEVER16.x, LEVER16.y, 60 * v.zoom)) return null;
+  return { d: LEVER16.x + LEVER16.y, f: () => drawLever(v, pulled) };
 }

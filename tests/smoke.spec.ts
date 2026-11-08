@@ -118,7 +118,9 @@ type Np = {
   isle11Seen: boolean;
   isle12Seen: boolean;
   goatIsle: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
-  tombIsle: { seen: boolean };
+  tombIsle: { seen: boolean; lever?: boolean };
+  tombFogK: number;
+  LEVER16: { x: number; y: number; front: { x: number; y: number } };
   TOMB_DOCK: { x: number; y: number };
   TOMB_ISLE: { x: number; y: number; r: number };
   CASTLE15_DOOR: { x: number; y: number };
@@ -1075,6 +1077,46 @@ test("Tomb Island: sail into its fog bank and sight it, tie up at the jetty, and
     () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
   );
   expect(saved).toEqual({ seen: true });
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: ashore the fog closes in, and the lever in the maze clears it for good', async ({
+  context,
+  page,
+}) => {
+  // Found, tied up at its jetty.
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true },
+    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('green light');
+  expect(await page.evaluate(() => window.__np.tombFogK)).toBe(1);
+  // Not by the lever: nothing to pull.
+  await expect(page.locator('#climb')).toBeHidden();
+  // In front of it: pull it, and the fog rolls back.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.LEVER16.front.x;
+    n.walker.y = n.LEVER16.front.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Pull the lever', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('fog rolls back');
+  await page.waitForFunction(() => window.__np.tombFogK === 0, null, { timeout: 6000 });
+  await expect(page.locator('#climb')).toBeHidden();
+  // Saved, and still clear after a reload.
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
+  );
+  expect(saved).toEqual({ seen: true, lever: true });
+  await page.reload();
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__np.tombFogK)).toBe(0);
   expect(errors).toEqual([]);
 });
 
