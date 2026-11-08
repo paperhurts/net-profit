@@ -36,6 +36,7 @@ import { ISLE5 } from '../../src/world/isle5';
 import { ISLE6 } from '../../src/world/isle6';
 import { ISLE7 } from '../../src/world/isle7';
 import { ISLE8, ISLE9 } from '../../src/world/isle8';
+import { TOMB_ISLE } from '../../src/world/tombisle';
 import { fakeView } from './helpers/view';
 import { baseWorld } from './helpers/world';
 
@@ -71,6 +72,7 @@ describe('the Reaper', () => {
       ISLE8,
       ISLE9,
       { x: ICE_FLOE.x, y: ICE_FLOE.y, r: FLOE_MAX },
+      TOMB_ISLE,
     ];
     let far = 0;
     let all = 0;

@@ -118,6 +118,9 @@ type Np = {
   isle11Seen: boolean;
   isle12Seen: boolean;
   goatIsle: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
+  tombIsle: { seen: boolean };
+  TOMB_DOCK: { x: number; y: number };
+  TOMB_ISLE: { x: number; y: number; r: number };
   CASTLE15_DOOR: { x: number; y: number };
   GRAVES15: { x: number; y: number; rx: number; ry: number }[];
   CAVE15_DOOR: { x: number; y: number };
@@ -1015,6 +1018,65 @@ const CY = 420;
 /** World centre and dinghy range, from the tuning tables. */
 const ISLAND = 2400;
 const DINGHY_RANGE = 1150;
+
+test("Tomb Island: sail into its fog bank and sight it, tie up at the jetty, and walk up to the maze's way in", async ({
+  context,
+  page,
+}) => {
+  // The flagship in the deep below the island, heading up at it, the fog bank ahead.
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: -600, y: 3400, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  expect(await page.evaluate(() => window.__np.tombIsle.seen)).toBe(false);
+  await page.waitForFunction(
+    () => {
+      const n = window.__np;
+      n.boat.v = 140;
+      n.boat.h = -Math.PI / 2;
+      return n.tombIsle.seen;
+    },
+    null,
+    { timeout: 12000, polling: 100 },
+  );
+  await expect(page.locator('#toast')).toContainText('Tomb Island', { timeout: 4000 });
+  // Still sailing at the jetty: the boat does not tie up while the first look at the island plays, so the shop
+  // never opens over it.
+  await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
+  await expect(page.locator('#ashore')).toBeHidden();
+  await page.evaluate(() => {
+    window.__np.boat.v = 0;
+  });
+  await page.waitForFunction(() => window.__np.revealView < 0.1, null, { timeout: 9000 });
+  // Into the jetty's ring, stopped, and ashore.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.TOMB_DOCK.x;
+    n.boat.y = n.TOMB_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#toast')).toContainText('Ashore on Tomb Island');
+  // Up the jetty and the path to the way in: up the screen and to the right.
+  const start = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
+  await page.mouse.move(CX, CY);
+  await page.mouse.down();
+  await page.mouse.move(CX + 40, CY - 20, { steps: 3 });
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  const at = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
+  expect(start.y - at.y).toBeGreaterThan(80);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  // Saved, and the island is the same island it was.
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
+  );
+  expect(saved).toEqual({ seen: true });
+  expect(errors).toEqual([]);
+});
 
 /** Seed a save, load the game, press Go, and return the page-error log. */
 test('Goat Isle: it rises in fog the first dawn with the flagship, the fog lifts as you sail close, and you land among the goats', async ({

@@ -39,6 +39,7 @@ import { ISLE5 } from '../world/isle5';
 import { ISLE6 } from '../world/isle6';
 import { ISLE7 } from '../world/isle7';
 import { ISLE8, ISLE9 } from '../world/isle8';
+import { TOMB_ISLE } from '../world/tombisle';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
 /** His loop through the deep and the far deep, clear of every island, past the buoys all the way. */
@@ -50,8 +51,11 @@ export const ROUTE: readonly { x: number; y: number }[] = [
   { x: 2400, y: 5800 },
   { x: 500, y: 7300 },
   { x: -1700, y: 6200 },
-  { x: -700, y: 3600 },
-  { x: -800, y: 600 },
+  // Wide of Tomb Island, out past the far buoys and back.
+  { x: -500, y: 4100 },
+  { x: -1300, y: 3100 },
+  { x: -1300, y: 1700 },
+  { x: -700, y: 800 },
   { x: -1500, y: -1700 },
   { x: 800, y: -1700 },
   { x: 2400, y: -1000 },
@@ -72,6 +76,7 @@ const ISLANDS = [
   ISLE8,
   ISLE9,
   { x: ICE_FLOE.x, y: ICE_FLOE.y, r: FLOE_MAX },
+  TOMB_ISLE,
 ];
 const SHORE = 90;
 

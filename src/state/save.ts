@@ -413,6 +413,11 @@ export type SaveData = {
    * (data/goatcave.ts), for the Goat Almanac, there once one is found.
    */
   goat: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
+  /**
+   * Tomb Island (world/tombisle.ts): whether the boat has sailed into its fog bank and sighted it. Missing in old saves
+   * and read as not; left out of the save until it is.
+   */
+  tomb: { seen: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -600,6 +605,7 @@ export function defaultSave(b: Bounds): SaveData {
     pets: noPets(),
     garden: noGarden(),
     goat: { up: false, seen: false },
+    tomb: { seen: false },
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
@@ -897,6 +903,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   }
   d.pets = parsePets(o.pets);
   d.garden = parseGarden(o.garden);
+  if (o.tomb && typeof o.tomb === 'object')
+    d.tomb = { seen: (o.tomb as Record<string, unknown>).seen === true };
   if (o.goat && typeof o.goat === 'object') {
     const g = o.goat as Record<string, unknown>;
     // Seen means it is up, whatever the save says.
@@ -1080,6 +1088,7 @@ export function serializeSave(d: SaveData): string {
     pets: petsForSave(d.pets),
     garden: untouchedGarden(d.garden) ? undefined : d.garden,
     goat: d.goat.up ? d.goat : undefined,
+    tomb: d.tomb.seen ? d.tomb : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
