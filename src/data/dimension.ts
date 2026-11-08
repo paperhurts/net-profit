@@ -18,6 +18,7 @@
  * enemy is, and the saved block.
  */
 import { BARGE_MAX, type BargeFoe, type BargePick, noPick } from './barge';
+import { type ClassId, parseClass } from './classes';
 import { PEPPER_MAX } from './warrior';
 
 /** The portal gun, from the shipwright, once there is a spear. */
@@ -213,10 +214,12 @@ export type DimSave = {
   diff: Difficulty;
   /** Hot peppers held (data/warrior.ts), three at most. */
   peppers: number;
+  /** The class last picked (data/classes.ts). */
+  cls: ClassId;
 };
 
 export function noDims(): DimSave {
-  return { gun: false, best: 0, kills: 0, diff: 'easy', peppers: 0 };
+  return { gun: false, best: 0, kills: 0, diff: 'easy', peppers: 0, cls: 'warrior' };
 }
 
 const count = (v: unknown, max: number): number =>
@@ -231,6 +234,7 @@ export function parseDims(o: unknown): DimSave {
     kills?: unknown;
     diff?: unknown;
     peppers?: unknown;
+    cls?: unknown;
   };
   const diff = (DIFFICULTIES as readonly unknown[]).includes(s.diff)
     ? (s.diff as Difficulty)
@@ -241,10 +245,11 @@ export function parseDims(o: unknown): DimSave {
     kills: count(s.kills, 9_999_999),
     diff,
     peppers: count(s.peppers, PEPPER_MAX),
+    cls: parseClass(s.cls),
   };
 }
 
 /** Untouched, it stays out of the save: the save travels in a link (state/share.ts), kept short. */
 export function untouchedDims(d: DimSave): boolean {
-  return !d.gun && !d.best && !d.kills && d.diff === 'easy' && !d.peppers;
+  return !d.gun && !d.best && !d.kills && d.diff === 'easy' && !d.peppers && d.cls === 'warrior';
 }

@@ -72,7 +72,8 @@ export function leapPower(lv: number): number {
 /** The Warrior in a fight: his rage, each ability's wait, where he is in his turn of blows, and the pepper's skips. */
 export type Fury = {
   rage: number;
-  cd: Record<Ability, number>;
+  /** Each ability's wait, by name: the Warrior's, and the other classes' (data/wizard.ts) in the same bag. */
+  cd: Record<string, number>;
   combo: number;
   skips: number;
   pepperT: number;
@@ -98,7 +99,7 @@ export function addRage(f: Fury, n: number): void {
 export type NotNow = 'wait' | 'rage';
 export function notNow(f: Fury, a: Ability): NotNow | null {
   // Fired up on a pepper, a wait still running does not hold him back either: that is a cooldown skipped too.
-  if (f.cd[a] > 0 && !peppered(f)) return 'wait';
+  if ((f.cd[a] ?? 0) > 0 && !peppered(f)) return 'wait';
   if (f.rage < ABILITY_SPECS[a].cost) return 'rage';
   return null;
 }
@@ -124,7 +125,7 @@ export function nextBlow(f: Fury): Blow {
 
 /** Time passing: waits run down, the pepper wears off. */
 export function tickFury(f: Fury, dt: number): void {
-  for (const a of ABILITIES) f.cd[a] = Math.max(0, f.cd[a] - dt);
+  for (const a of Object.keys(f.cd)) f.cd[a] = Math.max(0, (f.cd[a] ?? 0) - dt);
   f.bossStunT = Math.max(0, f.bossStunT - dt);
   f.pepperT = Math.max(0, f.pepperT - dt);
   if (f.pepperT <= 0) f.skips = 0;

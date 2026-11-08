@@ -139,7 +139,7 @@ describe('New Dimensions: difficulty and stronger enemies', () => {
 
 describe('New Dimensions: the saved block', () => {
   it('reads back, odd values as nothing on Easy', () => {
-    const none = { gun: false, best: 0, kills: 0, diff: 'easy', peppers: 0 };
+    const none = { gun: false, best: 0, kills: 0, diff: 'easy', peppers: 0, cls: 'warrior' };
     expect(parseDims(undefined)).toEqual(none);
     expect(parseDims({ gun: true, best: 4.7, kills: 33.2, diff: 'hard' })).toEqual({
       gun: true,
@@ -147,7 +147,10 @@ describe('New Dimensions: the saved block', () => {
       kills: 33,
       diff: 'hard',
       peppers: 0,
+      cls: 'warrior',
     });
+    expect(parseDims({ cls: 'wizard' }).cls).toBe('wizard');
+    expect(parseDims({ cls: 'doom' }).cls).toBe('warrior');
     expect(parseDims({ peppers: 9 }).peppers).toBe(3);
     expect(parseDims({ gun: 'yes', best: -3, kills: 'lots', diff: 'doom' })).toEqual(none);
     expect(untouchedDims(parseDims(undefined))).toBe(true);
