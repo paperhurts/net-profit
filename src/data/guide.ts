@@ -152,7 +152,7 @@ export function whereText(sp: number): string {
   if (LILY_SPS.includes(sp))
     return "In the Garden Isle's lily pond. Stand at its edge with a fruit in your basket for bait, and cast.";
   if (sp === KOI_SP)
-    return "In the Garden Isle's lily pond, after dark. It rises only to a Moonlit fruit of mythic tier or above: a coconut, a dragon fruit, a lantern gourd, a kraken squash or a moonpetal.";
+    return "In the Garden Isle's lily pond, after dark. It rises only to a Moonlit fruit of mythic tier or above: a coconut, a dragon fruit, a lantern gourd, a kraken squash, a moonpetal or a starfall melon.";
   if (sp === ATTACK_NIBBLER)
     return 'Prowling the floor of the abyss, 1,000 metres down past the white buoys, hunting the gloomers and the nibblers. It takes three spears: each one sends it darting off.';
   if (sp === REMORO)
