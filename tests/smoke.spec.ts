@@ -14622,9 +14622,8 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
     n.walker.x = x;
     n.walker.y = y;
   });
-  // Its own message, seen showing and then gone: the one ashore says "Your plot is by the pier" and is still in the
-  // box, hidden, until the game's next frame. The stall's greeting would wait behind the plot's, run out its wait
-  // and be dropped, and a keeper says nothing again for twenty seconds.
+  // The plot's own message, up: the landing one ("Your plot is by the pier") may still sit hidden in the box, and on a
+  // slow runner matching it let the test walk on before the plot's had shown, so the stall's waited behind it too long.
   await expect(page.locator('#toast.show')).toContainText('Your plot:', { timeout: 6000 });
   await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
   await page.evaluate(() => {

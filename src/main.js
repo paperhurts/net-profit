@@ -4140,7 +4140,7 @@ function endPetFight(won, gaveUp = false){ const f = petFight, key = pfKey; if (
   const lv = petLevelOf(xpOf(petSave, key)).lv, first = !petSave.won.includes(t.id);
   if (first) petSave.won.push(t.id);
   coins += t.coins; earned += t.coins;
-  const prize = !first ? '' : t.cup ? ' The champion\'s cup is yours: it stands on your pet house.' : ` ${t.name}'s ribbon is yours: it hangs on your pet house.`;
+  const prize = !first ? '' : t.cup ? ' The champion\'s cup is yours: it stands by your pet house.' : ` ${t.name}'s ribbon is yours: it hangs on your pet house.`;
   toast(`${name} beat ${t.name}'s ${t.pet}! ${t.xp} experience for ${name}${lv > was ? `, up to level ${lv}` : ''}, and ${t.coins} coins for you.${prize}`, first ? 5600 : 4200, 1);
   save(); hud(); }
 $('pfLeave').addEventListener('click', () => { audio(); endPetFight(false, true); });

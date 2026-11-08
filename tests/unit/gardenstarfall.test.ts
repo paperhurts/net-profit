@@ -11,10 +11,12 @@ import {
   fruitValue,
   type Garden,
   GUARD,
+  KOI_TIERS,
   LEGEND_FISH,
   parseGarden,
   plant,
 } from '../../src/data/garden';
+import { KOI_SP, whereText } from '../../src/data/guide';
 import { ATTACK_NIBBLER, MOONKOI, REMORO, SPECIES } from '../../src/data/tuning';
 import {
   binShelfHtml,
@@ -99,5 +101,15 @@ describe('the starfall melon: the top crop, over a legendary fish', () => {
     expect(back.beds?.[0]?.crop).toBe('starfall');
     expect(back.beds?.[0]?.fed).toBe('legend');
     expect(journalPagesHtml(g)).toContain('sprouts only over a legendary fish');
+  });
+});
+
+describe("the field guide's Moonkoi page", () => {
+  it('names every crop the Moonkoi rises to, the starfall melon included', () => {
+    const where = whereText(KOI_SP);
+    const bait = ALL_CROP_IDS.filter((k) => KOI_TIERS.includes(CROPS[k].tier));
+    expect(bait).toContain('starfall');
+    // Its first word is enough: the page says "a coconut" for the coconut palm, "a moonpetal" for the vine.
+    for (const k of bait) expect(where).toContain(CROPS[k].name.split(' ')[0]);
   });
 });
