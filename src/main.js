@@ -6629,7 +6629,7 @@ function update(dt){
   updateSchools(schools, {T, dt, dark, net, sunk: stormSunk, netWidth: nw, catching: catching && !jellies.inNet, zoom: Z, onScreen, hasRoom: () => holdTotal < cap}, catchFish);
 
   /* dock */
-  const dk0 = dockAt(boat.x, boat.y), dk = (dk0 === GOAT_DOCK && !goatIsle.seen) || (dk0 === TOMB_DOCK && !tombIsle.seen) ? null : dk0, inDock = !!dk; if (dk) dockHere = dk;
+  const dk0 = dockAt(boat.x, boat.y), dk = (dk0 === GOAT_DOCK && !goatIsle.seen) || (dk0 === TOMB_DOCK && (!tombIsle.seen || (revealAt === 'tomb' && revealT > 0))) ? null : dk0, inDock = !!dk; if (dk) dockHere = dk;
   if (inDock !== docked){ docked = inDock; if (!docked && charter && !charter.left){ charter.left = true; save(); }
     // The dock clears what was being said, then the charter's passengers pay, so their word is the one that shows.
     if (docked){ refreshShop(); toasts.clear(); renderToast(); if (charter && charter.left) endCharter(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }

@@ -1041,12 +1041,13 @@ test("Tomb Island: sail into its fog bank and sight it, tie up at the jetty, and
     { timeout: 12000, polling: 100 },
   );
   await expect(page.locator('#toast')).toContainText('Tomb Island', { timeout: 4000 });
+  // Still sailing at the jetty: the boat does not tie up while the first look at the island plays, so the shop
+  // never opens over it.
+  await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
+  await expect(page.locator('#ashore')).toBeHidden();
   await page.evaluate(() => {
     window.__np.boat.v = 0;
   });
-  // Sighted before the jetty's ring: the first look at it is not under the shop.
-  await expect(page.locator('#ashore')).toBeHidden();
-  await page.waitForFunction(() => window.__np.revealView > 0.6, null, { timeout: 4000 });
   await page.waitForFunction(() => window.__np.revealView < 0.1, null, { timeout: 9000 });
   // Into the jetty's ring, stopped, and ashore.
   await page.evaluate(() => {
