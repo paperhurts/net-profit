@@ -25,7 +25,15 @@ import { angDiff, clamp } from '../core/math';
 import type { DrawView, Entity, Layer, World } from './entity';
 import { walkStep } from './walker';
 
-export type UndeadKind = 'skeleton' | 'archer' | 'zombie' | 'ghost' | 'necro' | 'lagoon';
+export type UndeadKind =
+  | 'skeleton'
+  | 'archer'
+  | 'zombie'
+  | 'ghost'
+  | 'necro'
+  | 'lagoon'
+  | 'mummy'
+  | 'vampire';
 
 export type UndeadSpec = {
   hp: number;
@@ -122,6 +130,62 @@ export const UNDEAD: Readonly<Record<UndeadKind, UndeadSpec>> = {
     damage: 1,
     scale: 1.05,
   },
+  // Tomb Island's, out of its coffins (the kid's "Coffins hold mummies and vampires"), at a zombie's toughness to start:
+  // the mummy slow and wrapped, the vampire quick, its swing sooner.
+  mummy: {
+    hp: 8,
+    speed: 30,
+    reach: 22,
+    windup: 0.7,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 0,
+    damage: 1,
+    scale: 1.1,
+  },
+  vampire: {
+    hp: 8,
+    speed: 64,
+    reach: 20,
+    windup: 0.45,
+    keep: 0,
+    shoot: 0,
+    block: false,
+    summon: 0,
+    damage: 1,
+    scale: 1.05,
+  },
+};
+
+/** How a zombie-shaped one looks: a zombie, a mummy in its wrappings, a vampire in its cape. */
+type ZombieLook = {
+  legs: string;
+  clothes: string;
+  skin: string;
+  eyes: string;
+  wraps?: boolean;
+  cape?: boolean;
+};
+const ZOMBIE: ZombieLook = {
+  legs: '#4A3E30',
+  clothes: '#5B6B4A',
+  skin: '#8FB06A',
+  eyes: '#26301C',
+};
+const MUMMY: ZombieLook = {
+  legs: '#CFC3A2',
+  clothes: '#D8CCAA',
+  skin: '#E2D7B9',
+  eyes: '#F2C53A',
+  wraps: true,
+};
+const VAMPIRE: ZombieLook = {
+  legs: '#1E1A24',
+  clothes: '#1E1A24',
+  skin: '#E6E1EA',
+  eyes: '#D21E2A',
+  cape: true,
 };
 
 /** The swing: how long it lands for after the warning, then how long it is open before it moves again. */
@@ -577,6 +641,8 @@ export class Horde implements Entity {
     if (u.kind === 'ghost') this.drawGhost(v, u, sx, base, k, W);
     else if (u.kind === 'necro') this.drawNecro(v, u, sx, base, k, W, face);
     else if (u.kind === 'zombie') this.drawZombie(v, u, sx, base, k, W, face, stride);
+    else if (u.kind === 'mummy' || u.kind === 'vampire')
+      this.drawZombie(v, u, sx, base, k, W, face, stride, u.kind === 'mummy' ? MUMMY : VAMPIRE);
     else if (u.kind === 'lagoon') this.drawLagoon(v, u, sx, base, k, W, face, stride);
     else this.drawSkeleton(v, u, sx, base, k, W, face, stride);
     if (u.state === 'rise') ctx.restore();
@@ -686,11 +752,24 @@ export class Horde implements Entity {
     W: (c: string) => string,
     face: number,
     stride: number,
+    look: ZombieLook = ZOMBIE,
   ): void {
     const { ctx, T } = v;
-    const sway = Math.sin(u.ph * 3) * 1.5 * k;
+    const sway = Math.sin(u.ph * 3) * (look.cape ? 0.5 : 1.5) * k;
+    // A vampire's cape behind it, black outside and red within, flaring as it comes.
+    if (look.cape) {
+      const flare = u.state === 'walk' ? Math.sin(u.ph * 6) * 1.5 * k : 0;
+      ctx.fillStyle = W('#7A1420');
+      ctx.beginPath();
+      ctx.moveTo(sx - 6 * k, base - 21 * k);
+      ctx.lineTo(sx + 6 * k, base - 21 * k);
+      ctx.lineTo(sx + (9 + flare) * k, base - 1 * k);
+      ctx.lineTo(sx - (9 + flare) * k, base - 1 * k);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.lineCap = 'round';
-    ctx.strokeStyle = W('#4A3E30');
+    ctx.strokeStyle = W(look.legs);
     ctx.lineWidth = 2.6 * k;
     for (const side of [-1, 1]) {
       ctx.beginPath();
@@ -699,7 +778,7 @@ export class Horde implements Entity {
       ctx.stroke();
     }
     // Torn clothes.
-    ctx.fillStyle = W('#5B6B4A');
+    ctx.fillStyle = W(look.clothes);
     ctx.beginPath();
     ctx.moveTo(sx - 5 * k + sway, base - 21 * k);
     ctx.lineTo(sx + 5 * k + sway, base - 21 * k);
@@ -711,7 +790,18 @@ export class Horde implements Entity {
     ctx.fill();
     // Arms out in front, raised high for the swing.
     const up = u.state === 'windup' ? 7 : u.state === 'swing' ? -2 : 2;
-    ctx.strokeStyle = W('#8FB06A');
+    // A mummy's wrappings across its body.
+    if (look.wraps) {
+      ctx.strokeStyle = W('#A89A78');
+      ctx.lineWidth = 0.7 * k;
+      ctx.beginPath();
+      for (const y of [-19, -16, -13, -10]) {
+        ctx.moveTo(sx - 5 * k + sway, base + y * k);
+        ctx.lineTo(sx + 5 * k + sway, base + (y + 1.5) * k);
+      }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = W(look.skin);
     ctx.lineWidth = 2.2 * k;
     for (const side of [-1, 1]) {
       ctx.beginPath();
@@ -722,11 +812,30 @@ export class Horde implements Entity {
     // A lolling green head with dark eyes.
     const hx = sx + sway + Math.sin(T * 2 + u.ph) * 0.8 * k;
     const hy = base - 25 * k;
-    ctx.fillStyle = W('#8FB06A');
+    ctx.fillStyle = W(look.skin);
     ctx.beginPath();
     ctx.arc(hx, hy, 4.4 * k, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#26301C';
+    if (look.wraps) {
+      ctx.strokeStyle = W('#A89A78');
+      ctx.lineWidth = 0.6 * k;
+      ctx.beginPath();
+      ctx.moveTo(hx - 4 * k, hy - 2 * k);
+      ctx.lineTo(hx + 4 * k, hy - 1 * k);
+      ctx.moveTo(hx - 4 * k, hy + 2.4 * k);
+      ctx.lineTo(hx + 4 * k, hy + 1.6 * k);
+      ctx.stroke();
+    }
+    if (look.cape) {
+      // Slicked black hair to a point.
+      ctx.fillStyle = W('#15121A');
+      ctx.beginPath();
+      ctx.arc(hx, hy - 1.2 * k, 4.4 * k, Math.PI, Math.PI * 2);
+      ctx.lineTo(hx, hy - 0.4 * k);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = look.eyes;
     for (const e of [-1, 1]) {
       ctx.beginPath();
       ctx.arc(hx + face * 0.8 * k + e * 1.6 * k, hy - 0.3 * k, 0.9 * k, 0, Math.PI * 2);

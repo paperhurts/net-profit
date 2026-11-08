@@ -459,9 +459,18 @@ function drawStone(
 }
 
 /** A stone coffin, its heavy lid shut, a cross along the lid. */
-function drawCoffin(v: DrawView, c: Coffin16): void {
+function drawCoffin(v: DrawView, c: Coffin16, open = false): void {
   const { ctx } = v;
   const Z = v.zoom;
+  if (open) {
+    // Burst (part four): the box dark inside, its lid shoved off askew beside it.
+    v.box(c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0, 0, 7, '#857F74', '#1E1B18');
+    const sh = c.along === 'x' ? [0, 6] : [6, 0];
+    const lx = c.x0 + (sh[0] as number);
+    const ly = c.y0 + (sh[1] as number);
+    v.box(lx, ly, c.x1 - c.x0, c.y1 - c.y0, 0, 3, '#938D80', '#ADA799');
+    return;
+  }
   v.box(c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0, 0, 7, '#857F74', '#9C9689');
   v.box(c.x0 - 1, c.y0 - 1, c.x1 - c.x0 + 2, c.y1 - c.y0 + 2, 7, 10, '#938D80', '#ADA799');
   const mx = (c.x0 + c.x1) / 2;
@@ -636,7 +645,7 @@ function drawSign(v: DrawView, x: number, y: number, text: string): void {
 }
 
 /** Everything that stands on the island, each sorted by its own depth. */
-export function tombSolids(v: DrawView): Solid[] {
+export function tombSolids(v: DrawView, burst: ReadonlySet<number> = new Set()): Solid[] {
   if (!near(v, TOMB_ISLE.r + 260)) return [];
   const out: Solid[] = [];
   const m = 60 * v.zoom;
@@ -648,8 +657,9 @@ export function tombSolids(v: DrawView): Solid[] {
     const gate = GATE_POSTS16.includes(p);
     out.push({ d: p.d, f: () => drawPost(v, p, gate) });
   }
-  for (const c of COFFINS16)
-    if (v.onScreen(c.x0, c.y0, m)) out.push({ d: c.d, f: () => drawCoffin(v, c) });
+  COFFINS16.forEach((c, i) => {
+    if (v.onScreen(c.x0, c.y0, m)) out.push({ d: c.d, f: () => drawCoffin(v, c, burst.has(i)) });
+  });
   for (const s of STONES16)
     if (v.onScreen(s.x, s.y, m)) out.push({ d: s.x + s.y, f: () => drawStone(v, s) });
   GRAVES16.forEach((g, i) => {

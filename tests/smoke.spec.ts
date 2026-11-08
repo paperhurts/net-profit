@@ -121,6 +121,9 @@ type Np = {
   tombIsle: { seen: boolean; lever?: boolean; torch?: boolean; skull?: boolean; hints?: number };
   MERCHANT16: { x: number; y: number };
   store16Open: boolean;
+  TOMB_HORDES: { room: { x: number; y: number }; list: { kind: string; state: string }[] }[];
+  COFFINS16: { x0: number; y0: number; x1: number; y1: number }[];
+  coffinsBurst: Set<number>;
   tombFogK: number;
   LEVER16: { x: number; y: number; front: { x: number; y: number } };
   TOMB_DOCK: { x: number; y: number };
@@ -1166,6 +1169,56 @@ test('Tomb Island: the man in the cloak sneers, sells a torch for the fog and th
     n.walker.x = n.MERCHANT16.x + 90;
   });
   await expect(page.locator('#store16')).toBeHidden({ timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: the undead in the maze wake when you come near, and a coffin bursts into a mummy', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true, lever: true },
+    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // The first haunt, the kid's three zombies, waiting.
+  expect(await page.evaluate(() => window.__np.TOMB_HORDES[0]?.list.map((u) => u.state))).toEqual([
+    'wait',
+    'wait',
+    'wait',
+  ]);
+  await page.evaluate(() => {
+    const n = window.__np;
+    const h = n.TOMB_HORDES[0];
+    if (!h) return;
+    n.walker.x = h.room.x;
+    n.walker.y = h.room.y + 40;
+  });
+  await expect(page.locator('#toast')).toContainText('undead', { timeout: 3000 });
+  await page.waitForFunction(
+    () => window.__np.TOMB_HORDES[0]?.list.every((u) => u.state !== 'wait'),
+    null,
+    { timeout: 3000 },
+  );
+  // By the first coffin: it bursts, and a mummy climbs out.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const c = n.COFFINS16[0];
+    if (!c) return;
+    n.walker.x = (c.x0 + c.x1) / 2 + 24;
+    n.walker.y = (c.y0 + c.y1) / 2 + 24;
+  });
+  await page.waitForFunction(() => window.__np.coffinsBurst.has(0), null, { timeout: 3000 });
+  const risen = await page.evaluate(
+    () =>
+      window.__np.TOMB_HORDES.flatMap((h) => h.list.map((u) => u.kind)).filter((k) => k === 'mummy')
+        .length,
+  );
+  expect(risen).toBe(1);
   expect(errors).toEqual([]);
 });
 
