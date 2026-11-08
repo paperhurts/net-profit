@@ -430,6 +430,8 @@ export type SaveData = {
     /** The fog sea's skeletons (part eight) beaten at least once, a bit each in world/fogbones.ts BONE_KINDS's order,
      * there once one is. */
     bones?: number;
+    /** The summoning staff from its merchant, there once bought. */
+    staff?: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -934,6 +936,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (t.torch === true) d.tomb.torch = true;
     if (t.skull === true) d.tomb.skull = true;
     if (t.boss === true) d.tomb.boss = true;
+    if (t.staff === true) d.tomb.staff = true;
     const hints = Math.floor(Number(t.hints));
     if (hints > 0 && hints <= 9999) d.tomb.hints = hints;
     const bones = Math.floor(Number(t.bones));

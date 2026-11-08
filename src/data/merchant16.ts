@@ -23,6 +23,20 @@ export const SKULL_CLOAK = {
   blurb: 'A black cloak and a bone-white skull mask. Put it on in Your character.',
 } as const;
 
+/**
+ * The summoning staff, the kid's "Alaws you to suman a skeleton or vamp (staf is only 30000 coins)": ashore anywhere,
+ * it calls up a skeleton or a vampire to fight on your side. His price, twice the dearest thing sold anywhere else.
+ */
+export const STAFF16 = {
+  name: 'Summoning staff',
+  price: 30000,
+  blurb: 'Ashore anywhere, summon a skeleton or a vampire to fight on your side.',
+} as const;
+/** At most this many summoned at once; seconds between summons; how long one waits with nothing to fight. */
+export const STAFF_MAX = 2;
+export const STAFF_COOL = 3;
+export const STAFF_IDLE = 40;
+
 /** What he knows, one thing at a time. */
 export const HINT_PRICE = 40;
 export const HINT_BLURB = 'He knows things about this island. He wants paying for them.';
