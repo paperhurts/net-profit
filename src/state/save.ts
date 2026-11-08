@@ -432,6 +432,10 @@ export type SaveData = {
     bones?: number;
     /** The summoning staff from its merchant, there once bought. */
     staff?: boolean;
+    /** The story (part nine): the arrival scene seen, the first time through the wall of fog; and the story element
+     * won off Necromanda, a torn chart of a second tar island. Each there once true. */
+    arrived?: boolean;
+    chart?: boolean;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -937,6 +941,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (t.skull === true) d.tomb.skull = true;
     if (t.boss === true) d.tomb.boss = true;
     if (t.staff === true) d.tomb.staff = true;
+    if (t.arrived === true) d.tomb.arrived = true;
+    if (t.chart === true) d.tomb.chart = true;
     const hints = Math.floor(Number(t.hints));
     if (hints > 0 && hints <= 9999) d.tomb.hints = hints;
     const bones = Math.floor(Number(t.bones));
@@ -1125,7 +1131,7 @@ export function serializeSave(d: SaveData): string {
     pets: petsForSave(d.pets),
     garden: untouchedGarden(d.garden) ? undefined : d.garden,
     goat: d.goat.up ? d.goat : undefined,
-    tomb: d.tomb.seen ? d.tomb : undefined,
+    tomb: d.tomb.seen || d.tomb.arrived ? d.tomb : undefined,
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,

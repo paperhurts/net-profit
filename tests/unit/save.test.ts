@@ -1496,6 +1496,20 @@ describe('Tomb Island', () => {
   });
 });
 
+describe("Tomb Island's story", () => {
+  it('keeps the arrival seen and the chart won, and saves the arrival before the island is sighted', () => {
+    const s = parseSave(legacy, bounds);
+    s.tomb = { seen: false, arrived: true };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({ seen: false, arrived: true });
+    s.tomb = { seen: true, boss: true, chart: true };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({
+      seen: true,
+      boss: true,
+      chart: true,
+    });
+  });
+});
+
 describe("Tomb Island's summoning staff", () => {
   it('keeps the staff once bought, and only a true', () => {
     const s = parseSave(legacy, bounds);

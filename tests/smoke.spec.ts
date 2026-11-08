@@ -126,12 +126,16 @@ type Np = {
     hints?: number;
     bones?: number;
     staff?: boolean;
+    arrived?: boolean;
+    chart?: boolean;
   };
   /** The fog sea's skeletons (world/fogbones.ts): those there now, where each lies, and one beaten. */
   fogBones: { boneK: string; state: string; resolve: number }[];
   BONE_SPOTS: { k: string; x: number; y: number }[];
   /** Tomb Island's summoning staff: call one up. */
   summon(kind: 'skeleton' | 'vampire'): void;
+  /** The cutscene playing, if any. */
+  cineKind: string | null;
   MERCHANT16: { x: number; y: number };
   store16Open: boolean;
   TOMB_HORDES: { room: { x: number; y: number }; list: { kind: string; state: string }[] }[];
@@ -1069,6 +1073,13 @@ test('Tomb Island: through the wall of fog into its own sea, sight it, tie up at
     { timeout: 12000, polling: 100 },
   );
   await expect(page.locator('#toast')).toContainText('wall of fog');
+  // The first time through: the arrival, bones under the boat and a laugh in the fog. A tap skips it, and it is saved.
+  await page.waitForFunction(() => window.__np.cineKind === 'fog', null, { timeout: 6000 });
+  await page.waitForTimeout(1300);
+  await tap(page, 200, 400);
+  await page.waitForFunction(() => window.__np.cineKind === null, null, { timeout: 6000 });
+  await expect(page.locator('#toast')).toContainText('skull marker', { timeout: 4000 });
+  expect(await page.evaluate(() => window.__np.tombIsle.arrived)).toBe(true);
   // Out in the fog sea, below the island, heading up at it.
   await page.evaluate(() => {
     const n = window.__np;
@@ -1120,7 +1131,7 @@ test('Tomb Island: through the wall of fog into its own sea, sight it, tie up at
   const saved = await page.evaluate(
     () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
   );
-  expect(saved).toEqual({ seen: true });
+  expect(saved).toEqual({ seen: true, arrived: true });
   expect(errors).toEqual([]);
 });
 
@@ -1537,6 +1548,11 @@ test('Tomb Island: Necromanda at the top of his castle, laughing, his fake tomb,
     () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
   );
   expect(saved.boss).toBe(true);
+  // The story element: in his fake tomb, 1,000 coins and a torn chart of a second tar island.
+  const coins = await page.evaluate(() => window.__np.coins);
+  await expect(page.locator('#toast')).toContainText('second tar island', { timeout: 9000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1000);
+  expect(await page.evaluate(() => window.__np.tombIsle.chart)).toBe(true);
   expect(errors).toEqual([]);
 });
 
