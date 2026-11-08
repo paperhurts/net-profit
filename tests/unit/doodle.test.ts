@@ -99,7 +99,7 @@ describe('the drawing pad', () => {
     // A stroke past the pot is cut to it; text far longer than any drawing is not read at all.
     expect(inkUsed(decode(`A${'BC'.repeat(INK + 50)}`))).toBe(INK);
     expect(decode(`A${'BC'.repeat(INK * 2)}`)).toEqual([]);
-    const many = Array.from({ length: 30 }, () => `A${'BC'.repeat(10)}`).join('.');
+    const many = Array.from({ length: INK / 10 + 10 }, () => `A${'BC'.repeat(10)}`).join('.');
     expect(inkUsed(decode(many))).toBe(INK);
   });
 
