@@ -90,12 +90,15 @@ type Climb = {
 };
 type Np = {
   experimental: boolean;
-  dims: { gun: boolean; best: number; kills: number; diff: string; peppers: number };
+  dims: { gun: boolean; best: number; kills: number; diff: string; peppers: number; cls: string };
   dim: { round: number; nextT: number; elite: unknown } | null;
   enterDim: () => void;
   fury: { rage: number; skips: number; cd: Record<string, number> };
   furyMove: unknown;
   warriorBasic: () => void;
+  wizardBasic: () => void;
+  ward: number;
+  puddles: { t: number; fire: number }[];
   dimHps: number[];
   firePortal: () => void;
   boat: { x: number; y: number; h: number; v: number };
@@ -16852,5 +16855,83 @@ test('New Dimensions: the Warrior: Charge makes rage, Slam spends it, and on a h
   }
   expect(await page.evaluate(() => window.__np.fury.skips)).toBe(1);
   expect(await page.evaluate(() => window.__np.fury.cd.charge)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Wizard, picked on the card: fireball, grease set alight, mage armor soaks a blow, and back to the Warrior between rounds', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, diff: 'medium' },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimClass [data-cls="wizard"]').click();
+  await expect(page.locator('#dimClassSay')).toContainText('Fireball');
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.dims.cls)).toBe('wizard');
+  for (const id of ['#ability', '#ability2', '#ability3', '#ability4'])
+    await expect(page.locator(id)).toBeVisible();
+  // Medium, enemy level 5: 2 + 8 hits on each monkey. Gathered in front of him.
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(3);
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 90 + i * 8;
+          m.y = n.walker.y + 30 - i * 8;
+        });
+    });
+  await gather();
+  await page.waitForFunction(() => window.__np.dimHps.every((hp) => hp === 10), null, {
+    timeout: 2000,
+  });
+  // A fireball: 1 at level 1, splashing all three.
+  await page.evaluate(() => window.__np.wizardBasic());
+  await page.waitForFunction(() => window.__np.dimHps.every((hp) => hp === 9), null, {
+    timeout: 2000,
+  });
+  // Grease on them, then a fireball into it: alight.
+  await gather();
+  await page.locator('#ability2').click();
+  await page.waitForFunction(() => window.__np.puddles.length === 1, null, { timeout: 2000 });
+  await page.waitForTimeout(800);
+  await gather();
+  await page.evaluate(() => window.__np.wizardBasic());
+  await page.waitForFunction(() => (window.__np.puddles[0]?.fire ?? 0) > 0, null, {
+    timeout: 2000,
+  });
+  // Mage armor: two shields under the hearts, and a blow soaked by one.
+  await page.locator('#ability4').click();
+  await expect(page.locator('#rage svg')).toHaveCount(2);
+  const hearts = await page.evaluate(() => window.__np.hearts);
+  await page.waitForFunction(() => window.__np.ward < 2, null, { timeout: 15000 });
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(hearts);
+  // Round 1 done: change class to the Warrior, and the next round waits while the card is open.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const f = n.floor;
+    for (const c of Object.values(n.bargeCamps[f] ?? {}))
+      for (const m of c.list) c.hit(m, 99, n.walker.x, n.walker.y);
+  });
+  await expect(page.locator('#dimSwitch')).toBeVisible({ timeout: 3000 });
+  await page.locator('#dimSwitch').click();
+  await page.locator('#dimClass [data-cls="warrior"]').click();
+  await page.waitForTimeout(3500);
+  expect(await page.evaluate(() => window.__np.dim?.round)).toBe(1);
+  await page.locator('#dimGo').click();
+  await expect(page.locator('#rage svg')).toHaveCount(5);
+  await page.waitForFunction(() => window.__np.dim?.round === 2, null, { timeout: 5000 });
+  await expect(page.locator('#ability4')).toBeHidden();
   expect(errors).toEqual([]);
 });

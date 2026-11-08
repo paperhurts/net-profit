@@ -7,8 +7,8 @@
  * My picks, hers to change: fireball is his main attack, from range, with a little splash; magic missile is three
  * homing bolts at the three nearest, from level 7, every 5 s; grease is a slick puddle on the biggest crowd for 8 s,
  * every 8 s, whose slipping slows what stands in it; a fireball landing in it sets it alight for 4 s, burning what
- * stands in it every half second (fire never hurts you); misty step is a short hop where the stick points, or away
- * from the nearest enemy, every 4 s; mage armor soaks the next 2 hits within 20 s, every 15 s. The hot pepper (data/
+ * stands in it once a second (the owner's call; fire never hurts you); misty step is a short hop where the stick points, or away
+ * from the nearest enemy, every 4 s; mage armor soaks the next 2 hits within 10 s, every 20 s (the owner's call, so it is up when it counts, not always). The hot pepper (data/
  * warrior.ts) skips his waits too.
  *
  * Here: the numbers, and the rules that use them, free of the game. His waits live in the same bag as the Warrior's
@@ -24,7 +24,7 @@ export const SPELL_SPECS: Readonly<Record<Spell, SpellSpec>> = {
   missile: { name: 'Magic missile', every: 5, from: 7 },
   grease: { name: 'Grease', every: 8, from: 1 },
   misty: { name: 'Misty step', every: 4, from: 1 },
-  armor: { name: 'Mage armor', every: 15, from: 1 },
+  armor: { name: 'Mage armor', every: 20, from: 1 },
 };
 
 /** Fireball: how far, how often, how fast it flies, and its splash. */
@@ -56,7 +56,7 @@ export const SLIP_EVERY = 1.2;
 export const SLIP_STUN = 0.5;
 /** Set alight: how long it burns, how often, and for how much (half a fireball, at least 1). */
 export const BURN_TIME = 4;
-export const BURN_EVERY = 0.5;
+export const BURN_EVERY = 1;
 export function burnPower(lv: number): number {
   return Math.max(1, Math.round(fireballPower(lv) / 2));
 }
@@ -65,7 +65,7 @@ export function burnPower(lv: number): number {
 export const MISTY_STEP = 130;
 /** Mage armor: hits it soaks, and how long it lasts. */
 export const ARMOR_HITS = 2;
-export const ARMOR_TIME = 20;
+export const ARMOR_TIME = 10;
 
 /** Why a spell cannot be cast now, or null if it can. */
 export type NoSpell = 'wait' | 'level';
