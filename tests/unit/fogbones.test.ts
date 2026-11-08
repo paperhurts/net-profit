@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SEA_FOES } from '../../src/data/barge';
-import { boneColour } from '../../src/render/bone';
+import { boneColour, keptColour } from '../../src/render/bone';
 import {
   BONE_KINDS,
   BONE_LEASH,
@@ -49,7 +49,10 @@ describe('the fog sea’s skeletons', () => {
 });
 
 describe('the bone look', () => {
-  const rgb = (c: string) => (/\d+,\d+,\d+/.exec(c)?.[0] ?? '').split(',').map(Number);
+  const rgb = (c: string) =>
+    c[0] === '#'
+      ? [1, 3, 5].map((i) => Number.parseInt(c.slice(i, i + 2), 16))
+      : (/\d+,\d+,\d+/.exec(c)?.[0] ?? '').split(',').map(Number);
   it('turns a beast’s colours to bone by how light they are, alpha kept', () => {
     const dark = rgb(boneColour('#23384A'));
     const light = rgb(boneColour('#E8E2D0'));
@@ -67,5 +70,10 @@ describe('the bone look', () => {
   });
   it('leaves what it cannot read alone', () => {
     expect(boneColour('transparent')).toBe('transparent');
+  });
+  it('draws warnings and whites solid, and the rest of the flesh faint', () => {
+    for (const c of ['#FF5A6A', '#FFFFFF', 'rgba(255,255,255,.5)', '#F0C544'])
+      expect(keptColour(c)).toBe(true);
+    for (const c of ['#23384A', '#2F7A52', 'rgba(4,10,16,.6)']) expect(keptColour(c)).toBe(false);
   });
 });

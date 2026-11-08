@@ -14,6 +14,7 @@
  */
 import { rgba } from '../core/color';
 import { AWAY, RESOLVE } from '../data/harpoon';
+import { drawSkull, drawSpine } from '../render/skeleton';
 import { WS } from '../world/island';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
@@ -127,6 +128,8 @@ export function seaCity(at: { x: number; y: number }): CthuluCity {
 
 export class Cthuluviathan implements Entity {
   state: 'asleep' | 'awake' = 'asleep';
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   /** Driven off where it does not come back: asleep for good. */
   done = false;
   tentacles: Tentacle[] = [];
@@ -390,6 +393,8 @@ export class Cthuluviathan implements Entity {
     ctx.ellipse(sx - 18 * Z, sy - 16 * Z, 46 * Z, 22 * Z, -0.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    // Its skull, the dome of its head, its eyes still in the sockets.
+    if (this.bones) drawSkull(ctx, sx, sy - 6 * Z, 150 * Z, Math.PI / 2, 0.1 + 0.3 * e);
     // Eyes: shut and dreaming, or open and yellow-green with a slit.
     for (const s of [-1, 1]) {
       const ex = sx + s * 34 * Z;
@@ -529,6 +534,18 @@ export class Cthuluviathan implements Entity {
       ctx.beginPath();
       ctx.arc(sx + curl(s) - (14 - 11 * s) * Z, sy - H * s, (2.6 - 1.6 * s) * Z, 0, Math.PI * 2);
       ctx.fill();
+    }
+    if (this.bones) {
+      // A tentacle of bones, tip first, with little spurs out of each.
+      const pts: (readonly [number, number])[] = [];
+      for (let i = 10; i >= 0; i--) pts.push([sx + curl(i / 10), sy - H * (i / 10)]);
+      drawSpine(
+        ctx,
+        pts,
+        pts.map((_, i) => (4 + 9 * (i / 10)) * Z),
+        Z,
+        k,
+      );
     }
   }
 
