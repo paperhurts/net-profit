@@ -89,6 +89,10 @@ type Climb = {
   };
 };
 type Np = {
+  experimental: boolean;
+  dims: { gun: boolean; best: number };
+  dim: { round: number; nextT: number } | null;
+  firePortal: () => void;
   boat: { x: number; y: number; h: number; v: number };
   keys: 'drive' | 'point';
   schools: { cx: number; cy: number; sp: number; r: number }[];
@@ -16569,5 +16573,93 @@ test('the garden journal: the field guide has a page for every crop, filled in a
   await expect(page.locator('#pages article', { hasText: 'Moonpetal vine' })).toContainText(
     'only comes from the Moonkoi',
   );
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: hidden until the Experimental switch is on; then the shipwright sells the portal gun, kept', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 6000,
+    spear: 1,
+    isle2Seen: true,
+    lv: { net: 2, hold: 2, engine: 2 },
+  });
+  await expect(page.locator('#gear [data-s]').first()).toBeAttached();
+  await expect(page.locator('#gear [data-p]')).toHaveCount(0);
+  await expect(page.locator('#labOn')).toHaveText('Off');
+  await expect(page.locator('#labTxt')).toContainText('New Dimensions');
+  await page.locator('#labBtn').dispatchEvent('click');
+  await expect(page.locator('#labOn')).toHaveText('On');
+  const card = page.locator('#gear [data-p]');
+  await expect(card).toContainText('Portal gun');
+  await card.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.dims.gun, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
+  await expect(card).toHaveCount(0);
+  await expect(page.locator('#yours')).toContainText('Portal gun');
+  // Switched off, it is hidden but kept; on again after a reload, it is back.
+  await page.locator('#labBtn').dispatchEvent('click');
+  await expect(page.locator('#yours')).not.toContainText('Portal gun');
+  await page.locator('#labBtn').dispatchEvent('click');
+  await page.reload();
+  await page.waitForFunction(() => window.__np?.dims?.gun && window.__np.experimental, null, {
+    timeout: 5000,
+  });
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: through the portal gun from the boat, round 1 beaten for 10 coins, a bigger round 2, bonked out back aboard', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.waitForFunction(() => window.__np.floor === window.__np.ARENAS.medium, null, {
+    timeout: 3000,
+  });
+  expect(await page.evaluate(() => window.__np.dim?.round)).toBe(1);
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  await expect(page.locator('#leave')).toHaveText('Leave the dimension');
+  await expect(page.locator('#portalBtn')).toBeHidden();
+  const coins = await page.evaluate(() => window.__np.coins);
+  const beatAll = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(9);
+      const f = n.floor;
+      const h = n.hordes[f];
+      if (h)
+        for (const k of [0, 1]) for (const u of h.list) h.hit(u, 99 + k, n.walker.x, n.walker.y);
+      for (const c of Object.values(n.bargeCamps[f] ?? {}))
+        for (const m of c.list) c.hit(m, 99, n.walker.x, n.walker.y);
+    });
+  await beatAll();
+  await page.waitForFunction(() => (window.__np.dims.best ?? 0) === 1, null, { timeout: 3000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 10);
+  await expect(page.locator('#toast')).toContainText('Round 1 beaten');
+  // The Battle Barge's own count is not the dimension's, and its crossed swords stay away.
+  expect(await page.evaluate(() => window.__np.bargeWins)).toBe(0);
+  await expect(page.locator('#bargeBtn')).toBeHidden();
+  // Round 2 comes by itself, one more of them.
+  await page.waitForFunction(() => window.__np.dim?.round === 2, null, { timeout: 6000 });
+  // Bonked out: back aboard where the gun was fired, the coins kept.
+  await page.evaluate(() => window.__np.setHearts(1));
+  await page.waitForFunction(() => window.__np.floor === -1, null, { timeout: 15000 });
+  await expect(page.locator('#toast')).toContainText('Back through the portal');
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('aboard');
+  expect(await page.evaluate(() => window.__np.dim)).toBe(null);
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 10);
   expect(errors).toEqual([]);
 });

@@ -10,6 +10,7 @@ import { type Badges, noBadges, parseBadges } from '../data/badges';
 import { type BargeSetup, defaultBarge, parseBarge } from '../data/barge';
 import { type Battles, parseBattles } from '../data/battle';
 import { type Crew, DEFAULT_CREW, parseCrew } from '../data/crew';
+import { type DimSave, noDims, parseDims, untouchedDims } from '../data/dimension';
 import {
   BEETLES_MAX,
   DRONE_COLOURS,
@@ -449,6 +450,11 @@ export type SaveData = {
   trip: Trip | null;
   /** How the keyboard steers: drive the boat (A/D turn, W throttle) or point it like the stick. */
   keys: KeyMode;
+  /** The Experimental switch in the shop (data/experimental.ts), off by default; missing in old saves, read as off. */
+  experimental: boolean;
+  /** New Dimensions (data/dimension.ts): the portal gun bought, and the best round beaten; missing in old saves, read
+   * as neither, and left out of the save until there is one. */
+  dims: DimSave;
 };
 
 export type KeyMode = 'drive' | 'point';
@@ -633,6 +639,8 @@ export function defaultSave(b: Bounds): SaveData {
     snook: { casts: 0, landed: 0, kept: 0, giant: 0, best: 0, firstDay: 0 },
     trip: null,
     keys: 'drive',
+    experimental: false,
+    dims: noDims(),
   };
 }
 
@@ -990,6 +998,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   }
   d.trip = parseTrip(o.trip, b, d.lv.hold);
   d.keys = o.keys === 'point' ? 'point' : 'drive';
+  d.experimental = o.experimental === true;
+  d.dims = parseDims(o.dims);
   return d;
 }
 
@@ -1135,5 +1145,7 @@ export function serializeSave(d: SaveData): string {
     snook: d.snook,
     trip: d.trip ?? undefined,
     keys: d.keys,
+    experimental: d.experimental || undefined,
+    dims: untouchedDims(d.dims) ? undefined : d.dims,
   });
 }
