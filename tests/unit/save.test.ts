@@ -1496,6 +1496,20 @@ describe('Tomb Island', () => {
   });
 });
 
+describe("the fog sea's skeletons", () => {
+  it('keeps which have been beaten, a bit each, and drops anything odd', () => {
+    const s = parseSave(legacy, bounds);
+    s.tomb = { seen: true, bones: 0b101 };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({ seen: true, bones: 5 });
+    for (const bones of [0, -3, 'x', null])
+      expect(parseSave(JSON.stringify({ ...s, tomb: { seen: true, bones } }), bounds).tomb).toEqual(
+        {
+          seen: true,
+        },
+      );
+  });
+});
+
 describe("Tomb Island's merchant", () => {
   it('keeps the torch, the skull cloak and the hints bought, and drops anything odd', () => {
     const s = parseSave(legacy, bounds);

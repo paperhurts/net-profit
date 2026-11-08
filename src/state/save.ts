@@ -427,6 +427,9 @@ export type SaveData = {
     hints?: number;
     /** Necromanda beaten (part seven), there once he is. */
     boss?: boolean;
+    /** The fog sea's skeletons (part eight) beaten at least once, a bit each in world/fogbones.ts BONE_KINDS's order,
+     * there once one is. */
+    bones?: number;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -933,6 +936,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (t.boss === true) d.tomb.boss = true;
     const hints = Math.floor(Number(t.hints));
     if (hints > 0 && hints <= 9999) d.tomb.hints = hints;
+    const bones = Math.floor(Number(t.bones));
+    if (bones > 0 && bones <= 255) d.tomb.bones = bones;
   }
   if (o.goat && typeof o.goat === 'object') {
     const g = o.goat as Record<string, unknown>;

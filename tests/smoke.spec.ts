@@ -118,7 +118,17 @@ type Np = {
   isle11Seen: boolean;
   isle12Seen: boolean;
   goatIsle: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
-  tombIsle: { seen: boolean; lever?: boolean; torch?: boolean; skull?: boolean; hints?: number };
+  tombIsle: {
+    seen: boolean;
+    lever?: boolean;
+    torch?: boolean;
+    skull?: boolean;
+    hints?: number;
+    bones?: number;
+  };
+  /** The fog sea's skeletons (world/fogbones.ts): those there now, where each lies, and one beaten. */
+  fogBones: { boneK: string; state: string; resolve: number }[];
+  BONE_SPOTS: { k: string; x: number; y: number }[];
   MERCHANT16: { x: number; y: number };
   store16Open: boolean;
   TOMB_HORDES: { room: { x: number; y: number }; list: { kind: string; state: string }[] }[];
@@ -1349,6 +1359,51 @@ test("Tomb Island: past the big necromancer the castle's door opens, its floors 
       return h.cleared;
     }),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: the bones of every leviathan in the fog sea, a skeleton gulper harpooned to pieces', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true, lever: true },
+    trip: { x: -9100, y: 4067, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.waitForFunction(() => window.__np.fogBones.length === 8, null, { timeout: 4000 });
+  // Up near the gulper's bones: it wakes and comes for the boat, and the harpoon finds it.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const s = n.BONE_SPOTS.find((b) => b.k === 'gulper') as { x: number; y: number };
+    n.boat.x = s.x + 300;
+    n.boat.y = s.y;
+    n.boat.h = Math.PI;
+  });
+  await page.waitForFunction(() => window.__np.harpoonTarget === 'gulper', null, { timeout: 6000 });
+  const coins = await page.evaluate(() => window.__np.coins);
+  await page.evaluate(() => {
+    const g = window.__np.fogBones.find((b) => b.boneK === 'gulper');
+    if (g) g.resolve = 1;
+  });
+  await page.waitForFunction(
+    () => {
+      window.__np.fireHarpoon();
+      return ((window.__np.tombIsle.bones ?? 0) & 4) !== 0;
+    },
+    null,
+    { timeout: 8000, polling: 100 },
+  );
+  await expect(page.locator('#toast')).toContainText('skeleton gulper falls to pieces');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 150);
+  // Out of the fog sea, they are gone; back in, whole again.
+  await page.evaluate(() => {
+    window.__np.boat.x = -1500;
+    window.__np.boat.y = 2400;
+  });
+  await page.waitForFunction(() => window.__np.fogBones.length === 0, null, { timeout: 3000 });
   expect(errors).toEqual([]);
 });
 
