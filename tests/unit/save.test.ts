@@ -1566,3 +1566,27 @@ describe('the fog sea', () => {
     expect(parseSave(serializeSave(s), b).trip?.x).toBe(160 - 5400);
   });
 });
+
+describe('New Dimensions and the Experimental switch', () => {
+  it('an old save has the switch off and no portal gun, and leaves both out until touched', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.experimental).toBe(false);
+    expect(s.dims).toEqual({ gun: false, best: 0, kills: 0, diff: 'easy' });
+    const out = JSON.parse(serializeSave(s));
+    expect(out).not.toHaveProperty('experimental');
+    expect(out).not.toHaveProperty('dims');
+  });
+  it('keeps the switch on, the gun and the best round', () => {
+    const s = parseSave(legacy, bounds);
+    s.experimental = true;
+    s.dims = { gun: true, best: 7, kills: 120, diff: 'hard' };
+    const back = parseSave(serializeSave(s), bounds);
+    expect(back.experimental).toBe(true);
+    expect(back.dims).toEqual({ gun: true, best: 7, kills: 120, diff: 'hard' });
+    // Anything odd reads as off and neither, and the rest loads as before.
+    const odd = parseSave(JSON.stringify({ ...s, experimental: 'yes', dims: 'doom' }), bounds);
+    expect(odd.experimental).toBe(false);
+    expect(odd.dims).toEqual({ gun: false, best: 0, kills: 0, diff: 'easy' });
+    expect(odd.coins).toBe(s.coins);
+  });
+});
