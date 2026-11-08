@@ -3405,11 +3405,12 @@ topHorde.onClear = () => { if (!fakeDone || fakeT > 0){ topHorde.cleared = false
   if (won) setTimeout(winChart, 6200); };
 // The story element (part nine), the kid's "Story elamant", leading "To the tar island 2": in Necromanda's fake tomb, a
 // chart torn in half, of an island black with tar that is not island 4. With it, STORY_COINS. A second tar island is
-// not built yet: the chart is the promise of it.
+// not built yet: the chart is the promise of it. And what the element is, his word through the owner (2026-11-08):
+// "hearing that THE HERON IS alive", and tar island 2 "a tary area like 1", so a note in Necromanda's hand says so.
 const STORY_COINS = 1000;
 function winChart(){ if (tombIsle.chart) return; tombIsle = {...tombIsle, chart: true}; coins += STORY_COINS; earned += STORY_COINS; hud(); refreshShop(); save();
   sfx.tierUp(); shake = Math.max(shake, .4); addText(walker.x, walker.y, 60, '+' + STORY_COINS.toLocaleString('en'), C.coin, 24, 2.4); toasts.clear();
-  toast(`In Necromanda's fake tomb, under his crown: ${STORY_COINS.toLocaleString('en')} coins, and a chart torn in half. It shows an island black with tar... but it is not island 4. A second tar island, somewhere past the first. Nobody has ever been there.`, 8000, 2); }
+  toast(`In Necromanda's fake tomb, under his crown: ${STORY_COINS.toLocaleString('en')} coins, a chart torn in half, and a note in his spidery hand: \u201cTHE HERON IS ALIVE.\u201d The chart shows an island black and sticky with tar, like island 4, but it is not island 4: a second tar island. Nobody has ever been there.`, 9000, 2); }
 const HORDES = Object.values(hordes);
 // The courtyard's portal home stands at its side, toward the viewer's right.
 const GATE_PORTAL = {x: ROOMS[GATE].x + ROOMS[GATE].r*.62*Math.SQRT1_2, y: ROOMS[GATE].y - ROOMS[GATE].r*.62*Math.SQRT1_2};
