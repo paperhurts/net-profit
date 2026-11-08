@@ -5,8 +5,10 @@
  *
  * Each stroke is thinned as it is drawn (Ramer-Douglas-Peucker: points that do not change the line's shape are
  * dropped) and snapped to a 64 by 64 grid, so one coordinate is one character and a point is two. A stroke is a
- * colour letter and its points; strokes are joined by dots. The ink pot is the cap on size: 200 points, about 420
- * characters at most for a whole drawing. When it runs out the pen stops; Undo gives ink back.
+ * colour letter and its points; strokes are joined by dots. The ink pot is the cap on size: 500 points, about 1,050
+ * characters at most for a whole drawing. When it runs out the pen stops; Undo gives ink back. It was 200 at first;
+ * her kid wanted more ink to draw his pets (2026-11-08), and the save squeezes (state/share.ts) easily carries four
+ * full drawings.
  *
  * And ready to walk (render/petsys.ts draws it): its box, and which strokes are legs, any separate stroke low down in
  * the drawing, each swinging in turn with its neighbours.
@@ -15,7 +17,7 @@
 /** The pad's grid, each way. */
 export const GRID = 64;
 /** Points of ink in the pot. */
-export const INK = 200;
+export const INK = 500;
 /** How far a point may sit off the line between its neighbours, in grid cells, before it is kept. */
 export const THIN = 0.9;
 /** The pen's width, in grid cells: chunky, so small fingers draw bold lines. */
@@ -78,7 +80,7 @@ export function encode(strokes: readonly Stroke[]): string {
 
 /** Text back to a drawing: anything that is not a stroke is dropped, and nothing past the ink pot is kept. */
 export function decode(s: unknown): Stroke[] {
-  // The longest a drawing can be is two hundred strokes of one point each, a colour, a point and a dot apiece.
+  // The longest a drawing can be is a stroke of one point for each point of ink, a colour, a point and a dot apiece.
   if (typeof s !== 'string' || s.length > INK * 4) return [];
   const out: Stroke[] = [];
   let left = INK;
