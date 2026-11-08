@@ -15,7 +15,9 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   // The smoke scenarios drive a real-time game with mouse gestures; run them
   // one at a time so they never fight for CPU and drift off their timings.
-  fullyParallel: false,
+  // fullyParallel only lets `--shard` deal single tests out across CI's runners
+  // (they are all in one file); with one worker each still runs alone.
+  fullyParallel: true,
   workers: 1,
   timeout: 60_000,
   // On CI a failure is also an annotation on the check, which can be read where the job's log cannot.
