@@ -18,6 +18,7 @@
  * enemy is, and the saved block.
  */
 import { BARGE_MAX, type BargeFoe, type BargePick, noPick } from './barge';
+import { PEPPER_MAX } from './warrior';
 
 /** The portal gun, from the shipwright, once there is a spear. */
 export const GUN_COST = 5000;
@@ -205,10 +206,17 @@ export function bossAdds(level: number): number {
 /* ---------- The saved block ---------- */
 
 /** The portal gun bought, the best round beaten, enemies beaten all told, and the difficulty last picked. */
-export type DimSave = { gun: boolean; best: number; kills: number; diff: Difficulty };
+export type DimSave = {
+  gun: boolean;
+  best: number;
+  kills: number;
+  diff: Difficulty;
+  /** Hot peppers held (data/warrior.ts), three at most. */
+  peppers: number;
+};
 
 export function noDims(): DimSave {
-  return { gun: false, best: 0, kills: 0, diff: 'easy' };
+  return { gun: false, best: 0, kills: 0, diff: 'easy', peppers: 0 };
 }
 
 const count = (v: unknown, max: number): number =>
@@ -217,14 +225,26 @@ const count = (v: unknown, max: number): number =>
 /** Read back: missing in old saves, read as nothing, on Easy. */
 export function parseDims(o: unknown): DimSave {
   if (!o || typeof o !== 'object') return noDims();
-  const s = o as { gun?: unknown; best?: unknown; kills?: unknown; diff?: unknown };
+  const s = o as {
+    gun?: unknown;
+    best?: unknown;
+    kills?: unknown;
+    diff?: unknown;
+    peppers?: unknown;
+  };
   const diff = (DIFFICULTIES as readonly unknown[]).includes(s.diff)
     ? (s.diff as Difficulty)
     : 'easy';
-  return { gun: s.gun === true, best: count(s.best, 9999), kills: count(s.kills, 9_999_999), diff };
+  return {
+    gun: s.gun === true,
+    best: count(s.best, 9999),
+    kills: count(s.kills, 9_999_999),
+    diff,
+    peppers: count(s.peppers, PEPPER_MAX),
+  };
 }
 
 /** Untouched, it stays out of the save: the save travels in a link (state/share.ts), kept short. */
 export function untouchedDims(d: DimSave): boolean {
-  return !d.gun && !d.best && !d.kills && d.diff === 'easy';
+  return !d.gun && !d.best && !d.kills && d.diff === 'easy' && !d.peppers;
 }

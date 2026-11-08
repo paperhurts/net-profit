@@ -839,6 +839,10 @@ export class Walker implements Entity {
   /** Where the boat is tied up while the figure is ashore. */
   dock: Dock = HOME_DOCK;
   z = 0;
+  /** Held by something moving it (the Warrior's Charge and Leap in New Dimensions): the stick does nothing, and it
+   * stands this high off the ground. */
+  held = false;
+  lift = 0;
   /** Facing, in world radians. */
   h = Math.PI;
   vx = 0;
@@ -1066,6 +1070,12 @@ export class Walker implements Entity {
       return;
     }
     if (this.state !== 'ashore') return;
+    if (this.held) {
+      this.vx = 0;
+      this.vy = 0;
+      this.z = groundZ(this.x, this.y) + this.lift;
+      return;
+    }
     // The stick points where to walk; how far it is pushed is how fast, up to full at half a push, the same in every direction.
     const mag = walkPace(Math.hypot(this.ix, this.iy));
     let tx = 0;
@@ -1088,7 +1098,7 @@ export class Walker implements Entity {
     const speed = dt > 0 ? moved / dt : 0;
     this.gait += (Math.min(1, speed / (WALK_SPEED * 0.6)) - this.gait) * Math.min(1, dt * 10);
     this.ph += moved * 0.42;
-    this.z = groundZ(this.x, this.y);
+    this.z = groundZ(this.x, this.y) + this.lift;
     const home = this.dock.landing;
     if (Math.hypot(this.x - home.x, this.y - home.y) > BOARD_REACH + 10) this.wandered = true;
     this.stride += moved;

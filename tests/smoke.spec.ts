@@ -90,9 +90,12 @@ type Climb = {
 };
 type Np = {
   experimental: boolean;
-  dims: { gun: boolean; best: number; kills: number; diff: string };
+  dims: { gun: boolean; best: number; kills: number; diff: string; peppers: number };
   dim: { round: number; nextT: number; elite: unknown } | null;
   enterDim: () => void;
+  fury: { rage: number; skips: number; cd: Record<string, number> };
+  furyMove: unknown;
+  warriorBasic: () => void;
   dimHps: number[];
   firePortal: () => void;
   boat: { x: number; y: number; h: number; v: number };
@@ -16602,6 +16605,12 @@ test('New Dimensions: hidden until the Experimental switch is on; then the shipw
   expect(await page.evaluate(() => window.__np.coins)).toBe(1000);
   await expect(card).toHaveCount(0);
   await expect(page.locator('#yours')).toContainText('Portal gun');
+  // With the gun, the hot pepper for the Warrior there: 200 each, three at most.
+  const pep = page.locator('#gear [data-pep]');
+  await expect(pep).toContainText('Hot pepper');
+  await pep.dispatchEvent('click');
+  await page.waitForFunction(() => window.__np.dims.peppers === 1, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.coins)).toBe(800);
   // Switched off, it is hidden but kept; on again after a reload, it is back.
   await page.locator('#labBtn').dispatchEvent('click');
   await expect(page.locator('#yours')).not.toContainText('Portal gun');
@@ -16743,5 +16752,66 @@ test('New Dimensions: on Hard, a level-10 round, an elite in round 5 with his bo
   });
   expect(elite).toBeGreaterThanOrEqual(16 + 2);
   await expect(page.locator('#toast')).toContainText('an elite among them');
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Warrior: Charge makes rage, Slam spends it, and on a hot pepper Leap, Charge, Leap bounce with no waits', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, peppers: 1, diff: 'hard' },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  // His three buttons, his rage, and the pepper.
+  for (const id of ['#ability', '#ability2', '#ability3', '#rage', '#pepperBtn'])
+    await expect(page.locator(id)).toBeVisible();
+  // The monkeys close round him.
+  const close = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(3);
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 40 + i * 6;
+          m.y = n.walker.y + 10 - i * 6;
+        });
+    });
+  await close();
+  await page.locator('#ability').click();
+  await page.waitForFunction(() => window.__np.fury.rage === 3 && !window.__np.furyMove, null, {
+    timeout: 2000,
+  });
+  expect(await page.evaluate(() => window.__np.fury.cd.charge)).toBeGreaterThan(4);
+  await close();
+  await page.locator('#ability2').click();
+  await page.waitForFunction(() => window.__np.fury.rage === 1, null, { timeout: 2000 });
+  await expect(page.locator('#toast')).not.toContainText('Not angry');
+  // Charge still waiting: not yet. Then the pepper.
+  await page.locator('#pepperBtn').click();
+  await page.waitForFunction(() => window.__np.fury.skips === 4, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.dims.peppers)).toBe(0);
+  await page.evaluate(() => window.__np.warriorBasic());
+  await page.waitForTimeout(500);
+  await close();
+  await page.evaluate(() => window.__np.warriorBasic());
+  await page.waitForFunction(() => window.__np.fury.rage >= 3, null, { timeout: 2000 });
+  for (const id of ['#ability3', '#ability', '#ability3']) {
+    await close();
+    await page.locator(id).click();
+    await page.waitForFunction(() => !window.__np.furyMove, null, { timeout: 2000 });
+  }
+  expect(await page.evaluate(() => window.__np.fury.skips)).toBe(1);
+  expect(await page.evaluate(() => window.__np.fury.cd.charge)).toBe(0);
   expect(errors).toEqual([]);
 });
