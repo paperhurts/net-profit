@@ -35,7 +35,9 @@ export type RoomKind =
   | 'skull'
   | 'skrill'
   | 'cheese'
-  | 'cheesethrone';
+  | 'cheesethrone'
+  | 'tomb'
+  | 'tombtop';
 export type Room = { x: number; y: number; r: number; roof: boolean; kind: RoomKind };
 
 export const ROOM_R = 130;
@@ -103,6 +105,12 @@ export const ROOMS: readonly Room[] = [
   // through the door at its back, his throne room.
   { x: -25000, y: -6000, r: 150, roof: false, kind: 'cheese' },
   { x: -25000, y: -7000, r: 150, roof: false, kind: 'cheesethrone' },
+  // Inside the castle in the middle of Tomb Island (world/tombcastle.ts): three floors of the undead, the second
+  // set with spike traps, and at the top the necromancer's own hall.
+  { x: -26500, y: -6000, r: 160, roof: false, kind: 'tomb' },
+  { x: -26500, y: -7000, r: 160, roof: false, kind: 'tomb' },
+  { x: -26500, y: -8000, r: 160, roof: false, kind: 'tomb' },
+  { x: -26500, y: -9000, r: 185, roof: false, kind: 'tombtop' },
 ];
 /** Island 2's roof, island 3's, island 7's and island 8's, in ROOMS. Island 9's is NEST9. */
 export const ROOF = 2;
@@ -145,6 +153,9 @@ export const SKRILL_TOP = 39;
 /** Inside Goat Isle's cheese-wheel castle: the Hall of Portraits, then the throne room. */
 export const GOAT_HALL = 40;
 export const GOAT_THRONE = 41;
+/** Inside Tomb Island's castle: its three floors, climbed in order, and its top, the necromancer's hall. */
+export const TOMB_FLOORS: readonly number[] = [42, 43, 44];
+export const TOMB_TOP = 45;
 /** Each tower: its first floor and its roof, in ROOMS. The floors between are climbed in order. */
 export const TOWERS: readonly { first: number; roof: number }[] = [
   { first: 0, roof: ROOF },

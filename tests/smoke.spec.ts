@@ -124,6 +124,9 @@ type Np = {
   TOMB_HORDES: { room: { x: number; y: number }; list: { kind: string; state: string }[] }[];
   COFFINS16: { x0: number; y0: number; x1: number; y1: number }[];
   coffinsBurst: Set<number>;
+  castleHordes: { list: { state: string }[]; cleared: boolean }[];
+  CASTLE16_DOOR: { x: number; y: number };
+  stairsHere(): { x: number; y: number };
   tombFogK: number;
   LEVER16: { x: number; y: number; front: { x: number; y: number } };
   TOMB_DOCK: { x: number; y: number };
@@ -1253,6 +1256,76 @@ test('Tomb Island: the elites, the sword mummy at the gate to the castle square 
     }, at);
     await expect(page.locator('#toast')).toContainText(says, { timeout: 3000 });
   }
+  expect(errors).toEqual([]);
+});
+
+test("Tomb Island: past the big necromancer the castle's door opens, its floors are climbed, and at the top someone laughs", async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    spear: 3,
+    tomb: { seen: true, lever: true },
+    trip: { x: -600, y: 3063, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // At the door with the big necromancer standing: it stays shut.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.CASTLE16_DOOR.x;
+    n.walker.y = n.CASTLE16_DOOR.y + 4;
+  });
+  await page.waitForTimeout(400);
+  await expect(page.locator('#climb')).not.toHaveText('Into the castle');
+  // Beaten (as if speared), the door opens.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const h = n.TOMB_HORDES[n.TOMB_HORDES.length - 1] as unknown as {
+      list: { state: string }[];
+      cleared: boolean;
+      onClear: () => void;
+    };
+    for (const u of h.list) u.state = 'gone';
+    h.cleared = true;
+    h.onClear();
+    n.walker.x = n.CASTLE16_DOOR.x;
+    n.walker.y = n.CASTLE16_DOOR.y + 4;
+  });
+  await expect(page.locator('#toast')).toContainText('door creaks open');
+  await expect(page.locator('#climb')).toHaveText('Into the castle', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('Inside the castle');
+  // Each floor beaten, up its stairs.
+  for (let k = 0; k < 3; k++) {
+    await page.evaluate((k) => {
+      const n = window.__np;
+      const h = n.castleHordes[k];
+      if (!h) return;
+      for (const u of h.list) u.state = 'gone';
+      h.cleared = true;
+      const st = n.stairsHere();
+      n.walker.x = st.x;
+      n.walker.y = st.y;
+    }, k);
+    await expect(page.locator('#climb')).toHaveText('Climb the stairs', { timeout: 3000 });
+    await page.click('#climb');
+  }
+  await expect(page.locator('#toast')).toContainText('Ha ha!', { timeout: 3000 });
+  await page.click('#leave');
+  await expect(page.locator('#toast')).toContainText('into the square');
+  expect(await page.evaluate(() => window.__np.walker.state)).toBe('ashore');
+  // Out in the square the big necromancer is still down: the island's undead come back only at a landing.
+  expect(
+    await page.evaluate(() => {
+      const n = window.__np;
+      const h = n.TOMB_HORDES[n.TOMB_HORDES.length - 1] as unknown as { cleared: boolean };
+      return h.cleared;
+    }),
+  ).toBe(true);
   expect(errors).toEqual([]);
 });
 
