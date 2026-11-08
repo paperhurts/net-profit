@@ -1424,6 +1424,17 @@ test('Tomb Island: the bones of every leviathan in the fog sea, a skeleton gulpe
     trip: { x: -9100, y: 4067, h: 0, clock: 0.3, hold: [] },
   });
   await page.waitForFunction(() => window.__np.fogBones.length === 8, null, { timeout: 4000 });
+  // A skeleton Reaper going back under after rearing up is not beaten: nothing paid, nothing saved.
+  await page.evaluate(() => {
+    const r = window.__np.fogBones.find((b) => b.boneK === 'reaper') as unknown as {
+      state: string;
+      t: number;
+    };
+    r.state = 'sink';
+    r.t = 0;
+  });
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__np.tombIsle.bones ?? 0)).toBe(0);
   // Up near the gulper's bones: it wakes and comes for the boat, and the harpoon finds it.
   await page.evaluate(() => {
     const n = window.__np;
