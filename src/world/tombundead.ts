@@ -64,6 +64,9 @@ export const HAUNTS16: readonly Haunt[] = (() => {
   for (const c of cells) {
     const [x, y] = fromTomb(cellU(c.i), cellU(c.j));
     if (out.some((h) => Math.hypot(h.x - x, h.y - y) < HAUNT_GAP)) continue;
+    // The gate into the square is the sword mummy's (part five): no haunt beside it.
+    const [gx, gy] = fromTomb(cellU(MAZE16.gate.i), cellU(MAZE16.gate.j));
+    if (Math.hypot(gx - x, gy - y) < HAUNT_GAP) continue;
     const kinds = HAUNT_KINDS[out.length % HAUNT_KINDS.length] as readonly UndeadKind[];
     const spawns: Spawn[] = kinds.map((kind, n) => {
       const a = (n / kinds.length) * Math.PI * 2 + c.i;
@@ -96,3 +99,19 @@ export const COFFIN_ROOMS: readonly { x: number; y: number; r: number }[] = COFF
   y: (c.y0 + c.y1) / 2,
   r: HAUNT_R,
 }));
+
+/**
+ * The elites (part five): the sword mummy in the corridor just outside the gate into the square, so the castle is not
+ * reached without getting past it; and the big necromancer in the square, before the castle's door. Each is a horde of
+ * its own, its room the stretch round it, back at every landing like the rest.
+ */
+export const ELITES16: readonly Haunt[] = (() => {
+  const [mx, my] = fromTomb(cellU(MAZE16.gate.i), cellU(MAZE16.gate.j));
+  const [nx, ny] = fromTomb(0, 116);
+  return [
+    { x: mx, y: my, r: HAUNT_R, spawns: [{ kind: 'mummyElite', x: mx, y: my }] },
+    { x: nx, y: ny, r: 120, spawns: [{ kind: 'necroElite', x: nx, y: ny }] },
+  ];
+})();
+/** Coins for beating one. */
+export const ELITE_COINS = 100;

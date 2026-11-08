@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { UNDEAD } from '../../src/entities/undead';
 import { onLand } from '../../src/entities/walker';
-import { COFFINS16, LANDING16, LEVER16, onIsle16 } from '../../src/world/tombisle';
+import {
+  CASTLE16_DOOR,
+  COFFINS16,
+  cellU,
+  fromTomb,
+  LANDING16,
+  LEVER16,
+  MAZE16,
+  onIsle16,
+} from '../../src/world/tombisle';
 import {
   COFFIN_ROOMS,
   COFFIN_WAKE,
   coffinKind,
   coffinRise,
+  ELITES16,
   HAUNT_R,
   HAUNTS16,
 } from '../../src/world/tombundead';
@@ -44,5 +54,28 @@ describe("Tomb Island's undead", () => {
         COFFIN_WAKE,
       );
     }
+  });
+
+  it('puts the elites in the way of the castle: the sword mummy at the gate to its square, the big necromancer at its door', () => {
+    const [mummy, necro] = ELITES16;
+    expect(mummy?.spawns.map((x) => x.kind)).toEqual(['mummyElite']);
+    expect(necro?.spawns.map((x) => x.kind)).toEqual(['necroElite']);
+    const [gx, gy] = fromTomb(cellU(MAZE16.gate.i), cellU(MAZE16.gate.j));
+    expect(Math.hypot((mummy?.x ?? 0) - gx, (mummy?.y ?? 0) - gy)).toBeLessThan(1);
+    expect(
+      Math.hypot((necro?.x ?? 0) - CASTLE16_DOOR.x, (necro?.y ?? 0) - CASTLE16_DOOR.y),
+    ).toBeLessThan(80);
+    for (const e of ELITES16) {
+      expect(onIsle16(e.x, e.y)).toBe(true);
+      for (const h of HAUNTS16) expect(Math.hypot(h.x - e.x, h.y - e.y)).toBeGreaterThan(150);
+    }
+  });
+
+  it('makes the elites tougher: the sword mummy twice a mummy, the big necromancer one more damage', () => {
+    expect(UNDEAD.mummyElite.hp).toBe(UNDEAD.mummy.hp * 2);
+    expect(UNDEAD.mummyElite.reach).toBeGreaterThan(UNDEAD.mummy.reach);
+    expect(UNDEAD.necroElite.damage).toBe(UNDEAD.necro.damage + 1);
+    expect(UNDEAD.necroElite.summon).toBeGreaterThan(0);
+    expect(UNDEAD.necroElite.scale).toBeGreaterThan(UNDEAD.necro.scale);
   });
 });

@@ -218,7 +218,7 @@ import { drawIsle11Flat, drawIsle11Sea, isle11Solids } from './render/isle11';
 import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, insideIsle12, ISLE12, isle12Outline, nearIsle12, PITS12, pushOffIsle12, REVEAL12, REVEAL12_T, revealZoom12, SIGHT12 } from './world/isle12';
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { CLEAR_LAND16, CLEAR_SEA16, DOCK16, FOG_LIFT16, LEVER16, LEVER_REACH, MERCHANT16, MERCHANT_REACH, SIGHT_LAND16, nearIsle16, pushOffIsle16, REVEAL16, REVEAL16_T, revealZoom16, SIGHT16, TOMB_ISLE, fromTomb, WAY_IN16 } from './world/tombisle';
-import { COFFIN_ROOMS, COFFIN_WAKE, coffinKind, coffinRise, HAUNTS16 } from './world/tombundead';
+import { COFFIN_ROOMS, COFFIN_WAKE, coffinKind, coffinRise, ELITE_COINS, ELITES16, HAUNTS16 } from './world/tombundead';
 import { COFFINS16 } from './world/tombisle';
 import { drawLeverLamp, drawTombFlat, drawTombFog, drawTombSea, drawTombSight, leverSolid, merchantSolids16, tombSolids } from './render/tombisle';
 import { BROKE, HINT_BLURB, HINT_PRICE, nextHint16, PAID, pickLine, SKULL_CLOAK, SNEERS, TORCH16, TORCH_SIGHT16 } from './data/merchant16';
@@ -3345,14 +3345,19 @@ for (const i of Object.values(ARENAS)){ const h = hordes[i] = new Horde(ROOMS[i]
 // all back where they were, and the coffins shut, at every landing.
 const UNDEAD_COINS = 15;
 const tombHordes = HAUNTS16.map(h => new Horde(h, h.spawns)), coffinHordes = COFFIN_ROOMS.map(r => new Horde(r, []));
-const TOMB_HORDES = [...tombHordes, ...coffinHordes];
+// The elites (part five): the sword mummy at the gate into the square, the big necromancer before the castle door.
+const eliteHordes = ELITES16.map(h => new Horde(h, h.spawns));
+const ELITE_WAKE = {mummyElite: 'The sword mummy! Twice as tough as a mummy, and its sword reaches further. It guards the way into the castle square.', necroElite: 'The big necromancer! It comes at you swinging its staff, two hearts a hit, and raises skeletons as it comes. Spear it first.'};
+const ELITE_NAME = {mummyElite: 'The sword mummy', necroElite: 'The big necromancer'};
+const TOMB_HORDES = [...tombHordes, ...coffinHordes, ...eliteHordes];
 const coffinsBurst = new Set(); let tombWoken = false;
 TOMB_HORDES.forEach((h, n) => { hordes['tomb' + n] = h;
   h.onHit = (by, k) => bonked(by, k); h.onWindup = () => sfx.spearThrow(); h.onShoot = () => sfx.spearThrow();
   h.onBlock = (u) => { sfx.clang(); addText(u.x, u.y, 40, 'Blocked!', '#FFE9A8', 20, 1.2); };
-  h.onBeat = (u) => { sfx.spearHit(); coins += UNDEAD_COINS; earned += UNDEAD_COINS; hud(); save();
-    addText(u.x, u.y, 30, u.kind === 'ghost' ? 'Gone!' : 'Down!', '#D8FFE0', 18, 1.1); addText(u.x, u.y, 48, '+' + UNDEAD_COINS, C.coin, 16, 1.4); };
-  h.onWake = () => { if (tombWoken) return; tombWoken = true; toasts.clear();
+  h.onBeat = (u) => { const elite = ELITE_NAME[u.kind], n = elite ? ELITE_COINS : UNDEAD_COINS; sfx.spearHit(); coins += n; earned += n; hud(); save();
+    addText(u.x, u.y, 30, u.kind === 'ghost' ? 'Gone!' : 'Down!', '#D8FFE0', 18, 1.1); addText(u.x, u.y, 48, '+' + n, C.coin, 16, 1.4);
+    if (elite){ sfx.orderFilled(); toasts.clear(); toast(`${elite} is beaten! ${n} coins.`, 3200, 1); } };
+  h.onWake = () => { const e = h.list.find(u => ELITE_WAKE[u.kind]); if (e){ toasts.clear(); toast(ELITE_WAKE[e.kind], 4600, 2); return; } if (tombWoken) return; tombWoken = true; toasts.clear();
     toast(tombIsle.lever ? 'The undead! Spear them: each one is worth a few coins.' : 'Something in the fog has seen you... the undead! You cannot see them coming, but they can see you. Spear them!', 4200, 2); }; });
 // Near a shut coffin, it bursts: a mummy or a vampire climbs out.
 function updateTombUndead(){ if (walker.state !== 'ashore' || walker.dock !== TOMB_DOCK || floor >= 0) return;
