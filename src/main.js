@@ -6850,11 +6850,11 @@ function update(dt){
         : m > DEEP ? 'The far far buoys. Past them the sea goes on and on, and nobody knows where land is. Sailors used to take a bird along and let it go, because a bird flies for land. Island 10\'s crows might know the way.'
         : isle3Stage >= 4 ? 'An anchor chain runs between the far buoys, and nothing gets past it. Whatever holds the anchor is on the tar island.'
         : 'An anchor chain runs between the far buoys, and nothing gets past it. For now.', 3400, 1); sfx.rangeEdge(); } }
-  // Through a wall of fog: from the deep into the fog sea, or back out.
+  // Through a wall of fog: from the far far sea into the fog sea, or back out.
   if (walker.aboard && !seaFight && swallowT <= 0){ const into = Math.hypot(boat.x - FOG_GATE.x, boat.y - FOG_GATE.y) < FOG_GATE.r, out = Math.hypot(boat.x - FOG_EXIT.x, boat.y - FOG_EXIT.y) < FOG_EXIT.r;
     if (into || out){ const to = into ? FOG_IN : FOG_OUT; boat.x = to.x; boat.y = to.y; boat.h = to.h; resetNet(); cam.x = boat.x; cam.y = boat.y; fogFlash = 1; sfx.whump();
       if (wboat.free){ wboat.x = boat.x + 60; wboat.y = boat.y + 60; }
-      toasts.clear(); toast(into ? (tombIsle.seen ? 'Through the wall of fog, into the fog sea. Tomb Island is out there somewhere: follow the skull.' : 'Through the wall of fog... and out into a whole sea of it. Grey, every way you look. Something is out there.') : 'Back out through the wall of fog, into the deep.', 4200, 1); } }
+      toasts.clear(); toast(into ? (tombIsle.seen ? 'Through the wall of fog, into the fog sea. Tomb Island is out there somewhere: follow the skull.' : 'Through the wall of fog... and out into a whole sea of it. Grey, every way you look. Something is out there.') : 'Back out through the wall of fog, past the white buoys.', 4200, 1); } }
   fogFlash = Math.max(0, fogFlash - dt*1.5);
   { const far = pastFar(boat.x, boat.y) && !inFogSea(boat.x, boat.y, 300); farToastT -= dt;
     if (far && !wasFar && farToastT <= 0){ farToastT = 60; toast(isle5Seen ? 'Past the far buoys, into the far deep. Marlin school at its corners.' : 'Past the far buoys, into the far deep. An island of bones is out here: follow the white marker. Marlin school at its corners.', 3600, 1); }
@@ -7909,7 +7909,7 @@ function draw(){
   else if (walker.aboard && isle11Seen && pastFar(boat.x, boat.y) && !(docked && dockHere === ISLE11_DOCK)) indicator(DOCK11.x, DOCK11.y, '#8FD08A', 'dock', false); // island 11, once found
   // Goat Isle past the buoys; its fog bank, still to sail into, from anywhere (the owner drove about and could not find it).
   if (walker.aboard && inFogSea(boat.x, boat.y, 300)){ if (!(docked && dockHere === TOMB_DOCK)) indicator(DOCK16.x, DOCK16.y, '#B9C0B4', 'skull', !tombIsle.seen); indicator(FOG_EXIT.x, FOG_EXIT.y, '#EEF1F2', 'dock', false); }
-  else if (walker.aboard && pastBuoys(boat.x, boat.y) && tier() === TIER_NAME.length-1) indicator(FOG_GATE.x, FOG_GATE.y, '#B9C0B4', 'skull', !tombIsle.seen); // the fog wall to Tomb Island's sea // Tomb Island's jetty, in its fog
+  else if (walker.aboard && pastBuoys(boat.x, boat.y) && tier() === TIER_NAME.length-1 && farFarOpen()) indicator(FOG_GATE.x, FOG_GATE.y, '#B9C0B4', 'skull', !tombIsle.seen); // the fog wall to Tomb Island's sea, past the white buoys, so only once they let the boat by // Tomb Island's jetty, in its fog
   if (walker.aboard && goatIsle.up && (pastBuoys(boat.x, boat.y) || !goatIsle.seen) && !(docked && dockHere === GOAT_DOCK)) indicator(DOCK15.x, DOCK15.y, '#EEF1F2', 'dock', !goatIsle.seen);
   if (walker.aboard && pastBuoys(boat.x, boat.y) && farOpen() && !(docked && dockHere === GARDEN_DOCK)) indicator(DOCK14.x, DOCK14.y, '#A8DC8E', 'sprout', !gardenIsle.seen); // the Garden Isle, out in the far deep
   if (walker.aboard && isle11Seen && pastFarFar(boat.x, boat.y) && !(docked && dockHere === ISLE12_DOCK)) indicator(DOCK12.x, DOCK12.y, '#E6DDC6', 'skull', !isle12Seen);

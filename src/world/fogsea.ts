@@ -1,12 +1,13 @@
 /**
  * The fog sea (2026-11-08), the kid's "a new THE DEEP area", "a NEW OCEAN AREA" where Tomb Island lives, and his
  * "MORE fog", with the owner's answers to what they mean: a sea of its own, as the tar ocean is its own place, reached
- * through a wall of fog in the deep's west, where Tomb Island used to stand; the whole of it fog; Tomb Island in its
- * middle, much bigger than it was.
+ * through a wall of fog; the whole of it fog; Tomb Island in its middle, much bigger than it was. The wall stood in the
+ * deep's west at first, where Tomb Island used to stand; the kid's word through the owner the same evening was that
+ * Tomb Island is past the white buoys, so the wall stands out there now, due west of home in the far far sea.
  *
  * It is a pocket of the world far out past the far far sea's west edge, where nothing else is, so everything that
- * works at sea works in it. Sail into the fog wall in the deep and you come out at its east end; sail into the fog
- * wall there and you are back in the deep beside the first. Its other edges are fog for ever: the boat is held in.
+ * works at sea works in it. Sail into the fog wall in the far far sea and you come out at its east end; sail into the
+ * fog wall there and you are back beside the first. Its other edges are fog for ever: the boat is held in.
  */
 import { DEEP, FAR, FARFAR, IY } from './island';
 
@@ -25,11 +26,14 @@ export function inFogSea(x: number, y: number, pad = 0): boolean {
   );
 }
 
-/** The fog wall in the deep: in its west, halfway between islands 3 and 2, where Tomb Island used to stand. */
-export const FOG_GATE = { x: -DEEP / 2, y: IY, r: 110 } as const;
+/**
+ * The fog wall past the white buoys: due west of home, beyond island 5, halfway across the far far sea, in open water
+ * (the kid's "past the white buoys", 2026-11-08). So it is reached once the far far sea is open, as island 11 is.
+ */
+export const FOG_GATE = { x: -(DEEP + FAR) - FARFAR / 2, y: IY, r: 110 } as const;
 /** The fog wall at the fog sea's east end, the way back. */
 export const FOG_EXIT = { x: FOG_SEA.x1 - 120, y: IY, r: 110 } as const;
-/** Where the boat comes out: just inside the fog sea, heading in; and in the deep, clear of the wall, heading home. */
+/** Where the boat comes out: just inside the fog sea, heading in; and beside the first wall, clear of it, heading home. */
 export const FOG_IN = { x: FOG_EXIT.x - 260, y: IY, h: Math.PI } as const;
 export const FOG_OUT = { x: FOG_GATE.x + 260, y: IY, h: 0 } as const;
 /** How far round the boat is seen in the fog sea. */
