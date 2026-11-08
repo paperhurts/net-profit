@@ -9,6 +9,7 @@
  */
 
 import type { DrawView } from '../entities/entity';
+import { drawSkull, drawSpine } from './skeleton';
 
 const BLUE = '#4F86C6';
 const BLUE_LIGHT = '#9CC7EE';
@@ -31,6 +32,8 @@ export type ReaperLook = {
   pace?: number;
   /** His eye shut, asleep. */
   asleep?: boolean;
+  /** In the fog sea, his skeleton over his faint flesh (render/skeleton.ts). */
+  bones?: boolean;
   /** The baby: a big round eye with a shine in it, and no angry brow. */
   young?: boolean;
 };
@@ -353,6 +356,19 @@ export function drawReaperBody(
   ctx.moveTo(ex - (sx - ex) * 0.25 + nx * 9 * Z, ey - (sy - ey) * 0.25 + ny * 9 * Z);
   ctx.lineTo(e2x, e2y);
   ctx.stroke();
+  if (o.bones) {
+    // His skeleton, snout first: spine, ribs as wide as he is, and his skull.
+    const pts = [...spine].reverse();
+    drawSpine(
+      ctx,
+      pts,
+      pts.map((_, i) => width(kOf(N - i)) * Z * 0.8),
+      Z * 0.8,
+    );
+    const [hx, hy] = pts[0] as [number, number];
+    const [nx2, ny2] = pts[1] as [number, number];
+    drawSkull(ctx, hx, hy, 26 * Z, Math.atan2(hy - ny2, hx - nx2), o.mouth ?? 0, '#9CFFB0');
+  }
 }
 
 /** In the water: his dark shape under the surface, deep as k (0 none to 1 full). */

@@ -29,6 +29,7 @@ import { rgba } from '../core/color';
 import { clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { TIER_NAME } from '../data/tuning';
+import { drawSkull, drawSpine } from '../render/skeleton';
 import { IX, IY, type Point, pastBuoys } from '../world/island';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
@@ -226,6 +227,8 @@ export class Leviathan implements Entity {
   readonly lev: Lev;
   /** Harpoon hits left this rise before it is driven off, and whether it has been. */
   resolve = RESOLVE.guard;
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   private driven = false;
   /** Driven off where it does not come back: gone for good. */
   done = false;
@@ -368,6 +371,14 @@ export class Leviathan implements Entity {
     const Z = v.zoom;
     ctx.globalAlpha = lev.vis;
     if (layer === 'underwater') {
+      if (this.bones) {
+        // Its bones, pale under the water.
+        const pts = lev.trail.map((p) => [px(p[0], p[1]), py(p[0], p[1])] as const);
+        const w = pts.map(
+          (_, i) => (10 + 52 * Math.sin((Math.PI * (i + 1.6)) / (LEV_N + 2))) * Z * 0.6,
+        );
+        drawSpine(ctx, pts, w, Z, 0.55 * lev.vis);
+      }
       for (let i = LEV_N - 1; i >= 0; i--) {
         const p = lev.trail[i] as Point;
         const r = 10 + 52 * Math.sin((Math.PI * (i + 1.6)) / (LEV_N + 2));
@@ -484,6 +495,28 @@ export class Leviathan implements Entity {
           ctx.closePath();
           ctx.fill();
         }
+      }
+      if (this.bones && k > 0.15) {
+        // Its skeleton up out of the water: a spine the length of it, ribs arching over, its skull at the head.
+        const pts: [number, number][] = [];
+        const w: number[] = [];
+        for (let i = N - 1; i >= 0; i--) {
+          const p = seg(i);
+          pts.push([px(p.x, p.y), py(p.x, p.y, 8 * k)]);
+          w.push(p.rad * 0.85 * Z * k);
+        }
+        drawSpine(ctx, pts, w, Z * 1.3, Math.min(1, k * 1.5));
+        const [hx, hy] = pts[0] as [number, number];
+        const [nx, ny] = pts[1] as [number, number];
+        drawSkull(
+          ctx,
+          hx,
+          hy - 6 * Z * k,
+          54 * Z * k,
+          Math.atan2(hy - ny, hx - nx),
+          0.3,
+          '#9CFFB0',
+        );
       }
     } else if (layer === 'mask') {
       // Its own light at night: the spines are what the player has to see to turn away.

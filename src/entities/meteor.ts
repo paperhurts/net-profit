@@ -20,6 +20,7 @@
 
 import { angDiff, clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
+import { drawSkull, drawSpine } from '../render/skeleton';
 import { ISLE6 } from '../world/isle6';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
@@ -134,6 +135,8 @@ export class MeteorSerpent implements Entity {
   t = 0;
   resolve = RESOLVE.meteor;
   flash = 0;
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   /** Where the dive will land, once aimed. */
   ring: { x: number; y: number } | null = null;
   private from = { x: 0, y: 0, z: 0 };
@@ -672,6 +675,18 @@ export class MeteorSerpent implements Entity {
       ctx.lineWidth = 2 * Z;
       v.isoEllipse(this.x, this.y, 44 + Math.sin(T * 9) * 5);
       ctx.stroke();
+    }
+    if (this.bones) {
+      // His skeleton: a spine down the serpent, little ribs, and a skull for a head.
+      drawSpine(
+        ctx,
+        sp.map((q) => [q.x, q.y] as const),
+        sp.map((_, i) => (i < 2 ? 0 : 11 * S * (1 - i / sp.length))),
+        S * 0.8,
+      );
+      const h0 = sp[0] as { x: number; y: number };
+      const h1 = (sp[1] ?? sp[0]) as { x: number; y: number };
+      drawSkull(ctx, h0.x, h0.y, 22 * S, Math.atan2(h0.y - h1.y, h0.x - h1.x), 0.2, '#9CFFB0');
     }
   }
 }

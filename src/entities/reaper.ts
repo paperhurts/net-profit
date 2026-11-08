@@ -198,6 +198,8 @@ export class Reaper implements Entity {
   /** How far up out of the water, 0 under to 1 reared up. */
   up = 0.3;
   flash = 0;
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   /** The fan of the sweep coming, or under way. */
   fan: Fan | null = null;
   /** The way along his loop he is heading. */
@@ -604,7 +606,7 @@ export class Reaper implements Entity {
       return;
     }
     if (layer !== 'air') return;
-    const o = { T: v.T, flash: this.flash, angry: this.angry, len: REAPER_LEN };
+    const o = { T: v.T, flash: this.flash, angry: this.angry, len: REAPER_LEN, bones: this.bones };
     // Reared up he is drawn side on, toward the boat's side of the screen, so his whole shape shows.
     if (s === 'rear')
       drawReaperBody(

@@ -21,6 +21,7 @@ import { rgba } from '../core/color';
 import { clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
 import { SPECIES } from '../data/tuning';
+import { drawSkull, drawSpine } from '../render/skeleton';
 import { DEEP, pastBuoys, WS } from '../world/island';
 import { nearIsle2 } from '../world/isle2';
 import { nearIsle3 } from '../world/isle3';
@@ -159,6 +160,8 @@ export class Anglerfish implements Entity {
   cool = 0;
   /** How much of its light shows, 0..1. */
   glow = 0;
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   /** How far off the boat was when the jaws opened. */
   openD = 0;
   /** Harpoon hits left before it is driven off, and seconds it stays away once it is. */
@@ -299,6 +302,23 @@ export class Anglerfish implements Entity {
       ctx.fillStyle = `rgba(4,12,18,${(0.22 + 0.4 * k) * g})`;
       v.isoEllipse(this.x - 40, this.y - 40, 150 + 30 * k);
       ctx.fill();
+      if (this.bones) {
+        // A great fish skeleton under the light: its skull under the lure, its spine and ribs behind.
+        const pts: (readonly [number, number])[] = [];
+        const w: number[] = [];
+        for (let i = 0; i <= 10; i++) {
+          const f = i / 10;
+          const along = 30 - f * 250;
+          const x = this.x - 40 + along * Math.SQRT1_2;
+          const y = this.y - 40 + along * Math.SQRT1_2;
+          pts.push([px(x, y), py(x, y)]);
+          w.push(i < 2 || i > 8 ? 0 : Math.sin(f * Math.PI) * 70 * Z);
+        }
+        drawSpine(ctx, pts, w, Z * 1.3, (0.45 + 0.4 * k) * g);
+        const [hx, hy] = pts[0] as readonly [number, number];
+        const [nx, ny] = pts[1] as readonly [number, number];
+        drawSkull(ctx, hx, hy, (70 + 30 * k) * Z, Math.atan2(hy - ny, hx - nx), k, '#9CFFB0');
+      }
       if (opening || shut) {
         // The mouth opening under the boat: dark inside, a ring of teeth.
         const r = shut ? JAW_R * 0.15 : JAW_R * (0.3 + 0.7 * k);

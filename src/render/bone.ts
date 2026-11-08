@@ -73,14 +73,40 @@ export function boneColour(c: string): string {
           : light < 0.5
             ? mix(BONE_DARK, BONE_MID, Math.min(1, light * 2.2))
             : mix(BONE_MID, BONE_LIGHT, Math.min(1, (light - 0.5) * 2));
-      out = a >= 1 ? `rgb(${rgb.join(',')})` : `rgba(${rgb.join(',')},${a})`;
+      // Hex when solid: the view's own shading helpers read colours as hex.
+      out =
+        a >= 1
+          ? `#${rgb.map((x) => Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0')).join('')}`
+          : `rgba(${rgb.join(',')},${a})`;
     }
   }
   if (cache.size < 4000) cache.set(c, out);
   return out;
 }
 
+/** Whether a colour is drawn as it is, solid: a warning, fire or gold, or white (foam, teeth, a flash). */
+export function keptColour(c: string): boolean {
+  if (boneColour(c) === c) return true;
+  const p = parse(c);
+  return !!p && Math.min(p[0], p[1], p[2]) > 225;
+}
+
+/** How solid a beast's own flesh is drawn: faint, so the skeleton drawn over it (render/skeleton.ts) is what shows. */
+export const FLESH = 0.32;
+let solidN = 0;
+/** Draw something at full strength through the bone look: the skeleton itself. */
+export function solid(f: () => void): void {
+  solidN++;
+  try {
+    f();
+  } finally {
+    solidN--;
+  }
+}
+
 const STYLES = new Set(['fillStyle', 'strokeStyle', 'shadowColor']);
+const FILLS = new Set(['fill', 'fillRect', 'fillText']);
+const STROKES = new Set(['stroke', 'strokeRect', 'strokeText']);
 const views = new WeakMap<CanvasRenderingContext2D, CanvasRenderingContext2D>();
 
 /** The context drawn through: every colour set on it goes into bone first, gradients' stops too. */
@@ -88,6 +114,21 @@ function boneCtx(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
   const had = views.get(ctx);
   if (had) return had;
   const bound = new Map<PropertyKey, unknown>();
+  // Whether what is about to be filled, or stroked, is drawn solid; anything else is the flesh, drawn faint.
+  let fillKept = true;
+  let strokeKept = true;
+  const faint =
+    (f: (...a: unknown[]) => unknown, kept: () => boolean) =>
+    (...a: unknown[]) => {
+      if (solidN > 0 || kept()) return f.apply(ctx, a);
+      const was = ctx.globalAlpha;
+      ctx.globalAlpha = was * FLESH;
+      try {
+        return f.apply(ctx, a);
+      } finally {
+        ctx.globalAlpha = was;
+      }
+    };
   const gradient = (g: CanvasGradient): CanvasGradient => {
     const add = g.addColorStop.bind(g);
     g.addColorStop = (o: number, c: string) => add(o, boneColour(c));
@@ -107,12 +148,19 @@ function boneCtx(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
       if (typeof v !== 'function') return v;
       let f = bound.get(k);
       if (!f) {
-        f = (v as (...a: unknown[]) => unknown).bind(t);
+        const raw = v as (...a: unknown[]) => unknown;
+        f = FILLS.has(k as string)
+          ? faint(raw, () => fillKept)
+          : STROKES.has(k as string)
+            ? faint(raw, () => strokeKept)
+            : raw.bind(t);
         bound.set(k, f);
       }
       return f;
     },
     set(t, k, val) {
+      if (k === 'fillStyle') fillKept = typeof val !== 'string' || keptColour(val);
+      if (k === 'strokeStyle') strokeKept = typeof val !== 'string' || keptColour(val);
       const v = STYLES.has(k as string) && typeof val === 'string' ? boneColour(val) : val;
       return Reflect.set(t, k, v, t);
     },

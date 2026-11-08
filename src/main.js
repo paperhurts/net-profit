@@ -3551,7 +3551,7 @@ function seaBossAt(kind, at, fog = null){
 // drawn in old bone (render/bone.ts). They are there, whole, whenever the boat is in the fog sea, made afresh each time
 // it comes in, and gone once it leaves. The first time each is beaten pays BONE_COINS (tombIsle.bones, a bit each).
 let fogBones = [];
-const fogBoneAt = (s) => { const b = seaBossAt(s.k, s, s); b.boneK = s.k; return b; };
+const fogBoneAt = (s) => { const b = seaBossAt(s.k, s, s); b.boneK = s.k; b.bones = true; return b; };
 /** Each still up, what kind it is, and where the harpoon would strike it now. */
 const boneMarks = () => fogBones.filter(b => !seaGone(b)).map(b => [b.boneK, b, b.mark(boat)]);
 const BONE_NAMES = {guard: 'leviathan', cthulu: 'Cthuluviathan', angler: 'anglerfish', gulper: 'gulper', meteor: 'Star', reaper: 'Reaper', king: 'Shark King', deep: 'Deep One'};

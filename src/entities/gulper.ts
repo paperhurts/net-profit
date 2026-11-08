@@ -22,6 +22,7 @@
 import { rgba } from '../core/color';
 import { angDiff, clamp } from '../core/math';
 import { AWAY, RESOLVE } from '../data/harpoon';
+import { drawSkull, drawSpine } from '../render/skeleton';
 import { DEEP, pastBuoys, WS } from '../world/island';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
@@ -120,6 +121,8 @@ export class Gulper implements Entity {
   cool = 0;
   /** How far up it has come, 0 deep to 1 at the surface; how wide its mouth is. */
   up = 0;
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   gape = 0;
   /** Harpoon hits left this hunt before it is driven off. */
   resolve = RESOLVE.gulper;
@@ -296,6 +299,20 @@ export class Gulper implements Entity {
         ctx.fillStyle = `rgba(4,10,16,${0.35 + 0.4 * this.up})`;
         v.isoEllipse(p.x, p.y, r);
         ctx.fill();
+      }
+      if (this.bones) {
+        // Its bones down the length of it, pale under the water, its skull at the mouth.
+        const pts = this.body.map((p) => [px(p.x, p.y), py(p.x, p.y)] as const);
+        drawSpine(
+          ctx,
+          pts,
+          pts.map((_, i) => (7 + 24 * (1 - i / n) ** 1.3) * 0.8 * Z),
+          Z,
+          0.5 + 0.5 * this.up,
+        );
+        const [hx, hy] = pts[0] as readonly [number, number];
+        const [nx, ny] = (pts[1] ?? pts[0]) as readonly [number, number];
+        drawSkull(ctx, hx, hy, 40 * Z, Math.atan2(hy - ny, hx - nx), this.gape, '#9CFFB0');
       }
       return;
     }

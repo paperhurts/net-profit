@@ -23,6 +23,8 @@
  */
 
 import { angDiff, clamp } from '../core/math';
+import { solid } from '../render/bone';
+import { drawSpine } from '../render/skeleton';
 import { TEMPLE } from '../world/isle6';
 import type { Blipper, DrawView, Entity, Layer, World } from './entity';
 
@@ -106,6 +108,8 @@ export class DeepOne implements Entity {
   /** How far up out of the water, 0 asleep to 1. */
   up = 0;
   flash = 0;
+  /** In the fog sea, drawn as its own skeleton (render/skeleton.ts): the bones over its faint flesh. */
+  bones = false;
   /** The eye: open, and seconds on the eye's clock. */
   eye = false;
   private eyeT = 0;
@@ -536,4 +540,37 @@ export function drawDeepOne(v: DrawView, d: DeepOne, up: number): void {
   }
   const g = d.grab;
   if (g && g.t >= GRAB_UP) drawTentacle(v, g.x, g.y, g.held ? 70 : 90, 0.3, 1.2);
+  if (d.bones && up > 0.1) {
+    // Its ribcage over the dome of its back, the eye glowing between the ribs.
+    const top = (t: number) => sy - h * 0.98 * (1 - t * t);
+    const spine: (readonly [number, number])[] = [];
+    for (let i = 0; i <= 10; i++) {
+      const t = -0.92 + (1.84 * i) / 10;
+      spine.push([sx + t * w, top(t)]);
+    }
+    drawSpine(
+      ctx,
+      spine,
+      spine.map(() => 0),
+      Z * 1.3,
+    );
+    solid(() => {
+      ctx.lineCap = 'round';
+      for (let i = 1; i < 10; i++) {
+        const t = -0.92 + (1.84 * i) / 10;
+        const x = sx + t * w;
+        for (const [c, lw] of [
+          ['#2C2620', 6],
+          ['#F1EADA', 3.4],
+        ] as const) {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = lw * Z;
+          ctx.beginPath();
+          ctx.moveTo(x, top(t));
+          ctx.quadraticCurveTo(x + t * 26 * Z, (top(t) + sy) / 2, x + t * 12 * Z, sy);
+          ctx.stroke();
+        }
+      }
+    });
+  }
 }
