@@ -6,10 +6,10 @@ on:
   pull_request:
 
 jobs:
-  check:
+  # Typecheck, lint and the unit tests: about a minute.
+  fast:
     runs-on: ubuntu-latest
-    # A whole run takes a few minutes; past this something has hung.
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -20,6 +20,25 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
+
+  # The smoke tests, dealt out across four runners at once. Each runner still
+  # plays them one at a time (playwright.config.ts), so no test's timing
+  # changes. On one runner they had grown to 28 minutes by 2026-11-08, against
+  # a 30-minute limit; four slices take about a quarter of that.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       # The browser alone, without --with-deps: the runner already has every library
       # Chromium needs, and --with-deps only adds system fonts the tests do not use,
       # fetched from an Ubuntu mirror that has crawled (4 min 50 s for 21 MB on
@@ -29,10 +48,20 @@ jobs:
       - name: Install the test browser
         run: timeout 180 npx playwright install chromium || timeout 180 npx playwright install chromium
         timeout-minutes: 8
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
+
+  # The one check a PR waits on, under the name it has always had: green only
+  # when the fast checks and every slice of the smoke tests are.
+  check:
+    if: always()
+    needs: [fast, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: test "${{ needs.fast.result }}" = success && test "${{ needs.smoke.result }}" = success
