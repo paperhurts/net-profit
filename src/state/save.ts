@@ -419,7 +419,15 @@ export type SaveData = {
    * as neither; left out of the save until it is sighted. From its merchant: the torch and the skull cloak, there once
    * bought, and how many of his hints have been bought, there once one has.
    */
-  tomb: { seen: boolean; lever?: boolean; torch?: boolean; skull?: boolean; hints?: number };
+  tomb: {
+    seen: boolean;
+    lever?: boolean;
+    torch?: boolean;
+    skull?: boolean;
+    hints?: number;
+    /** Necromanda beaten (part seven), there once he is. */
+    boss?: boolean;
+  };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -912,6 +920,7 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (t.lever === true) d.tomb.lever = true;
     if (t.torch === true) d.tomb.torch = true;
     if (t.skull === true) d.tomb.skull = true;
+    if (t.boss === true) d.tomb.boss = true;
     const hints = Math.floor(Number(t.hints));
     if (hints > 0 && hints <= 9999) d.tomb.hints = hints;
   }

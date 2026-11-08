@@ -42,3 +42,23 @@ describe("Tomb Island's castle", () => {
     expect(spikesUp(0, SPIKE_UP + 0.2)).toBe(0);
   });
 });
+
+describe('Necromanda', () => {
+  it('takes ten hits, one at a time whatever strikes them, swings for two hearts, and raises skeletons', async () => {
+    const { Horde, UNDEAD } = await import('../../src/entities/undead');
+    const { NECROMANDA_AT, FAKE_AT } = await import('../../src/world/tombcastle');
+    expect(UNDEAD.necromanda.hp).toBe(10);
+    expect(UNDEAD.necromanda.damage).toBe(2);
+    expect(UNDEAD.necromanda.summon).toBeGreaterThan(0);
+    expect(FAKE_AT).toBe(5);
+    const room = ROOMS[TOMB_TOP] as { x: number; y: number; r: number };
+    const h = new Horde(room, [{ kind: 'necromanda', ...NECROMANDA_AT }]);
+    const u = h.list[0];
+    if (!u) throw new Error('no Necromanda');
+    u.state = 'walk';
+    h.hit(u, 5, u.x + 30, u.y + 30);
+    expect(u.hp).toBe(9);
+    for (let i = 0; i < 9; i++) h.hit(u, 5, u.x + 30, u.y + 30);
+    expect(u.state).toBe('fall');
+  });
+});
