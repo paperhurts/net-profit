@@ -318,7 +318,61 @@ export type Coffin16 = Box16 & { along: 'x' | 'y'; i: number; j: number };
 /** A coffin's half length and half width. */
 export const COFFIN_L = 14;
 export const COFFIN_W = 7;
+/** How many steps along the maze's corridors each corridor cell is from the way in. */
+export function stepsFromWayIn(m: Maze = MAZE16): Map<number, number> {
+  const out = new Map<number, number>();
+  const key = (i: number, j: number) => i * GRID + j;
+  const todo: [number, number][] = [[m.wayIn.i, m.wayIn.j]];
+  out.set(key(m.wayIn.i, m.wayIn.j), 0);
+  while (todo.length) {
+    const [i, j] = todo.shift() as [number, number];
+    const d = out.get(key(i, j)) as number;
+    const ways: [number, number, boolean][] = [
+      [i - 1, j, !m.vert[i]?.[j]],
+      [i + 1, j, !m.vert[i + 1]?.[j]],
+      [i, j - 1, !m.horz[i]?.[j]],
+      [i, j + 1, !m.horz[i]?.[j + 1]],
+    ];
+    for (const [a, b, open] of ways)
+      if (open && isMaze(a, b) && !out.has(key(a, b))) {
+        out.set(key(a, b), d + 1);
+        todo.push([a, b]);
+      }
+  }
+  return out;
+}
+
+/**
+ * The lever that clears the fog (part two, the kid's "A maze to lever"): in the dead end furthest from the way in along
+ * the corridors, against its closed end, a green lamp on top that shows through the fog. It stands in the way; the
+ * figure pulls it from in front.
+ */
+export const LEVER16 = (() => {
+  const steps = stepsFromWayIn();
+  let best = MAZE16.deadEnds[0] as Maze['deadEnds'][number];
+  for (const d of MAZE16.deadEnds)
+    if ((steps.get(d.i * GRID + d.j) ?? 0) > (steps.get(best.i * GRID + best.j) ?? 0)) best = d;
+  const back = CELL / 2 - WALL_T - 8;
+  const du = best.open === 'e' ? -back : best.open === 'w' ? back : 0;
+  const dv = best.open === 's' ? -back : best.open === 'n' ? back : 0;
+  const [x, y] = fromTomb(cellU(best.i) + du, cellU(best.j) + dv);
+  const [fx, fy] = fromTomb(cellU(best.i) + du * 0.1, cellU(best.j) + dv * 0.1);
+  return {
+    x,
+    y,
+    i: best.i,
+    j: best.j,
+    open: best.open,
+    front: { x: fx, y: fy },
+    steps: steps.get(best.i * GRID + best.j) ?? 0,
+  };
+})();
+/** How near the lever's base the figure is kept, and how near it can pull it. */
+export const LEVER_R = 5;
+export const LEVER_REACH = 26;
+
 export const COFFINS16: readonly Coffin16[] = MAZE16.deadEnds
+  .filter((d) => !(d.i === LEVER16.i && d.j === LEVER16.j))
   .filter((d) => !(d.i === MAZE16.wayIn.i && d.j === MAZE16.wayIn.j))
   .filter((d) => !(d.i === MAZE16.wayOut.i && d.j === MAZE16.wayOut.j))
   .filter((d) => !(d.i === MAZE16.gate.i && d.j === MAZE16.gate.j))
@@ -394,6 +448,7 @@ export function onIsle16(x: number, y: number): boolean {
   const d = Math.hypot(u, v);
   if (d > shoreR16(Math.atan2(v, u)) - SHORE_IN16) return false;
   if (inStone16(x, y)) return false;
+  if (Math.hypot(x - LEVER16.x, y - LEVER16.y) < LEVER_R) return false;
   if (STONES16.some((s) => Math.hypot(x - s.x, y - s.y) < STONE_R)) return false;
   return !GRAVES16.some((g) => Math.hypot(x - g.hx, y - g.hy) < STONE_R);
 }
@@ -453,6 +508,13 @@ export const SIGHT16 = 340;
 /** How far the fog thins round whoever is looking: aboard the boat, and ashore. */
 export const CLEAR_SEA16 = 230;
 export const CLEAR_LAND16 = 320;
+/**
+ * Ashore in the fog, before the lever is pulled (part two, the kid's "in the fog the player sees very little"): this
+ * far round the figure is clear, a corridor and a bit; past it the fog closes in to nothing seen.
+ */
+export const SIGHT_LAND16 = 72;
+/** Seconds the fog takes to roll back off the island once the lever is pulled. */
+export const FOG_LIFT16 = 3;
 /** The camera's look at the island once it is sighted, and for how long. */
 export const REVEAL16 = { x: TOMB_ISLE.x + 40, y: TOMB_ISLE.y + 40 } as const;
 export const REVEAL16_T = 5.5;

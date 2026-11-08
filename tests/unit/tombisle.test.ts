@@ -18,13 +18,17 @@ import {
   inStone16,
   isMaze,
   LANDING16,
+  LEVER_REACH,
+  LEVER16,
   MAZE16,
   nearIsle16,
   onIsle16,
   pushOffIsle16,
+  SIGHT_LAND16,
   SIGHT16,
   STONES16,
   shoreR16,
+  stepsFromWayIn,
   TOMB_ISLE,
   WALLS16,
   WAY_IN16,
@@ -119,6 +123,24 @@ describe('Tomb Island', () => {
       });
       expect(near).toBe(true);
     }
+  });
+
+  it('puts the lever in the dead end furthest from the way in, where a coffin would be, and it can be walked up to', () => {
+    const steps = stepsFromWayIn();
+    for (const d of MAZE16.deadEnds)
+      expect(steps.get(d.i * 15 + d.j) ?? 0).toBeLessThanOrEqual(LEVER16.steps);
+    expect(LEVER16.steps).toBeGreaterThan(20);
+    expect(COFFINS16.some((c) => c.i === LEVER16.i && c.j === LEVER16.j)).toBe(false);
+    expect(onIsle16(LEVER16.x, LEVER16.y)).toBe(false);
+    expect(onIsle16(LEVER16.front.x, LEVER16.front.y)).toBe(true);
+    expect(Math.hypot(LEVER16.front.x - LEVER16.x, LEVER16.front.y - LEVER16.y)).toBeLessThan(
+      LEVER_REACH,
+    );
+    const ground = reach(LANDING16.x, LANDING16.y);
+    expect(has(ground, LEVER16.front.x, LEVER16.front.y)).toBe(true);
+    // The fog ashore leaves about a corridor's width seen round the figure.
+    expect(SIGHT_LAND16).toBeGreaterThan(56);
+    expect(SIGHT_LAND16).toBeLessThan(112);
   });
 
   it('keeps the figure out of its walls, its castle, its coffins and its stones', () => {

@@ -414,10 +414,11 @@ export type SaveData = {
    */
   goat: { up: boolean; seen: boolean; jokes?: number; kinds?: string[] };
   /**
-   * Tomb Island (world/tombisle.ts): whether the boat has sailed into its fog bank and sighted it. Missing in old saves
-   * and read as not; left out of the save until it is.
+   * Tomb Island (world/tombisle.ts): whether the boat has sailed into its fog bank and sighted it, and whether the lever
+   * in its maze has been pulled, clearing the fog off it for good (there once it has). Missing in old saves and read
+   * as neither; left out of the save until it is sighted.
    */
-  tomb: { seen: boolean };
+  tomb: { seen: boolean; lever?: boolean };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -903,8 +904,12 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
   }
   d.pets = parsePets(o.pets);
   d.garden = parseGarden(o.garden);
-  if (o.tomb && typeof o.tomb === 'object')
-    d.tomb = { seen: (o.tomb as Record<string, unknown>).seen === true };
+  if (o.tomb && typeof o.tomb === 'object') {
+    const t = o.tomb as Record<string, unknown>;
+    // Pulled means found, whatever the save says.
+    d.tomb = { seen: t.seen === true || t.lever === true };
+    if (t.lever === true) d.tomb.lever = true;
+  }
   if (o.goat && typeof o.goat === 'object') {
     const g = o.goat as Record<string, unknown>;
     // Seen means it is up, whatever the save says.

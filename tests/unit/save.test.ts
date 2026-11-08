@@ -1475,3 +1475,23 @@ describe('Goat Isle', () => {
     }
   });
 });
+
+describe('Tomb Island', () => {
+  it('an old save has not found it; found, and its lever pulled, it keeps both, and it is left out until found', () => {
+    const s = parseSave(legacy, bounds);
+    expect(s.tomb).toEqual({ seen: false });
+    expect(JSON.parse(serializeSave(s))).not.toHaveProperty('tomb');
+    s.tomb = { seen: true };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({ seen: true });
+    s.tomb = { seen: true, lever: true };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({ seen: true, lever: true });
+    // Pulled means found; anything odd reads as neither, and the rest loads as before.
+    expect(parseSave(JSON.stringify({ ...s, tomb: { lever: true } }), bounds).tomb).toEqual({
+      seen: true,
+      lever: true,
+    });
+    const odd = parseSave(JSON.stringify({ ...s, tomb: 'doom' }), bounds);
+    expect(odd.tomb).toEqual({ seen: false });
+    expect(odd.coins).toBe(s.coins);
+  });
+});
