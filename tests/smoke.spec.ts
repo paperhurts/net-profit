@@ -129,7 +129,16 @@ type Np = {
     sploshes: number;
     face: number;
     held: object | null;
-    goats: { x: number; y: number; sx: number; sy: number; state: string; t: number }[];
+    goats: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      sx: number;
+      sy: number;
+      state: string;
+      t: number;
+    }[];
   } | null;
   GOAT_HALL: number;
   GOAT_THRONE: number;
@@ -1331,9 +1340,22 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
   await page.keyboard.down('ArrowRight');
   await expect(page.locator('#gcGrab')).toHaveText('Throw');
   await page.locator('#gcGrab').dispatchEvent('pointerdown');
-  await page.keyboard.up('ArrowRight');
+  // The goat goes on the cave's next step, which reads the arrows then: the arrow stays down until it has gone, or it
+  // is set down instead of thrown.
   await page.waitForFunction(() => window.__np.gc?.held === null, null, { timeout: 2000 });
+  await page.keyboard.up('ArrowRight');
   await expect(page.locator('#gcGrab')).toHaveText('Grab');
+  // Landed stiff, out ahead and clear of the figure (a lying goat's half width, 10, and the figure's, 4). Just after
+  // the throw it is still right over the figure's head, and a jump into it is spent without leaving the ground.
+  await page.waitForFunction(
+    () => {
+      const c = window.__np.gc;
+      const g = c?.goats[1];
+      return !!c && !!g && g.vx === 0 && g.vy === 0 && g.state === 'faint' && g.x > c.x + 14;
+    },
+    null,
+    { timeout: 3000 },
+  );
   // And so does the up arrow, once it is down again.
   await page.waitForFunction(() => !!window.__np.gc?.ground, null, { timeout: 3000 });
   await page.keyboard.down('ArrowUp');
@@ -14580,7 +14602,16 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
   await page.mouse.move(CX, CY);
   await page.mouse.down();
   await page.mouse.move(CX - 60, CY, { steps: 3 });
-  await page.waitForTimeout(2500);
+  // Held until it has come 120 along, not for a set time: slow frames walk the figure less far in it.
+  await page.waitForFunction(
+    (from) => {
+      const n = window.__np;
+      const [x0, y0] = n.fromGarden(0, 0);
+      return from - (n.walker.x - x0 - (n.walker.y - y0)) * Math.SQRT1_2 > 120;
+    },
+    u0,
+    { timeout: 8000 },
+  );
   await page.mouse.up();
   expect(u0 - (await u())).toBeGreaterThan(120);
   // Into the plot: it says what it is. Then to the seed stall: shut, for now.
@@ -14591,7 +14622,10 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
     n.walker.x = x;
     n.walker.y = y;
   });
-  await expect(page.locator('#toast')).toContainText('Your plot', { timeout: 6000 });
+  // Its own message, seen showing and then gone: the one ashore says "Your plot is by the pier" and is still in the
+  // box, hidden, until the game's next frame. The stall's greeting would wait behind the plot's, run out its wait
+  // and be dropped, and a keeper says nothing again for twenty seconds.
+  await expect(page.locator('#toast.show')).toContainText('Your plot:', { timeout: 6000 });
   await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
   await page.evaluate(() => {
     const n = window.__np;
@@ -14599,7 +14633,7 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
     n.walker.x = x;
     n.walker.y = y;
   });
-  await expect(page.locator('#toast')).toContainText('The seed stall', { timeout: 6000 });
+  await expect(page.locator('#toast.show')).toContainText('The seed stall', { timeout: 6000 });
   await expect(page.locator('#log')).toContainText('Garden Isle found');
   // Found, it keeps.
   await page.waitForTimeout(300);
