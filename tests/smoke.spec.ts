@@ -764,7 +764,9 @@ type Np = {
   sailedShare: number;
   mapOpen: boolean;
   helpOpen: boolean;
-  mapMarks(): { x: number; y: number; name: string }[];
+  mapMarks(all?: boolean): { x: number; y: number; name: string }[];
+  mapIsles(all?: boolean): { x: number; y: number; r: number; name: string | null }[];
+  mapAll(): boolean;
   lionSeen: boolean;
   netCut: boolean;
   mending: boolean;
@@ -6859,6 +6861,40 @@ test('tester: the #tester link shows a Tester button in the shop, and skipping t
   await expect(page.locator('#testerExtras [data-extra="unfog"]')).toContainText('Have it', {
     timeout: 3000,
   });
+  // And the map is the whole world's: every island drawn and named, found or not, the far far sea's too, and the
+  // fog wall to Tomb Island; Goat Isle and the mermaids' rocks stay surprises till found.
+  const named = await page.evaluate(() => {
+    const n = window.__np;
+    return {
+      all: n.mapAll(),
+      isles: n
+        .mapIsles(n.mapAll())
+        .map((i) => i.name)
+        .filter(Boolean),
+      marks: n.mapMarks(n.mapAll()).map((m) => m.name),
+      before: n
+        .mapIsles()
+        .map((i) => i.name)
+        .filter(Boolean),
+    };
+  });
+  expect(named.all).toBe(true);
+  expect(named.before).toEqual(['Home']);
+  for (const isle of [
+    'Island 2',
+    'Island 4',
+    'Island 6',
+    'Islands 8 & 9',
+    'Island 11',
+    'Garden Isle',
+    'Skull Island',
+    'Endless Isle',
+    'Ice floe',
+  ])
+    expect(named.isles).toContain(isle);
+  expect(named.isles).not.toContain('Goat Isle');
+  expect(named.marks).toContain('Fog wall: Tomb Island');
+  expect(named.marks.some((m) => /mermaid/i.test(m))).toBe(false);
   // The pets: the otter and Neil, and the naga, each once.
   for (const k of ['otter', 'neil', 'naga']) {
     await page.locator(`#testerExtras [data-extra="${k}"]`).click();
