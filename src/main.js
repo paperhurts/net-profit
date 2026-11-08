@@ -5844,11 +5844,10 @@ function warriorAbility(slot){ audio(); const a = WARRIOR_ABS[slot]; if (!a || !
     furyMove = {kind: 'leap', x0: walker.x, y0: walker.y, x1: spot.x - dx/d*back, y1: spot.y - dy/d*back, k: 0}; walker.held = true; walker.h = Math.atan2(dy, dx);
     invulnT = Math.max(invulnT, LEAP_TIME + .3); sfx.spearThrow(); }
   hudWarrior(); }
-/** BANG: everything round him hit, and everything on the field stunned, a boss less. */
+/** BANG: everything round where he lands hit and stunned, a boss less (the owner's: not the whole map). */
 function warriorBang(){ const p = leapPower(dimLv());
-  for (const t of foesNear(walker.x, walker.y, LEAP_R)) t.hit(p); soulHit();
-  for (const t of foesNear(walker.x, walker.y, 2000)){ const s = t.boss ? bossStun(fury, LEAP_STUN) : LEAP_STUN; if (s > 0) t.stun(s); }
-  furyRing(walker.x, walker.y, LEAP_R, '255,236,150'); furyRing(walker.x, walker.y, LEAP_R*2.2, '255,255,255');
+  for (const t of foesNear(walker.x, walker.y, LEAP_R)){ t.hit(p); const s = t.boss ? bossStun(fury, LEAP_STUN) : LEAP_STUN; if (s > 0) t.stun(s); } soulHit();
+  furyRing(walker.x, walker.y, LEAP_R, '255,236,150'); furyRing(walker.x, walker.y, LEAP_R*1.3, '255,255,255');
   shake = Math.max(shake, .9); sfx.whump(); sfx.clang(); addText(walker.x, walker.y, 70, 'BANG!', '#FFF0A0', 30, 1.4); }
 function updateFury(dt){ tickFury(fury, dt);
   for (const r of furyRings) r.t += dt/.45; furyRings = furyRings.filter(r => r.t < 1);

@@ -50,7 +50,8 @@ export const LEAP_RANGE = 280;
 export const LEAP_R = 86;
 export const LEAP_TIME = 0.5;
 export const LEAP_HIGH = 70;
-/** His BANG's stun: everything 1 s; a boss half that, and not again for 2 s. */
+/** His BANG's stun, on everything round where he lands (the owner's: "warrior shouldn't be able to stun the map"):
+ * 1 s; a boss half that, and not again for 2 s. */
 export const LEAP_STUN = 1;
 export const BOSS_STUN = 0.5;
 export const BOSS_STUN_EVERY = 2;
