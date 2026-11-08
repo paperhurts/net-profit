@@ -14591,7 +14591,9 @@ test('the Garden Isle: sighted in the far deep, tie up at its pier, walk ashore 
     n.walker.x = x;
     n.walker.y = y;
   });
-  await expect(page.locator('#toast')).toContainText('Your plot', { timeout: 6000 });
+  // The plot's own message, up: the landing one ("Your plot is by the pier") may still sit hidden in the box, and on a
+  // slow runner matching it let the test walk on before the plot's had shown, so the stall's waited behind it too long.
+  await expect(page.locator('#toast.show')).toContainText('Your plot:', { timeout: 6000 });
   await expect(page.locator('#toast')).not.toHaveClass(/show/, { timeout: 8000 });
   await page.evaluate(() => {
     const n = window.__np;
