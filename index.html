@@ -162,6 +162,12 @@ body.cine #toast{pointer-events:none}
 #hull{display:flex}
 #hearts{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:168px;box-sizing:border-box;gap:5px 4px;pointer-events:none;background:var(--pill-bg);border-radius:12px;padding:7px 9px;box-shadow:0 2px 0 var(--pill-shadow)}
 #hearts[hidden]{display:none}
+#rage{display:flex;gap:3px;pointer-events:none;background:var(--pill-bg);border-radius:12px;padding:6px 8px;box-shadow:0 2px 0 var(--pill-shadow)}
+#rage[hidden]{display:none}
+#rage svg{display:block}
+#pepperBtn{--snack:#E0332A}
+body.peppered .abBtn{box-shadow:0 0 0 3px #FF5A3A,0 0 14px 3px rgba(255,90,58,.7)}
+.abBtn.low{filter:saturate(.35) brightness(.8)}
 #hearts svg{display:block}
 #hull[hidden]{display:none}
 /* Out on the tar, the chemistry boat's health shows though the walker is inside the bridge. */
@@ -789,7 +795,7 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 <div id="order" aria-live="polite"></div>
 <div id="ctfBar" hidden><div class="score"><span class="side pirate" id="ctfBarP">0</span><span class="clock" id="ctfClock">7:00</span><span class="side ninja" id="ctfBarN">0</span></div><div class="holds" id="ctfHolds" hidden><span data-k="battery">Cannon</span><span data-k="wreck">Wreck</span><span data-k="bell">Bell</span></div><div class="what" id="ctfWhat"></div><button id="ctfLeave">Leave the battle</button></div>
 <div id="charter" aria-live="polite" hidden></div>
-<div id="rchips"><div id="hearts" title="Your hearts" hidden></div><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><button class="snack" id="snackApple" data-snack="apple" title="An apple: walk faster for a while" aria-label="Eat an apple" hidden></button><button class="snack" id="snackCarrot" data-snack="carrot" title="A carrot: your spear hits harder for a while" aria-label="Eat a carrot" hidden></button><button class="snack" id="snackBanana" data-snack="banana" title="A banana: two hearts back" aria-label="Eat a banana" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div><div id="tarBucket" title="Tar fish for the scientist" hidden></div></div>
+<div id="rchips"><div id="hearts" title="Your hearts" hidden></div><div id="rage" title="Your rage" hidden></div><button class="snack" id="pepperBtn" title="A hot pepper: skip your next 4 cooldowns" aria-label="Eat a hot pepper" hidden><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M14 4c-1-2-3-2-4-1" fill="none" stroke="#3C8A3A" stroke-width="2" stroke-linecap="round"/><path d="M10 4c-3 0-5 3-5 7s-2 6-3 7c5 0 12-3 12-10 0-2-1-4-4-4z" fill="#E0332A"/><path d="M8 7c-1 1-1.5 3-1.5 5" stroke="#FF9A8A" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg><span class="n"></span></button><button id="muffinBtn" title="Fish muffins: eat one for a heart back" aria-label="Eat a fish muffin" hidden></button><button class="snack" id="snackApple" data-snack="apple" title="An apple: walk faster for a while" aria-label="Eat an apple" hidden></button><button class="snack" id="snackCarrot" data-snack="carrot" title="A carrot: your spear hits harder for a while" aria-label="Eat a carrot" hidden></button><button class="snack" id="snackBanana" data-snack="banana" title="A banana: two hearts back" aria-label="Eat a banana" hidden></button><div id="hull" title="Your boat's health" hidden></div><div id="market" title="The fishmonger's pick today" hidden></div><div id="phase"></div><div id="wood" title="Driftwood"></div><div id="junk" title="Junk for the muffin man" hidden></div><div id="tarBucket" title="Tar fish for the scientist" hidden></div></div>
 <div id="toast" role="status"></div>
 <div id="dimBar" hidden aria-live="polite"></div>
 <canvas id="radar" hidden aria-hidden="true"></canvas>
