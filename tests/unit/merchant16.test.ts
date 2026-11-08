@@ -6,6 +6,10 @@ import {
   pickLine,
   SKULL_CLOAK,
   SNEERS,
+  STAFF_COOL,
+  STAFF_IDLE,
+  STAFF_MAX,
+  STAFF16,
   TORCH_SIGHT16,
   TORCH16,
 } from '../../src/data/merchant16';
@@ -42,5 +46,13 @@ describe("Tomb Island's merchant", () => {
     expect(onLand(spot.x, spot.y)).toBe(true);
     expect(Math.hypot(spot.x - MERCHANT16.x, spot.y - MERCHANT16.y)).toBeLessThan(MERCHANT_REACH);
     expect(Math.hypot(LANDING16.x - MERCHANT16.x, LANDING16.y - MERCHANT16.y)).toBeLessThan(300);
+  });
+
+  it("sells the summoning staff at the kid's price, the dearest thing he has, for a few at a time", () => {
+    expect(STAFF16.price).toBe(30000);
+    expect(STAFF16.price).toBeGreaterThan(SKULL_CLOAK.price + TORCH16.price);
+    expect(STAFF_MAX).toBeGreaterThanOrEqual(1);
+    expect(STAFF_COOL).toBeGreaterThan(0);
+    expect(STAFF_IDLE).toBeGreaterThan(6);
   });
 });

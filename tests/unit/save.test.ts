@@ -1496,6 +1496,19 @@ describe('Tomb Island', () => {
   });
 });
 
+describe("Tomb Island's summoning staff", () => {
+  it('keeps the staff once bought, and only a true', () => {
+    const s = parseSave(legacy, bounds);
+    s.tomb = { seen: true, staff: true };
+    expect(parseSave(serializeSave(s), bounds).tomb).toEqual({ seen: true, staff: true });
+    expect(
+      parseSave(JSON.stringify({ ...s, tomb: { seen: true, staff: 'yes' } }), bounds).tomb,
+    ).toEqual({
+      seen: true,
+    });
+  });
+});
+
 describe("the fog sea's skeletons", () => {
   it('keeps which have been beaten, a bit each, and drops anything odd', () => {
     const s = parseSave(legacy, bounds);

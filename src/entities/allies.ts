@@ -17,7 +17,7 @@ import type { DrawView, Entity, Layer, World } from './entity';
 import type { PalTarget } from './pals';
 import { walkStep } from './walker';
 
-export type AllyKind = 'merlock' | 'ghost' | 'skeleton' | 'hamster';
+export type AllyKind = 'merlock' | 'ghost' | 'skeleton' | 'hamster' | 'vampire';
 
 /** Hit points, walking speed, reach and how often it hits, and how far off a ranged one keeps. */
 export type AllySpec = { hp: number; speed: number; reach: number; every: number; keep: number };
@@ -28,6 +28,8 @@ export const ALLY: Readonly<Record<AllyKind, AllySpec>> = {
   ghost: { hp: 2, speed: 60, reach: 110, every: 2.4, keep: 80 },
   // The kid's skeleton hamster: only 1 a bite, but it takes twelve hits to put down.
   hamster: { hp: 12, speed: 96, reach: 16, every: 1, keep: 0 },
+  // Summoned with Tomb Island's staff: quicker than a skeleton, and a bite as often.
+  vampire: { hp: 4, speed: 96, reach: 22, every: 1, keep: 0 },
 };
 /** It goes for foes this near it, and each hit is this hard. */
 export const ALLY_SEEK = 240;
@@ -57,6 +59,10 @@ export type Ally = {
   hitT: number;
   /** Seconds with nothing to fight. */
   idle: number;
+  /** Seconds with nothing to fight before it goes back down: ALLY_IDLE, or longer for one summoned with the staff. */
+  idleMax: number;
+  /** Summoned with Tomb Island's staff (data/merchant16.ts STAFF16). */
+  staff: boolean;
   /** A ghost's wisp on its way: from where to where, and how far along. */
   wisp: { x: number; y: number; tx: number; ty: number; t: number } | null;
 };
@@ -71,7 +77,7 @@ export class Allies implements Entity {
   onHurt: ((a: Ally, out: boolean) => void) | null = null;
 
   /** One called up out of the floor at a point. */
-  call(x: number, y: number, kind: AllyKind = 'merlock'): Ally {
+  call(x: number, y: number, kind: AllyKind = 'merlock', staff = false, idleMax = ALLY_IDLE): Ally {
     const a: Ally = {
       kind,
       x,
@@ -85,6 +91,8 @@ export class Allies implements Entity {
       ph: this.list.length * 1.7,
       hitT: 9,
       idle: 0,
+      idleMax,
+      staff,
       wisp: null,
     };
     this.list.push(a);
@@ -146,14 +154,15 @@ export class Allies implements Entity {
       if (tg) a.idle = 0;
       else {
         a.idle += dt;
-        if (a.kind !== 'merlock' && a.idle >= ALLY_IDLE) {
+        if (a.kind !== 'merlock' && a.idle >= a.idleMax) {
           a.state = 'sink';
           a.t = 0;
           continue;
         }
       }
-      const tx = tg ? tg.x : f ? f.x : a.x;
-      const ty = tg ? tg.y : f ? f.y : a.y;
+      // With nothing to fight, each keeps its own place round the figure, so they do not stand in one heap.
+      const tx = tg ? tg.x : f ? f.x + Math.cos(i * 2.4) * 14 : a.x;
+      const ty = tg ? tg.y : f ? f.y + Math.sin(i * 2.4) * 14 : a.y;
       const want = tg ? s.keep || s.reach * 0.8 : 36;
       const dx = tx - a.x;
       const dy = ty - a.y;
@@ -238,6 +247,7 @@ export class Allies implements Entity {
     const stride = a.state === 'fight' ? Math.sin(a.ph * 9) * 2 * k : 0;
     if (a.kind === 'merlock') drawMerlock(v, a, sx, base, k, face, stride);
     else if (a.kind === 'skeleton') drawSkeleton(v, a, sx, base, k, face, stride);
+    else if (a.kind === 'vampire') drawVampire(v, a, sx, base, k, face, stride);
     else if (a.kind === 'hamster') drawHamster(v, a, sx, base, k, face, stride);
     else drawGhost(v, a, sx, base, k, face);
     ctx.globalAlpha = 1;
@@ -496,6 +506,96 @@ function drawHamster(
     ctx.rect(hx + face * (3 + t) * k - 0.6 * k, hy + 2.4 * k, 1.2 * k, 2.8 * k);
     ctx.fill();
     ctx.stroke();
+  }
+}
+
+/** A vampire on your side: Dracula's cape, black outside and red within, his high collar, pale face and fangs. */
+function drawVampire(
+  v: DrawView,
+  a: Ally,
+  sx: number,
+  base: number,
+  k: number,
+  face: number,
+  stride: number,
+): void {
+  const { ctx } = v;
+  const spread = a.hitT < 0.3 ? 3 : 0;
+  for (const [c, w] of [
+    ['#100D14', 9 + spread],
+    ['#8E1626', 7 + spread],
+  ] as const) {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(sx - 4.5 * k, base - 19 * k);
+    ctx.lineTo(sx + 4.5 * k, base - 19 * k);
+    ctx.lineTo(sx + w * k, base - 0.5 * k);
+    ctx.lineTo(sx - w * k, base - 0.5 * k);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = '#1E1A24';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2.2 * k;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(sx + side * 2 * k, base - 9 * k);
+    ctx.lineTo(sx + side * 2 * k + stride * side, base);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#1E1A24';
+  ctx.fillRect(sx - 4 * k, base - 19 * k, 8 * k, 10 * k);
+  ctx.fillStyle = '#EDE8EE';
+  ctx.beginPath();
+  ctx.moveTo(sx - 1.8 * k, base - 19 * k);
+  ctx.lineTo(sx + 1.8 * k, base - 19 * k);
+  ctx.lineTo(sx, base - 13 * k);
+  ctx.closePath();
+  ctx.fill();
+  // An arm out, clawing as it strikes.
+  ctx.strokeStyle = '#1E1A24';
+  ctx.lineWidth = 2 * k;
+  const reach = a.hitT < 0.3 ? 9 : 5;
+  ctx.beginPath();
+  ctx.moveTo(sx + face * 3 * k, base - 17 * k);
+  ctx.lineTo(sx + face * reach * k, base - 15 * k);
+  ctx.stroke();
+  const hy = base - 23 * k;
+  // The collar behind the head.
+  ctx.fillStyle = '#8E1626';
+  ctx.beginPath();
+  ctx.moveTo(sx - 3 * k, base - 19 * k);
+  ctx.lineTo(sx - 6.5 * k, hy - 5 * k);
+  ctx.lineTo(sx, hy + 1 * k);
+  ctx.lineTo(sx + 6.5 * k, hy - 5 * k);
+  ctx.lineTo(sx + 3 * k, base - 19 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#E6E1EA';
+  ctx.beginPath();
+  ctx.arc(sx, hy, 3.8 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#15121A';
+  ctx.beginPath();
+  ctx.arc(sx, hy - 1 * k, 3.8 * k, Math.PI, Math.PI * 2);
+  ctx.lineTo(sx, hy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#D21E2A';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(sx + face * 0.8 * k + e * 1.4 * k, hy + 0.3 * k, 0.8 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#FFFFFF';
+  for (const e of [-1, 1]) {
+    const fx = sx + face * 0.5 * k + e * 0.8 * k;
+    ctx.beginPath();
+    ctx.moveTo(fx - 0.4 * k, hy + 2.2 * k);
+    ctx.lineTo(fx + 0.4 * k, hy + 2.2 * k);
+    ctx.lineTo(fx, hy + 3.4 * k);
+    ctx.closePath();
+    ctx.fill();
   }
 }
 

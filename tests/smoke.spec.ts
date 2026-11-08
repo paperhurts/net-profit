@@ -125,10 +125,13 @@ type Np = {
     skull?: boolean;
     hints?: number;
     bones?: number;
+    staff?: boolean;
   };
   /** The fog sea's skeletons (world/fogbones.ts): those there now, where each lies, and one beaten. */
   fogBones: { boneK: string; state: string; resolve: number }[];
   BONE_SPOTS: { k: string; x: number; y: number }[];
+  /** Tomb Island's summoning staff: call one up. */
+  summon(kind: 'skeleton' | 'vampire'): void;
   MERCHANT16: { x: number; y: number };
   store16Open: boolean;
   TOMB_HORDES: { room: { x: number; y: number }; list: { kind: string; state: string }[] }[];
@@ -1359,6 +1362,53 @@ test("Tomb Island: past the big necromancer the castle's door opens, its floors 
       return h.cleared;
     }),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: the man in the cloak sells the summoning staff, and ashore it calls up a skeleton and a vampire', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 30100,
+    earned: 60000,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true, lever: true },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  await expect(page.locator('#summonS')).toBeHidden();
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.walker.x = n.MERCHANT16.x + 24;
+    n.walker.y = n.MERCHANT16.y;
+  });
+  await expect(page.locator('#climb')).toHaveText('Talk to the man in the cloak', {
+    timeout: 3000,
+  });
+  await page.click('#climb');
+  await page.click('[data-buy="staff"]');
+  await expect(page.locator('#store16Say')).toContainText('summoning staff is yours');
+  expect(await page.evaluate(() => window.__np.coins)).toBe(100);
+  await page.click('#store16Close');
+  // Ashore, the skull and the vampire by the spear.
+  await expect(page.locator('#summonS')).toBeVisible({ timeout: 3000 });
+  await page.click('#summonS');
+  await page.waitForTimeout(3300);
+  await page.click('#summonV');
+  const kinds = await page.evaluate(() =>
+    (window.__np.allies as unknown as { list: { kind: string; staff: boolean }[] }).list
+      .filter((a) => a.staff)
+      .map((a) => a.kind),
+  );
+  expect(kinds).toEqual(['skeleton', 'vampire']);
+  const saved = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('netprofit.v1') ?? '{}').tomb,
+  );
+  expect(saved.staff).toBe(true);
   expect(errors).toEqual([]);
 });
 
