@@ -416,9 +416,10 @@ export type SaveData = {
   /**
    * Tomb Island (world/tombisle.ts): whether the boat has sailed into its fog bank and sighted it, and whether the lever
    * in its maze has been pulled, clearing the fog off it for good (there once it has). Missing in old saves and read
-   * as neither; left out of the save until it is sighted.
+   * as neither; left out of the save until it is sighted. From its merchant: the torch and the skull cloak, there once
+   * bought, and how many of his hints have been bought, there once one has.
    */
-  tomb: { seen: boolean; lever?: boolean };
+  tomb: { seen: boolean; lever?: boolean; torch?: boolean; skull?: boolean; hints?: number };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
     casts: number;
@@ -909,6 +910,10 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     // Pulled means found, whatever the save says.
     d.tomb = { seen: t.seen === true || t.lever === true };
     if (t.lever === true) d.tomb.lever = true;
+    if (t.torch === true) d.tomb.torch = true;
+    if (t.skull === true) d.tomb.skull = true;
+    const hints = Math.floor(Number(t.hints));
+    if (hints > 0 && hints <= 9999) d.tomb.hints = hints;
   }
   if (o.goat && typeof o.goat === 'object') {
     const g = o.goat as Record<string, unknown>;

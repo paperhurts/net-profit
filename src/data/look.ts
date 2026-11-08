@@ -18,7 +18,7 @@ import { ROLE_NAME, type Role } from './battle';
 export type HatKind = 'souwester' | 'cap' | 'fishing' | 'cowboy' | 'none';
 export type HairKind = 'none' | 'short' | 'spiky' | 'long' | 'pigtails';
 export type FaceKind = 'dots' | 'smile' | 'grin' | 'freckles' | 'glasses';
-export type OutfitKind = 'none' | 'captain' | 'ninja' | 'snow';
+export type OutfitKind = 'none' | 'captain' | 'ninja' | 'snow' | 'skull';
 /** A title won on the Endless Isle, shown under your name: for all nine of a side's badges, or of both sides', or a
  * place's gold badge. */
 export type GoldTitle = `gold-${Side}-${Role}`;
@@ -102,16 +102,26 @@ export const OUTFITS: readonly [OutfitKind, string][] = [
   ['captain', "Captain's coat"],
   ['ninja', 'Ninja garb'],
   ['snow', 'Snow ninja'],
+  ['skull', 'Skull cloak'],
 ];
 /**
  * What an outfit is made of: the coat or suit, the trousers, its trim (the coat's gold, the ninjas' sash), and the
  * ninjas' hood, over the hair and all of the face but the eyes, with its headband; the captain wears a tricorn instead.
  */
-export type OutfitLook = { coat: string; legs: string; trim: string; hood: string | null };
+/** The skull cloak's hood frames a bone-white skull mask instead of a ninja's eyes and headband. */
+export type OutfitLook = {
+  coat: string;
+  legs: string;
+  trim: string;
+  hood: string | null;
+  skull?: boolean;
+};
 export const OUTFIT_LOOK: Readonly<Record<Exclude<OutfitKind, 'none'>, OutfitLook>> = {
   captain: { coat: '#A3262A', legs: '#2B2522', trim: '#E2B33C', hood: null },
   ninja: { coat: '#262A33', legs: '#1C1F26', trim: '#C8352B', hood: '#262A33' },
   snow: { coat: '#EEF3F8', legs: '#D5DFEA', trim: '#4F9FD8', hood: '#EEF3F8' },
+  // Bought from the man in the cloak on Tomb Island (data/merchant16.ts).
+  skull: { coat: '#1F1C24', legs: '#16141A', trim: '#3A3442', hood: '#1F1C24', skull: true },
 };
 /** The tricorn's black felt and gold edge. */
 export const TRICORN = ['#1F1B1C', '#E2B33C'] as const;

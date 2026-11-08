@@ -23,6 +23,7 @@ import {
   JETTY16_Z,
   LEVER16,
   lineU,
+  MERCHANT16,
   MID,
   PLAZA,
   POST_H,
@@ -809,4 +810,112 @@ export function drawLeverLamp(v: DrawView, pulled: boolean): void {
 export function leverSolid(v: DrawView, pulled: number): Solid | null {
   if (!v.onScreen(LEVER16.x, LEVER16.y, 60 * v.zoom)) return null;
   return { d: LEVER16.x + LEVER16.y, f: () => drawLever(v, pulled) };
+}
+
+/** The merchant's stall behind him: two poles, a torn dark-red awning, a crate of torches and a skull on a barrel. */
+function drawStall16(v: DrawView): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const { x, y } = MERCHANT16;
+  const poles: [number, number][] = [
+    [x - 16, y - 10],
+    [x + 16, y - 10],
+  ];
+  for (const [px, py] of poles) v.box(px - 1, py - 1, 2, 2, 0, 26, '#4A3D33', '#4A3D33');
+  // The awning, sagging, its front edge torn into tatters that sway.
+  const front: [number, number, number][] = [];
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8;
+    front.push([
+      x - 18 + 36 * t,
+      y - 2,
+      21 - Math.sin(t * Math.PI) * 2 - (i % 2 ? 3 + Math.sin(v.T * 2 + i) : 0),
+    ]);
+  }
+  ctx.beginPath();
+  ctx.moveTo(v.px(x - 18, y - 12), v.py(x - 18, y - 12, 27));
+  ctx.lineTo(v.px(x + 18, y - 12), v.py(x + 18, y - 12, 27));
+  for (const [fx, fy, fz] of front.slice().reverse()) ctx.lineTo(v.px(fx, fy), v.py(fx, fy, fz));
+  ctx.closePath();
+  ctx.fillStyle = '#5E2228';
+  ctx.fill();
+  // A crate of torches to his left, a barrel with a skull on it to his right.
+  v.box(x - 22, y - 2, 10, 8, 0, 7, '#6E5338', '#856544');
+  for (let i = 0; i < 3; i++) {
+    const tx = x - 20 + i * 3;
+    const ty = y + 2;
+    ctx.strokeStyle = '#5A3E22';
+    ctx.lineWidth = 1.4 * Z;
+    ctx.beginPath();
+    ctx.moveTo(v.px(tx, ty), v.py(tx, ty, 6));
+    ctx.lineTo(v.px(tx, ty), v.py(tx, ty, 13));
+    ctx.stroke();
+    ctx.fillStyle = '#3A2E26';
+    ctx.beginPath();
+    ctx.arc(v.px(tx, ty), v.py(tx, ty, 14), 1.3 * Z, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  v.box(x + 13, y - 1, 7, 7, 0, 9, '#5A4232', '#6E5340');
+  skull(v, v.px(x + 16.5, y + 2.5), v.py(x + 16.5, y + 2.5, 12), 1.2);
+}
+
+/** The man in the cloak: a black cloak to the ground, his hood up, two mean little eyes glinting in it. */
+function drawMerchant16(v: DrawView, talking: number): void {
+  const { ctx } = v;
+  const Z = v.zoom;
+  const { x, y } = MERCHANT16;
+  const sx = v.px(x, y);
+  const sy = v.py(x, y);
+  const sway = Math.sin(v.T * 1.4) * 0.4 * Z;
+  v.isoEllipse(x, y, 6);
+  ctx.fillStyle = 'rgba(20,18,16,.35)';
+  ctx.fill();
+  // The cloak, wide at the hem, narrow at the shoulders.
+  ctx.fillStyle = '#211D26';
+  ctx.beginPath();
+  ctx.moveTo(sx - 6 * Z, sy);
+  ctx.quadraticCurveTo(sx - 5 * Z + sway, sy - 10 * Z, sx - 3.2 * Z + sway, sy - 17 * Z);
+  ctx.lineTo(sx + 3.2 * Z + sway, sy - 17 * Z);
+  ctx.quadraticCurveTo(sx + 5 * Z + sway, sy - 10 * Z, sx + 6 * Z, sy);
+  ctx.closePath();
+  ctx.fill();
+  // A bony hand out of the sleeve, beckoning while he talks.
+  const beck = talking > 0 ? Math.sin(v.T * 8) * 1.2 * Z : 0;
+  ctx.fillStyle = '#D9D0BC';
+  ctx.beginPath();
+  ctx.arc(sx + 4.6 * Z + sway, sy - 9 * Z + beck, 1.1 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  // The hood, its opening dark, two eyes glinting yellow in it.
+  const hx = sx + sway;
+  const hy = sy - 19.5 * Z;
+  ctx.fillStyle = '#2B2631';
+  ctx.beginPath();
+  ctx.arc(hx, hy, 4.4 * Z, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(hx - 1.5 * Z, hy - 6.2 * Z);
+  ctx.lineTo(hx + 1.2 * Z, hy - 3 * Z);
+  ctx.lineTo(hx - 3 * Z, hy - 3 * Z);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#0D0B10';
+  ctx.beginPath();
+  ctx.ellipse(hx, hy + 0.8 * Z, 2.7 * Z, 2.9 * Z, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const blink = Math.sin(v.T * 0.9) > 0.97 ? 0.2 : 1;
+  ctx.fillStyle = '#F2D45A';
+  for (const e of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(hx + e * 1.1 * Z, hy + 0.3 * Z, 0.6 * Z, 0.45 * Z * blink, e * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** The merchant and his stall as solids, sorted with the rest. talking counts down while he speaks. */
+export function merchantSolids16(v: DrawView, talking: number): Solid[] {
+  if (!v.onScreen(MERCHANT16.x, MERCHANT16.y, 80 * v.zoom)) return [];
+  return [
+    { d: MERCHANT16.x + MERCHANT16.y - 10, f: () => drawStall16(v) },
+    { d: MERCHANT16.x + MERCHANT16.y, f: () => drawMerchant16(v, talking) },
+  ];
 }

@@ -275,6 +275,18 @@ export const STONES16: readonly Stone16[] = (() => {
   return out;
 })();
 
+/**
+ * The merchant (part three, data/merchant16.ts): a man in a black cloak under a tattered awning on the beach, just
+ * below the outer wall and off to the left of the way up to the Way in. He stands in the way; the figure talks to him
+ * from anywhere near.
+ */
+export const MERCHANT16 = (() => {
+  const [x, y] = fromTomb(-128, WAY_IN16.v + 18);
+  return { x, y };
+})();
+export const MERCHANT_R = 6;
+export const MERCHANT_REACH = 34;
+
 /* ---------- graves and coffins in the maze ---------- */
 
 /**
@@ -449,6 +461,7 @@ export function onIsle16(x: number, y: number): boolean {
   if (d > shoreR16(Math.atan2(v, u)) - SHORE_IN16) return false;
   if (inStone16(x, y)) return false;
   if (Math.hypot(x - LEVER16.x, y - LEVER16.y) < LEVER_R) return false;
+  if (Math.hypot(x - MERCHANT16.x, y - MERCHANT16.y) < MERCHANT_R) return false;
   if (STONES16.some((s) => Math.hypot(x - s.x, y - s.y) < STONE_R)) return false;
   return !GRAVES16.some((g) => Math.hypot(x - g.hx, y - g.hy) < STONE_R);
 }

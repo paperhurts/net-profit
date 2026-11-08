@@ -1564,6 +1564,38 @@ export class Walker implements Entity {
     const { ctx } = v;
     const Z = v.zoom;
     const hood = out.hood ?? out.coat;
+    // The skull cloak: a black hood, and in it a bone-white skull mask, its eye sockets and nose dark, its teeth drawn.
+    if (out.skull) {
+      ctx.fillStyle = hood;
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.6 * Z, 4.6 * Z, 0, Math.PI * 2);
+      ctx.fill();
+      if (fy > -0.1) {
+        const mx = hx + fx * 1.2 * Z;
+        ctx.fillStyle = '#ECE5D3';
+        ctx.beginPath();
+        ctx.ellipse(mx, hy + 0.2 * Z, 3.1 * Z, 3.3 * Z, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#1A1714';
+        for (const e of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(mx + e * 1.3 * Z, hy - 0.2 * Z, 0.9 * Z, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillRect(mx - 0.35 * Z, hy + 0.9 * Z, 0.7 * Z, 0.8 * Z);
+        ctx.strokeStyle = '#8F887A';
+        ctx.lineWidth = 0.4 * Z;
+        ctx.beginPath();
+        ctx.moveTo(mx - 1.4 * Z, hy + 2.4 * Z);
+        ctx.lineTo(mx + 1.4 * Z, hy + 2.4 * Z);
+        for (const t of [-0.7, 0, 0.7]) {
+          ctx.moveTo(mx + t * Z, hy + 2 * Z);
+          ctx.lineTo(mx + t * Z, hy + 2.8 * Z);
+        }
+        ctx.stroke();
+      }
+      return;
+    }
     // The tails behind the head first, when it faces us; in front of it when it faces away.
     const tails = () => {
       const sw = Math.sin(this.now * 9) * 0.7 * Z;

@@ -33,13 +33,19 @@ export function allGold(s: Slalom | undefined): boolean {
 }
 
 /** What the rewards are counted from: the endless save's battles and ski runs. */
-export type Won = { battles?: Battles | undefined; slalom?: Slalom | undefined };
+export type Won = {
+  battles?: Battles | undefined;
+  slalom?: Slalom | undefined;
+  skull?: boolean | undefined;
+};
 
 /** Whether an outfit has been won; your own clothes always are. */
 export function outfitWon(k: OutfitKind, w: Won): boolean {
   if (k === 'captain') return sideBadges(w.battles, 'pirate') >= OUTFIT_BADGES;
   if (k === 'ninja') return sideBadges(w.battles, 'ninja') >= OUTFIT_BADGES;
   if (k === 'snow') return allGold(w.slalom);
+  // Not won but bought, from the man in the cloak on Tomb Island.
+  if (k === 'skull') return w.skull === true;
   return true;
 }
 
@@ -48,12 +54,14 @@ export const OUTFIT_HOW: Readonly<Record<Exclude<OutfitKind, 'none'>, string>> =
   captain: `${OUTFIT_BADGES} pirate badges`,
   ninja: `${OUTFIT_BADGES} ninja badges`,
   snow: 'gold on all three ski runs',
+  skull: 'coins from the man in the cloak on Tomb Island',
 };
 /** Each, as it is announced. */
 export const OUTFIT_NAME: Readonly<Record<Exclude<OutfitKind, 'none'>, string>> = {
   captain: "the captain's coat and tricorn",
   ninja: 'the ninja garb and mask',
   snow: "the snow ninja's whites",
+  skull: 'the skull cloak',
 };
 
 /** The outfits won between two moments: to announce, and to put on. */
