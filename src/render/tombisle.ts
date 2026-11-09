@@ -26,6 +26,7 @@ import {
   lineU,
   MERCHANT16,
   MID,
+  PASSAGE16,
   PLAZA,
   POST_H,
   POSTS16,
@@ -264,6 +265,63 @@ function niche(v: DrawView, w: Wall16, s0: number, s1: number, z0: number, z1: n
   ctx.closePath();
   ctx.fillStyle = '#221E1B';
   ctx.fill();
+}
+
+/**
+ * A door of the secret passage on its wall's face: a heavy slab with a skull over it while sealed; open, a dark arch
+ * with a green light deep inside, and the slab leant aside.
+ */
+function drawPassageDoor(v: DrawView, w: Wall16, open: boolean): void {
+  const { ctx, T } = v;
+  const Z = v.zoom;
+  if (open) {
+    // Wider and taller than any tomb's niche, rimmed and lit green, so it is found among them.
+    niche(v, w, 0.22, 0.78, 0, 17);
+    const pulse = 0.5 + 0.5 * Math.sin(T * 2.2);
+    const [gx, gy] = faceXY(v, w, 0.5, 7);
+    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 12 * Z);
+    g.addColorStop(0, `rgba(124,240,168,${0.55 + 0.25 * pulse})`);
+    g.addColorStop(1, 'rgba(124,240,168,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(gx, gy, 9 * Z, 11 * Z, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(124,240,168,${0.6 + 0.3 * pulse})`;
+    ctx.lineWidth = 1.4 * Z;
+    ctx.beginPath();
+    for (const [i, [s0, z0]] of (
+      [
+        [0.22, 0],
+        [0.22, 14],
+        [0.36, 17],
+        [0.5, 17.6],
+        [0.64, 17],
+        [0.78, 14],
+        [0.78, 0],
+      ] as const
+    ).entries()) {
+      const [x, y] = faceXY(v, w, s0, z0);
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  } else {
+    poly(
+      v,
+      [facePoint(w, 0.3, 0), facePoint(w, 0.7, 0), facePoint(w, 0.7, 14), facePoint(w, 0.3, 14)],
+      '#7A7367',
+    );
+    ctx.strokeStyle = '#4A453E';
+    ctx.lineWidth = Math.max(0.6, 0.8 * Z);
+    ctx.beginPath();
+    const [ax, ay] = faceXY(v, w, 0.5, 0);
+    const [bx, by] = faceXY(v, w, 0.5, 14);
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+  }
+  const [sx, sy] = faceXY(v, w, 0.5, open ? 19.5 : 16.5);
+  skull(v, sx, sy, open ? 1.3 : 1.1);
 }
 
 /** A stretch of wall: stone, its courses, and the tomb on its face toward the viewer. */
@@ -652,13 +710,21 @@ export function tombSolids(
   v: DrawView,
   burst: ReadonlySet<number> = new Set(),
   open = false,
+  passage = false,
 ): Solid[] {
   if (!near(v, TOMB_ISLE.r + 260)) return [];
   const out: Solid[] = [];
   const m = 60 * v.zoom;
+  const doors: readonly Wall16[] = [PASSAGE16.out.wall, PASSAGE16.in.wall];
   for (const w of WALLS16)
     if (v.onScreen((w.x0 + w.x1) / 2, (w.y0 + w.y1) / 2, m))
-      out.push({ d: w.d, f: () => drawWall(v, w) });
+      out.push({
+        d: w.d,
+        f: () => {
+          drawWall(v, w);
+          if (doors.includes(w)) drawPassageDoor(v, w, passage);
+        },
+      });
   for (const p of POSTS16) {
     if (!v.onScreen(p.x0, p.y0, m)) continue;
     const gate = GATE_POSTS16.includes(p);

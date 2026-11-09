@@ -24,6 +24,8 @@ import {
   MAZE16,
   nearIsle16,
   onIsle16,
+  PASSAGE_REACH,
+  PASSAGE16,
   pushOffIsle16,
   SIGHT_LAND16,
   SIGHT16,
@@ -220,5 +222,26 @@ describe('Tomb Island', () => {
     expect(inMaze16(...fromTomb(WAY_IN16.u, WAY_IN16.v - 20))).toBe(true);
     expect(inMaze16(TOMB_ISLE.x, TOMB_ISLE.y)).toBe(false);
     expect(inMaze16(LANDING16.x, LANDING16.y)).toBe(false);
+  });
+
+  it('has a secret passage: a door beside the way in, and its twin in the castle square, each with open ground before it', () => {
+    const ground = reach(LANDING16.x, LANDING16.y);
+    for (const k of ['out', 'in'] as const) {
+      const [x, y] = PASSAGE16[k].at;
+      expect(onIsle16(x, y)).toBe(true);
+      expect(has(ground, x, y)).toBe(true);
+      const w = PASSAGE16[k].wall;
+      expect(Math.hypot(x - (w.x0 + w.x1) / 2, y - (w.y0 + w.y1) / 2)).toBeLessThan(
+        PASSAGE_REACH + 12,
+      );
+    }
+    // One outside the maze, one in the square.
+    expect(inMaze16(...PASSAGE16.in.at)).toBe(false);
+    const [ox, oy] = PASSAGE16.out.at;
+    expect(Math.hypot(ox - TOMB_ISLE.x, oy - TOMB_ISLE.y)).toBeGreaterThan(
+      Math.hypot(
+        ...(fromTomb(0, 0).map((c, i) => c - (i ? TOMB_ISLE.y : TOMB_ISLE.x)) as [number, number]),
+      ) + 300,
+    );
   });
 });
