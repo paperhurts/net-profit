@@ -148,6 +148,7 @@ type Np = {
     staff?: boolean;
     arrived?: boolean;
     chart?: boolean;
+    bossDay?: number;
   };
   /** The fog sea's skeletons (world/fogbones.ts): those there now, where each lies, and one beaten. */
   fogBones: { boneK: string; state: string; resolve: number }[];
@@ -156,6 +157,9 @@ type Np = {
   summon(kind: 'skeleton' | 'vampire'): void;
   /** The cutscene playing, if any. */
   cineKind: string | null;
+  /** Tomb Island's secret passage: its two doors' spots, and the day. */
+  PASSAGE16: { out: { at: [number, number] }; in: { at: [number, number] } };
+  setDay(n: number): void;
   MERCHANT16: { x: number; y: number };
   store16Open: boolean;
   TOMB_HORDES: { room: { x: number; y: number }; list: { kind: string; state: string }[] }[];
@@ -1585,6 +1589,45 @@ test('Tomb Island: Necromanda at the top of his castle, laughing, his fake tomb,
   await expect(page.locator('#toast')).toContainText('second tar island', { timeout: 9000 });
   expect(await page.evaluate(() => window.__np.coins)).toBe(coins + 1000);
   expect(await page.evaluate(() => window.__np.tombIsle.chart)).toBe(true);
+  // His hoard pays each time, and he is beaten for today only: back tomorrow.
+  expect(await page.evaluate(() => window.__np.tombIsle.bossDay === window.__np.day)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('Tomb Island: once Necromanda is beaten the secret passage opens past the maze, both ways', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    day: 4,
+    lv: { net: 5, hold: 5, engine: 5 },
+    tomb: { seen: true, lever: true, arrived: true, boss: true, chart: true, bossDay: 4 },
+    trip: { x: -9100, y: 3467, h: -Math.PI / 2, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 4000 });
+  // The big necromancer guards the square every visit: out of the way, for this.
+  await page.evaluate(() => {
+    const n = window.__np;
+    for (const h of n.TOMB_HORDES as unknown as { list: { state: string }[] }[])
+      for (const u of h.list) u.state = 'gone';
+    [n.walker.x, n.walker.y] = n.PASSAGE16.out.at;
+  });
+  await expect(page.locator('#climb')).toHaveText('Take the secret passage', { timeout: 3000 });
+  await page.click('#climb');
+  await page.waitForTimeout(300);
+  const d = await page.evaluate(() => {
+    const n = window.__np;
+    return Math.hypot(n.walker.x - n.CASTLE16_DOOR.x, n.walker.y - n.CASTLE16_DOOR.y);
+  });
+  expect(d).toBeLessThan(200);
+  // And back again.
+  await expect(page.locator('#climb')).toHaveText('Take the secret passage', { timeout: 3000 });
+  await page.click('#climb');
+  await expect(page.locator('#toast')).toContainText('out by the way in');
   expect(errors).toEqual([]);
 });
 

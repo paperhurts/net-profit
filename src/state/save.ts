@@ -437,6 +437,8 @@ export type SaveData = {
      * won off Necromanda, a torn chart of a second tar island. Each there once true. */
     arrived?: boolean;
     chart?: boolean;
+    /** The day Necromanda was last beaten: his hall stands empty that day, and he is back the next. */
+    bossDay?: number;
   };
   /** The snook: casts made, fish landed, kept, giants, the best in inches, and the day of the first. */
   snook: {
@@ -951,6 +953,8 @@ export function parseSave(raw: string | null, b: Bounds): SaveData {
     if (t.staff === true) d.tomb.staff = true;
     if (t.arrived === true) d.tomb.arrived = true;
     if (t.chart === true) d.tomb.chart = true;
+    const bossDay = Math.floor(Number(t.bossDay));
+    if (bossDay > 0 && bossDay < 1e6) d.tomb.bossDay = bossDay;
     const hints = Math.floor(Number(t.hints));
     if (hints > 0 && hints <= 9999) d.tomb.hints = hints;
     const bones = Math.floor(Number(t.bones));

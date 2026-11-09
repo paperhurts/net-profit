@@ -235,6 +235,27 @@ export const GATE_POSTS16: readonly Post16[] = POSTS16.filter(
     (p.k === MAZE16.wayIn.i || p.k === MAZE16.wayIn.i + 1),
 );
 
+/**
+ * The secret passage (the owner's ask, 2026-11-09: a reason to come back, and no maze to walk each time): a stone door
+ * in the outer wall two cells along from the way in, and its twin in the square's west wall. Sealed until Necromanda
+ * is first beaten; after that, one door takes the figure straight to the other. Each is a wall of the maze, its door on
+ * the face the viewer sees, and a spot in front of it where the figure stands to go through.
+ */
+const wallAt = (u: number, v: number): Wall16 => {
+  const [x, y] = fromTomb(u, v);
+  const w = WALLS16.find((q) => x >= q.x0 - 1 && x <= q.x1 + 1 && y >= q.y0 - 1 && y <= q.y1 + 1);
+  if (!w) throw new Error(`no wall at ${u},${v}`);
+  return w;
+};
+const PASSAGE_OUT_U = WAY_IN16.u - 2 * CELL;
+const PASSAGE_IN_V = CELL;
+export const PASSAGE16 = {
+  out: { wall: wallAt(PASSAGE_OUT_U, WAY_IN16.v), at: fromTomb(PASSAGE_OUT_U, WAY_IN16.v + 18) },
+  in: { wall: wallAt(-(PLAZA + 0.5) * CELL, PASSAGE_IN_V), at: fromTomb(-(PLAZA + 0.5) * CELL + 20, PASSAGE_IN_V) },
+} as const;
+/** How near a door the figure must be to go through it. */
+export const PASSAGE_REACH = 26;
+
 /* ---------- the castle and the square round it ---------- */
 
 /** The castle in the middle: its half width, its walls' height, its corner towers' half width and height. */
