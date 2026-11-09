@@ -22,8 +22,8 @@ import {
 } from '../../src/data/wizard';
 
 describe('the classes', () => {
-  it('the Warrior and the Wizard so far; anything else reads as the Warrior', () => {
-    expect(CLASSES).toEqual(['warrior', 'wizard']);
+  it('the Warrior, the Wizard and the Paladin so far; anything else reads as the Warrior', () => {
+    expect(CLASSES).toEqual(['warrior', 'wizard', 'paladin']);
     expect(parseClass('wizard')).toBe('wizard');
     expect(parseClass('druid')).toBe('warrior');
   });

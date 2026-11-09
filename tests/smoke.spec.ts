@@ -97,6 +97,8 @@ type Np = {
   furyMove: unknown;
   warriorBasic: () => void;
   wizardBasic: () => void;
+  paladinBasic: () => void;
+  blessings: { protectT: number; disagree: number; disagreeT: number };
   ward: number;
   puddles: { t: number; fire: number }[];
   dimHps: number[];
@@ -16933,5 +16935,59 @@ test('New Dimensions: the Wizard, picked on the card: fireball, grease set aligh
   await expect(page.locator('#rage svg')).toHaveCount(5);
   await page.waitForFunction(() => window.__np.dim?.round === 2, null, { timeout: 5000 });
   await expect(page.locator('#ability4')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Paladin: holy light blinds and heals, healing light, Protection for two more hearts, and Disagreements', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'paladin' },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await expect(page.locator('#dimClass [data-cls="paladin"]')).toHaveClass(/on/);
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  for (const id of ['#ability', '#ability2', '#ability3', '#ability4', '#ability5'])
+    await expect(page.locator(id)).toBeVisible();
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 30 + i * 8;
+          m.y = n.walker.y + 20 - i * 8;
+        });
+    });
+  // Holy light, one heart down: each monkey (not dead) loses 1, and a heart comes back.
+  await gather();
+  await page.evaluate(() => window.__np.setHearts(2));
+  await page.locator('#ability2').click();
+  await page.waitForFunction(() => window.__np.dimHps.every((hp) => hp === 7), null, {
+    timeout: 2000,
+  });
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(3);
+  // Healing light: hearts full already, then down to one and 2 back.
+  await page.evaluate(() => window.__np.setHearts(1));
+  await page.locator('#ability3').click();
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(3);
+  // Protection: two more hearts, as long as it lasts.
+  await page.locator('#ability4').click();
+  expect(await page.evaluate(() => window.__np.maxHearts)).toBe(5);
+  // Disagreements: three marks under the hearts; a mace blow spends one.
+  await page.locator('#ability5').click();
+  await expect(page.locator('#rage svg')).toHaveCount(3);
+  await gather();
+  await page.evaluate(() => window.__np.paladinBasic());
+  await expect(page.locator('#rage svg')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
