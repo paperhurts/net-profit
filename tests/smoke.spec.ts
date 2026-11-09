@@ -98,6 +98,8 @@ type Np = {
   warriorBasic: () => void;
   wizardBasic: () => void;
   paladinBasic: () => void;
+  assassinBasic: () => void;
+  vanishT: number;
   blessings: { protectT: number; disagree: number; disagreeT: number };
   ward: number;
   puddles: { t: number; fire: number }[];
@@ -16989,5 +16991,63 @@ test('New Dimensions: the Paladin: holy light blinds and heals, healing light, P
   await gather();
   await page.evaluate(() => window.__np.paladinBasic());
   await expect(page.locator('#rage svg')).toHaveCount(2);
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Assassin: daggers, Vanish (unhurt while unseen), a sneak attack out of it, knives and shadow step', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'assassin' },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  for (const id of ['#ability', '#ability2', '#ability3', '#ability4'])
+    await expect(page.locator(id)).toBeVisible();
+  await expect(page.locator('#ability5')).toBeHidden();
+  await expect(page.locator('#rage')).toBeHidden();
+  const gather = (dx: number) =>
+    page.evaluate((d) => {
+      const n = window.__np;
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + d + i * 8;
+          m.y = n.walker.y + 20 - i * 8;
+        });
+    }, dx);
+  // A dagger: 1 off the nearest monkey (8 on Easy).
+  await gather(30);
+  await page.evaluate(() => window.__np.assassinBasic());
+  await page.waitForFunction(() => window.__np.dimHps.includes(7), null, { timeout: 2000 });
+  // Vanish: they cannot hurt him while he is unseen.
+  await page.locator('#ability').click();
+  expect(await page.evaluate(() => window.__np.vanishT)).toBeGreaterThan(4);
+  await page.evaluate(() => window.__np.setHearts(3));
+  await gather(20);
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(3);
+  // Out of it, his sneak attack: 2 at level 1, and he is seen again.
+  await gather(30);
+  const before = await page.evaluate(() => window.__np.dimHps.reduce((a, b) => a + b, 0));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.__np.assassinBasic());
+  expect(await page.evaluate(() => window.__np.vanishT)).toBe(0);
+  expect(await page.evaluate(() => window.__np.dimHps.reduce((a, b) => a + b, 0))).toBe(before - 2);
+  // Shadow step: behind the nearest, from across the floor.
+  await gather(150);
+  const at = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
+  await page.locator('#ability4').click();
+  const to = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
+  expect(Math.hypot(to.x - at.x, to.y - at.y)).toBeGreaterThan(60);
   expect(errors).toEqual([]);
 });
