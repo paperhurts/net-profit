@@ -26,7 +26,10 @@ export type AllyKind =
   | 'archer'
   | 'mage'
   | 'bighamster'
-  | 'gorebeast';
+  | 'gorebeast'
+  | 'terrier'
+  | 'patches'
+  | 'frostspider';
 
 /** Hit points, walking speed, reach and how often it hits, and how far off a ranged one keeps. */
 export type AllySpec = {
@@ -56,6 +59,11 @@ export const ALLY: Readonly<Record<AllyKind, AllySpec>> = {
   mage: { hp: 2, speed: 64, reach: 130, every: 2, keep: 100 },
   bighamster: { hp: 20, speed: 72, reach: 24, every: 1.2, keep: 0, scale: 2 },
   gorebeast: { hp: 25, speed: 58, reach: 32, every: 1.6, keep: 0, hit: 2, scale: 1 },
+  // The Witch Doctor's (data/witchdoctor.ts), the owner's design: Bloodrot Terriers that bite and keep things off
+  // her, Patches the patchwork-quilt teddy bear who is all distraction and little bite, and frost spiders that slow.
+  terrier: { hp: 4, speed: 115, reach: 18, every: 0.9, keep: 0 },
+  patches: { hp: 30, speed: 62, reach: 28, every: 2, keep: 0 },
+  frostspider: { hp: 1, speed: 125, reach: 16, every: 1, keep: 0 },
 };
 /** It goes for foes this near it, and each hit is this hard. */
 export const ALLY_SEEK = 240;
@@ -97,8 +105,8 @@ export class Allies implements Entity {
   readonly list: Ally[] = [];
   /** What it can fight, nearest, within reach of a point; the game knows. */
   findTarget: ((x: number, y: number, range: number) => PalTarget | null) | null = null;
-  /** It hit something. */
-  onHit: ((a: Ally) => void) | null = null;
+  /** It hit something, and what. */
+  onHit: ((a: Ally, t: PalTarget) => void) | null = null;
   /** It was hurt; out says it went back where it came from. */
   onHurt: ((a: Ally, out: boolean) => void) | null = null;
 
@@ -203,7 +211,7 @@ export class Allies implements Entity {
         a.hitT = 0;
         tg.hit(s.hit ?? ALLY_HIT);
         if (s.keep > 0) a.wisp = { x: a.x, y: a.y, tx: tg.x, ty: tg.y, t: 0 };
-        this.onHit?.(a);
+        this.onHit?.(a, tg);
       }
     }
   }
@@ -285,6 +293,9 @@ export class Allies implements Entity {
       drawSkeleton(v, a, sx, base, k, face, stride);
       drawCaster(v, a.kind, sx, base, k, face);
     } else if (a.kind === 'gorebeast') drawGorebeast(v, a, sx, base, k, stride);
+    else if (a.kind === 'terrier') drawTerrier(v, a, sx, base, k, face, stride);
+    else if (a.kind === 'patches') drawPatches(v, a, sx, base, k, stride);
+    else if (a.kind === 'frostspider') drawFrostSpider(v, sx, base, k, stride);
     else drawGhost(v, a, sx, base, k, face);
     ctx.globalAlpha = 1;
     if (clip) ctx.restore();
@@ -827,4 +838,136 @@ function drawGorebeast(
     ctx.ellipse(sx + dx, base - 4 * k + drip, 2 * k, 3 * k, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+/** A Bloodrot Terrier: a scruffy little zombie dog, rot-red and bone, one ear flopped, teeth showing. */
+function drawTerrier(
+  v: DrawView,
+  a: Ally,
+  sx: number,
+  base: number,
+  k: number,
+  face: number,
+  stride: number,
+): void {
+  const { ctx } = v;
+  const bite = a.hitT < 0.25 ? 3 * k : 0;
+  ctx.strokeStyle = '#4A1E14';
+  ctx.lineWidth = 2 * k;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(sx + s * 5 * k, base - 6 * k);
+    ctx.lineTo(sx + s * 5 * k + stride * s * 0.5, base);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#8E3A28';
+  ctx.beginPath();
+  ctx.ellipse(sx, base - 9 * k, 9 * k, 5 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#E6DCC4';
+  ctx.fillRect(sx - 4 * k, base - 12 * k, 3 * k, 2 * k);
+  ctx.fillRect(sx + 1 * k, base - 11 * k, 3 * k, 2 * k);
+  const hx = sx + face * (9 * k + bite);
+  ctx.fillStyle = '#A3483A';
+  ctx.beginPath();
+  ctx.ellipse(hx, base - 13 * k, 5 * k, 4.5 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5E241A';
+  ctx.beginPath();
+  ctx.moveTo(hx - face * 2 * k, base - 17 * k);
+  ctx.lineTo(hx - face * 5 * k, base - 12 * k);
+  ctx.lineTo(hx - face * 1 * k, base - 15 * k);
+  ctx.fill();
+  ctx.fillStyle = '#FFE070';
+  ctx.beginPath();
+  ctx.arc(hx + face * 1.5 * k, base - 14 * k, 1.3 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#F4EEDC';
+  ctx.fillRect(hx + face * 2 * k - 0.6 * k, base - 11.5 * k, 1.2 * k, 2 * k);
+}
+
+/** Patches: a big round teddy bear sewn from a patchwork quilt, squares of colour, stitches, a button eye. */
+function drawPatches(
+  v: DrawView,
+  a: Ally,
+  sx: number,
+  base: number,
+  k: number,
+  stride: number,
+): void {
+  const { ctx } = v;
+  const bob = Math.sin(a.ph * 4) * 1.2 * k;
+  const squares = ['#E9A23B', '#6FB3D2', '#D9637A', '#8CC26A', '#B98CE0', '#F2D16B'];
+  const patch = (x: number, y: number, rx: number, ry: number, i: number): void => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
+    for (let gx = -2; gx < 2; gx++)
+      for (let gy = -2; gy < 2; gy++) {
+        ctx.fillStyle = squares[(i + gx * 3 + gy * 5 + 12) % squares.length] ?? '#E9A23B';
+        ctx.fillRect(x + gx * rx * 0.5, y + gy * ry * 0.5, rx * 0.5, ry * 0.5);
+      }
+    ctx.restore();
+    ctx.strokeStyle = '#5A3A22';
+    ctx.lineWidth = 1.4 * k;
+    ctx.setLineDash([2 * k, 2 * k]);
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  for (const s of [-1, 1])
+    patch(sx + s * 8 * k, base - 5 * k + (s > 0 ? stride * 0.4 : 0), 6 * k, 5 * k, s + 3);
+  for (const s of [-1, 1]) patch(sx + s * 17 * k, base - 24 * k + bob, 5 * k, 8 * k, s + 1);
+  patch(sx, base - 22 * k + bob, 15 * k, 17 * k, 0);
+  patch(sx, base - 44 * k + bob, 12 * k, 11 * k, 2);
+  for (const s of [-1, 1]) patch(sx + s * 10 * k, base - 54 * k + bob, 4.5 * k, 4.5 * k, 4);
+  ctx.fillStyle = '#F5E6C8';
+  ctx.beginPath();
+  ctx.ellipse(sx, base - 40 * k + bob, 5.5 * k, 4 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#2A1A10';
+  ctx.beginPath();
+  ctx.arc(sx, base - 41.5 * k + bob, 1.6 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(sx - 5 * k, base - 47 * k + bob, 1.8 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#C9A2FF';
+  ctx.beginPath();
+  ctx.arc(sx + 5 * k, base - 47 * k + bob, 2.4 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#5A3A22';
+  ctx.lineWidth = 0.8 * k;
+  ctx.beginPath();
+  ctx.moveTo(sx + 3.5 * k, base - 47 * k + bob);
+  ctx.lineTo(sx + 6.5 * k, base - 47 * k + bob);
+  ctx.moveTo(sx + 5 * k, base - 48.5 * k + bob);
+  ctx.lineTo(sx + 5 * k, base - 45.5 * k + bob);
+  ctx.stroke();
+}
+
+/** A frost spider: small, bone-white and icy blue, eight thin legs scuttling. */
+function drawFrostSpider(v: DrawView, sx: number, base: number, k: number, stride: number): void {
+  const { ctx } = v;
+  ctx.strokeStyle = '#BFE6FF';
+  ctx.lineWidth = 1.1 * k;
+  for (let i = 0; i < 4; i++)
+    for (const s of [-1, 1]) {
+      const lift = (i % 2 ? stride : -stride) * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(sx + s * 2 * k, base - 5 * k);
+      ctx.lineTo(sx + s * (6 + i) * k, base - (8 - i) * k + lift);
+      ctx.lineTo(sx + s * (8 + i * 1.5) * k, base);
+      ctx.stroke();
+    }
+  ctx.fillStyle = '#E8F6FF';
+  ctx.beginPath();
+  ctx.ellipse(sx, base - 6 * k, 4.5 * k, 3.5 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#7FC8F0';
+  ctx.beginPath();
+  ctx.ellipse(sx, base - 6.5 * k, 2.5 * k, 1.8 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
