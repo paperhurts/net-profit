@@ -101,6 +101,10 @@ type Np = {
   assassinBasic: () => void;
   necroBasic: () => void;
   wdBasic: () => void;
+  mageBasic: () => void;
+  sheep: unknown[];
+  slowT: number;
+  gclock: { t: number } | null;
   muds: unknown[];
   souls: number;
   vanishT: number;
@@ -17170,5 +17174,67 @@ test('New Dimensions: the Witch Doctor: glitter lightning, her Bloodrot Terriers
   await gather();
   await page.locator('#ability4').click();
   expect(await page.evaluate(() => window.__np.muds.length)).toBe(2);
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Mage: his bolt, Blink and its decoys, a sheep, the falling clock and Slow Time', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'mage', kills: 200 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  await expect(page.locator('#rage')).toBeHidden();
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(7);
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 70 + i * 10;
+          m.y = n.walker.y + 20 - i * 10;
+        });
+    });
+  // Level 6: the Mage bolt flies and takes 2 off one monkey.
+  await gather();
+  const before = await page.evaluate(() => window.__np.dimHps.reduce((a, b) => a + b, 0));
+  await page.evaluate(() => window.__np.mageBasic());
+  await page.waitForFunction(
+    (b) => window.__np.dimHps.reduce((a, c) => a + c, 0) === b - 2,
+    before,
+    {
+      timeout: 2000,
+    },
+  );
+  // Blink: three decoys where he stood.
+  await page.locator('#ability').click();
+  expect(
+    await page.evaluate(() => window.__np.allies.list.filter((a) => a.kind === 'decoy').length),
+  ).toBe(3);
+  // Polymorph: a sheep.
+  await gather();
+  await page.locator('#ability2').click();
+  expect(await page.evaluate(() => window.__np.sheep.length)).toBe(1);
+  // Slow Time: the clock falls, GONGS, and Slow Time runs, the Mage twice as quick.
+  await page.locator('#ability3').click();
+  expect(await page.evaluate(() => window.__np.gclock !== null)).toBe(true);
+  await page.waitForFunction(() => window.__np.slowT > 0, null, { timeout: 2000 });
+  expect(await page.evaluate(() => window.__np.walker.speedK)).toBe(2);
+  // Mage armor: two shields under the hearts.
+  await page.locator('#ability4').click();
+  expect(await page.evaluate(() => window.__np.ward)).toBe(2);
+  await expect(page.locator('#rage')).toBeVisible();
+  await expect(page.locator('#ability5')).toBeHidden();
   expect(errors).toEqual([]);
 });

@@ -335,6 +335,20 @@ export const cues = {
     tone(1320, 0.08, 'square', 0.05, 0.9);
     tone(1760, 0.3, 'triangle', 0.04, 0.98, 0.02);
   },
+  /** The Mage's Slow Time (data/mage.ts): a grandfather clock lands and GONGS, then bounces twice, a deep bell ringing out. */
+  gong(): void {
+    tone(98, 1.6, 'sine', 0.12, 0.99);
+    tone(196, 1.2, 'triangle', 0.05, 0.995);
+    tone(294, 0.9, 'sine', 0.035, 1, 0.01);
+    tone(523, 0.5, 'sine', 0.02, 0.98, 0.02);
+    tone(110, 0.5, 'sine', 0.06, 0.99, 0.35);
+    tone(123, 0.3, 'sine', 0.035, 0.99, 0.6);
+  },
+  /** Polymorphed into a sheep: a wobbly little baa. */
+  baa(): void {
+    tone(330, 0.12, 'sawtooth', 0.03, 0.9);
+    tone(300, 0.22, 'sawtooth', 0.035, 0.85, 0.1);
+  },
   /** Pulled through a portal: a falling, then rising, whoosh. */
   portal(): void {
     tone(600, 0.35, 'sawtooth', 0.04, 0.3);

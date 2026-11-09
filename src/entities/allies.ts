@@ -29,7 +29,8 @@ export type AllyKind =
   | 'gorebeast'
   | 'terrier'
   | 'patches'
-  | 'frostspider';
+  | 'frostspider'
+  | 'decoy';
 
 /** Hit points, walking speed, reach and how often it hits, and how far off a ranged one keeps. */
 export type AllySpec = {
@@ -64,6 +65,8 @@ export const ALLY: Readonly<Record<AllyKind, AllySpec>> = {
   terrier: { hp: 4, speed: 115, reach: 18, every: 0.9, keep: 0 },
   patches: { hp: 30, speed: 62, reach: 28, every: 2, keep: 0 },
   frostspider: { hp: 1, speed: 125, reach: 16, every: 1, keep: 0 },
+  // The Mage's decoys (data/mage.ts), left behind by Blink: a shimmering violet likeness, a boring little poke.
+  decoy: { hp: 2, speed: 60, reach: 20, every: 1.4, keep: 0, hit: 1 },
 };
 /** It goes for foes this near it, and each hit is this hard. */
 export const ALLY_SEEK = 240;
@@ -95,6 +98,8 @@ export type Ally = {
   idle: number;
   /** Seconds with nothing to fight before it goes back down: ALLY_IDLE, or longer for one summoned with the staff. */
   idleMax: number;
+  /** Gone after this long, whatever it is doing (a Mage's decoys); else Infinity. */
+  life: number;
   /** Summoned with Tomb Island's staff (data/merchant16.ts STAFF16). */
   staff: boolean;
   /** A ghost's wisp on its way: from where to where, and how far along. */
@@ -126,6 +131,7 @@ export class Allies implements Entity {
       hitT: 9,
       idle: 0,
       idleMax,
+      life: Infinity,
       staff,
       wisp: null,
     };
@@ -182,6 +188,12 @@ export class Allies implements Entity {
         continue;
       }
       if (a.state !== 'fight') continue;
+      a.life -= dt;
+      if (a.life <= 0) {
+        a.state = 'sink';
+        a.t = 0;
+        continue;
+      }
       const s = ALLY[a.kind];
       a.cd -= dt;
       const tg = this.findTarget?.(a.x, a.y, ALLY_SEEK) ?? null;
@@ -296,6 +308,7 @@ export class Allies implements Entity {
     else if (a.kind === 'terrier') drawTerrier(v, a, sx, base, k, face, stride);
     else if (a.kind === 'patches') drawPatches(v, a, sx, base, k, stride);
     else if (a.kind === 'frostspider') drawFrostSpider(v, sx, base, k, stride);
+    else if (a.kind === 'decoy') drawDecoy(v, a, sx, base, k, stride);
     else drawGhost(v, a, sx, base, k, face);
     ctx.globalAlpha = 1;
     if (clip) ctx.restore();
@@ -970,4 +983,38 @@ function drawFrostSpider(v: DrawView, sx: number, base: number, k: number, strid
   ctx.beginPath();
   ctx.ellipse(sx, base - 6.5 * k, 2.5 * k, 1.8 * k, 0, 0, Math.PI * 2);
   ctx.fill();
+}
+
+/** A Mage's decoy: a shimmering violet likeness of a little robed figure, see-through and flickering. */
+function drawDecoy(
+  v: DrawView,
+  a: Ally,
+  sx: number,
+  base: number,
+  k: number,
+  stride: number,
+): void {
+  const { ctx, T } = v;
+  const was = ctx.globalAlpha;
+  ctx.globalAlpha = was * (0.45 + 0.15 * Math.sin(T * 9 + a.ph));
+  ctx.fillStyle = '#8F6BFF';
+  ctx.beginPath();
+  ctx.moveTo(sx - 8 * k, base);
+  ctx.lineTo(sx - 4 * k + stride * 0.3, base - 20 * k);
+  ctx.lineTo(sx + 4 * k + stride * 0.3, base - 20 * k);
+  ctx.lineTo(sx + 8 * k, base);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#D9CCFF';
+  ctx.beginPath();
+  ctx.arc(sx, base - 25 * k, 5 * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#6A4FD0';
+  ctx.beginPath();
+  ctx.moveTo(sx - 7 * k, base - 27 * k);
+  ctx.lineTo(sx, base - 40 * k);
+  ctx.lineTo(sx + 7 * k, base - 27 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = was;
 }
