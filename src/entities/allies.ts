@@ -17,10 +17,29 @@ import type { DrawView, Entity, Layer, World } from './entity';
 import type { PalTarget } from './pals';
 import { walkStep } from './walker';
 
-export type AllyKind = 'merlock' | 'ghost' | 'skeleton' | 'hamster' | 'vampire';
+export type AllyKind =
+  | 'merlock'
+  | 'ghost'
+  | 'skeleton'
+  | 'hamster'
+  | 'vampire'
+  | 'archer'
+  | 'mage'
+  | 'bighamster'
+  | 'gorebeast';
 
 /** Hit points, walking speed, reach and how often it hits, and how far off a ranged one keeps. */
-export type AllySpec = { hp: number; speed: number; reach: number; every: number; keep: number };
+export type AllySpec = {
+  hp: number;
+  speed: number;
+  reach: number;
+  every: number;
+  keep: number;
+  /** How hard each hit is, if not ALLY_HIT. */
+  hit?: number;
+  /** Drawn this much bigger. */
+  scale?: number;
+};
 
 export const ALLY: Readonly<Record<AllyKind, AllySpec>> = {
   merlock: { hp: 3, speed: 80, reach: 22, every: 1.2, keep: 0 },
@@ -30,6 +49,13 @@ export const ALLY: Readonly<Record<AllyKind, AllySpec>> = {
   hamster: { hp: 12, speed: 96, reach: 16, every: 1, keep: 0 },
   // Summoned with Tomb Island's staff: quicker than a skeleton, and a bite as often.
   vampire: { hp: 4, speed: 96, reach: 22, every: 1, keep: 0 },
+  // New Dimensions' Necromancer's (data/necromancer.ts): a skeleton archer and a skeleton mage that keep back and
+  // shoot, his giant skeleton hamster to soak the blows (the kid's: the companion's hamster, but huge), and the
+  // Gorebeast, a great red brute that hits for 2.
+  archer: { hp: 2, speed: 70, reach: 120, every: 1.6, keep: 90 },
+  mage: { hp: 2, speed: 64, reach: 130, every: 2, keep: 100 },
+  bighamster: { hp: 20, speed: 72, reach: 24, every: 1.2, keep: 0, scale: 2 },
+  gorebeast: { hp: 25, speed: 58, reach: 32, every: 1.6, keep: 0, hit: 2, scale: 1 },
 };
 /** It goes for foes this near it, and each hit is this hard. */
 export const ALLY_SEEK = 240;
@@ -175,7 +201,7 @@ export class Allies implements Entity {
       if (tg && d <= s.reach && a.cd <= 0) {
         a.cd = s.every;
         a.hitT = 0;
-        tg.hit(ALLY_HIT);
+        tg.hit(s.hit ?? ALLY_HIT);
         if (s.keep > 0) a.wisp = { x: a.x, y: a.y, tx: tg.x, ty: tg.y, t: 0 };
         this.onHit?.(a);
       }
@@ -193,11 +219,16 @@ export class Allies implements Entity {
       const k = clamp(q.t / WISP_T, 0, 1);
       const x = q.x + (q.tx - q.x) * k;
       const y = q.y + (q.ty - q.y) * k;
-      ctx.fillStyle = 'rgba(150,255,190,.35)';
+      ctx.fillStyle =
+        a.kind === 'mage'
+          ? 'rgba(190,140,255,.4)'
+          : a.kind === 'archer'
+            ? 'rgba(235,225,200,.3)'
+            : 'rgba(150,255,190,.35)';
       ctx.beginPath();
       ctx.arc(px(x, y), py(x, y, 16), 7 * Z, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#D8FFE6';
+      ctx.fillStyle = a.kind === 'mage' ? '#E8D8FF' : a.kind === 'archer' ? '#F4EEDC' : '#D8FFE6';
       ctx.beginPath();
       ctx.arc(px(x, y), py(x, y, 16), 3 * Z, 0, Math.PI * 2);
       ctx.fill();
@@ -249,6 +280,11 @@ export class Allies implements Entity {
     else if (a.kind === 'skeleton') drawSkeleton(v, a, sx, base, k, face, stride);
     else if (a.kind === 'vampire') drawVampire(v, a, sx, base, k, face, stride);
     else if (a.kind === 'hamster') drawHamster(v, a, sx, base, k, face, stride);
+    else if (a.kind === 'bighamster') drawHamster(v, a, sx, base, k * 2, face, stride);
+    else if (a.kind === 'archer' || a.kind === 'mage') {
+      drawSkeleton(v, a, sx, base, k, face, stride);
+      drawCaster(v, a.kind, sx, base, k, face);
+    } else if (a.kind === 'gorebeast') drawGorebeast(v, a, sx, base, k, stride);
     else drawGhost(v, a, sx, base, k, face);
     ctx.globalAlpha = 1;
     if (clip) ctx.restore();
@@ -691,6 +727,104 @@ function drawGhost(v: DrawView, a: Ally, sx: number, base: number, k: number, fa
       0,
       Math.PI * 2,
     );
+    ctx.fill();
+  }
+}
+
+/** The Necromancer's archer's bow, or his mage's purple hood and staff, over a skeleton. */
+function drawCaster(
+  v: DrawView,
+  kind: 'archer' | 'mage',
+  sx: number,
+  base: number,
+  k: number,
+  face: number,
+): void {
+  const { ctx } = v;
+  if (kind === 'archer') {
+    ctx.strokeStyle = '#7A5230';
+    ctx.lineWidth = 1.8 * k;
+    ctx.beginPath();
+    ctx.arc(sx + face * 8 * k, base - 16 * k, 8 * k, -Math.PI / 2, Math.PI / 2, face < 0);
+    ctx.stroke();
+    ctx.strokeStyle = '#E8E0C8';
+    ctx.lineWidth = 0.8 * k;
+    ctx.beginPath();
+    ctx.moveTo(sx + face * 8 * k, base - 24 * k);
+    ctx.lineTo(sx + face * 8 * k, base - 8 * k);
+    ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = '#5B3A8E';
+  ctx.beginPath();
+  ctx.moveTo(sx - 7 * k, base - 22 * k);
+  ctx.quadraticCurveTo(sx, base - 38 * k, sx + 7 * k, base - 22 * k);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#3A2414';
+  ctx.lineWidth = 1.6 * k;
+  ctx.beginPath();
+  ctx.moveTo(sx + face * 9 * k, base);
+  ctx.lineTo(sx + face * 9 * k, base - 28 * k);
+  ctx.stroke();
+  ctx.fillStyle = '#C9A2FF';
+  ctx.beginPath();
+  ctx.arc(sx + face * 9 * k, base - 29 * k, 2.6 * k, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** The Gorebeast: a great round red brute, all goop, with a gaping mouth, two heavy arms and drips running off it. */
+function drawGorebeast(
+  v: DrawView,
+  a: Ally,
+  sx: number,
+  base: number,
+  k: number,
+  stride: number,
+): void {
+  const { ctx, T } = v;
+  const swing = a.hitT < 0.3 ? Math.sin((a.hitT / 0.3) * Math.PI) : 0;
+  ctx.fillStyle = 'rgba(120,10,20,.35)';
+  v.isoEllipse(a.x, a.y, 22);
+  ctx.fill();
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = '#7E1420';
+    ctx.beginPath();
+    ctx.ellipse(
+      sx + s * 22 * k,
+      base - 16 * k + (s > 0 ? swing * 8 * k : 0),
+      7 * k,
+      13 * k,
+      s * 0.3,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.fillStyle = '#A3202E';
+  ctx.beginPath();
+  ctx.ellipse(sx, base - 26 * k + stride * 0.5, 20 * k, 26 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#C8394A';
+  ctx.beginPath();
+  ctx.ellipse(sx - 6 * k, base - 34 * k, 8 * k, 10 * k, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#2A0408';
+  ctx.beginPath();
+  ctx.ellipse(sx, base - 22 * k, 9 * k, 6 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFE070';
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(sx + s * 7 * k, base - 38 * k, 2.6 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#A3202E';
+  for (let i = 0; i < 3; i++) {
+    const dx = (i - 1) * 12 * k;
+    const drip = ((T * 0.8 + i * 0.37) % 1) * 8 * k;
+    ctx.beginPath();
+    ctx.ellipse(sx + dx, base - 4 * k + drip, 2 * k, 3 * k, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 }
