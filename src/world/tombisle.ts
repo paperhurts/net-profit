@@ -251,7 +251,10 @@ const PASSAGE_OUT_U = WAY_IN16.u - 2 * CELL;
 const PASSAGE_IN_V = CELL;
 export const PASSAGE16 = {
   out: { wall: wallAt(PASSAGE_OUT_U, WAY_IN16.v), at: fromTomb(PASSAGE_OUT_U, WAY_IN16.v + 18) },
-  in: { wall: wallAt(-(PLAZA + 0.5) * CELL, PASSAGE_IN_V), at: fromTomb(-(PLAZA + 0.5) * CELL + 20, PASSAGE_IN_V) },
+  in: {
+    wall: wallAt(-(PLAZA + 0.5) * CELL, PASSAGE_IN_V),
+    at: fromTomb(-(PLAZA + 0.5) * CELL + 20, PASSAGE_IN_V),
+  },
 } as const;
 /** How near a door the figure must be to go through it. */
 export const PASSAGE_REACH = 26;
