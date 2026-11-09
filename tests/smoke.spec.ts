@@ -100,6 +100,8 @@ type Np = {
   paladinBasic: () => void;
   assassinBasic: () => void;
   necroBasic: () => void;
+  wdBasic: () => void;
+  muds: unknown[];
   souls: number;
   vanishT: number;
   blessings: { protectT: number; disagree: number; disagreeT: number };
@@ -17116,5 +17118,57 @@ test('New Dimensions: the Necromancer: a bouncing death ball, souls toward a hea
       () => window.__np.allies.list.filter((a) => a.state === 'fight' || a.state === 'rise').length,
     ),
   ).toBeGreaterThanOrEqual(4);
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Witch Doctor: glitter lightning, her Bloodrot Terriers, Patches, frost spiders and spammed Toad Rain', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'witchdoctor', kills: 200 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  await expect(page.locator('#rage')).toBeHidden();
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(7);
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 70 + i * 10;
+          m.y = n.walker.y + 20 - i * 10;
+        });
+    });
+  // Level 6: the glitter lightning for 2 off one monkey.
+  await gather();
+  const before = await page.evaluate(() => window.__np.dimHps.reduce((a, b) => a + b, 0));
+  await page.evaluate(() => window.__np.wdBasic());
+  expect(await page.evaluate(() => window.__np.dimHps.reduce((a, b) => a + b, 0))).toBe(before - 2);
+  // Her pack: 3 terriers at level 6; Patches from 5; three frost spiders.
+  await page.locator('#ability').click();
+  await page.locator('#ability2').click();
+  await page.locator('#ability3').click();
+  const kinds = await page.evaluate(() =>
+    window.__np.allies.list.map((a) => a.kind).filter((k) => k !== 'frostspider'),
+  );
+  expect(kinds.sort()).toEqual(['patches', 'terrier', 'terrier', 'terrier']);
+  // Toad Rain, twice in a row after its short wait: two patches of mud.
+  await gather();
+  await page.locator('#ability4').click();
+  await page.waitForTimeout(1700);
+  await gather();
+  await page.locator('#ability4').click();
+  expect(await page.evaluate(() => window.__np.muds.length)).toBe(2);
   expect(errors).toEqual([]);
 });

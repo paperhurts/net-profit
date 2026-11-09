@@ -23,7 +23,14 @@ import {
 
 describe('the classes', () => {
   it('the classes so far; anything else reads as the Warrior', () => {
-    expect(CLASSES).toEqual(['warrior', 'wizard', 'paladin', 'assassin', 'necromancer']);
+    expect(CLASSES).toEqual([
+      'warrior',
+      'wizard',
+      'paladin',
+      'assassin',
+      'necromancer',
+      'witchdoctor',
+    ]);
     expect(parseClass('wizard')).toBe('wizard');
     expect(parseClass('druid')).toBe('warrior');
   });
