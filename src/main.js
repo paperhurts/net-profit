@@ -77,6 +77,7 @@ import { drawSpellPortal } from './render/prisonparty';
 import { DRAGON_PRIZE, TarDragon } from './entities/tardragon';
 import { drawDragonBalls, drawDragonMark, drawDragonShadow, drawTarDragon } from './render/tardragon';
 import { drawMapTower, drawTarMap } from './render/tarmap';
+import { drawFogMap } from './render/fogmap';
 import { EEL_BITE, EEL_CALM, EEL_FIND, EEL_HP, EEL_PRIZE, TarEel } from './entities/tareel';
 import { drawEelMark, eelSolids } from './render/tareel';
 import { TarTentacles, TENT_DMG, TENT_HP, TENT_PRIZE } from './entities/tartentacles';
@@ -6422,9 +6423,12 @@ function drawMap(){ if (!mapOpen) return; const dpr = Math.min(2, window.deviceP
   if (mapCanvas.width !== w || mapCanvas.height !== h){ mapCanvas.width = w; mapCanvas.height = h; }
   // Out on the tar ocean, its own map: the bridge and the tar dock, the tar island, today's tar fish, the boat.
   if (tarSail){ const taken = tarTakenNow(); drawTarMap(mapCanvas.getContext('2d'), w, h, {boat: tarSail, schools: tarToday().filter((f, i) => leftIn(taken, i) > 0), T: performance.now() / 1000}); return; }
+  // Out in the fog sea, its own map too: on the sea map the boat was out in the black past the sea's edge.
+  if (inFogSea(boat.x, boat.y, 300)){ drawFogMap(mapCanvas.getContext('2d'), w, h, {boat, seen: !!tombIsle.seen, T: performance.now() / 1000}); return; }
   const all = mapAll();
   seaMap.draw(mapCanvas.getContext('2d'), w, h, {sailed, boat, isles: mapIsles(all), marks: mapMarks(all), beasts: mapBeasts(), fish: hq.tower ? mapFish(schools, dark) : undefined, T: performance.now() / 1000, farFar: farFarOpen() || all}); }
-function openMap(){ audio(); sfx.click(); mapOpen = true; elMap.hidden = false; $('mapTitle').textContent = tarSail ? 'Tar map' : 'Sea map';
+function openMap(){ audio(); sfx.click(); mapOpen = true; elMap.hidden = false; const inFog = !tarSail && inFogSea(boat.x, boat.y, 300); $('mapTitle').textContent = tarSail ? 'Tar map' : inFog ? 'Fog sea' : 'Sea map';
+  if (inFog){ $('mapNote').textContent = tombIsle.seen ? 'The fog sea, through the wall of fog past the white buoys. Tomb Island stands in its middle. The white ring is the wall of fog back out.' : 'The fog sea, through the wall of fog past the white buoys. Nothing but grey: follow the skull. The white ring is the wall of fog back out.'; drawMap(); return; }
   if (tarSail){ $('mapNote').textContent = 'The tar ocean, as big as the whole sea. The tar island, with the sorcerer\'s old tower on it, is out on the tar: sail to it and tie up at its jetty. The green ring is the tar dock, the way back in. The little pale fish are today\'s tar fish.'; drawMap(); return; }
   const share = sailedShare(sailed, farFarOpen() || mapAll());
   $('mapNote').textContent = (share >= 1 ? 'No fog left: the whole sea is on the map.' : `You have sailed ${Math.max(1, Math.round(share * 100))}% of the sea. Fog is where you have not been yet.`)

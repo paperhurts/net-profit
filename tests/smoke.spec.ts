@@ -482,6 +482,7 @@ type Np = {
   setChemHp?: (n: number) => void;
   skrillBeaten: boolean;
   openMap(): void;
+  closeMap(): void;
   tarEel: {
     state: string;
     hp: number;
@@ -1103,6 +1104,12 @@ test('Tomb Island: through the wall of fog into its own sea, sight it, tie up at
   await page.waitForFunction(() => window.__np.cineKind === null, null, { timeout: 6000 });
   await expect(page.locator('#toast')).toContainText('skull marker', { timeout: 4000 });
   expect(await page.evaluate(() => window.__np.tombIsle.arrived)).toBe(true);
+  // The map out here is the fog sea's own, with the boat on it, not out in the black past the sea map's edge; the
+  // island stays in the fog until it is sighted.
+  await page.evaluate(() => window.__np.openMap());
+  await expect(page.locator('#mapTitle')).toHaveText('Fog sea');
+  await expect(page.locator('#mapNote')).toContainText('follow the skull');
+  await page.evaluate(() => window.__np.closeMap());
   // Out in the fog sea, below the island, heading up at it.
   await page.evaluate(() => {
     const n = window.__np;
