@@ -232,7 +232,7 @@ import { atTower12, CRATES12, nearEye12, DOCK12, fromSkull, TOWER12_DOOR, inside
 import { drawIsle12Flat, drawIsle12Sea, isle12Solids } from './render/isle12';
 import { CLEAR_LAND16, CLEAR_SEA16, DOCK16, FOG_LIFT16, LEVER16, LEVER_REACH, MERCHANT16, MERCHANT_REACH, SIGHT_LAND16, nearIsle16, pushOffIsle16, REVEAL16, REVEAL16_T, revealZoom16, SIGHT16, TOMB_ISLE, fromTomb, WAY_IN16 } from './world/tombisle';
 import { COFFIN_ROOMS, COFFIN_WAKE, coffinKind, coffinRise, ELITE_COINS, ELITES16, HAUNTS16 } from './world/tombundead';
-import { CASTLE16_DOOR, COFFINS16 } from './world/tombisle';
+import { CASTLE16_DOOR, COFFINS16, inMaze16 } from './world/tombisle';
 import { FOG_EXIT, FOG_GATE, FOG_IN, FOG_OUT, FOG_SEA, holdInFogSea, inFogSea, SIGHT_SEA } from './world/fogsea';
 import { BONE_COINS, BONE_KINDS, BONE_LEASH, BONE_NOTICE, BONE_SPOTS, boneRing, keepBone } from './world/fogbones';
 import { boneView } from './render/bone';
@@ -2157,6 +2157,10 @@ function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build),
   for (const b of all) if (!list.includes(b)){ b.heelAt = null; b.lead = null; }
   if (!list.length) return;
   if (inFight()){ for (const b of list){ b.heelAt = null; b.lead = null; } spreadOut(list, walker, dt, step); return; }
+  // In Tomb Island's maze the corridors are one wide: single file along the figure's trail, each further back, rather
+  // than spreading round it, which only shoved them into the walls and onto each other.
+  if (floor < 0 && walker.dock === TOMB_DOCK && inMaze16(walker.x, walker.y)){ list.sort((a, b) => size(a) - size(b));
+    list.forEach((b, i) => { b.lead = null; b.heelAt = MAZE_FILE + i*MAZE_FILE_GAP; }); return; }
   // In the Garden Isle's plot, they wait for you on the lawn below it, out of the beds, and come back as you step out.
   const lawn = walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) ? gardenLawn : null;
   const at = lawn ?? walker;
@@ -2167,6 +2171,8 @@ function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build),
   if (lawn || Math.hypot(walker.vx, walker.vy) < 15) formUp(list, places, at, dt, step);
   else spreadOut(list, walker, dt, step); }
 let palsAshore = 0;
+/** In Tomb Island's maze, how far behind the figure the first companion keeps, and how far each next one keeps behind it. */
+const MAZE_FILE = 26, MAZE_FILE_GAP = 20;
 const gardenLawn = (() => { const [x, y] = fromGarden(LAWN14.u, LAWN14.v); return {x, y, vx: 0, vy: 0}; })();
 const catLawn = (() => { const [x, y] = fromGarden(LAWN14.u - 16, LAWN14.v + 8); return {x, y}; })();
 function hurtWarlock(dt){ for (const h of IN_THE_WAY) hurtHelper(h, dt);

@@ -65,6 +65,15 @@ const inGrid = (i: number, j: number) => i >= 0 && j >= 0 && i < GRID && j < GRI
 export function isMaze(i: number, j: number): boolean {
   return inGrid(i, j) && !inPlaza(i, j) && Math.hypot(cellU(i), cellU(j)) <= MAZE_R;
 }
+/**
+ * Whether a point is in the maze's corridors (not the square in the middle, not outside the outer wall): where the
+ * figure's companions walk single file behind it, as there is no room to walk beside it.
+ */
+export function inMaze16(x: number, y: number): boolean {
+  const [u, v] = toTomb(x, y);
+  const sq = (PLAZA + 0.5) * CELL;
+  return Math.hypot(u, v) <= MAZE_R + CELL && !(Math.abs(u) < sq && Math.abs(v) < sq);
+}
 /** Whether cell (i, j) is inside the outer wall at all: the maze or the square. */
 const isInside = (i: number, j: number) => inGrid(i, j) && (inPlaza(i, j) || isMaze(i, j));
 
