@@ -99,6 +99,8 @@ type Np = {
   wizardBasic: () => void;
   paladinBasic: () => void;
   assassinBasic: () => void;
+  necroBasic: () => void;
+  souls: number;
   vanishT: number;
   blessings: { protectT: number; disagree: number; disagreeT: number };
   ward: number;
@@ -986,7 +988,7 @@ type Np = {
   CRYPT: number;
   SKULL_DOOR: { x: number; y: number };
   PORTAL11_FRONT: { x: number; y: number };
-  allies: { list: { kind: string }[] };
+  allies: { list: { kind: string; state: string }[] };
   bonesPal: { shown: boolean; free: boolean };
   lancers: { list: { state: string }[] };
   oldOne: { state: string; up: boolean; hit(power: number): boolean };
@@ -17056,5 +17058,63 @@ test('New Dimensions: the Assassin: daggers, Vanish (unhurt while unseen), a sne
   await page.locator('#ability4').click();
   const to = await page.evaluate(() => ({ x: window.__np.walker.x, y: window.__np.walker.y }));
   expect(Math.hypot(to.x - at.x, to.y - at.y)).toBeGreaterThan(60);
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Necromancer: a bouncing death ball, souls toward a heart, his skeletons and the Gorebeast, kept into the next round', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'necromancer', kills: 400 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  await expect(page.locator('#rage svg')).toHaveCount(4);
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      n.setHearts(7);
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 60 + i * 30;
+          m.y = n.walker.y + 20 - i * 30;
+        });
+    });
+  // Level 7 on Easy: a death ball for 4, bouncing on to the others; each hit a soul.
+  await gather();
+  await page.evaluate(() => window.__np.necroBasic());
+  await page.waitForFunction(() => window.__np.souls >= 2, null, { timeout: 3000 });
+  // Raise Dead at level 7: all four, the giant hamster among them.
+  await page.locator('#ability2').click();
+  const kinds = await page.evaluate(() => window.__np.allies.list.map((a) => a.kind).sort());
+  expect(kinds).toEqual(['archer', 'bighamster', 'mage', 'skeleton']);
+  // The Gorebeast, one at a time.
+  await page.locator('#ability4').click();
+  expect(
+    await page.evaluate(() => window.__np.allies.list.filter((a) => a.kind === 'gorebeast').length),
+  ).toBe(1);
+  // Round 1 won: his minions stay up into round 2.
+  await page.evaluate(() => {
+    const n = window.__np;
+    const f = n.floor;
+    for (const c of Object.values(n.bargeCamps[f] ?? {}))
+      for (const m of c.list) c.hit(m, 99, n.walker.x, n.walker.y);
+  });
+  await page.waitForFunction(() => window.__np.dim?.round === 2, null, { timeout: 6000 });
+  expect(
+    await page.evaluate(
+      () => window.__np.allies.list.filter((a) => a.state === 'fight' || a.state === 'rise').length,
+    ),
+  ).toBeGreaterThanOrEqual(4);
   expect(errors).toEqual([]);
 });
