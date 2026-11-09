@@ -15,6 +15,7 @@ import {
   FOG16,
   fromTomb,
   GRAVES16,
+  inMaze16,
   inStone16,
   isMaze,
   LANDING16,
@@ -213,5 +214,11 @@ describe('Tomb Island', () => {
       expect(Math.hypot(s.ax - FOG_GATE.x, s.ay - FOG_GATE.y)).toBeGreaterThan(
         FOG_GATE.r * 2.4 + s.r + 60,
       );
+  });
+
+  it('knows the maze corridors, where companions walk single file: not the square, not outside', () => {
+    expect(inMaze16(...fromTomb(WAY_IN16.u, WAY_IN16.v - 20))).toBe(true);
+    expect(inMaze16(TOMB_ISLE.x, TOMB_ISLE.y)).toBe(false);
+    expect(inMaze16(LANDING16.x, LANDING16.y)).toBe(false);
   });
 });
