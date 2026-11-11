@@ -120,7 +120,7 @@ import { drawDimBack } from './render/dimension';
 import { BOSS_PAY, bossAdds, bossRound, DIFF_BANDS, DIFF_NAMES, DIFFICULTIES, eliteRound, enemyLevel, GUN_BLURB, GUN_BOUGHT, GUN_COST, GUN_NAME, heartsAt, levelOf, mobAdds, noDims, ROUND_GAP, roundPay, roundPick } from './data/dimension';
 import { experimentsLine, tryOn } from './data/experimental';
 import { CLASS_BLURBS, CLASS_NAMES, CLASSES } from './data/classes';
-import { BLINK_STEP, BOLT_RANGE, BOLT_RELOAD, boltPower, CLOCK_HITS, clockHeight, DECOY_LIFE, DECOYS, HASTE, hasteWaits, MAGE_SPECS, MAGE_TRICKS, mageTrick, noTrick as noMageTrick, SHEEP_BOSS, SHEEP_RANGE, SHEEP_TIME, SLOW_HOLD, SLOW_PULSE, SLOW_TIME } from './data/mage';
+import { BLINK_STEP, BOLT_RANGE, BOLT_RELOAD, boltPower, CLOCK_HITS, clockHeight, DECOY_LIFE, DECOYS, HASTE, hasteWaits, MAGE_SPECS, MAGE_TRICKS, mageTrick, noTrick as noMageTrick, SHEEP_RANGE, SHEEP_TIME, SLOW_HOLD, SLOW_PULSE, SLOW_TIME } from './data/mage';
 import { DISTRACT_EVERY, DISTRACT_HOLD, HEX_SPECS, HEXES, hex, keepMuds, MUD_HOLD, mud as mudPatch, noHex, PATCHES_PULL, SPIDER_SLOW, SPIDERS, TERRIER_BACK, TERRIER_PULL, terriersAt, tickMud, TOAD_HIT, TOAD_R, TOAD_RANGE, ZAP_RANGE, ZAP_RELOAD, zapPower } from './data/witchdoctor';
 import { BALL_BOUNCES, BALL_HOP, BALL_RANGE, BALL_RELOAD, ballPower, bonesFor, BURST_R, BURST_REACH, burstPower, CORPSE_TIME, GORE_HEAL_EVERY, noRite, RITE_SPECS, RITES, rite, SCYTHE_R, scythePower, SOULS_PER_HEART, soulIn } from './data/necromancer';
 import { behind as shadowSpot, DAGGER_REACH, DAGGER_RELOAD, daggerPower, KNIFE_RANGE, KNIVES, knifePower, noTrick, SHADOW_RANGE, SMOKE_DAZE, SMOKE_R, SNEAK_DAZE, sneakPower, TRICK_SPECS, TRICKS, trick, VANISH_TIME } from './data/assassin';
@@ -6055,14 +6055,13 @@ function mageTrickDo(slot){ audio(); const a = MAGE_TRICKS[slot]; if (!a || !dim
     const to = mistyTo(walker, moving, nearestFoe(400), ROOMS[BARGE.first]); mistPuff(x0, y0); walker.x = to.x; walker.y = to.y; walker.vx = walker.vy = 0; mistPuff(to.x, to.y);
     for (let i = 0; i < DECOYS; i++){ const an = i/DECOYS*Math.PI*2 + .5; allies.call(x0 + Math.cos(an)*18, y0 + Math.sin(an)*18, 'decoy', false, Infinity).life = DECOY_LIFE; }
     invulnT = Math.max(invulnT, .3); sfx.portal(); addText(x0, y0, 50, 'Which one?', '#CBB8FF', 14, 1); }
-  else if (a === 'sheep'){ const t = nearestUnsheeped(SHEEP_RANGE); if (!t){ no('Nobody to baa'); return; } mageTrick(fury, a);
-    const s = t.boss ? bossStun(fury, SHEEP_BOSS) : SHEEP_TIME; if (s <= 0){ addText(t.x, t.y, 50, 'It shrugs it off!', '#F4F1E6', 14, 1); sfx.denied(); hudWarrior(); return; }
-    t.stun(s); sheep.push({t, x: t.x, y: t.y, life: s, size: Math.max(1.35, (t.head ?? 20)/16)}); mistPuff(t.x, t.y); sfx.baa(); addText(t.x, t.y, 50, 'Baa!', '#FFFFFF', 18, 1.1); }
+  else if (a === 'sheep'){ const t = nearestUnsheeped(SHEEP_RANGE); if (!t){ no(nearestFoe(SHEEP_RANGE)?.boss ? 'Bosses can’t be sheep!' : 'Nobody to baa'); return; } mageTrick(fury, a);
+    const s = SHEEP_TIME; t.stun(s); sheep.push({t, x: t.x, y: t.y, life: s, size: Math.max(1.35, (t.head ?? 20)/16)}); mistPuff(t.x, t.y); sfx.baa(); addText(t.x, t.y, 50, 'Baa!', '#FFFFFF', 18, 1.1); }
   else if (a === 'slow'){ mageTrick(fury, a); gclock = {x: walker.x + 34, y: walker.y - 26, t: 0}; slowT = 0; sfx.portal(); addText(walker.x, walker.y, 56, 'Slow Time!', '#CBB8FF', 16, 1); }
   else { mageTrick(fury, a); ward = ARMOR_HITS; wardT = ARMOR_TIME; sfx.tierUp(); addText(walker.x, walker.y, 56, 'Mage armor!', '#9CC4FF', 15, 1); }
   hudWarrior(); }
-/** The nearest in reach that is not already a sheep. */
-function nearestUnsheeped(r){ let best = null, bd = r; eachTarget(walker.x, walker.y, (t, d) => { if (d <= bd && !sheep.some(s => Math.hypot(s.x - t.x, s.y - t.y) < 10)){ bd = d; best = t; } }); return best; }
+/** The nearest in reach that is not already a sheep, nor a boss (his: Polymorph never works on a boss). */
+function nearestUnsheeped(r){ let best = null, bd = r; eachTarget(walker.x, walker.y, (t, d) => { if (d <= bd && !t.boss && !sheep.some(s => Math.hypot(s.x - t.x, s.y - t.y) < 10)){ bd = d; best = t; } }); return best; }
 /** Sheep wearing off, the clock falling and gonging, and Slow Time holding everyone else in half-second pulses. */
 function updateMage(dt){ for (const s of sheep){ s.life -= dt; s.x = s.t.x; s.y = s.t.y; if (!foesNear(s.x, s.y, 10).length) s.life = 0; } sheep = sheep.filter(s => s.life > 0);
   if (gclock){ const was = gclock.t; gclock.t += dt;

@@ -13,7 +13,6 @@ import {
   MAGE_TRICKS,
   mageTrick,
   noTrick,
-  SHEEP_BOSS,
   SHEEP_TIME,
   SLOW_HOLD,
   SLOW_PULSE,
@@ -35,8 +34,8 @@ describe('the Mage: his numbers', () => {
     expect([DECOYS, ALLY.decoy.hp, ALLY.decoy.hit, DECOY_LIFE]).toEqual([3, 2, 1, 8]);
     expect(BLINK_STEP).toBe(MISTY_STEP);
   });
-  it('a sheep for 4 s, a boss far less; mage armor the Wizard’s', () => {
-    expect([SHEEP_TIME, SHEEP_BOSS]).toEqual([4, 1]);
+  it('a sheep for 5 s (his), never a boss; mage armor the Wizard’s', () => {
+    expect(SHEEP_TIME).toBe(5);
     expect([ARMOR_HITS, ARMOR_TIME]).toEqual([2, 10]);
   });
   it('Slow Time: 4 s, the rest held half of every second, the Mage twice as quick', () => {
