@@ -102,6 +102,10 @@ type Np = {
   necroBasic: () => void;
   wdBasic: () => void;
   mageBasic: () => void;
+  healerBasic: () => void;
+  bolts: { kind: string }[];
+  stars: number;
+  sunUsed: boolean;
   sheep: unknown[];
   slowT: number;
   gclock: { t: number } | null;
@@ -17279,5 +17283,59 @@ test('New Dimensions: the Mage: his bolt, Blink and its decoys, a sheep, the fal
   expect(await page.evaluate(() => window.__np.ward)).toBe(2);
   await expect(page.locator('#rage')).toBeVisible();
   await expect(page.locator('#ability5')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Healer: Shooting Stars toward a heart, Moonbeams, Sunshine once a round, Saturn’s Rings', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'healer', kills: 200 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  await expect(page.locator('#ability4')).toBeHidden();
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 70 + i * 10;
+          m.y = n.walker.y + 20 - i * 10;
+        });
+    });
+  // A shooting star lands: one starlight of three, shown under the hearts.
+  await gather();
+  await page.evaluate(() => window.__np.healerBasic());
+  await page.waitForFunction(() => window.__np.stars === 1, null, { timeout: 2000 });
+  await expect(page.locator('#rage')).toBeVisible();
+  // Moonbeams: five bolts out.
+  await gather();
+  await page.locator('#ability').click();
+  expect(await page.evaluate(() => window.__np.bolts.filter((b) => b.kind === 'moon').length)).toBe(
+    5,
+  );
+  // Sunshine: 3 hearts back, then not again this round (the moon bolts land first: they heal too).
+  await page.waitForFunction(() => window.__np.bolts.length === 0, null, { timeout: 3000 });
+  await page.evaluate(() => window.__np.setHearts(2));
+  await gather();
+  await page.locator('#ability2').click();
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(5);
+  expect(await page.evaluate(() => window.__np.sunUsed)).toBe(true);
+  await page.locator('#ability2').click();
+  expect(await page.evaluate(() => window.__np.hearts)).toBe(5);
+  // Saturn’s Rings: 3 hits soaked.
+  await page.locator('#ability3').click();
+  expect(await page.evaluate(() => window.__np.ward)).toBe(3);
   expect(errors).toEqual([]);
 });

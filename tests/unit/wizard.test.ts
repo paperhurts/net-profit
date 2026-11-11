@@ -31,6 +31,7 @@ describe('the classes', () => {
       'necromancer',
       'witchdoctor',
       'mage',
+      'healer',
     ]);
     expect(parseClass('wizard')).toBe('wizard');
     expect(parseClass('druid')).toBe('warrior');

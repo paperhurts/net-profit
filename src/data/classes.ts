@@ -9,7 +9,8 @@ export type ClassId =
   | 'assassin'
   | 'necromancer'
   | 'witchdoctor'
-  | 'mage';
+  | 'mage'
+  | 'healer';
 export const CLASSES: readonly ClassId[] = [
   'warrior',
   'wizard',
@@ -18,6 +19,7 @@ export const CLASSES: readonly ClassId[] = [
   'necromancer',
   'witchdoctor',
   'mage',
+  'healer',
 ];
 export const CLASS_NAMES: Readonly<Record<ClassId, string>> = {
   warrior: 'Warrior',
@@ -27,6 +29,7 @@ export const CLASS_NAMES: Readonly<Record<ClassId, string>> = {
   necromancer: 'Necromancer',
   witchdoctor: 'Witch Doctor',
   mage: 'Mage',
+  healer: 'Healer',
 };
 export const CLASS_BLURBS: Readonly<Record<ClassId, string>> = {
   warrior: 'Sword and shield, rage, Charge, Slam and Leap.',
@@ -40,6 +43,8 @@ export const CLASS_BLURBS: Readonly<Record<ClassId, string>> = {
   witchdoctor:
     'Her Skull Familiar zaps; Bloodrot Terriers, Patches the patchwork bear, frost spiders and Toad Rain.',
   mage: 'The trickster: a quick bolt, Blink and its decoys, Polymorph (baa!), Slow Time and mage armor.',
+  healer:
+    'She heals by hurting: Shooting Stars, Moonbeams, Sunshine once a round, and Saturn’s Rings.',
 };
 export function parseClass(v: unknown): ClassId {
   return (CLASSES as readonly unknown[]).includes(v) ? (v as ClassId) : 'warrior';

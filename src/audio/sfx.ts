@@ -344,6 +344,22 @@ export const cues = {
     tone(110, 0.5, 'sine', 0.06, 0.99, 0.35);
     tone(123, 0.3, 'sine', 0.035, 0.99, 0.6);
   },
+  /** The Healer's Shooting Stars (data/healer.ts): a quick bright twinkle. */
+  twinkle(): void {
+    tone(1568, 0.08, 'triangle', 0.035, 1.2);
+    tone(2093, 0.12, 'sine', 0.025, 1.1, 0.04);
+  },
+  /** Her Moonbeams: pew pew, a falling silver zap. */
+  pew(): void {
+    tone(1400, 0.1, 'square', 0.025, 0.4);
+  },
+  /** Her Sunshine: a warm rising chord that blooms. */
+  sunburst(): void {
+    tone(392, 0.9, 'triangle', 0.06, 1.5);
+    tone(523, 0.8, 'sine', 0.05, 1.5, 0.05);
+    tone(659, 0.7, 'sine', 0.04, 1.5, 0.1);
+    tone(784, 0.6, 'sine', 0.03, 1.5, 0.15);
+  },
   /** Polymorphed into a sheep: a wobbly little baa. */
   baa(): void {
     tone(330, 0.12, 'sawtooth', 0.03, 0.9);
