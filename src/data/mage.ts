@@ -11,7 +11,7 @@
  * - Mage armor, as the Wizard's (data/wizard.ts).
  *
  * My picks, theirs to change: decoys 2 hits each, poking for 1, gone after 8 s; blink every 6 s, a hop of 130;
- * polymorph 4 s on the nearest (a boss 1 s), every 8 s; Slow Time 4 s, every 20 s, the enemies held in half-second
+ * polymorph on the nearest, every 8 s; Slow Time 4 s, every 20 s, the enemies held in half-second
  * pulses so they move and swing at half speed (a boss on the stun limit, so only a little slowed); the Mage's
  * walking, blows and waits all twice as quick while it runs.
  *
@@ -41,10 +41,9 @@ export const BLINK_STEP = 130;
 export const DECOYS = 3;
 export const DECOY_LIFE = 8;
 
-/** Polymorph: how far it reaches, and how long a sheep stays a sheep (a boss far less). */
+/** Polymorph: how far it reaches, and how long a sheep stays a sheep. His answers (2026-11-10): 5 s, and never a boss. */
 export const SHEEP_RANGE = 200;
-export const SHEEP_TIME = 4;
-export const SHEEP_BOSS = 1;
+export const SHEEP_TIME = 5;
 
 /** Slow Time: how long, and how the enemies are held: this long in every PULSE. */
 export const SLOW_TIME = 4;
