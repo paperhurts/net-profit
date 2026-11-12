@@ -45,6 +45,13 @@ describe('the goat cave', () => {
     expect(c.ground).toBe(true);
   });
 
+  it('a jump pressed just before one slow frame (a busy phone) still jumps', () => {
+    const { c, seen } = cave();
+    park(c, []);
+    c.press();
+    c.step(0.2, 0);
+    expect(seen).toContain('jump');
+  });
   it("can't jump up onto the high ledge from the floor", () => {
     const { c } = cave();
     park(c, []);

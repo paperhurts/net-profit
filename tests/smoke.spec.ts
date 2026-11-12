@@ -102,6 +102,11 @@ type Np = {
   necroBasic: () => void;
   wdBasic: () => void;
   mageBasic: () => void;
+  healerBasic: () => void;
+  healerLight: (slot: number) => void;
+  bolts: { kind: string }[];
+  stars: number;
+  sunUsed: boolean;
   sheep: unknown[];
   slowT: number;
   gclock: { t: number } | null;
@@ -1955,6 +1960,15 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
   await expect(page.locator('#gcGrab')).toHaveText('Grab');
   // And so does the up arrow, once it is down again.
   await page.waitForFunction(() => !!window.__np.gc?.ground, null, { timeout: 3000 });
+  // (On a slow machine the thrown goat can land lying across the figure's head, where it stops a jump: move it clear.)
+  await page.evaluate(() => {
+    const c = window.__np.gc;
+    const g = c?.goats[1];
+    if (c && g) {
+      g.x = c.x + 80;
+      g.y = 0;
+    }
+  });
   await page.keyboard.down('ArrowUp');
   await page.waitForFunction(() => (window.__np.gc?.y ?? 0) > 5, null, { timeout: 2000 });
   await page.keyboard.up('ArrowUp');
@@ -17279,5 +17293,75 @@ test('New Dimensions: the Mage: his bolt, Blink and its decoys, a sheep, the fal
   expect(await page.evaluate(() => window.__np.ward)).toBe(2);
   await expect(page.locator('#rage')).toBeVisible();
   await expect(page.locator('#ability5')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('New Dimensions: the Healer: Shooting Stars toward a heart, Moonbeams, Sunshine once a round, Saturn’s Rings', async ({
+  context,
+  page,
+}) => {
+  const errors = await boot(context, page, {
+    muted: true,
+    spear: 3,
+    armour: 4,
+    experimental: true,
+    dims: { gun: true, cls: 'healer', kills: 200 },
+    lv: { net: 5, hold: 5, engine: 5 },
+    trip: { x: 3000, y: 2900, h: 0.6, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#portalBtn')).toBeVisible({ timeout: 4000 });
+  await page.locator('#portalBtn').click();
+  await page.locator('#dimGo').click();
+  await page.waitForFunction(() => window.__np.dim?.round === 1, null, { timeout: 3000 });
+  await expect(page.locator('#ability4')).toBeHidden();
+  const gather = () =>
+    page.evaluate(() => {
+      const n = window.__np;
+      const c = n.bargeCamps[n.floor]?.monkey;
+      if (c)
+        c.list.forEach((m, i) => {
+          m.x = n.walker.x + 70 + i * 10;
+          m.y = n.walker.y + 20 - i * 10;
+        });
+    });
+  // A shooting star lands: one starlight of three, shown under the hearts.
+  await gather();
+  await page.evaluate(() => window.__np.healerBasic());
+  await page.waitForFunction(() => window.__np.stars === 1, null, { timeout: 2000 });
+  await expect(page.locator('#rage')).toBeVisible();
+  // Each press and its check in one step, with no frame between for a monkey to land a blow.
+  // Moonbeams: five bolts out.
+  await gather();
+  expect(
+    await page.evaluate(() => {
+      window.__np.healerLight(0);
+      return window.__np.bolts.filter((b) => b.kind === 'moon').length;
+    }),
+  ).toBe(5);
+  // Saturn’s Rings: 3 hits to soak.
+  expect(
+    await page.evaluate(() => {
+      window.__np.healerLight(2);
+      return window.__np.ward;
+    }),
+  ).toBe(3);
+  // Sunshine: 3 hearts back, then not again this round.
+  await gather();
+  expect(
+    await page.evaluate(() => {
+      window.__np.setHearts(2);
+      window.__np.healerLight(1);
+      return [window.__np.hearts, window.__np.sunUsed];
+    }),
+  ).toEqual([5, true]);
+  expect(
+    await page.evaluate(() => {
+      const h = window.__np.hearts;
+      window.__np.healerLight(1);
+      return window.__np.hearts - h;
+    }),
+  ).toBe(0);
+  // And the buttons are there: three of them.
+  await expect(page.locator('#ability3')).toBeVisible();
   expect(errors).toEqual([]);
 });

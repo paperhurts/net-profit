@@ -244,6 +244,7 @@ export class Climb {
   private hops = 0;
   private coyote = 0;
   private buffer = 0;
+  private fresh = false;
   barrels: Barrel[] = [];
   pins: Pin[];
   /** The coins so far, which stay, a restart or not; and what got them. */
@@ -368,6 +369,7 @@ export class Climb {
       return;
     }
     this.buffer = BUFFER;
+    this.fresh = true;
   }
 
   /** A step, the arrows at (sx, sy): right and down positive, as on the screen. */
@@ -423,7 +425,9 @@ export class Climb {
     this.t += dt;
     sx = clamp(sx, -1, 1);
     sy = clamp(sy, -1, 1);
-    this.buffer = Math.max(0, this.buffer - dt);
+    // A press this very frame keeps its whole grace: one slow frame (a busy phone) must not eat the jump.
+    if (this.fresh) this.fresh = false;
+    else this.buffer = Math.max(0, this.buffer - dt);
     this.coyote = Math.max(0, this.coyote - dt);
     this.safeT = Math.max(0, this.safeT - dt);
     if (this.pinT > 0) {
