@@ -1464,6 +1464,7 @@ function startCave(){ audio(); if (gc || th || ski || droneFly || droneFish || c
     else if (what === 'grab') sfx.bleat();
     else if (what === 'throw' || what === 'drop') sfx.hop();
     else if (what === 'thud') sfx.whump();
+    else if (what === 'bonk'){ sfx.clang(); sfx.bleat(); }
     else if (what === 'found'){ const kind = ROOM1.find.kind, had = (goatIsle.kinds ?? []).includes(kind); sfx.rareCaught(); toasts.clear();
       if (!had){ goatIsle = {...goatIsle, kinds: [...(goatIsle.kinds ?? []), kind]}; save(); }
       toast(`${ROOM1.find.says} ${had ? '' : `Found: the ${KIND_NAMES[kind].toLowerCase()}! It is in your Goat Almanac, in the field guide.`}`.trim(), 6000, 2); } };

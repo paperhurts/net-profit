@@ -52,6 +52,28 @@ describe('the goat cave', () => {
     c.step(0.2, 0);
     expect(seen).toContain('jump');
   });
+  it('jumping into a goat still flying overhead: it boinks off the head and on, and the jump goes on (Bonk!)', () => {
+    const { c, seen } = cave();
+    park(c, [1]);
+    walkTo(c, 60);
+    const g = c.goats[1];
+    if (!g) throw new Error('no goat');
+    g.state = 'faint';
+    g.k = 1;
+    g.x = c.x;
+    g.y = c.y + 18;
+    g.vx = 90;
+    g.vy = 0.01;
+    c.press();
+    let high = 0;
+    for (let i = 0; i < 40; i++) {
+      c.step(DT, 0);
+      high = Math.max(high, c.y);
+    }
+    expect(seen).toContain('bonk');
+    expect(c.bonk.t).toBeGreaterThan(0);
+    expect(high).toBeGreaterThan(20);
+  });
   it("can't jump up onto the high ledge from the floor", () => {
     const { c } = cave();
     park(c, []);

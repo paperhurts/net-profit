@@ -5,7 +5,7 @@
  * with a "!", or over stiff), the goat to find with a sparkle on it, and the figure, in its own colours.
  */
 import { type CaveRoom, KIND_NAMES } from '../data/goatcave';
-import type { GoatCave } from '../entities/goatcave';
+import { BONK_T, type GoatCave } from '../entities/goatcave';
 import { drawGoat, type GoatLook, PLAIN_GOAT } from './goatisle';
 import type { SkierLook } from './slalom';
 
@@ -178,6 +178,7 @@ export function drawCave(
   }
   drawCaver(ctx, f, c, look, T);
   if (c.held) drawCaveGoat(ctx, f, c.held, T);
+  drawBonk(ctx, c, f);
 }
 
 /** A goat in the cave: standing, ambling, frozen with a "!", or stiff on its back (quivering), in its coat. */
@@ -209,6 +210,23 @@ function drawCaveGoat(
     ctx.strokeText('!', f.X(gt.x), f.Y(gt.y + 22));
     ctx.fillText('!', f.X(gt.x), f.Y(gt.y + 22));
   }
+}
+
+/** "Bonk!" over the figure's head, rising and fading, after a flying goat boinks off it. */
+export function drawBonk(ctx: CanvasRenderingContext2D, c: GoatCave, f: CaveFrame): void {
+  if (c.bonk.t <= 0) return;
+  const k = f.k;
+  const a = Math.min(1, c.bonk.t / 0.3);
+  const rise = (1 - c.bonk.t / BONK_T) * 10;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = '#FFE680';
+  ctx.strokeStyle = '#3A2614';
+  ctx.lineWidth = 2.5 * k;
+  ctx.font = `900 ${11 * k}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.strokeText('Bonk!', f.X(c.bonk.x), f.Y(c.bonk.y + 8 + rise));
+  ctx.fillText('Bonk!', f.X(c.bonk.x), f.Y(c.bonk.y + 8 + rise));
+  ctx.globalAlpha = 1;
 }
 
 /** The figure, side-on: legs walking, its shirt, its head, and the yellow hat. */
