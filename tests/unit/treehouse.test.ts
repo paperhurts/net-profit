@@ -211,6 +211,13 @@ describe('the Treehouse Climb', () => {
     expect(c.ladder).toBe(null);
   });
 
+  it('a jump pressed just before one slow frame (a busy phone) still jumps', () => {
+    const c = quiet();
+    const ev = events(c);
+    c.press();
+    c.step(0.2, 0, 0);
+    expect(ev).toContain('hop');
+  });
   it('jumps over two barrels high, two thirds of a second, and lands back on the plank', () => {
     const c = quiet();
     const ev = events(c);

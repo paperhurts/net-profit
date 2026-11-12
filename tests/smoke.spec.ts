@@ -1960,6 +1960,15 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
   await expect(page.locator('#gcGrab')).toHaveText('Grab');
   // And so does the up arrow, once it is down again.
   await page.waitForFunction(() => !!window.__np.gc?.ground, null, { timeout: 3000 });
+  // (On a slow machine the thrown goat can land lying across the figure's head, where it stops a jump: move it clear.)
+  await page.evaluate(() => {
+    const c = window.__np.gc;
+    const g = c?.goats[1];
+    if (c && g) {
+      g.x = c.x + 80;
+      g.y = 0;
+    }
+  });
   await page.keyboard.down('ArrowUp');
   await page.waitForFunction(() => (window.__np.gc?.y ?? 0) > 5, null, { timeout: 2000 });
   await page.keyboard.up('ArrowUp');

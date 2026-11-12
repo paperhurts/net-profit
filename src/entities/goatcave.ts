@@ -116,6 +116,7 @@ export class GoatCave {
   onEvent: (e: CaveEvent) => void = () => {};
   private coyote = 0;
   private buffer = 0;
+  private fresh = false;
   private grabbing = false;
 
   constructor(
@@ -151,6 +152,7 @@ export class GoatCave {
   /** The jump button: buffered a moment, so a press just before landing still jumps. */
   press(): void {
     this.buffer = BUFFER;
+    this.fresh = true;
   }
 
   /** The grab button: pick up the goat in front, or let go of the one held (done on the next step, which knows the arrows). */
@@ -290,7 +292,9 @@ export class GoatCave {
     if (want) this.face = want;
     this.vx = want * WALK;
     this.coyote = this.ground ? COYOTE : Math.max(0, this.coyote - dt);
-    this.buffer = Math.max(0, this.buffer - dt);
+    // A press this very frame keeps its whole grace: one slow frame (a busy phone) must not eat the jump.
+    if (this.fresh) this.fresh = false;
+    else this.buffer = Math.max(0, this.buffer - dt);
     if (this.buffer > 0 && this.coyote > 0) {
       this.vy = JUMP_V;
       this.ground = false;
