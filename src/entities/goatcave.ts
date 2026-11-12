@@ -50,6 +50,10 @@ export const FIND_R = 16;
 export const GRAB_R = 6;
 export const THROW_VX = 90;
 export const THROW_VY = 120;
+/** A goat still flying when the figure jumps into it boinks off the head, up and on its way (the owner's: "Bonk yes"). */
+export const BONK_VY = 140;
+/** How long the "Bonk!" shows over the head. */
+export const BONK_T = 0.8;
 
 export type CaveGoat = {
   x: number;
@@ -82,7 +86,8 @@ export type CaveEvent =
   | 'grab'
   | 'throw'
   | 'drop'
-  | 'thud';
+  | 'thud'
+  | 'bonk';
 
 type Box = { x0: number; x1: number; y0: number; y1: number };
 
@@ -112,6 +117,8 @@ export class GoatCave {
   reached = false;
   /** How many times it has gone in the fondue, for the hints. */
   sploshes = 0;
+  /** Where the last bonk was, and how long its "Bonk!" still shows. */
+  bonk = { x: 0, y: 0, t: 0 };
   t = 0;
   onEvent: (e: CaveEvent) => void = () => {};
   private coyote = 0;
@@ -272,6 +279,7 @@ export class GoatCave {
 
   step(dt: number, sx: number): void {
     this.t += dt;
+    this.bonk.t = Math.max(0, this.bonk.t - dt);
     this.stepFigure(dt, sx);
     if (this.grabbing) {
       this.grabbing = false;
@@ -329,6 +337,20 @@ export class GoatCave {
     this.vy -= GRAVITY * dt;
     const dy = this.vy * dt;
     const nb = this.figBox(this.x, this.y + dy);
+    // Up into a goat still flying (thrown a moment ago): it boinks off the head and sails on, and the jump goes on.
+    if (dy > 0) {
+      const now = this.figBox();
+      for (const g of this.goats) {
+        if (g === this.held || !lying(g) || (!g.vx && !g.vy)) continue;
+        const gb = goatBox(g);
+        if (!overlap(nb, gb) || overlap(now, gb)) continue;
+        g.y = nb.y1 + 0.5;
+        g.vy = Math.max(g.vy, BONK_VY);
+        if (!g.vx) g.vx = this.face * THROW_VX * 0.5;
+        this.bonk = { x: this.x, y: nb.y1, t: BONK_T };
+        this.onEvent('bonk');
+      }
+    }
     const wasGround = this.ground;
     this.ground = false;
     if (this.blocked(nb, null, true)) {
