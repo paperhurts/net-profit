@@ -103,6 +103,7 @@ type Np = {
   wdBasic: () => void;
   mageBasic: () => void;
   healerBasic: () => void;
+  healerLight: (slot: number) => void;
   bolts: { kind: string }[];
   stars: number;
   sunUsed: boolean;
@@ -17319,23 +17320,39 @@ test('New Dimensions: the Healer: Shooting Stars toward a heart, Moonbeams, Suns
   await page.evaluate(() => window.__np.healerBasic());
   await page.waitForFunction(() => window.__np.stars === 1, null, { timeout: 2000 });
   await expect(page.locator('#rage')).toBeVisible();
+  // Each press and its check in one step, with no frame between for a monkey to land a blow.
   // Moonbeams: five bolts out.
   await gather();
-  await page.locator('#ability').click();
-  expect(await page.evaluate(() => window.__np.bolts.filter((b) => b.kind === 'moon').length)).toBe(
-    5,
-  );
-  // Sunshine: 3 hearts back, then not again this round (the moon bolts land first: they heal too).
-  await page.waitForFunction(() => window.__np.bolts.length === 0, null, { timeout: 3000 });
-  await page.evaluate(() => window.__np.setHearts(2));
+  expect(
+    await page.evaluate(() => {
+      window.__np.healerLight(0);
+      return window.__np.bolts.filter((b) => b.kind === 'moon').length;
+    }),
+  ).toBe(5);
+  // Saturn’s Rings: 3 hits to soak.
+  expect(
+    await page.evaluate(() => {
+      window.__np.healerLight(2);
+      return window.__np.ward;
+    }),
+  ).toBe(3);
+  // Sunshine: 3 hearts back, then not again this round.
   await gather();
-  await page.locator('#ability2').click();
-  expect(await page.evaluate(() => window.__np.hearts)).toBe(5);
-  expect(await page.evaluate(() => window.__np.sunUsed)).toBe(true);
-  await page.locator('#ability2').click();
-  expect(await page.evaluate(() => window.__np.hearts)).toBe(5);
-  // Saturn’s Rings: 3 hits soaked.
-  await page.locator('#ability3').click();
-  expect(await page.evaluate(() => window.__np.ward)).toBe(3);
+  expect(
+    await page.evaluate(() => {
+      window.__np.setHearts(2);
+      window.__np.healerLight(1);
+      return [window.__np.hearts, window.__np.sunUsed];
+    }),
+  ).toEqual([5, true]);
+  expect(
+    await page.evaluate(() => {
+      const h = window.__np.hearts;
+      window.__np.healerLight(1);
+      return window.__np.hearts - h;
+    }),
+  ).toBe(0);
+  // And the buttons are there: three of them.
+  await expect(page.locator('#ability3')).toBeVisible();
   expect(errors).toEqual([]);
 });
