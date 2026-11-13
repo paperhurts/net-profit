@@ -27,6 +27,23 @@ export function unlock(): void {
   if (ac && ac.state === 'suspended') ac.resume();
 }
 
+/**
+ * Hidden, the game goes quiet (the owner, 2026-11-13: on her Android phone the sound played on with Chrome in the
+ * background). The frames stop when the page is hidden, but the ambience's loops and any note already scheduled run
+ * on in the audio context, so it is put to sleep while hidden and woken when the page shows again (a tap wakes it too,
+ * through unlock, should the browser want one).
+ */
+export function quietWhileHidden(hidden: boolean): void {
+  if (!ac) return;
+  try {
+    if (hidden) {
+      if (ac.state === 'running') void ac.suspend();
+    } else if (ac.state === 'suspended') void ac.resume();
+  } catch {
+    // An engine that cannot sleep or wake: the next tap's unlock tries again.
+  }
+}
+
 export function setMuted(m: boolean): void {
   muted = m;
 }

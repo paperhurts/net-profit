@@ -19,7 +19,7 @@ import { placeNetBehind, towLength, towNet } from './entities/net';
 import { bindJoystick, bindJoystickThrough, createJoystick, JR, joystickVector } from './input/joystick';
 import { bindKeys, keyControls, keyVector, smoothVector } from './input/keys';
 import { steerBoat, steerBoatRelative } from './entities/boat';
-import { cues as sfx, getContext, setCueListener, setMuted, unlock as audio } from './audio/sfx';
+import { cues as sfx, getContext, quietWhileHidden, setCueListener, setMuted, unlock as audio } from './audio/sfx';
 import { Ambience, panFor } from './audio/ambience';
 import { ToastQueue } from './ui/toast';
 import { Dolphins } from './entities/dolphins';
@@ -5057,7 +5057,7 @@ bindJoystick(cv, joy, audio);
 bindJoystickThrough($('shop'), joy, cv, t => !(t && t.closest && (t.closest('button') || t.closest('.log'))), audio);
 bindKeys(window, keys, () => { audio(); showKeys(); });
 window.addEventListener('blur', () => { keys.clear(); joy.on = false; });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden'){ save(); cloudPut(true); } });
+document.addEventListener('visibilitychange', () => { const hidden = document.visibilityState === 'hidden'; quietWhileHidden(hidden); if (hidden){ save(); cloudPut(true); } });
 window.addEventListener('pagehide', () => { save(); cloudPut(true); });
 
 /* ---------- HUD ---------- */
