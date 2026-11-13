@@ -107,7 +107,15 @@ body.cine #toast{pointer-events:none}
    scrolls it; a drag on the wood still steers the boat (the game holds that touch from the browser). */
 #shop .planks{max-height:calc(100vh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin}
 #shop .pills{position:relative;max-width:560px;height:0;margin:0 auto}
-#shop h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1}
+#shop h2{font-size:16px;font-weight:800;margin:2px 4px 8px;line-height:1;display:flex;align-items:center;gap:6px}
+/* The shop's close, big enough to find and hit (a friend of the owner's, legally blind, was stuck at the dock under it). */
+#shopClose{margin-left:auto;flex:none;height:38px;min-width:46px;padding:0 12px;font-size:19px}
+/* A new player sitting still with the shop up: the way out of it glows. */
+#shopClose.nudge{background:var(--buoy);color:var(--buoy-fg);animation:xNudge 1.3s ease-in-out infinite}
+@keyframes xNudge{0%,100%{box-shadow:0 0 0 0 rgba(255,197,61,.95)}60%{box-shadow:0 0 0 12px rgba(255,197,61,0)}}
+@media (prefers-reduced-motion: reduce){#shopClose.nudge{animation:none;box-shadow:0 0 0 5px #FFC53D}}
+#shopNudge{margin:0 4px 10px;padding:8px 12px;border-radius:10px;background:#12303A;color:#FFF6E5;font-size:18px;font-weight:800;line-height:1.25}
+#shopNudge[hidden]{display:none}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .row[hidden]{display:none}
 .up{background:var(--card);color:var(--card-fg);border-radius:11px;padding:9px 8px 8px;text-align:left;
@@ -239,6 +247,25 @@ body.singing #radar,body.singing #merSing{display:none}
 #crowGo{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:#2B2F3A;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
 #crowGo:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+/* At the dock with the shop shut: the way back into it. */
+#shopBtn{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+  background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:18px;height:48px;padding:3px 26px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
+#shopBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#shopBtn[hidden]{display:none}
+/* How to sail, big, for a new player who has not moved yet: words large enough to read without lenses, and a gold
+   fingertip sliding the way a drag goes. Low on the screen, clear of the boat and the messages up top; touches go
+   straight through it to the water. */
+#steerHint{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4;pointer-events:none;text-align:center;
+  width:min(calc(100vw - 32px),380px);background:rgba(18,48,58,.9);color:#FFF6E5;border-radius:18px;padding:14px 18px 16px;
+  box-shadow:0 6px 0 rgba(0,0,0,.25)}
+#steerHint[hidden]{display:none}
+#steerHint p{margin:6px 0 6px;font-size:27px;font-weight:800;line-height:1.15}
+#steerHint small{display:block;font-size:18px;font-weight:600;line-height:1.3}
+#steerHint .drag{position:relative;height:52px}
+#steerHint .drag i{position:absolute;left:22%;top:50%;width:36px;height:36px;margin:-18px;border-radius:50%;background:#FFC53D;
+  box-shadow:0 0 0 7px rgba(255,197,61,.35);animation:steerDrag 1.8s ease-in-out infinite}
+@keyframes steerDrag{0%{transform:translateX(0);opacity:0}15%{transform:translateX(0);opacity:1}80%{transform:translateX(170px);opacity:1}100%{transform:translateX(170px);opacity:0}}
+@media (prefers-reduced-motion: reduce){#steerHint .drag i{animation:none;left:50%}}
 #surfaceBtn{position:fixed;left:calc(14px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));z-index:3;font-size:15px;height:40px;padding:3px 14px 0}
 /* Ice fishing: Ice fish by the floe and Drop the line under it where Dive is; Back to the boat where Swim back up is. */
 #iceBtn,#iceDrop{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
@@ -826,6 +853,8 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
 <button id="summonV" hidden aria-label="Summon a vampire"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M5 26L9 10l6 4 6-4 4 16z" fill="#8E1626"/><path d="M8 11l7 5 7-5-2 8H10z" fill="#100D14"/><ellipse cx="15" cy="12" rx="5.5" ry="6" fill="#E6E1EA"/><path d="M9.5 11c0-4 2.5-6 5.5-6s5.5 2 5.5 6c-2-1.5-3.6-2-5.5 1-1.9-3-3.5-2.5-5.5-1z" fill="#15121A"/><circle cx="13" cy="12.6" r="1" fill="#D21E2A"/><circle cx="17" cy="12.6" r="1" fill="#D21E2A"/><path d="M13.6 15.6l.6 1.6.6-1.6M15.2 15.6l.6 1.6.6-1.6" fill="#fff"/></svg></button>
 <button class="pill" id="diveBtn" hidden>Dive into the trench</button>
 <button class="pill" id="crowGo" hidden>Let a crow go</button>
+<button class="pill" id="shopBtn" hidden>Shop</button>
+<div id="steerHint" hidden><div class="drag" aria-hidden="true"><i></i></div><p>Drag anywhere on the water to sail</p><small>Put your finger down and drag the way you want to go. Arrow keys work too.</small></div>
 <button class="pill" id="surfaceBtn" hidden>Swim back up</button>
 <button class="pill" id="iceBtn" hidden>Ice fish</button>
 <button class="pill" id="iglooBtn" hidden>Build an igloo</button>
@@ -861,7 +890,8 @@ body.goldBadge #ability,body.goldBadge #ability2,body.goldBadge #ability3{box-sh
   </div>
   <div class="planks">
     <button class="build" id="updateBtn" hidden><span><b>A new version is ready</b><small>Tap to update. Your game is saved first.</small></span><span class="buy">Update</span></button>
-    <h2>Upgrades <span id="tierTxt"></span></h2>
+    <h2>Upgrades <span id="tierTxt"></span><button class="pill icon" id="shopClose" aria-label="Close the shop">✕</button></h2>
+    <p id="shopNudge" hidden>Tap the ✕ to close the shop and get back on the water.</p>
     <div class="row">
       <button class="up" data-k="net"><b>Wider net</b><div class="pips"></div><small></small><div class="buy"></div></button>
       <button class="up" data-k="hold"><b>Bigger hold</b><div class="pips"></div><small></small><div class="buy"></div></button>
