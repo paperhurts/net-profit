@@ -119,7 +119,7 @@ import { drawArenaBack } from './render/barge';
 import { drawDimBack } from './render/dimension';
 import { BOSS_PAY, bossAdds, bossRound, DIFF_BANDS, DIFF_NAMES, DIFFICULTIES, eliteRound, enemyLevel, GUN_BLURB, GUN_BOUGHT, GUN_COST, GUN_NAME, heartsAt, levelOf, mobAdds, noDims, ROUND_GAP, roundPay, roundPick } from './data/dimension';
 import { experimentsLine, tryOn } from './data/experimental';
-import { CLASS_BLURBS, CLASS_NAMES, CLASSES } from './data/classes';
+import { CLASS_BLURBS, CLASS_NAMES, CLASS_ROLES, CLASSES, ROLE_NAMES } from './data/classes';
 import { LIGHT_SPECS, LIGHTS, MOON_BOLTS, MOON_RANGE, moonPower, noLight, RINGS_HITS, RINGS_TIME, SUN_HEAL, SUN_R, shine, STAR_RANGE, STAR_RELOAD, STARS_PER_HEART, starIn, starPower, sunPower } from './data/healer';
 import { BLINK_STEP, BOLT_RANGE, BOLT_RELOAD, boltPower, CLOCK_HITS, clockHeight, DECOY_LIFE, DECOYS, HASTE, hasteWaits, MAGE_SPECS, MAGE_TRICKS, mageTrick, noTrick as noMageTrick, SHEEP_RANGE, SHEEP_TIME, SLOW_HOLD, SLOW_PULSE, SLOW_TIME } from './data/mage';
 import { DISTRACT_EVERY, DISTRACT_HOLD, HEX_SPECS, HEXES, hex, keepMuds, MUD_HOLD, mud as mudPatch, noHex, PATCHES_PULL, SPIDER_SLOW, SPIDERS, TERRIER_BACK, TERRIER_PULL, terriersAt, tickMud, TOAD_HIT, TOAD_R, TOAD_RANGE, ZAP_RANGE, ZAP_RELOAD, zapPower } from './data/witchdoctor';
@@ -6243,7 +6243,7 @@ function closeDim(){ $('dimCard').hidden = true; }
 function renderDim(){ const L = levelOf(dims.kills);
   $('dimLevel').textContent = `You are level ${L.lv}, with ${heartsAt(L.lv)} hearts here. ` + (L.need ? `Beat ${L.need - L.into} more enemies for level ${L.lv + 1}.` : 'The top level!') + (dims.best ? ` Your best: round ${dims.best}.` : '');
   // Your class (data/classes.ts): picked going in, changed between rounds. Mid-fight the difficulty stays as it is.
-  $('dimClass').innerHTML = CLASSES.map(c => `<button class="rchip${dims.cls === c ? ' on' : ''}" data-cls="${c}" aria-pressed="${dims.cls === c}">${CLASS_NAMES[c]}</button>`).join('');
+  $('dimClass').innerHTML = CLASSES.map(c => `<button class="rchip cls${dims.cls === c ? ' on' : ''}" data-cls="${c}" aria-pressed="${dims.cls === c}" aria-label="${CLASS_NAMES[c]}: ${CLASS_ROLES[c].map(r => ROLE_NAMES[r]).join(', ')}">${CLASS_NAMES[c]}<span class="roles">${CLASS_ROLES[c].map(r => `<i class="role r-${r}">${ROLE_NAMES[r]}</i>`).join('')}</span></button>`).join('');
   $('dimClassSay').textContent = CLASS_BLURBS[dims.cls]; $('dimDiffRow').hidden = !!dim; $('dimGo').textContent = dim ? 'Fight on!' : 'Through the portal!';
   $('dimDiff').innerHTML = DIFFICULTIES.map(d => { const [lo, hi] = DIFF_BANDS[d]; return `<button class="rchip${dims.diff === d ? ' on' : ''}" data-diff="${d}" aria-pressed="${dims.diff === d}">${DIFF_NAMES[d]}<small>enemy level ${lo}–${hi}</small></button>`; }).join(''); }
 $('dimDiff').addEventListener('click', e => { const b = e.target.closest('[data-diff]'); if (!b) return; dims = {...dims, diff: b.dataset.diff}; sfx.click(); renderDim(); save(); });

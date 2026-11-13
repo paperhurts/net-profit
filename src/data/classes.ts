@@ -46,6 +46,26 @@ export const CLASS_BLURBS: Readonly<Record<ClassId, string>> = {
   healer:
     'She heals by hurting: Shooting Stars, Moonbeams, Sunshine once a round, and Saturn’s Rings.',
 };
+/** What each class is, at a glance, as badges on the class card (the owner's: so "Cosmedic" does not read as cosmetic). */
+export type Role = 'fighter' | 'caster' | 'healer' | 'sneak' | 'summoner' | 'trickster';
+export const ROLE_NAMES: Readonly<Record<Role, string>> = {
+  fighter: 'Fighter',
+  caster: 'Caster',
+  healer: 'Healer',
+  sneak: 'Sneak',
+  summoner: 'Summoner',
+  trickster: 'Trickster',
+};
+export const CLASS_ROLES: Readonly<Record<ClassId, readonly Role[]>> = {
+  warrior: ['fighter'],
+  wizard: ['caster'],
+  paladin: ['fighter', 'healer'],
+  assassin: ['sneak'],
+  necromancer: ['summoner'],
+  witchdoctor: ['summoner'],
+  mage: ['trickster'],
+  healer: ['healer', 'caster'],
+};
 export function parseClass(v: unknown): ClassId {
   return (CLASSES as readonly unknown[]).includes(v) ? (v as ClassId) : 'warrior';
 }
