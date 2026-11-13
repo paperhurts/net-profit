@@ -29,7 +29,7 @@ export const CLASS_NAMES: Readonly<Record<ClassId, string>> = {
   necromancer: 'Necromancer',
   witchdoctor: 'Witch Doctor',
   mage: 'Mage',
-  healer: 'Healer',
+  healer: 'Cosmedic',
 };
 export const CLASS_BLURBS: Readonly<Record<ClassId, string>> = {
   warrior: 'Sword and shield, rage, Charge, Slam and Leap.',
