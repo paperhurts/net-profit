@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { angDiff, rng } from '../../src/core/math';
+import { WON_FLAGS } from '../../src/data/rewards';
 import { PIRATE_SPEED, PIRATE_UNLOCK } from '../../src/data/tuning';
-import { CHASE_RADIUS, Pirate, type PirateWorld, SAFE_RADIUS } from '../../src/entities/pirate';
+import {
+  CHASE_RADIUS,
+  PIRATE_LOOK,
+  Pirate,
+  type PirateWorld,
+  SAFE_RADIUS,
+} from '../../src/entities/pirate';
 import { steerShip } from '../../src/entities/ship';
 import { DOCK, IX, IY, nearestEdgeExit, WS } from '../../src/world/island';
 import { baseWorld } from './helpers/world';
@@ -45,6 +52,12 @@ describe('nearestEdgeExit', () => {
 });
 
 describe('Pirate', () => {
+  it('flies the Jolly Roger and has a skull and crossbones on its sail', () => {
+    expect(PIRATE_LOOK.design).toEqual(WON_FLAGS.jolly.flag);
+    expect(PIRATE_LOOK.jolly).toBe(true);
+    expect(PIRATE_LOOK.sail).toBeTruthy();
+  });
+
   it('stays away until the player has earned enough', () => {
     const p = new Pirate();
     run(p, world({ earned: PIRATE_UNLOCK - 1 }), 20);

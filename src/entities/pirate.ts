@@ -10,6 +10,7 @@
  */
 
 import { clamp } from '../core/math';
+import { WON_FLAGS } from '../data/rewards';
 import { PIRATE_SPEED, PIRATE_UNLOCK } from '../data/tuning';
 import {
   around,
@@ -41,6 +42,10 @@ export type PirateShip = Ship & {
 /** The pirate reads a little more of the world than most. */
 export type PirateWorld = World & { earned: number; holdTotal: number; hullScale: number };
 
+/**
+ * A pirate is a pirate from across the water (the owner's friends, 2026-11-13: "the pirate ships need this ☠️"): the
+ * Jolly Roger flies from the mast, the one won on the Endless Isle, and a skull and crossbones fills the black sail.
+ */
 export const PIRATE_LOOK: ShipLook = {
   scale: 1.3,
   hull: '#2B2233',
@@ -52,6 +57,8 @@ export const PIRATE_LOOK: ShipLook = {
   flag: '#111',
   sail: '#1D1926',
   heap: 0,
+  design: WON_FLAGS.jolly.flag,
+  jolly: true,
 };
 
 /** A boat this close to the dock is safe from the chase. */

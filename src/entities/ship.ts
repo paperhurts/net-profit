@@ -6,6 +6,7 @@
  */
 
 import { angDiff, clamp } from '../core/math';
+import type { Flag } from '../data/flag';
 
 export type Ship = { x: number; y: number; h: number; v: number };
 
@@ -21,6 +22,10 @@ export type ShipLook = {
   flag: string;
   sail?: string;
   heap?: number;
+  /** A designed flag flown in place of the plain pennant. */
+  design?: Flag;
+  /** A skull and crossbones on the sail, for a pirate. */
+  jolly?: boolean;
 };
 
 export function steerShip(
