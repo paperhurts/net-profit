@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, parseClass } from '../../src/data/classes';
+import { CLASS_ROLES, CLASSES, parseClass } from '../../src/data/classes';
 import { eatPepper, freshFury, tickFury } from '../../src/data/warrior';
 import {
   ARMOR_HITS,
@@ -35,6 +35,14 @@ describe('the classes', () => {
     ]);
     expect(parseClass('wizard')).toBe('wizard');
     expect(parseClass('druid')).toBe('warrior');
+  });
+});
+
+describe('the class card’s role badges', () => {
+  it('every class has one or two, and the Cosmedic leads with Healer (so nobody reads it as cosmetic)', () => {
+    for (const c of CLASSES) expect(CLASS_ROLES[c].length).toBeGreaterThanOrEqual(1);
+    for (const c of CLASSES) expect(CLASS_ROLES[c].length).toBeLessThanOrEqual(2);
+    expect(CLASS_ROLES.healer[0]).toBe('healer');
   });
 });
 
