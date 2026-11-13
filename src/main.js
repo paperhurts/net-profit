@@ -6685,7 +6685,7 @@ elRst.addEventListener('click', () => {
   resetSchools(schools);
   save(); hud(); refreshShop(); toast('Started over.', 1400);
 });
-$('go').addEventListener('click', () => { audio(); started = true; $('intro').classList.add('gone'); sfx.castOff(); codeReminder(); });
+$('go').addEventListener('click', () => { audio(); started = true; castOffAt = performance.now(); $('intro').classList.add('gone'); sfx.castOff(); codeReminder(); });
 // Once a week, the kid's yes: the game's save code, to write down. A new game waits its first week; a game from before
 // codes hears it at once.
 const CODE_EVERY = 7*24*3600e3;
@@ -6919,6 +6919,29 @@ $('diveBtn').addEventListener('click', startDive);
 $('surfaceBtn').addEventListener('click', () => { audio(); diver.surface(); });
 $('rodcast').addEventListener('click', useRod);
 const elAshore = $('ashore'), elAboard = $('aboard'); let shopOpen = false, aboardShown = false;
+// The shop's close (2026-11-13: a friend of the owner's, legally blind, sat at the dock under the shop and did not know
+// how to move). Shut, it stays shut while the boat stays at this dock; the Shop button opens it again, and sailing
+// out and back in opens it as ever.
+let shopShut = false, shopShutTold = false, shopBtnShown = false;
+function shutShop(){ if (!shopOpen) return; shopShut = true; steeredSinceShut = false; audio(); sfx.click();
+  if (!shopShutTold){ shopShutTold = true; toast('To sail, drag anywhere on the water the way you want to go. At the dock, the Shop button opens the shop again.', 5200); } }
+$('shopClose').addEventListener('click', shutShop);
+$('shopBtn').addEventListener('click', () => { shopShut = false; audio(); sfx.click(); });
+// How to sail, big (the same friend, who had steered into the dock and then could not tell how to get out): until
+// the next drag or key, right after the shop is shut, and for a new player (not yet 15 seconds of steering, not yet
+// 100 coins) whenever the boat sits still 8 seconds without one. With the shop up it would cover the cards, and for a
+// new game the shop covers nearly all the water anyway, so then the shop's close glows instead, with a line under it
+// (a toast would be under the shop).
+const elSteerHint = $('steerHint'), elShopClose = $('shopClose');
+let castOffAt = 0, lastSteerAt = 0, steerSecs = 0, steeredSinceShut = true, steerHintShown = false, closeNudged = false;
+function updateSteerHint(dt){ const steering = joy.on || keys.size > 0, now = performance.now();
+  if (steering){ lastSteerAt = now; steerSecs += dt; steeredSinceShut = true; }
+  const idle = now - Math.max(lastSteerAt, castOffAt) > 8000, isNew = steerSecs < 15 && earned < 100;
+  const ready = started && walker.aboard && !cine && !mapOpen && !steering;
+  const show = ready && !shopOpen && ((shopShut && !steeredSinceShut) || (isNew && idle));
+  if (show !== steerHintShown){ steerHintShown = show; elSteerHint.hidden = !show; }
+  const nudge = ready && shopOpen && isNew && idle;
+  if (nudge !== closeNudged){ closeNudged = nudge; elShopClose.classList.toggle('nudge', nudge); $('shopNudge').hidden = !nudge; } }
 let dockHere = HOME_DOCK; // the dock the boat is in, or was in last
 const POST_MID = {x: (POST.x0+POST.x1)/2, y: (POST.y0+POST.y1)/2};
 /** Where the camera leans, tied up at the dock the boat is in: home's trading post, or each island's post or crates. */
@@ -7345,13 +7368,15 @@ function update(dt){
 
   /* dock */
   const dk0 = dockAt(boat.x, boat.y), dk = (dk0 === GOAT_DOCK && !goatIsle.seen) || (dk0 === TOMB_DOCK && (!tombIsle.seen || (revealAt === 'tomb' && revealT > 0))) ? null : dk0, inDock = !!dk; if (dk) dockHere = dk;
-  if (inDock !== docked){ docked = inDock; if (!docked && charter && !charter.left){ charter.left = true; save(); }
+  if (inDock !== docked){ docked = inDock; if (!docked) shopShut = false; if (!docked && charter && !charter.left){ charter.left = true; save(); }
     // The dock clears what was being said, then the charter's passengers pay, so their word is the one that shows.
     if (docked){ refreshShop(); toasts.clear(); renderToast(); if (charter && charter.left) endCharter(); if (net.torn > 0){ net.torn = 0; addText(boat.x, boat.y, 40, 'Net mended', '#9CF0C0', 17, 1.4); }
     if (jellies.inNet){ const n = jellies.shakeOut(); toast(n === 1 ? 'Shook a jellyfish out of the net.' : `Shook ${n} jellyfish out of the net.`, 2400); sfx.jelliesOut(); } } }
   // The shop is the dock while aboard; ashore it folds away so the stick has the screen.
-  { const open = docked && walker.aboard && !cine && !kingDying(); if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
-      elShop.classList.toggle('open', open); elShop.setAttribute('aria-hidden', String(!open)); elAshore.hidden = !open; elMapBtn.hidden = open; } }
+  { const here = docked && walker.aboard && !cine && !kingDying(), open = here && !shopShut; if (open !== shopOpen){ shopOpen = open; if (open) refreshShop();
+      elShop.classList.toggle('open', open); elShop.setAttribute('aria-hidden', String(!open)); elAshore.hidden = !open; elMapBtn.hidden = open; }
+    const btn = here && shopShut; if (btn !== shopBtnShown){ shopBtnShown = btn; $('shopBtn').hidden = !btn; } }
+  updateSteerHint(dt);
   if (started && walker.aboard && !seaFight) sail(sailed, boat.x, boat.y);
   if (swallowT > 0){ swallowT -= dt; boat.v = 0; if (swallowT <= 0) spitOut(); }
   irisT = Math.max(0, irisT - dt);

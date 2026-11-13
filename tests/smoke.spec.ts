@@ -17365,3 +17365,41 @@ test('New Dimensions: the Cosmedic (healer): Shooting Stars toward a heart, Moon
   await expect(page.locator('#ability3')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('stuck at the dock: the shop shuts with its X, the Shop button opens it again, and how to sail shows big', async ({
+  context,
+  page,
+}) => {
+  // A new game, tied up at the home dock with the shop up, as the owner's friend found it after steering in.
+  const errors = await boot(context, page, {
+    muted: true,
+    trip: { x: 2745, y: 2400, h: 0, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#shop')).toHaveClass(/open/);
+  await expect(page.locator('#steerHint')).toBeHidden();
+  // Its X shuts it: the Shop button is there to open it again, and how to sail shows at once, big, with a word in the
+  // toast too.
+  await page.locator('#shopClose').click();
+  await expect(page.locator('#shop')).not.toHaveClass(/open/);
+  await expect(page.locator('#shopBtn')).toBeVisible();
+  await expect(page.locator('#steerHint')).toBeVisible();
+  await expect(page.locator('#steerHint')).toContainText('Drag anywhere on the water to sail');
+  await expect(page.locator('#toast')).toContainText('drag anywhere on the water');
+  await page.locator('#shopBtn').click();
+  await expect(page.locator('#shop')).toHaveClass(/open/);
+  await expect(page.locator('#shopBtn')).toBeHidden();
+  await expect(page.locator('#steerHint')).toBeHidden();
+  // A new player sitting still in the shop: its X glows, with a line under it, and the big hint keeps off the cards.
+  await expect(page.locator('#shopClose')).toHaveClass(/nudge/, { timeout: 10000 });
+  await expect(page.locator('#shopNudge')).toBeVisible();
+  await expect(page.locator('#steerHint')).toBeHidden();
+  // Shut, the hint shows; the first steer (an arrow key here) puts it away, and the X stops glowing.
+  await page.locator('#shopClose').click();
+  await expect(page.locator('#steerHint')).toBeVisible();
+  await page.keyboard.down('ArrowUp');
+  await expect(page.locator('#steerHint')).toBeHidden();
+  await page.keyboard.up('ArrowUp');
+  await expect(page.locator('#shopClose')).not.toHaveClass(/nudge/);
+  await expect(page.locator('#shopNudge')).toBeHidden();
+  expect(errors).toEqual([]);
+});
