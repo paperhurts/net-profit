@@ -6072,6 +6072,13 @@ function healerLight(slot){ audio(); const a = LIGHTS[slot]; if (!a || !dim || t
   else { shine(fury, a, sunUsed); ward = RINGS_HITS; wardT = RINGS_TIME; sfx.tierUp(); addText(walker.x, walker.y, 56, 'Saturn’s Rings!', '#E8D8FF', 15, 1); }
   hudWarrior(); }
 /** Saturn's Rings spinning round her like a gyroscope, and the sun in the sky as Sunshine bursts. */
+/** You, found at a glance in the crowd (the owner's: "I can never see my player... under a mountain of companions"): a ring
+ * at your feet and a bobbing arrow over your head, drawn over everyone else. */
+function drawYouMarker(){ if (!dim || walker.state !== 'ashore') return; const pulse = .5 + .5*Math.sin(T*5);
+  drawView.isoEllipse(walker.x, walker.y, 17 + 2*pulse, walker.z); ctx.strokeStyle = 'rgba(42,24,60,.75)'; ctx.lineWidth = 6*Z; ctx.stroke(); ctx.strokeStyle = `rgba(255,240,140,${(.75 + .25*pulse).toFixed(2)})`; ctx.lineWidth = 3.2*Z; ctx.stroke();
+  const x = px(walker.x, walker.y), y = py(walker.x, walker.y, walker.z + 78) + Math.sin(T*4)*4*Z;
+  ctx.beginPath(); ctx.moveTo(x - 12*Z, y - 14*Z); ctx.lineTo(x + 12*Z, y - 14*Z); ctx.lineTo(x, y + 3*Z); ctx.closePath();
+  ctx.fillStyle = '#FFF08C'; ctx.strokeStyle = '#2A183C'; ctx.lineWidth = 3*Z; ctx.lineJoin = 'round'; ctx.stroke(); ctx.fill(); }
 function drawHealerSky(){ if (!dim || dims.cls !== 'healer' || walker.state !== 'ashore') return;
   const x = px(walker.x, walker.y), y = py(walker.x, walker.y, walker.z + 22);
   if (ward > 0){ const a = (.8 + .15*Math.sin(T*5)).toFixed(2); ctx.lineWidth = 3.2*Z;
@@ -8530,7 +8537,7 @@ function drawRoom(){
   if (R.kind === 'nest') drawNestFront(drawView, R);
   // The front rim, so the room reads as a room.
   if (!roof && R.kind !== 'demon' && R.kind !== 'arena'){ isoEllipse(R.x, R.y, R.r+4); ctx.strokeStyle = R.kind === 'hall' ? '#24413F' : '#2A2E34'; ctx.lineWidth = 6*Z; ctx.stroke(); }
-  scene.draw(drawView, 'air'); if (floor === RUINS) oldOne.draw(drawView, 'air'); drawFgBits(); if (dim && tower === BARGE){ drawBolts(); drawZaps(); drawSheep(); drawClock(); drawHealerSky(); } if (sprayFx && tower === BARGE) drawSprayPuff(drawView, sprayFx.x0, sprayFx.y0, sprayFx.x1, sprayFx.y1, sprayFx.t / .45); drawFlies();
+  scene.draw(drawView, 'air'); if (floor === RUINS) oldOne.draw(drawView, 'air'); drawFgBits(); if (dim && tower === BARGE){ drawBolts(); drawZaps(); drawSheep(); drawClock(); drawHealerSky(); drawYouMarker(); } if (sprayFx && tower === BARGE) drawSprayPuff(drawView, sprayFx.x0, sprayFx.y0, sprayFx.x1, sprayFx.y1, sprayFx.t / .45); drawFlies();
   for (const q of sparks){ ctx.globalAlpha = 1 - q.age/q.life; ctx.fillStyle = q.c || (Math.random() < .5 ? '#FFFFFF' : '#E8D9FF'); star(px(q.x,q.y), py(q.x,q.y,q.z), 4*Z); } ctx.globalAlpha = 1;
   drawTexts();
   if (redFlash > 0){ ctx.fillStyle = `rgba(200,20,30,${redFlash*.8})`; ctx.fillRect(0, 0, W, H); }
