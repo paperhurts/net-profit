@@ -7816,12 +7816,27 @@ function drawShip(s,o){
   if (o.sail){ const a = Lp(5,-15), b = Lp(5,15);
     ctx.beginPath(); ctx.moveTo(px(a[0],a[1]),py(a[0],a[1],z1+8*k)); ctx.lineTo(px(b[0],b[1]),py(b[0],b[1],z1+8*k));
     ctx.lineTo(px(b[0],b[1]),py(b[0],b[1],z1+40*k)); ctx.lineTo(px(a[0],a[1]),py(a[0],a[1],z1+40*k)); ctx.closePath();
-    ctx.fillStyle = o.sail; ctx.fill(); }
+    ctx.fillStyle = o.sail; ctx.fill();
+    if (o.jolly){ const a0 = [px(a[0],a[1]), py(a[0],a[1],z1+8*k)], b0 = [px(b[0],b[1]), py(b[0],b[1],z1+8*k)], a1y = py(a[0],a[1],z1+40*k);
+      drawJollySail([(a0[0]+b0[0])/2, (a0[1]+b0[1])/2 - (a0[1]-a1y)/2], [(b0[0]-a0[0])/2, (b0[1]-a0[1])/2], [0, (a0[1]-a1y)/2], o.sail); } }
   ctx.strokeStyle = o.mast; ctx.lineWidth = 2.2*Z; ctx.beginPath(); ctx.moveTo(mx,myB); ctx.lineTo(mx,myT); ctx.stroke();
   const fw = Math.sin(T*5 + s.x*.02)*3*Z;
   if (o.design){ drawFlagAt(mx, myT, 17*Z*k, 11*Z*k, o.design, fw, -1); return; }
   ctx.beginPath(); ctx.moveTo(mx,myT); ctx.lineTo(mx-15*Z*k, myT+5*Z*k+fw); ctx.lineTo(mx, myT+10*Z*k); ctx.closePath();
   ctx.fillStyle = o.flag; ctx.fill();
+}
+// A pirate's sail (ShipLook.jolly): a skull and crossbones in bone white, drawn in the sail's own frame (c its middle
+// on the screen, u half across it, v half down it) so it turns with the sail as the ship comes about.
+function drawJollySail(c, u, v, sail){
+  ctx.save(); ctx.transform(u[0], u[1], v[0], v[1], c[0], c[1]);
+  ctx.fillStyle = ctx.strokeStyle = '#EDE6D2'; ctx.lineCap = 'round'; ctx.lineWidth = .17;
+  ctx.beginPath(); ctx.moveTo(-.6, .14); ctx.lineTo(.6, .74); ctx.moveTo(.6, .14); ctx.lineTo(-.6, .74); ctx.stroke();
+  for (const [x, y] of [[-.6, .14], [.6, .74], [.6, .14], [-.6, .74]]){ ctx.beginPath(); ctx.arc(x, y, .11, 0, Math.PI*2); ctx.fill(); }
+  ctx.beginPath(); ctx.arc(0, -.3, .44, 0, Math.PI*2); ctx.fill(); ctx.fillRect(-.25, -.06, .5, .3);
+  ctx.fillStyle = sail; for (const x of [-.17, .17]){ ctx.beginPath(); ctx.arc(x, -.28, .12, 0, Math.PI*2); ctx.fill(); }
+  ctx.beginPath(); ctx.moveTo(0, -.13); ctx.lineTo(-.06, -.02); ctx.lineTo(.06, -.02); ctx.closePath(); ctx.fill();
+  for (const x of [-.09, .09]) ctx.fillRect(x - .02, .1, .04, .14);
+  ctx.restore();
 }
 // A designed flag at a screen point on its pole, w by h, flying left (dir -1) or right, rippled by wave.
 function drawFlagAt(sx, sy, w, h, f, wave, dir){
