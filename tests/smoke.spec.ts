@@ -260,10 +260,11 @@ type Np = {
   DOCK12: { x: number; y: number; r: number };
   TOWER12_DOOR: { x: number; y: number };
   fromSkull: (u: number, v: number) => [number, number];
+  fruitValue(c: string, m: number, v?: string, mu?: string[]): number;
   gardenIsle: {
     seen: boolean;
     seeds?: Record<string, number>;
-    bag?: { c: string; m: number }[];
+    bag?: { c: string; m: number; v?: string; mu?: string[] }[];
     beds?: ({ crop: string; ripe: number; mu?: string[][] } | null)[];
     stock?: { day: number; n: Record<string, number> };
     gear?: Record<string, number>;
@@ -15443,9 +15444,17 @@ test("the Garden Isle's first harvest: buy seeds, plant, it grows while you wait
   expect(await page.evaluate(() => window.__np.gardenIsle.bag?.map((f) => f.c))).toEqual([
     'carrot',
   ]);
-  // Its size is its own, so is its price: a carrot's 16, by the square of its size.
-  const m = await page.evaluate(() => window.__np.gardenIsle.bag?.[0]?.m ?? 0);
-  const worth = Math.round(16 * Math.max(0.9, m) ** 2);
+  // Its size is its own, so is its price: a carrot's 16, by the square of its size. And now and then a carrot comes up
+  // Gold (1 in 100, from when it was planted, so from the clock) and sells for 20 times that, or weather marks it: the
+  // basket's price is the one the game puts on the fruit actually picked (a Gold one failed this test on 2026-11-13).
+  const [m, worth] = await page.evaluate(() => {
+    const n = window.__np;
+    const f = n.gardenIsle.bag?.[0];
+    return [f?.m ?? 0, f ? n.fruitValue(f.c, f.m, f.v, f.mu) : 0];
+  });
+  expect(await page.evaluate((s) => window.__np.fruitValue('carrot', s), m)).toBe(
+    Math.round(16 * Math.max(0.9, m) ** 2),
+  );
   await expect(page.locator('#seedTray .basket')).toContainText('1/50');
   // Sold at the stand.
   await standAt(222, 138);
