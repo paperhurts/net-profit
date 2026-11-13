@@ -1,5 +1,6 @@
 /**
- * The Healer in New Dimensions (data/dimension.ts): the kid's ("once a wave or round, 3"), designed by the owner
+ * The Cosmedic (the owner's name, 2026-11-13; at first the Healer, and still `healer` inside and in saves) in New
+ * Dimensions (data/dimension.ts): the kid's ("once a wave or round, 3"), designed by the owner
  * ("since she's mine", 2026-11-11) after a discipline priest: she heals by hurting. Space her theme, every name hers
  * or the game's own:
  *

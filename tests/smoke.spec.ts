@@ -17296,7 +17296,7 @@ test('New Dimensions: the Mage: his bolt, Blink and its decoys, a sheep, the fal
   expect(errors).toEqual([]);
 });
 
-test('New Dimensions: the Healer: Shooting Stars toward a heart, Moonbeams, Sunshine once a round, Saturn’s Rings', async ({
+test('New Dimensions: the Cosmedic (healer): Shooting Stars toward a heart, Moonbeams, Sunshine once a round, Saturn’s Rings', async ({
   context,
   page,
 }) => {
