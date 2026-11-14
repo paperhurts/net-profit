@@ -39,6 +39,9 @@ export const HATCHLING_NAMES: Readonly<Record<string, string>> = {
   moth: 'Lantern moth',
   // Not from an egg: the pet house keeper's gift (data/petsys.ts giveGift), the owner's (2026-11-07: "I want a black cat").
   blackcat: 'Black cat',
+  // Not from an egg either: the pygmy goat found in the goat cave on Goat Isle comes with you (the owner, 2026-11-14:
+  // "pet goat that faints").
+  pygmygoat: 'Pygmy goat',
 };
 
 /**
@@ -56,6 +59,7 @@ export const HATCHLING_ART: Readonly<Record<string, string>> = {
   moth: 'Ekmjshwfwcmdgfchckm.FdgMUIico.Fjg0U4iko.CcqQwY2eu.Ckqwwo2iu.AecaS.AicmS.Aefff.Aifjf',
   // Drawn by the game, not in strokes (render/petsys.ts drawPainted): a real cat, as she asked, not a doodle of one.
   blackcat: '@blackcat',
+  pygmygoat: '@pygmygoat',
 };
 
 /** Whether a pet's look is one the game paints (an "@kind"), not a drawing in the pad's strokes. */

@@ -393,7 +393,7 @@ function tripSnapshot(){ const at = seaFight || boat; // out at the Battle Barge
   return started ? {x: Math.round(at.x), y: Math.round(at.y), h: +at.h.toFixed(3), clock: +clock.toFixed(4), hold: hold.slice()} : (savedTrip || undefined); }
 
 let T = 0, started = false, docked = false, sellT = 0, saleSum = 0, saleN = 0;
-let combo = 0, comboT = 0, shake = 0, wakeT = 0;
+let combo = 0, comboT = 0, shake = 0, lastShake = 0, wakeT = 0;
 const hold = SPECIES.map(() => 0); let holdTotal = 0;
 const boat = {x: DOCK.x+125, y: IY+125, h: .45, v: 0};
 const net = {x:0, y:0, speed:0, torn:0};
@@ -2156,6 +2156,7 @@ function spreadPals(dt){ const step = (b, dx, dy) => walkStep(b, dx, dy, build),
   // And the black cat, if it is the pet walking with you (the owner's call): beside the muffins, not among them. A pet
   // you drew stays at your heel.
   petWalk.lead = walker.state === 'ashore' && walker.dock === GARDEN_DOCK && inPlot14(walker.x, walker.y) && walkingDrawn() === HATCHLING_ART.blackcat ? catLawn : null;
+  petWalk.faints = walkingDrawn() === HATCHLING_ART.pygmygoat;
   const list = walker.state === 'ashore' ? all.filter(b => b === tarling ? tarling.with : b.shown) : [];
   palsAshore = list.length;
   for (const b of all) if (!list.includes(b)){ b.heelAt = null; b.lead = null; }
@@ -4172,7 +4173,7 @@ function petHatchCalm(){ return started && walker.state === 'aboard' && !cine &&
 function updatePetEggs(dt){ for (const [k, t] of yardLove){ if (t - dt <= 0) yardLove.delete(k); else yardLove.set(k, t - dt); }
   updatePetTraining(dt);
   if (hatching){ updateHatching(dt); return; }
-  if (updateCatGift(dt)) return;
+  if (updateCatGift(dt) || updateGoatGift(dt)) return;
   if (!petSave.eggs.some(e => petEggDue(e, Date.now())) || !petHatchCalm()){ petHatchT = 0; return; }
   petHatchT += dt; if (petHatchT < 2) return; petHatchT = 0;
   const out = hatchEgg(petSave, Date.now()); if (!out) return; save();
@@ -4193,15 +4194,29 @@ function updateCatGift(dt){
   if (!here){ catGiftT = 0; return false; }
   catGiftT += dt; if (catGiftT < .8) return false; catGiftT = 0;
   const pet = giveGift(petSave, 'blackcat', Date.now()); if (!pet) return false; save();
-  hatching = {t: HATCH_POP + .01, cue: HATCH_CRACKS.length + 1, egg: null, pet, rig: doodleRig(HATCHLING_ART.blackcat), gift: true};
-  $('hatchName').hidden = true; $('hatchCard').hidden = false; sfx.tierUp(); showHatchName(); requestAnimationFrame(drawHatching);
-  return true; }
+  showGift(pet, 'blackcat'); return true; }
+// The pygmy goat (the owner, 2026-11-14: "pet goat that faints"): found in the goat cave, it comes with you, named on the
+// hatch card as the black cat is, once you are ashore again outside the cave; a game that found it before is given it
+// the next time it is ashore anywhere.
+let goatGiftT = 0;
+function updateGoatGift(dt){
+  const here = started && (goatIsle.kinds ?? []).includes('pygmy') && !gifted(petSave, 'pygmygoat') && walker.state === 'ashore' && floor < 0 && !gc && !th && !ski
+    && !cine && !mapOpen && !padOpen && !petBookOpen && !petFight && !ringSt;
+  if (!here){ goatGiftT = 0; return false; }
+  goatGiftT += dt; if (goatGiftT < .8) return false; goatGiftT = 0;
+  const pet = giveGift(petSave, 'pygmygoat', Date.now()); if (!pet) return false; save();
+  showGift(pet, 'pygmygoat'); return true; }
+const GIFT_WORDS = {blackcat: 'The pet house keeper has a black cat for you! It has been waiting by the door.',
+  pygmygoat: 'The pygmy goat from the cave has followed you out! It wants to come with you. Careful: it faints.'};
+function showGift(pet, kind){
+  hatching = {t: HATCH_POP + .01, cue: HATCH_CRACKS.length + 1, egg: null, pet, rig: doodleRig(HATCHLING_ART[kind]), gift: kind};
+  $('hatchName').hidden = true; $('hatchCard').hidden = false; sfx.tierUp(); showHatchName(); requestAnimationFrame(drawHatching); }
 function updateHatching(dt){ const h = hatching; h.t += dt;
   while (h.cue < HATCH_CRACKS.length && h.t >= HATCH_CRACKS[h.cue]){ h.cue++; sfx.eggCrack(); $('hatchWord').textContent = h.cue < 3 ? 'Crack!' : 'Crrrrack!'; }
   if (h.cue === HATCH_CRACKS.length && h.t >= HATCH_POP){ h.cue++; sfx.tierUp(); $('hatchWord').textContent = `It's a ${(HATCHLING_NAMES[h.pet.sp] ?? h.pet.sp).toLowerCase()}!`; }
   if (h.t >= HATCH_NAME && $('hatchName').hidden) showHatchName(); }
 function showHatchName(){ const h = hatching; if (!h) return; h.t = Math.max(h.t, HATCH_POP + .01); h.cue = HATCH_CRACKS.length + 1;
-  $('hatchWord').textContent = h.gift ? 'The pet house keeper has a black cat for you! It has been waiting by the door.' : `It's a ${(HATCHLING_NAMES[h.pet.sp] ?? h.pet.sp).toLowerCase()}!`; $('hatchNameIn').value = ''; $('hatchNameIn').placeholder = h.pet.nm; $('hatchName').hidden = false; }
+  $('hatchWord').textContent = h.gift ? GIFT_WORDS[h.gift] : `It's a ${(HATCHLING_NAMES[h.pet.sp] ?? h.pet.sp).toLowerCase()}!`; $('hatchNameIn').value = ''; $('hatchNameIn').placeholder = h.pet.nm; $('hatchName').hidden = false; }
 function drawHatching(){ const h = hatching; if (!h) return; const [c2, w] = padCanvasFit($('hatchCanvas')), t = h.t; c2.clearRect(0, 0, w, w);
   const cx = w/2, foot = w*.78;
   if (h.gift){ const look = reduceMotion ? 1 : Math.sin(t*.8) >= 0 ? 1 : -1;
@@ -5037,7 +5052,8 @@ function petSeat(){ const c = Math.cos(boat.h), s = Math.sin(boat.h), k = bk(); 
 function petWalkAt(){ if (!petWalk.on || !walkingDrawn()) return null;
   if (walker.shown && petWalk.ashore) return [px(petWalk.x, petWalk.y), py(petWalk.x, petWalk.y, groundZ(petWalk.x, petWalk.y) + 10)];
   if (walker.shown) return null; const p = petSeat(); return [px(p.x, p.y), py(p.x, p.y, p.z + 8)]; }
-function tapWalkingPet(){ audio(); petWalk.pet(); sfx.squeak(); }
+// The pygmy goat faints at a pat (a bleat, and over it goes); any other pet hops, with hearts.
+function tapWalkingPet(){ audio(); if (petWalk.faints){ if (petWalk.startle()) sfx.bleat(); return; } petWalk.pet(); sfx.squeak(); }
 function towLen(){ return towLength(NETW[lv.net]); }
 resetNet();
 
@@ -7513,7 +7529,9 @@ function update(dt){
   for (let i=wakes.length-1;i>=0;i--){ const w = wakes[i]; w.age += dt; w.x += w.vx*dt; w.y += w.vy*dt; if (w.age > w.life) wakes.splice(i,1); }
   for (let i=flies.length-1;i>=0;i--){ const f = flies[i]; f.t += dt/f.dur; if (f.t >= 1) flies.splice(i,1); }
   for (let i=texts.length-1;i>=0;i--){ const t = texts[i]; t.age += dt; if (t.age > t.life) texts.splice(i,1); }
-  shake = Math.max(0, shake - dt*2.5);
+  // A crash big enough to shake the screen frightens a pet that faints, as a thunderclap does a fainting goat.
+  if (shake > .4 && lastShake <= .4 && petWalk.startle()) sfx.bleat();
+  shake = Math.max(0, shake - dt*2.5); lastShake = shake;
   shx = (Math.random()-.5)*shake*14; shy = (Math.random()-.5)*shake*14;
 
   /* camera leads the boat a little */
@@ -8114,8 +8132,8 @@ function drawWorldObjects(){
   if (leggy.count > 0 && !leggy.list.length){ const p = crateSeat(); list.push({d: boat.x+boat.y+.5, f: () => drawStinkCrate(drawView, p.x, p.y, p.z, leggy.count)}); }
   if (walker.shown) leggy.list.forEach((m, i) => { if (onScreen(m.x, m.y, 40*Z)) list.push({d: walkerDepth(m.x, m.y, build, pierD, null), f: () => drawLeggy(drawView, m, groundZ(m.x, m.y), i)}); });
   { const dp = petWalk.on && !(petFight && pfKey === petSave.walk) ? walkingDrawn() : null; if (dp){ const r = doodleRig(dp), w = petWalk;
-    if (walker.shown){ if (w.ashore && onScreen(w.x, w.y, 40*Z)) list.push({d: walkerDepth(w.x, w.y, build, pierD, null), f: () => drawWalking(drawView, r, w.x, w.y, groundZ(w.x, w.y), w.h, w.ph, w.walk, w.love, PET_LOVE_T)}); }
-    else { const p = petSeat(); list.push({d: boat.x+boat.y+.45, f: () => drawWalking(drawView, r, p.x, p.y, p.z, boat.h, w.ph, Math.min(1, Math.abs(boat.v)/80)*.4, w.love, PET_LOVE_T, .8)}); } } }
+    if (walker.shown){ if (w.ashore && onScreen(w.x, w.y, 40*Z)) list.push({d: walkerDepth(w.x, w.y, build, pierD, null), f: () => drawWalking(drawView, r, w.x, w.y, groundZ(w.x, w.y), w.h, w.ph, w.walk, w.love, PET_LOVE_T, 1, w.tipped())}); }
+    else { const p = petSeat(); list.push({d: boat.x+boat.y+.45, f: () => drawWalking(drawView, r, p.x, p.y, p.z, boat.h, w.ph, Math.min(1, Math.abs(boat.v)/80)*.4, w.love, PET_LOVE_T, .8, w.tipped())}); } } }
   if (deep.state !== 'down') list.push({d: deep.x + deep.y, f: () => deep.drawBody(drawView)});
   for (const d of seaBoss.deep) if (d.state !== 'down') list.push({d: d.x + d.y, f: () => d.drawBody(drawView)});
   for (const d of fogBones) if (d instanceof DeepOne && !seaGone(d) && d.state !== 'down') list.push({d: d.x + d.y, f: () => d.drawBody(boneView(drawView))});

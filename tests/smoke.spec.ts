@@ -1056,7 +1056,7 @@ type Np = {
     open: boolean;
     padOpen: boolean;
     hatching: unknown;
-    walker: { on: boolean; ashore: boolean; x: number; y: number; love: number };
+    walker: { on: boolean; ashore: boolean; x: number; y: number; love: number; faint: number };
     walkAt: [number, number] | null;
     pad: {
       strokes: { c: number; p: [number, number][] }[];
@@ -2026,6 +2026,8 @@ test("the Goat Almanac: the pygmy goat found, and reading a ghost's headstone fi
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
     goat: { up: true, seen: true, kinds: ['pygmy'] },
+    // The pygmy goat already come along as a pet, so its card does not stand in the way of the headstone.
+    pets: { gifts: ['pygmygoat'] },
     trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
   });
   await page.evaluate(() => {
@@ -17464,5 +17466,55 @@ test('an old hand at the dock: the shop shut shows no how-to-sail, and the Shop 
   const shop = await page.locator('#shopBtn').boundingBox();
   const map = await page.locator('#mapBtn').boundingBox();
   expect(shop && map && shop.y + shop.height <= map.y).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the pygmy goat comes with you out of the goat cave, a pet of your own, and faints when you pat it', async ({
+  context,
+  page,
+}) => {
+  // The owner, 2026-11-14: "pet goat that faints". A game that has found the pygmy goat in the cave, at Goat Isle.
+  const errors = await boot(context, page, {
+    muted: true,
+    lv: { net: 5, hold: 5, engine: 5 },
+    goat: { up: true, seen: true, kinds: ['pygmy'] },
+    trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
+  });
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.boat.x = n.GOAT_DOCK.x;
+    n.boat.y = n.GOAT_DOCK.y;
+    n.boat.v = 0;
+  });
+  await expect(page.locator('#ashore')).toBeVisible({ timeout: 6000 });
+  await page.click('#ashore');
+  await page.waitForFunction(() => window.__np.walker.state === 'ashore', null, { timeout: 6000 });
+  // Ashore, it is yours, named on the hatch card as the black cat is.
+  await expect(page.locator('#hatchCard')).toBeVisible({ timeout: 6000 });
+  await expect(page.locator('#hatchWord')).toContainText('pygmy goat');
+  await page.fill('#hatchNameIn', 'Biscuit');
+  await page.click('#hatchKeep');
+  await expect(page.locator('#hatchCard')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.pets.save.hatched.map((h) => [h.sp, h.nm]))).toEqual(
+    [['pygmygoat', 'Biscuit']],
+  );
+  // Walking with you, a pat and over it goes, stiff; then up again.
+  await page.evaluate(() => {
+    const n = window.__np;
+    n.pets.save.walk = 'h1';
+    n.pets.walker.on = true;
+  });
+  await page.waitForFunction(() => window.__np.pets.walker.ashore, null, { timeout: 3000 });
+  await page.waitForTimeout(600);
+  const at = await page.evaluate(() => window.__np.pets.walkAt);
+  if (!at) throw new Error('no goat to pat');
+  await page.mouse.click(at[0], at[1]);
+  expect(await page.evaluate(() => window.__np.pets.walker.faint)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__np.pets.walker.love)).toBe(0);
+  await page.waitForFunction(() => window.__np.pets.walker.faint === 0, null, { timeout: 5000 });
+  // Not given twice.
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#hatchCard')).toBeHidden();
+  expect(await page.evaluate(() => window.__np.pets.save.hatched.length)).toBe(1);
   expect(errors).toEqual([]);
 });
