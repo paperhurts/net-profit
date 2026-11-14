@@ -1896,6 +1896,7 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
     muted: true,
     lv: { net: 5, hold: 5, engine: 5 },
     goat: { up: true, seen: true },
+    tomb: { staff: true },
     trip: { x: 3000, y: -600, h: 0, clock: 0.3, hold: [] },
   });
   await page.evaluate(() => {
@@ -1914,8 +1915,13 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
     n.walker.y = n.CAVE15_DOOR.y + 4;
   });
   await expect(page.locator('#climb')).toHaveText('Into the cave', { timeout: 6000 });
+  // Ashore with the summoning staff, its two buttons are up; in the cave they are not, so they cover nothing (they stood
+  // over the pygmy goat).
+  await expect(page.locator('#summonS')).toBeVisible();
   await page.click('#climb');
   await page.waitForFunction(() => !!window.__np.gc, null, { timeout: 4000 });
+  await expect(page.locator('#summonS')).toBeHidden();
+  await expect(page.locator('#summonV')).toBeHidden();
   await expect(page.locator('#toast')).toContainText('goat cave');
   await expect(page.locator('#leave')).toHaveText('Leave the cave');
   await expect(page.locator('#thJump')).toBeVisible();
@@ -1996,6 +2002,7 @@ test('Goat Isle: the goat cave, side-on: in at its mouth, bump a goat and it fai
     return Math.hypot(n.walker.x - n.CAVE15_DOOR.x, n.walker.y - n.CAVE15_DOOR.y);
   });
   expect(at).toBeLessThan(2);
+  await expect(page.locator('#summonS')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -17434,5 +17441,28 @@ test('the sound sleeps while the game is out of sight, a tap does not wake it th
   expect(await page.evaluate(() => window.__np.audioState)).toBe('suspended');
   await seen('visible');
   await page.waitForFunction(() => window.__np.audioState === 'running', null, { timeout: 2000 });
+  expect(errors).toEqual([]);
+});
+
+test('an old hand at the dock: the shop shut shows no how-to-sail, and the Shop button sits clear above the buttons along the bottom', async ({
+  context,
+  page,
+}) => {
+  // The owner, 2026-11-14: the how-to-sail card came up every time she left Goat Isle's dock. It is for new players.
+  const errors = await boot(context, page, {
+    muted: true,
+    coins: 500,
+    earned: 5000,
+    trip: { x: 2745, y: 2400, h: 0, clock: 0.3, hold: [] },
+  });
+  await expect(page.locator('#shop')).toHaveClass(/open/);
+  await page.locator('#shopClose').click();
+  await expect(page.locator('#shopBtn')).toBeVisible();
+  await page.waitForTimeout(9000);
+  await expect(page.locator('#steerHint')).toBeHidden();
+  await expect(page.locator('#shopClose')).not.toHaveClass(/nudge/);
+  const shop = await page.locator('#shopBtn').boundingBox();
+  const map = await page.locator('#mapBtn').boundingBox();
+  expect(shop && map && shop.y + shop.height <= map.y).toBe(true);
   expect(errors).toEqual([]);
 });

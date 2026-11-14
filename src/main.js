@@ -6933,21 +6933,23 @@ const elAshore = $('ashore'), elAboard = $('aboard'); let shopOpen = false, aboa
 // out and back in opens it as ever.
 let shopShut = false, shopShutTold = false, shopBtnShown = false;
 function shutShop(){ if (!shopOpen) return; shopShut = true; steeredSinceShut = false; audio(); sfx.click();
-  if (!shopShutTold){ shopShutTold = true; toast('To sail, drag anywhere on the water the way you want to go. At the dock, the Shop button opens the shop again.', 5200); } }
+  if (!shopShutTold && newSailor()){ shopShutTold = true; toast('To sail, drag anywhere on the water the way you want to go. At the dock, the Shop button opens the shop again.', 5200); } }
 $('shopClose').addEventListener('click', shutShop);
 $('shopBtn').addEventListener('click', () => { shopShut = false; audio(); sfx.click(); });
-// How to sail, big (the same friend, who had steered into the dock and then could not tell how to get out): until
-// the next drag or key, right after the shop is shut, and for a new player (not yet 15 seconds of steering, not yet
-// 100 coins) whenever the boat sits still 8 seconds without one. With the shop up it would cover the cards, and for a
+// How to sail, big (the same friend, who had steered into the dock and then could not tell how to get out), for a new
+// player only (not yet 15 seconds of steering, not yet 100 coins), so it is one and done (the owner, 2026-11-14: it
+// came up every time she left Goat Isle's dock): until the next drag or key right after the shop is shut, and
+// whenever the boat sits still 8 seconds without one. With the shop up it would cover the cards, and for a
 // new game the shop covers nearly all the water anyway, so then the shop's close glows instead, with a line under it
 // (a toast would be under the shop).
 const elSteerHint = $('steerHint'), elShopClose = $('shopClose');
 let castOffAt = 0, lastSteerAt = 0, steerSecs = 0, steeredSinceShut = true, steerHintShown = false, closeNudged = false;
+function newSailor(){ return steerSecs < 15 && earned < 100; }
 function updateSteerHint(dt){ const steering = joy.on || keys.size > 0, now = performance.now();
   if (steering){ lastSteerAt = now; steerSecs += dt; steeredSinceShut = true; }
-  const idle = now - Math.max(lastSteerAt, castOffAt) > 8000, isNew = steerSecs < 15 && earned < 100;
+  const idle = now - Math.max(lastSteerAt, castOffAt) > 8000, isNew = newSailor();
   const ready = started && walker.aboard && !cine && !mapOpen && !steering;
-  const show = ready && !shopOpen && ((shopShut && !steeredSinceShut) || (isNew && idle));
+  const show = ready && !shopOpen && isNew && ((shopShut && !steeredSinceShut) || idle);
   if (show !== steerHintShown){ steerHintShown = show; elSteerHint.hidden = !show; }
   const nudge = ready && shopOpen && isNew && idle;
   if (nudge !== closeNudged){ closeNudged = nudge; elShopClose.classList.toggle('nudge', nudge); $('shopNudge').hidden = !nudge; } }

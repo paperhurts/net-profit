@@ -247,15 +247,16 @@ body.singing #radar,body.singing #merSing{display:none}
 #crowGo{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:#2B2F3A;color:#FFF6E5;font-weight:800;font-size:17px;height:46px;padding:3px 22px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
 #crowGo:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
-/* At the dock with the shop shut: the way back into it. */
-#shopBtn{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
+/* At the dock with the shop shut: the way back into it, above the row of round buttons along the bottom (the map, the
+   Battle Barge, the portal gun), not in among them. */
+#shopBtn{position:fixed;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;
   background:var(--buoy);color:var(--buoy-fg);font-weight:800;font-size:18px;height:48px;padding:3px 26px 0;box-shadow:0 4px 0 rgba(0,0,0,.25);white-space:nowrap}
 #shopBtn:active{transform:translate(-50%,2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #shopBtn[hidden]{display:none}
 /* How to sail, big, for a new player who has not moved yet: words large enough to read without lenses, and a gold
    fingertip sliding the way a drag goes. Low on the screen, clear of the boat and the messages up top; touches go
    straight through it to the water. */
-#steerHint{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4;pointer-events:none;text-align:center;
+#steerHint{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4;pointer-events:none;text-align:center;
   width:min(calc(100vw - 32px),380px);background:rgba(18,48,58,.9);color:#FFF6E5;border-radius:18px;padding:14px 18px 16px;
   box-shadow:0 6px 0 rgba(0,0,0,.25)}
 #steerHint[hidden]{display:none}
@@ -295,6 +296,9 @@ body:has(#leave:not([hidden])) #order,body:has(#leave:not([hidden])) #charter{di
 #summonS{bottom:calc(252px + env(safe-area-inset-bottom))}
 #summonV{bottom:calc(314px + env(safe-area-inset-bottom))}
 #summonS[hidden],#summonV[hidden]{display:none}
+/* Not in the side-on games (the goat cave, the climb, the ski runs), where the figure is ashore but nothing is summoned:
+   in the goat cave they stood over the pygmy goat (the owner, 2026-11-14). */
+body.droning #summonS,body.droning #summonV{visibility:hidden}
 #summonS:active,#summonV:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
 #summonS[aria-disabled="true"],#summonV[aria-disabled="true"]{opacity:.45}
 /* The portable scanner, under the throw button: it scans what the spear or the harpoon would aim at. */
