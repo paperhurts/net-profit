@@ -261,6 +261,7 @@ type Np = {
   TOWER12_DOOR: { x: number; y: number };
   fromSkull: (u: number, v: number) => [number, number];
   fruitValue(c: string, m: number, v?: string, mu?: string[]): number;
+  audioState: string;
   gardenIsle: {
     seen: boolean;
     seeds?: Record<string, number>;
@@ -17410,5 +17411,28 @@ test('stuck at the dock: the shop shuts with its X, the Shop button opens it aga
   await page.keyboard.up('ArrowUp');
   await expect(page.locator('#shopClose')).not.toHaveClass(/nudge/);
   await expect(page.locator('#shopNudge')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the sound sleeps while the game is out of sight, a tap does not wake it there, and it wakes when the game is back', async ({
+  context,
+  page,
+}) => {
+  // The owner's phone played the sound on with Chrome in the background, and for a friend of hers it came back.
+  const errors = await boot(context, page, { muted: true });
+  await page.waitForFunction(() => window.__np.audioState === 'running', null, { timeout: 4000 });
+  const seen = (state: 'hidden' | 'visible') =>
+    page.evaluate((s) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => s });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, state);
+  await seen('hidden');
+  await page.waitForFunction(() => window.__np.audioState === 'suspended', null, { timeout: 2000 });
+  // A touch arriving while it is hidden (as one can, swiping away mid-drag) leaves it asleep.
+  await page.mouse.click(200, 330);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__np.audioState)).toBe('suspended');
+  await seen('visible');
+  await page.waitForFunction(() => window.__np.audioState === 'running', null, { timeout: 2000 });
   expect(errors).toEqual([]);
 });

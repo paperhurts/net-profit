@@ -13,6 +13,8 @@ export type Note = [f: number, d: number, type: Wave, vol: number, slide: number
 
 let ac: AudioContext | null = null;
 let muted = false;
+/** The game is out of sight (quietWhileHidden): nothing wakes the sound until it is back. */
+let away = false;
 
 /** Create the context on the first user gesture and wake it if the browser slept it. */
 export function unlock(): void {
@@ -24,23 +26,41 @@ export function unlock(): void {
       // No audio on this device; the game is fine without it.
     }
   }
-  if (ac && ac.state === 'suspended') ac.resume();
+  if (ac && ac.state === 'suspended' && !away) ac.resume();
 }
 
 /**
  * Hidden, the game goes quiet (the owner, 2026-11-13: on her Android phone the sound played on with Chrome in the
  * background). The frames stop when the page is hidden, but the ambience's loops and any note already scheduled run
  * on in the audio context, so it is put to sleep while hidden and woken when the page shows again (a tap wakes it too,
- * through unlock, should the browser want one).
+ * through unlock, should the browser want one). While it is away nothing else wakes it (2026-11-14: it came back for
+ * a friend of hers), and coming back wakes it from Safari's "interrupted" as well as from asleep.
  */
 export function quietWhileHidden(hidden: boolean): void {
+  away = hidden;
   if (!ac) return;
   try {
     if (hidden) {
       if (ac.state === 'running') void ac.suspend();
-    } else if (ac.state === 'suspended') void ac.resume();
+    } else if (ac.state !== 'running' && ac.state !== 'closed') void ac.resume();
   } catch {
     // An engine that cannot sleep or wake: the next tap's unlock tries again.
+  }
+}
+
+/**
+ * On a phone, the browser no longer in front (it lost focus) puts the sound to sleep too: an app's own little browser,
+ * the kind a link opens inside a chat, may never say the page is hidden. Unlike hidden this holds nothing asleep, so a
+ * tap always wakes it, in case a browser is slow to say it has focus again; back in front, it wakes unless hidden.
+ */
+export function quietWhileUnfocused(blurred: boolean): void {
+  if (!ac) return;
+  try {
+    if (blurred) {
+      if (ac.state === 'running') void ac.suspend();
+    } else if (!away && ac.state !== 'running' && ac.state !== 'closed') void ac.resume();
+  } catch {
+    // As above.
   }
 }
 
