@@ -56,6 +56,8 @@ export const KIND_FIGHT: Readonly<
 > = {
   bunny: { build: 'speedy', special: 'pounce', name: 'Hop' },
   blackcat: { build: 'speedy', special: 'pounce', name: 'Pounce' },
+  // It faints: stiff as a plank, and nothing gets through.
+  pygmygoat: { build: 'tough', special: 'curl', name: 'Faint' },
   frog: { build: 'speedy', special: 'spit', name: 'Spit' },
   ladybird: { build: 'tough', special: 'spit', name: 'Spot shot' },
   hedgehog: { build: 'tough', special: 'curl', name: 'Curl' },

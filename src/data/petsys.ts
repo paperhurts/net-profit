@@ -379,7 +379,8 @@ export function hatchEgg(p: PetSave, now: number): { egg: Egg; pet: HatchedPet }
 }
 
 /**
- * A pet given, not hatched: the pet house keeper's black cat (the owner's, 2026-11-07). A pet of your own like any
+ * A pet given, not hatched: the pet house keeper's black cat (the owner's, 2026-11-07), and the pygmy goat that comes
+ * with you out of the goat cave (2026-11-14). A pet of your own like any
  * hatchling, named for its kind; none if there is no room or one of that kind was given already.
  */
 export function giveGift(p: PetSave, sp: string, now: number): HatchedPet | null {
@@ -544,9 +545,11 @@ export function bookEntries(p: PetSave, f: BookFacts): BookEntry[] {
       from:
         h.sp === 'blackcat'
           ? 'A gift from the pet house keeper, who thought you looked like a cat person.'
-          : h.from === 'gift'
-            ? 'Hatched from a gift egg.'
-            : 'Hatched from an egg from the Garden Isle.',
+          : h.sp === 'pygmygoat'
+            ? 'Found in the goat cave on Goat Isle, across the fondue. It was waiting for you. It faints.'
+            : h.from === 'gift'
+              ? 'Hatched from a gift egg.'
+              : 'Hatched from an egg from the Garden Isle.',
       ...ownWhere(p, hatchedKey(h.id), h.xp),
       doodle: HATCHLING_ART[h.sp],
     };

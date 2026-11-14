@@ -336,3 +336,30 @@ describe("the pet house keeper's black cat", () => {
     expect(parsePets({ gifts: ['dragon', 'blackcat'] }).gifts).toEqual(['blackcat']);
   });
 });
+
+describe('the pygmy goat from the goat cave', () => {
+  it('is given once, painted by the game, saved and loaded, fights by fainting, and says where it was found', () => {
+    const p = noPets();
+    const goat = giveGift(p, 'pygmygoat', 1000);
+    expect(goat?.nm).toBe('Pygmy goat');
+    expect(giveGift(p, 'pygmygoat', 2000)).toBe(null);
+    const back = parsePets(JSON.parse(JSON.stringify(petsForSave(p))));
+    expect(gifted(back, 'pygmygoat')).toBe(true);
+    expect(artOf(back, 'h1')).toBe('@pygmygoat');
+    for (const k of Object.values(EGG_HATCHES)) expect(k).not.toContain('pygmygoat');
+    expect(KIND_FIGHT.pygmygoat).toEqual({ build: 'tough', special: 'curl', name: 'Faint' });
+    expect(fightOf(p, 'h1')).not.toBe(null);
+    expect(bookEntries(p, facts([])).find((b) => b.key === 'h1')?.from).toContain('goat cave');
+  });
+
+  it('comes as well as the black cat, each its own', () => {
+    const p = noPets();
+    giveGift(p, 'blackcat', 1000);
+    giveGift(p, 'pygmygoat', 2000);
+    expect(p.hatched.map((h) => h.sp)).toEqual(['blackcat', 'pygmygoat']);
+    expect(parsePets({ gifts: ['pygmygoat', 'blackcat'] }).gifts).toEqual([
+      'blackcat',
+      'pygmygoat',
+    ]);
+  });
+});

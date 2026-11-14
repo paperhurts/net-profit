@@ -19,6 +19,9 @@ const CATCH = 10;
 export const LOVE_T = 1.4;
 /** How fast it walks off to a lead and back, a second. */
 export const STROLL = 42;
+/** Seconds a pet that faints (the pygmy goat) lies stiff on its back, and how long it takes to tip over or get up. */
+export const FAINT_T = 3;
+export const TIP_T = 0.25;
 
 export class WalkingPet implements Entity {
   /** Whether a pet walks with you at all. */
@@ -32,6 +35,13 @@ export class WalkingPet implements Entity {
   walk = 0;
   /** Seconds of hearts left after a pat. */
   love = 0;
+  /**
+   * A pet that faints, as the fainting goats do (the pygmy goat, the owner's: "pet goat that faints"): a pat, or a fright,
+   * and it goes stiff and keels over on its back, legs straight up, then hops up again and trots after you.
+   */
+  faints = false;
+  /** Seconds left lying stiff; how far over it is, 0 standing to 1 on its back, is tipped(). */
+  faint = 0;
   /** On foot beside the figure, not aboard. */
   ashore = false;
   /**
@@ -42,13 +52,34 @@ export class WalkingPet implements Entity {
   private returning = false;
   private trail: { x: number; y: number }[] = [];
 
-  /** A pat: a hop and hearts. */
+  /** A pat: a hop and hearts; or, for a pet that faints, over it goes. */
   pet(): void {
-    this.love = LOVE_T;
+    if (this.faints) this.startle();
+    else this.love = LOVE_T;
+  }
+
+  /** A fright (a pat, or a crash and a shake): a pet that faints keels over, unless it already lies stiff. */
+  startle(): boolean {
+    if (!this.faints || this.faint > 0) return false;
+    this.faint = FAINT_T;
+    this.walk = 0;
+    return true;
+  }
+
+  /** How far over it is: tipping in, flat on its back, then rolling up at the end. */
+  tipped(): number {
+    if (this.faint <= 0) return 0;
+    return Math.min(1, (FAINT_T - this.faint) / TIP_T, this.faint / TIP_T);
   }
 
   update(dt: number, w: World): void {
     this.love = Math.max(0, this.love - dt);
+    if (!this.faints) this.faint = 0;
+    // Lying stiff it stays where it fell; up again, it hurries back along the trail or hops out beside the figure.
+    if (this.faint > 0) {
+      this.faint = Math.max(0, this.faint - dt);
+      return;
+    }
     const f = w.figure;
     if (!this.on || !f) {
       this.ashore = false;

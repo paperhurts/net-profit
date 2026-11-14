@@ -6,7 +6,7 @@
  */
 import { type CaveRoom, KIND_NAMES } from '../data/goatcave';
 import { BONK_T, type GoatCave } from '../entities/goatcave';
-import { drawGoat, type GoatLook, PLAIN_GOAT } from './goatisle';
+import { drawGoat, type GoatLook, PLAIN_GOAT, PYGMY_GOAT } from './goatisle';
 import type { SkierLook } from './slalom';
 
 export type CaveFrame = {
@@ -47,7 +47,6 @@ const COATS: readonly GoatLook[] = [
   { coat: '#C79B6B', dark: '#6E4C2E' },
   { coat: '#3A3532', dark: '#1E1B19' },
 ];
-const PYGMY: GoatLook = { coat: '#9C7A55', dark: '#5A4126', kid: true };
 
 /** A number from a seed, the same every frame. */
 function hash(i: number): number {
@@ -151,7 +150,7 @@ export function drawCave(
   }
   // The goat to find, with a sparkle until it is found, and its name over it once it is.
   const fd = room.find;
-  drawGoat(ctx, f.X(fd.x), f.Y(fd.y), k * 0.9, -1, PYGMY, c.found ? T * 6 : 0);
+  drawGoat(ctx, f.X(fd.x), f.Y(fd.y), k * 0.9, -1, PYGMY_GOAT, c.found ? T * 6 : 0);
   if (!c.found) {
     const s = (3 + Math.sin(T * 5) * 1.2) * k;
     ctx.fillStyle = '#FFF2A8';

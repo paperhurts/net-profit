@@ -38,6 +38,8 @@ export type GoatLook = {
   kid?: boolean;
 };
 export const PLAIN_GOAT: GoatLook = { coat: '#F4F0E6', dark: '#9C907E' };
+/** The pygmy goat found in the goat cave, and the pet it becomes: little, round and brown. */
+export const PYGMY_GOAT: GoatLook = { coat: '#9C7A55', dark: '#5A4126', kid: true };
 const BROWN_GOAT: GoatLook = { coat: '#C79B6B', dark: '#6E4C2E' };
 const PIED_GOAT: GoatLook = { coat: '#3A3532', dark: '#1E1B19' };
 const COATS: readonly GoatLook[] = [PLAIN_GOAT, BROWN_GOAT, PIED_GOAT];

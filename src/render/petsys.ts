@@ -14,6 +14,7 @@ import { drawOtterSit } from '../entities/otter';
 import { makeDog, Pets } from '../entities/pets';
 import { drawSealLie, SEAL_DECK_SIZE } from '../entities/seal';
 import { drawSitting } from './crows';
+import { drawGoat, PYGMY_GOAT } from './goatisle';
 import { drawLeggy } from './leggy';
 
 /** How near the book's pictures are: about the character card's. */
@@ -133,9 +134,10 @@ export function drawDoodle(
   ph: number,
   walk: number,
   hop = 0,
+  faint = 0,
 ): void {
   if (r.painted) {
-    drawPainted(ctx, r.painted, x, y - hop, size, face, ph, walk);
+    drawPainted(ctx, r.painted, x, y - hop, size, face, ph, walk, faint);
     return;
   }
   if (!r.strokes.length) return;
@@ -250,6 +252,7 @@ export function drawWalking(
   love: number,
   loveT: number,
   scale = 1,
+  faint = 0,
 ): void {
   const { ctx } = v;
   const Z = v.zoom * scale;
@@ -261,7 +264,7 @@ export function drawWalking(
   ctx.beginPath();
   ctx.ellipse(sx, sy, 8 * Z, 3.2 * Z, 0, 0, Math.PI * 2);
   ctx.fill();
-  drawDoodle(ctx, r, sx, sy, PET_SIZE * Z, face, ph, walk, hop);
+  drawDoodle(ctx, r, sx, sy, PET_SIZE * Z, face, ph, walk, hop, faint);
   if (love <= 0) return;
   // Hearts rising over it.
   ctx.save();
@@ -527,8 +530,13 @@ export function drawPainted(
   face: number,
   ph: number,
   walk: number,
+  faint = 0,
 ): void {
   if (kind === 'blackcat') drawBlackCat(ctx, x, y, size, face, ph, walk);
+  // The pygmy goat, as the goat cave draws it, a little bigger; and as Goat Isle's goats do, it faints (0 to 1, over onto
+  // its back, legs straight up).
+  else if (kind === 'pygmygoat')
+    drawGoat(ctx, x, y, size / 12, face, PYGMY_GOAT, walk > 0.05 ? ph : 0, faint);
 }
 
 const CAT_FUR = '#1C1A22';
